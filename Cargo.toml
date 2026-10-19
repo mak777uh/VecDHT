@@ -1,0 +1,42 @@
+[workspace]
+resolver = "2"
+# В members только те crate, которые собираются и тестируются. Остальные (artifact, index,
+# node, embed, cli) добавляются по мере готовности — чтобы `cargo test` в main всегда был зелёным.
+members = [
+    "crates/vecdht-wire",
+    "crates/vecdht-crypto",
+]
+
+# `vecdht-py` (PyO3) требует установленного Python и собирается отдельно:
+#   cargo build -p vecdht-py
+# Он не входит в members по умолчанию, чтобы `cargo test` на машине без Python оставался зелёным.
+exclude = ["sdk/vecdht-py"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/mak777uh/VecDHT"
+
+[workspace.dependencies]
+blake3 = "1.5"
+ed25519-dalek = { version = "2.1", features = ["rand_core"] }
+rand_core = "0.6"
+rand = "0.8"
+thiserror = "1.0"
+crc32fast = "1.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
+
+vecdht-wire = { path = "crates/vecdht-wire" }
+vecdht-crypto = { path = "crates/vecdht-crypto" }
+vecdht-artifact = { path = "crates/vecdht-artifact" }
+vecdht-index = { path = "crates/vecdht-index" }
+vecdht-node = { path = "crates/vecdht-node" }
+vecdht-embed = { path = "crates/vecdht-embed" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1

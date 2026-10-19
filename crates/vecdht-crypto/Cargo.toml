@@ -1,0 +1,19 @@
+[package]
+name = "vecdht-crypto"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v8: квантование, идентификаторы, PoW, подписи, NodeCert (спека §4–§6)"
+
+[dependencies]
+vecdht-wire.workspace = true
+blake3.workspace = true
+ed25519-dalek.workspace = true
+rand_core.workspace = true
+thiserror.workspace = true
+hex.workspace = true
+
+[dev-dependencies]
+rand.workspace = true

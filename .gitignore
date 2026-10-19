@@ -1,0 +1,14 @@
+/target
+**/target
+# Cargo.lock коммитится: workspace содержит бинарный vecdht-cli, и воспроизводимая сборка
+# v8 — часть контракта (те же версии blake3/ed25519-dalek ⇒ те же канонические байты).
+*.partial
+snap.*.log
+wal.*.log
+MANIFEST.tmp
+dist/
+build/
+.venv/
+__pycache__/
+*.pyd
+*.so

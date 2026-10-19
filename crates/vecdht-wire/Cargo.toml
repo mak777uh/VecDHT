@@ -1,0 +1,14 @@
+[package]
+name = "vecdht-wire"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v8: единый fixed little-endian кодек (спека §5)"
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+hex.workspace = true
