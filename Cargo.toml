@@ -1,13 +1,14 @@
 [workspace]
 resolver = "2"
-# В members только те crate, которые собираются и тестируются. Остальные (index,
-# node, embed, cli) добавляются по мере готовности — чтобы `cargo test` в main всегда был зелёным.
+# В members только те crate, которые собираются и тестируются. Остальные (cli) добавляется по
+# мере готовности — чтобы `cargo test` в main всегда был зелёным.
 members = [
     "crates/vecdht-wire",
     "crates/vecdht-crypto",
     "crates/vecdht-artifact",
     "crates/vecdht-index",
     "crates/vecdht-node",
+    "crates/vecdht-embed",
 ]
 
 # `vecdht-py` (PyO3) требует установленного Python и собирается отдельно:
@@ -32,6 +33,14 @@ crc32fast = "1.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 hex = "0.4"
+unicode-normalization = "0.1"
+
+# ML-рантайм (§17.2). Только под feature `candle` в vecdht-embed: без него crate собирается,
+# и детерминированная половина контракта тестируется на машине без весов.
+candle-core = "0.10"
+candle-nn = "0.10"
+candle-transformers = "0.10"
+tokenizers = { version = "0.21", default-features = false, features = ["fancy-regex"] }
 
 vecdht-wire = { path = "crates/vecdht-wire" }
 vecdht-crypto = { path = "crates/vecdht-crypto" }

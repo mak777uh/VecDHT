@@ -1,0 +1,39 @@
+[package]
+name = "vecdht-embed"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v8 — embedding contract (спека §6): канонический текст, префиксы, фазы 1–3 и 6–8 пайплайна, кеш, candle-бэкенд под feature"
+
+[dependencies]
+vecdht-wire = { workspace = true }
+vecdht-crypto = { workspace = true }
+vecdht-artifact = { workspace = true }
+blake3 = { workspace = true }
+thiserror = { workspace = true }
+unicode-normalization = { workspace = true }
+
+# ML-рантайм — опционален. Детерминированная часть контракта (§6.2 шаги 1–3, 6–8) обязана
+# собираться и тестироваться без него: гейт (iv) из §18.1 измеряется до скачивания весов.
+candle-core = { workspace = true, optional = true }
+candle-nn = { workspace = true, optional = true }
+candle-transformers = { workspace = true, optional = true }
+tokenizers = { workspace = true, optional = true }
+# Нужен только для чтения `config.json` в candle-бэкенде; в основном пути манифест читается
+# собственным разбором `vecdht-artifact`.
+serde_json = { workspace = true, optional = true }
+
+[features]
+default = []
+candle = [
+    "dep:candle-core",
+    "dep:candle-nn",
+    "dep:candle-transformers",
+    "dep:tokenizers",
+    "dep:serde_json",
+]
+
+[dev-dependencies]
+vecdht-index = { workspace = true }
