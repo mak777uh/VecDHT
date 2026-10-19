@@ -1,10 +1,12 @@
 [workspace]
 resolver = "2"
-# В members только те crate, которые собираются и тестируются. Остальные (artifact, index,
+# В members только те crate, которые собираются и тестируются. Остальные (index,
 # node, embed, cli) добавляются по мере готовности — чтобы `cargo test` в main всегда был зелёным.
 members = [
     "crates/vecdht-wire",
     "crates/vecdht-crypto",
+    "crates/vecdht-artifact",
+    "crates/vecdht-index",
 ]
 
 # `vecdht-py` (PyO3) требует установленного Python и собирается отдельно:

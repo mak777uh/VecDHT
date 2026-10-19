@@ -1,0 +1,17 @@
+[package]
+name = "vecdht-index"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v8 — одноузловой индекс шарда: IVF-арена int8, WAL, снапшот-барьер, GC без wall-clock (спека §8, §10)"
+
+[dependencies]
+crc32fast = { workspace = true }
+thiserror = { workspace = true }
+vecdht-wire = { workspace = true }
+vecdht-crypto = { workspace = true }
+
+[dev-dependencies]
+vecdht-artifact = { workspace = true }

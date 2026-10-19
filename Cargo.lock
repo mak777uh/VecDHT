@@ -83,6 +83,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crc32fast"
+version = "1.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "01a7799fd6b852db0e61728dde9a204c423b44d689dbd432522543614b490e78"
+dependencies = [
+ "cfg-if",
+]
+
+[[package]]
 name = "crypto-common"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -417,6 +426,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2c754d6c33795a1c324727428e5a7dedb5b06195f9890bdbcba760d3e246563"
 
 [[package]]
+name = "vecdht-artifact"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "ed25519-dalek",
+ "hex",
+ "thiserror",
+ "vecdht-crypto",
+ "vecdht-wire",
+]
+
+[[package]]
 name = "vecdht-crypto"
 version = "0.1.0"
 dependencies = [
@@ -426,6 +447,17 @@ dependencies = [
  "rand",
  "rand_core",
  "thiserror",
+ "vecdht-wire",
+]
+
+[[package]]
+name = "vecdht-index"
+version = "0.1.0"
+dependencies = [
+ "crc32fast",
+ "thiserror",
+ "vecdht-artifact",
+ "vecdht-crypto",
  "vecdht-wire",
 ]
 

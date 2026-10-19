@@ -81,14 +81,25 @@ pub fn dequantize(v: &[i8; DIM]) -> [f64; DIM] {
 
 /// Целочисленный квадрат L2. Max на координату = `255² = 65 025`, на вектор ≤ `2.5e7` —
 /// в `u32` помещается с трёхкратным запасом, поэтому `wrapping_add` здесь не теряет данные.
+///
+/// Форма цикла (чанки по 8 и восемь независимых аккумуляторов) выбрана ради авто-векторизации:
+/// результат побитово тот же, что у покомпонентной суммы, потому что целое сложение
+/// ассоциативно и переполнения нет (§6.4). Детерминизм между узлами не зависит от порядка
+/// аккумуляторов — он фиксирован этим кодом, а не процессором.
 #[inline]
 pub fn l2_sq(a: &[i8; DIM], b: &[i8; DIM]) -> u32 {
-    let mut acc: u32 = 0;
-    for i in 0..DIM {
-        let d = a[i] as i32 - b[i] as i32;
-        acc += (d * d) as u32;
+    let mut acc = [0u32; 8];
+    for (ax, bx) in a.chunks_exact(8).zip(b.chunks_exact(8)) {
+        for ((av, bv), out) in ax.iter().zip(bx).zip(acc.iter_mut()) {
+            let d = *av as i32 - *bv as i32;
+            *out = out.wrapping_add((d * d) as u32);
+        }
     }
-    acc
+    let mut total = 0u32;
+    for x in acc {
+        total = total.wrapping_add(x);
+    }
+    total
 }
 
 /// Единственная разрешённая формула similarity (§6.4). Плавающая точка только на стороне
@@ -184,8 +195,8 @@ mod tests {
     #[test]
     fn quantize_is_deterministic_and_symmetric_in_rounding() {
         let mut u = [0f64; DIM];
-        for i in 0..DIM {
-            u[i] = if i % 2 == 0 { 0.5 } else { -0.5 };
+        for (i, x) in u.iter_mut().enumerate() {
+            *x = if i % 2 == 0 { 0.5 } else { -0.5 };
         }
         let q = quantize(&u);
         // 0.5·127 = 63.5 → half away from zero → 64, а не banker's 64 (совпадает) и не 63.
@@ -217,6 +228,52 @@ mod tests {
         assert_eq!(l2_sq(&a, &b), l2_sq(&b, &a));
     }
 
+    /// Эталон в лоб: один аккумулятор, покомпонентный порядок. Векторизованная форма `l2_sq`
+    /// обязана давать побитово тот же `u32` — иначе `d2` в `MatchResult` разошёлся бы между
+    /// узлами и подпись под canonical-байтами не совпала бы (§8.4, §19.1).
+    #[inline(never)]
+    fn l2_sq_reference(a: &[i8; DIM], b: &[i8; DIM]) -> u32 {
+        let mut acc: u32 = 0;
+        for i in 0..DIM {
+            let d = a[i] as i32 - b[i] as i32;
+            acc = acc.wrapping_add((d * d) as u32);
+        }
+        acc
+    }
+
+    #[test]
+    fn l2_sq_equals_naive_reference_on_random_inputs() {
+        /// xorshift64*: свои случайные векторы, чтобы тест был воспроизводим без `rand`.
+        struct Gen(u64);
+        impl Gen {
+            fn byte(&mut self) -> u8 {
+                let mut x = self.0;
+                x ^= x >> 12;
+                x ^= x << 25;
+                x ^= x >> 27;
+                self.0 = x;
+                (x.wrapping_mul(0x2545_F491_4F6C_DD1D) >> 31) as u8
+            }
+            fn vec(&mut self) -> [i8; DIM] {
+                let mut v = [0i8; DIM];
+                for l in v.iter_mut() {
+                    *l = self.byte() as i8;
+                }
+                v
+            }
+        }
+        let mut g = Gen(0x2545_F491_4F6C_DD1D);
+        for _ in 0..256 {
+            let (a, b) = (g.vec(), g.vec());
+            assert_eq!(l2_sq(&a, &b), l2_sq_reference(&a, &b), "векторизация сменила арифметику");
+        }
+        // Крайние сетки: максимум по модулю и противоположный ему минимум.
+        let lo = [-128i8; DIM];
+        let hi = [127i8; DIM];
+        assert_eq!(l2_sq(&hi, &lo), l2_sq_reference(&hi, &lo));
+        assert_eq!(l2_sq(&hi, &lo), (DIM as u32) * (255 * 255));
+    }
+
     #[test]
     fn similarity_is_monotone_in_d2() {
         let mut prev = 1.0f32;
@@ -234,8 +291,8 @@ mod tests {
     fn quantization_error_within_budget() {
         // Суммарная squared-ошибка ≤ 384 · (1/(2·127))² (спека §6.3).
         let mut u = [0f64; DIM];
-        for i in 0..DIM {
-            u[i] = ((i as f64) * 0.013).sin() / 8.0;
+        for (i, x) in u.iter_mut().enumerate() {
+            *x = ((i as f64) * 0.013).sin() / 8.0;
         }
         l2_normalize(&mut u).unwrap();
         let q = quantize(&u);
