@@ -32,7 +32,8 @@ use vecdht_wire::messages::{
     domain, encode_mark, err_code, ArtifactAnnounce, CertRevoke, Codec, DeleteOp, Find, Handshake,
     InsertOp, IntentTextRequest, IntentTextResponse, LeaseGrant, LeaveNotice, Match, MatchResult,
     Member, MembershipUpdate, OpKind, ProtocolError, Publish, PublishAck, RendezvousAccept,
-    ReplicateOp, Role, WalPullRequest, WalPullResponse, TLV_BATCH_HINT, TLV_ROLE_SLOT,
+    ReplicateAck, ReplicateOp, Role, SnapshotOffer, WalPullRequest, WalPullResponse, TLV_BATCH_HINT,
+    TLV_ROLE_SLOT,
 };
 use vecdht_wire::{decode_frame, shard_provider_key, DecodeError, DIM, MAX_BODY_LEN};
 
@@ -162,6 +163,35 @@ fn m_lease_grant() -> LeaseGrant {
     }
 }
 
+/// Подтверждение реплики для кворума W (§9.4).
+fn m_replicate_ack() -> ReplicateAck {
+    ReplicateAck {
+        shard: 5,
+        epoch: 3,
+        seq: 1_024,
+        replica_ed25519: [0x22; 32],
+        applied_seq: 1_024,
+        ok: true,
+    }
+}
+
+/// Кусок снапшота (§9.5): фиксированные метаданные MANIFEST + детерминированный chunk.
+fn m_snapshot_offer() -> SnapshotOffer {
+    SnapshotOffer {
+        shard: 5,
+        epoch: 3,
+        snapshot_seq: 12,
+        oldest_wal_needed: 900,
+        applied_seq: 1_024,
+        next_slot: 1_000_001,
+        time_mark_bucket: 40_000_111,
+        total_len: 1_000,
+        offset: 512,
+        content_hash: [0x4D; 32],
+        chunk: (0..256u32).map(|i| i as u8).collect(),
+    }
+}
+
 fn m_membership() -> MembershipUpdate {
     MembershipUpdate {
         epoch: 4,
@@ -283,6 +313,8 @@ fn vectors() -> BTreeMap<String, Vec<u8>> {
             m_replicate(OpKind::GcTick, encode_mark(5_000, 106_250_010)).body_bytes(),
         ),
         ("lease_grant", m_lease_grant().body_bytes()),
+        ("snapshot_offer", m_snapshot_offer().body_bytes()),
+        ("replicate_ack", m_replicate_ack().body_bytes()),
         ("membership_update", m_membership().body_bytes()),
         ("leave_notice", m_leave().body_bytes()),
         ("rendezvous_accept", m_rendezvous().body_bytes()),
@@ -303,6 +335,8 @@ fn vectors() -> BTreeMap<String, Vec<u8>> {
         ("intent_text_response", Kind::IntentTextResponse, domain::TEXT, m_text_response().body_bytes()),
         ("replicate_op", Kind::ReplicateOp, domain::REPLICA, m_replicate(OpKind::Insert, vec![1; 4]).body_bytes()),
         ("lease_grant", Kind::LeaseGrant, domain::LEASE, m_lease_grant().body_bytes()),
+        ("snapshot_offer", Kind::SnapshotOffer, domain::SNAPSHOT, m_snapshot_offer().body_bytes()),
+        ("replicate_ack", Kind::ReplicateAck, domain::ACK, m_replicate_ack().body_bytes()),
         ("membership_update", Kind::MembershipUpdate, domain::MEMBER, m_membership().body_bytes()),
         ("leave_notice", Kind::LeaveNotice, domain::LEAVE, m_leave().body_bytes()),
         ("cert_revoke", Kind::CertRevoke, b"vecdht/v8/cert_revoke", m_cert_revoke().body_bytes()),
@@ -363,6 +397,8 @@ fn frame_kind_of(name: &str) -> Kind {
             Kind::ReplicateOp
         }
         "lease_grant" => Kind::LeaseGrant,
+        "snapshot_offer" => Kind::SnapshotOffer,
+        "replicate_ack" => Kind::ReplicateAck,
         "membership_update" => Kind::MembershipUpdate,
         "leave_notice" => Kind::LeaveNotice,
         "rendezvous_accept" => Kind::RendezvousAccept,
@@ -434,6 +470,23 @@ fn golden_vectors_match_checked_in_fixture() {
         "слишком мало векторов: {}: каждый вид кадра должен быть зафиксирован",
         produced.len()
     );
+}
+
+#[test]
+fn every_kind_is_covered_by_a_golden_frame() {
+    // Свежий `Kind` без вектора — это дырка в межплатформенном контракте, которую иначе
+    // видно только после релиза. Имена берутся из самой фикстуры, а `frame_kind_of`
+    // паникует на неизвестном — так проверка не разъезжается с таблицей.
+    let v = vectors();
+    let mut covered: std::collections::BTreeSet<u8> = std::collections::BTreeSet::new();
+    for key in v.keys() {
+        if let Some(name) = key.strip_prefix("body.") {
+            covered.insert(frame_kind_of(name) as u8);
+        }
+    }
+    for k in Kind::ALL {
+        assert!(covered.contains(&(k as u8)), "{k:?} не покрыт golden-кадром");
+    }
 }
 
 #[test]

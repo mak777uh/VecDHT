@@ -56,6 +56,13 @@ impl Identity {
     pub fn seed(&self) -> [u8; 32] {
         self.signing.to_bytes()
     }
+
+    /// Доменная подпись структуры, которая подписывается не как кадр: `ShardMembership`-цепочка
+    /// (§9.2) подписывает `unsigned_body()`, где список подписей в байты не входит — иначе
+    /// подпись была бы над собой.
+    pub fn sign_domain(&self, domain: &[u8], payload: &[u8]) -> [u8; 64] {
+        sign_domain(&self.signing, domain, payload)
+    }
 }
 
 /// Произвольное доменное подписание (например, для `ShardMembership`-цепочки, где подписывается
@@ -118,8 +125,22 @@ mod tests {
     }
 
     #[test]
-    fn tampered_body_or_domain_fails() {
-        let id = key(2);
+    fn sign_domain_rejects_other_domain_and_kind_confusion() {
+        // Цепочка членства (§9.2) подписывает `unsigned_body()` доменом, а не кадром: подпись
+        // под одним доменом не должна проходить под другим.
+        let id = key(7);
+        let payload = b"membership-body".to_vec();
+        let sig = id.sign_domain(domain::MEMBER, &payload);
+        assert!(verify_domain(&id.pubkey(), domain::MEMBER, &payload, &sig));
+        assert!(!verify_domain(&id.pubkey(), domain::REPLICA, &payload, &sig));
+        assert!(!verify_domain(&id.pubkey(), domain::MEMBER, b"membership-bodf", &sig));
+        // Тот же payload как кадр — другой байт входа (§5.2), и подпись не пересекается.
+        let as_frame = id.sign_body(domain::MEMBER, Kind::MembershipUpdate, &payload);
+        assert_ne!(sig, as_frame);
+    }
+
+    #[test]
+    fn tampered_body_or_domain_fails() {        let id = key(2);
         let body = vec![1, 2, 3];
         let sig = id.sign_body(b"vecdht/v8/match", Kind::MatchResult, &body);
         let mut bad = body.clone();

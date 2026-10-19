@@ -33,6 +33,8 @@ pub enum Kind {
     WalPullResponse = 0x21,
     ReplicateOp = 0x22,
     LeaseGrant = 0x23,
+    SnapshotOffer = 0x24,
+    ReplicateAck = 0x25,
     MembershipUpdate = 0x40,
     LeaveNotice = 0x41,
     CertRevoke = 0x42,
@@ -41,6 +43,30 @@ pub enum Kind {
 }
 
 impl Kind {
+    /// Полный набор кодов таблицы §5.3. Нужен тестам: golden-фикстура и фаззер обязаны
+    /// покрывать каждый вид кадра, а не тот, что вспомнили.
+    pub const ALL: [Kind; 19] = [
+        Kind::Handshake,
+        Kind::Error,
+        Kind::Publish,
+        Kind::PublishAck,
+        Kind::Find,
+        Kind::MatchResult,
+        Kind::IntentTextRequest,
+        Kind::IntentTextResponse,
+        Kind::WalPullRequest,
+        Kind::WalPullResponse,
+        Kind::ReplicateOp,
+        Kind::LeaseGrant,
+        Kind::SnapshotOffer,
+        Kind::ReplicateAck,
+        Kind::MembershipUpdate,
+        Kind::LeaveNotice,
+        Kind::CertRevoke,
+        Kind::RendezvousAccept,
+        Kind::ArtifactAnnounce,
+    ];
+
     pub fn from_u8(v: u8) -> Result<Self, DecodeError> {
         Ok(match v {
             0x01 => Kind::Handshake,
@@ -55,6 +81,8 @@ impl Kind {
             0x21 => Kind::WalPullResponse,
             0x22 => Kind::ReplicateOp,
             0x23 => Kind::LeaseGrant,
+            0x24 => Kind::SnapshotOffer,
+            0x25 => Kind::ReplicateAck,
             0x40 => Kind::MembershipUpdate,
             0x41 => Kind::LeaveNotice,
             0x42 => Kind::CertRevoke,
@@ -78,6 +106,8 @@ impl Kind {
                 | Kind::IntentTextResponse
                 | Kind::ReplicateOp
                 | Kind::LeaseGrant
+                | Kind::SnapshotOffer
+                | Kind::ReplicateAck
                 | Kind::MembershipUpdate
                 | Kind::LeaveNotice
                 | Kind::CertRevoke
@@ -237,6 +267,26 @@ mod tests {
         let mut f = encode_frame(Kind::Error, &[0], None);
         f[0] = 0x99;
         assert!(matches!(decode_frame(&f), Err(DecodeError::BadEnum { value: 0x99, .. })));
+        // Дырки в таблице — легитимны (0x03, 0x30/0x31 это op-виды внутри ReplicateOp),
+        // но занятый код обязан быть известен.
+        for k in Kind::ALL {
+            assert_eq!(Kind::from_u8(k as u8).unwrap(), k);
+        }
+    }
+
+    #[test]
+    fn kind_table_is_complete_and_disjoint() {
+        // §5.3: у каждого вида свой байт. Дубликат означал бы, что приём не отличает
+        // сообщения друг от друга, а `Kind::ALL` без варианта — что тесты его не видят.
+        let mut seen = std::collections::BTreeSet::new();
+        for k in Kind::ALL {
+            assert!(seen.insert(k as u8), "дубликат кода у {k:?}");
+            assert_eq!(Kind::from_u8(k as u8).unwrap(), k, "{k:?} не проходит через from_u8");
+        }
+        assert_eq!(Kind::ALL.len(), seen.len());
+        // Нумерация групп: транспорт 0x0x, агент↔индекс 0x1x, репликация 0x2x, членство 0x4x,
+        // rendezvous 0x5x, артефакт 0x6x. Новый вид обязан попасть в свою группу.
+        assert_eq!(Kind::SnapshotOffer as u8, 0x24, "0x2x — группа репликации (§5.3)");
     }
 
     #[test]

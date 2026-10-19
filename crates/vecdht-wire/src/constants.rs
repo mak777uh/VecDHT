@@ -32,6 +32,13 @@ pub const TIME_BUCKET_SEC: u32 = 16;
 /// Контрактная граница квадрата дистанции (§6.4): `127² · 4 + 64 = 64 580 ≤ 65 536`.
 pub const MAX_D2: u32 = 65_536;
 
+/// Предельная длина одного `SnapshotOffer.chunk` (§9.5). Это ровно `MAX_VAR_LEN`: у
+/// variable-length поля length-prefix — `u16`, поэтому крупнее кусок не уложить, а целое
+/// тело и так в anti-DoS-лимите 4 МиБ.
+pub const SNAPSHOT_CHUNK_MAX_LEN: usize = crate::codec::MAX_VAR_LEN;
+
+static_assert!(SNAPSHOT_CHUNK_MAX_LEN < crate::codec::MAX_BODY_LEN);
+
 /// Масштаб сетки квантования: Δ = 1/127 (§6.3).
 pub const Q_SCALE: f64 = 127.0;
 

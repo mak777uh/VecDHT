@@ -18,8 +18,12 @@ pub mod domain {
     pub const LEAVE: &[u8] = b"vecdht/v8/leave";
     pub const RENDEZVOUS: &[u8] = b"vecdht/v8/rendezvous";
     pub const LEASE: &[u8] = b"vecdht/v8/lease";
+    pub const ACK: &[u8] = b"vecdht/v8/ack";
     pub const ARTIFACT: &[u8] = b"vecdht/v8/artifact";
     pub const WAL: &[u8] = b"vecdht/v8/wal";
+    /// Отдача снапшота шарда seed-узлом (§9.5, шаг 2): каждый кусок подписан, иначе
+    /// «пояс» превращается в вектор подмены состояния.
+    pub const SNAPSHOT: &[u8] = b"vecdht/v8/snapshot";
 }
 
 /// Коды ошибок прикладного уровня (`Error{code:...}` из спеки).
@@ -637,7 +641,8 @@ pub struct LeaseGrant {
     pub primary_ed25519: [u8; 32],
     /// libp2p-байты, как их отдал транспорт; сверяется с remote PeerId.
     pub dht_peer_id: Vec<u8>,
-    /// Абсолютный бакет 15-секундного времени (§9.6), а не delta — иначе часы реплики влияют
+    /// Абсолютный бакет 16-секундного времени (§9.6: `TIME_BUCKET_SEC = 16`), а не delta — иначе
+    /// часы реплики влияют
     /// на то, когда lease истёк.
     pub expires_at_bucket: u32,
 }
@@ -665,6 +670,144 @@ impl Codec for LeaseGrant {
         let expires_at_bucket = r.u32()?;
         r.expect_end()?;
         Ok(LeaseGrant { shard, epoch, primary_ed25519, dht_peer_id, expires_at_bucket })
+    }
+}
+
+/// Отдача последнего снапшота шарда (§9.5): когда членство шарда обнулилось, seed-узлы
+/// объявляют пустой шард и раздают снимок, чтобы новый состав мог начать с него, а не с нуля.
+///
+/// Файл `snap.<seq>.log` режется на куски ≤ `SNAPSHOT_CHUNK_MAX_LEN`; `content_hash` — blake3
+/// **всего** файла и одинаков во всех кусках, поэтому приёмник проверяет сборку целиком, а не
+/// каждый кусок в отдельности. Метаданные повторяют `MANIFEST` (§10.2), потому что приёмнику
+/// нужно записать их до открытия индекса.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SnapshotOffer {
+    pub shard: u16,
+    /// Эпоха членства на момент снимка: приёмник обязан принять только `epoch >= своего`.
+    pub epoch: u64,
+    pub snapshot_seq: u64,
+    pub oldest_wal_needed: u64,
+    pub applied_seq: u64,
+    pub next_slot: u64,
+    pub time_mark_bucket: u32,
+    /// Размер файла целиком, байт.
+    pub total_len: u32,
+    /// Смещение куска внутри файла.
+    pub offset: u32,
+    pub content_hash: [u8; 32],
+    pub chunk: Vec<u8>,
+}
+
+impl SnapshotOffer {
+    /// Последний кусок: `offset + chunk.len() == total_len`.
+    pub fn is_last_chunk(&self) -> bool {
+        self.offset as u64 + self.chunk.len() as u64 == self.total_len as u64
+    }
+}
+
+impl Codec for SnapshotOffer {
+    const KIND: Kind = Kind::SnapshotOffer;
+    const DOMAIN: &'static [u8] = domain::SNAPSHOT;
+
+    fn encode_body(&self, w: &mut Writer) {
+        w.u16(self.shard);
+        w.u64(self.epoch);
+        w.u64(self.snapshot_seq);
+        w.u64(self.oldest_wal_needed);
+        w.u64(self.applied_seq);
+        w.u64(self.next_slot);
+        w.u32(self.time_mark_bucket);
+        w.u32(self.total_len);
+        w.u32(self.offset);
+        w.fixed(&self.content_hash);
+        w.bytes(&self.chunk);
+    }
+
+    fn decode_body(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let shard = r.u16()?;
+        if shard >= crate::constants::SHARDS {
+            return Err(DecodeError::BadEnum { value: shard as u64, what: "shard", offset: 0 });
+        }
+        let epoch = r.u64()?;
+        let snapshot_seq = r.u64()?;
+        let oldest_wal_needed = r.u64()?;
+        let applied_seq = r.u64()?;
+        let next_slot = r.u64()?;
+        let time_mark_bucket = r.u32()?;
+        let total_len = r.u32()?;
+        let offset = r.u32()?;
+        let content_hash = r.fixed()?;
+        let chunk = r.bytes()?;
+        r.expect_end()?;
+        // Пустой кусок — это не данные, а способ застопорить пересборку; геометрия обязана
+        // быть внутри файла (иначе приёмник не отличит «хвост» от порчи).
+        if chunk.is_empty() {
+            return Err(DecodeError::BadEnum { value: 0, what: "snapshot chunk len", offset: 0 });
+        }
+        if offset as u64 + chunk.len() as u64 > total_len as u64 {
+            return Err(DecodeError::BadEnum {
+                value: offset as u64 + chunk.len() as u64,
+                what: "snapshot chunk past total_len",
+                offset: 0,
+            });
+        }
+        Ok(SnapshotOffer {
+            shard,
+            epoch,
+            snapshot_seq,
+            oldest_wal_needed,
+            applied_seq,
+            next_slot,
+            time_mark_bucket,
+            total_len,
+            offset,
+            content_hash,
+            chunk,
+        })
+    }
+}
+
+/// Подтверждение реплики для кворума W (§9.4): «фрейм `seq` у меня durable, `applied_seq` = …».
+/// Подпись обязательна — ack, который нельзя атрибутировать, не может входить в кворум
+/// durability: иначе любой наблюдатель объявляет запись зафиксированной.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ReplicateAck {
+    pub shard: u16,
+    pub epoch: u64,
+    /// На какой фрейм отвечает реплика.
+    pub seq: u64,
+    pub replica_ed25519: [u8; 32],
+    /// Состояние после применения: `applied_seq >= seq` при ok = true.
+    pub applied_seq: u64,
+    /// false ⇒ реплика отказала фрейму (gap, чужой шард, младшая эпизода). Кворум не засчитывается.
+    pub ok: bool,
+}
+
+impl Codec for ReplicateAck {
+    const KIND: Kind = Kind::ReplicateAck;
+    const DOMAIN: &'static [u8] = domain::ACK;
+
+    fn encode_body(&self, w: &mut Writer) {
+        w.u16(self.shard);
+        w.u64(self.epoch);
+        w.u64(self.seq);
+        w.fixed(&self.replica_ed25519);
+        w.u64(self.applied_seq);
+        w.bool(self.ok);
+    }
+
+    fn decode_body(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
+        let shard = r.u16()?;
+        if shard >= crate::constants::SHARDS {
+            return Err(DecodeError::BadEnum { value: shard as u64, what: "shard", offset: 0 });
+        }
+        let epoch = r.u64()?;
+        let seq = r.u64()?;
+        let replica_ed25519 = r.fixed()?;
+        let applied_seq = r.u64()?;
+        let ok = r.bool()?;
+        r.expect_end()?;
+        Ok(ReplicateAck { shard, epoch, seq, replica_ed25519, applied_seq, ok })
     }
 }
 
@@ -820,7 +963,46 @@ impl Codec for MembershipUpdate {
             sigs.push((idx, sig));
         }
         r.expect_end()?;
+        // Первичный обязан быть участником (§9.2). Пустое членство — легитимный случай:
+        // так seed объявляют освобождённый шард (§9.5, п.2), и `primary_idx` в нём
+        // обязан быть нулём — это проверяет узел, потому что здесь длина списка неизвестна
+        // заранее только у пустого.
+        if !members.is_empty() && primary_idx as usize >= members.len() {
+            return Err(DecodeError::BadEnum {
+                value: primary_idx as u64,
+                what: "primary_idx",
+                offset: 0,
+            });
+        }
         Ok(MembershipUpdate { epoch, shard, members, primary_idx, generated_at, sigs })
+    }
+}
+
+impl MembershipUpdate {
+    /// Байты, которые подписывает участник предыдущей эпохи: всё, кроме самого `sigs`
+    /// (так же, как `NodeCert::unsigned_body`). Без этого поля подпись была бы над собой.
+    pub fn unsigned_body(&self) -> Vec<u8> {
+        let mut w = Writer::new();
+        w.u64(self.epoch);
+        w.u16(self.shard);
+        w.u16(self.members.len() as u16);
+        for m in &self.members {
+            w.fixed(&m.owner_ed25519);
+            w.bytes(&m.dht_peer_id);
+            w.u64(m.capacity_entries);
+        }
+        w.u8(self.primary_idx);
+        w.u32(self.generated_at);
+        w.into_vec()
+    }
+
+    /// Число членов: `primary_idx` обязан быть строго меньше (§9.2).
+    pub fn len(&self) -> usize {
+        self.members.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.members.is_empty()
     }
 }
 
@@ -1126,6 +1308,14 @@ mod tests {
             dht_peer_id: vec![0x00, 0x24, 0x00],
             expires_at_bucket: 40_000,
         });
+        roundtrip(&ReplicateAck {
+            shard: 5,
+            epoch: 3,
+            seq: 11,
+            replica_ed25519: [0x22; 32],
+            applied_seq: 11,
+            ok: true,
+        });
         roundtrip(&MembershipUpdate {
             epoch: 4,
             shard: 5,
@@ -1218,6 +1408,8 @@ mod tests {
             Kind::LeaveNotice,
             Kind::CertRevoke,
             Kind::LeaseGrant,
+            Kind::SnapshotOffer,
+            Kind::ReplicateAck,
             Kind::RendezvousAccept,
             Kind::ArtifactAnnounce,
         ] {
@@ -1232,7 +1424,8 @@ mod tests {
     }
 
     #[test]
-    fn cert_revoke_unsigned_body_excludes_signature_list() {        let mut r = CertRevoke {
+    fn cert_revoke_unsigned_body_excludes_signature_list() {
+        let mut r = CertRevoke {
             nonce: [0x01; 16],
             revoked_at: 42,
             reason: "compromised".into(),
@@ -1245,6 +1438,69 @@ mod tests {
         assert_ne!(r.body_bytes(), before, "транспортное тело подписи включает");
         let back = CertRevoke::decode(&r.encode_signed(&[0x99; 64])).unwrap();
         assert_eq!(back, r);
+    }
+
+    #[test]
+    fn membership_unsigned_body_excludes_signature_list() {
+        let mut m = MembershipUpdate {
+            epoch: 4,
+            shard: 5,
+            members: vec![
+                Member { owner_ed25519: [1; 32], dht_peer_id: vec![0xAA; 34], capacity_entries: 100 },
+                Member { owner_ed25519: [2; 32], dht_peer_id: vec![0xBB; 34], capacity_entries: 200 },
+            ],
+            primary_idx: 0,
+            generated_at: 999,
+            sigs: Vec::new(),
+        };
+        let before = m.unsigned_body();
+        m.sigs.push((0, [7u8; 64]));
+        m.sigs.push((1, [8u8; 64]));
+        assert_eq!(m.unsigned_body(), before, "подписываемое не зависит от числа подписей");
+        assert_ne!(m.body_bytes(), before, "транспортное тело подписи включает");
+        // Индекс подписанта смотрит в набор epoch−1, а не в новый состав: уходящий участник
+        // должен иметь возможность подписать переход, поэтому длину списка здесь проверяет
+        // не декодер, а валидатор цепочки. А вот primary обязан быть участником.
+        m.sigs.push((9, [9u8; 64]));
+        let frame = m.encode_signed(&[0u8; 64]);
+        assert_eq!(MembershipUpdate::decode(&frame).unwrap(), m);
+        let bad_primary = MembershipUpdate { primary_idx: 2, ..m.clone() };
+        assert!(matches!(
+            MembershipUpdate::decode(&bad_primary.encode_signed(&[0u8; 64])),
+            Err(DecodeError::BadEnum { what: "primary_idx", .. })
+        ));
+        // Пустой состав (§9.5) переживает кодирование: иначе «объявить шард свободным»
+        // было бы нечем.
+        let empty = MembershipUpdate { members: Vec::new(), sigs: Vec::new(), ..m };
+        roundtrip(&empty);
+    }
+
+    #[test]
+    fn snapshot_offer_geometry_is_validated_on_decode() {
+        let offer = SnapshotOffer {
+            shard: 5,
+            epoch: 7,
+            snapshot_seq: 12,
+            oldest_wal_needed: 900,
+            applied_seq: 1_024,
+            next_slot: 1_000_001,
+            time_mark_bucket: 40_000_111,
+            total_len: 7,
+            offset: 4,
+            content_hash: [0xAB; 32],
+            chunk: vec![1, 2, 3],
+        };
+        assert!(offer.is_last_chunk());
+        roundtrip(&offer);
+        // Кусок за пределами файла.
+        let bad = SnapshotOffer { offset: 8, ..offer.clone() };
+        assert!(SnapshotOffer::decode(&bad.encode_signed(&[0x55; 64])).is_err());
+        // Пустой кусок.
+        let empty = SnapshotOffer { chunk: Vec::new(), ..offer.clone() };
+        assert!(SnapshotOffer::decode(&empty.encode_signed(&[0x55; 64])).is_err());
+        // Чужой шард.
+        let other = SnapshotOffer { shard: crate::constants::SHARDS, ..offer };
+        assert!(SnapshotOffer::decode(&other.encode_signed(&[0x55; 64])).is_err());
     }
 
     #[test]

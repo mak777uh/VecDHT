@@ -21,29 +21,13 @@ use vecdht_wire::messages::{
     decode_mark, encode_mark, ArtifactAnnounce, CertRevoke, Codec, DeleteOp, Find, Handshake,
     InsertOp, IntentTextRequest, IntentTextResponse, LeaseGrant, LeaveNotice, Match, MatchResult,
     Member, MembershipUpdate, OpKind, ProtocolError, Publish, PublishAck, RendezvousAccept,
-    ReplicateOp, Role, WalPullRequest, WalPullResponse,
+    ReplicateAck, ReplicateOp, Role, SnapshotOffer, WalPullRequest, WalPullResponse,
 };
 use vecdht_wire::{DecodeError, Reader, Writer, DIM};
 
-const ALL_KINDS: [Kind; 17] = [
-    Kind::Handshake,
-    Kind::Error,
-    Kind::Publish,
-    Kind::PublishAck,
-    Kind::Find,
-    Kind::MatchResult,
-    Kind::IntentTextRequest,
-    Kind::IntentTextResponse,
-    Kind::WalPullRequest,
-    Kind::WalPullResponse,
-    Kind::ReplicateOp,
-    Kind::LeaseGrant,
-    Kind::MembershipUpdate,
-    Kind::LeaveNotice,
-    Kind::CertRevoke,
-    Kind::RendezvousAccept,
-    Kind::ArtifactAnnounce,
-];
+/// Таблица видов берётся из `Kind::ALL`: новый код кадра нельзя забыть в корпусе фаззера,
+/// не сломав `corpus_covers_every_kind`.
+const ALL_KINDS: &[Kind] = &Kind::ALL;
 
 /// Детерминированный xorshift64*: воспроизводимый поток без внешних rng-зависимостей.
 struct Rng(u64);
@@ -111,6 +95,8 @@ const DECODERS: &[(&str, Decode)] = &[
     ("wal_pull_response", canon::<WalPullResponse>),
     ("replicate_op", canon::<ReplicateOp>),
     ("lease_grant", canon::<LeaseGrant>),
+    ("snapshot_offer", canon::<SnapshotOffer>),
+    ("replicate_ack", canon::<ReplicateAck>),
     ("membership_update", canon::<MembershipUpdate>),
     ("leave_notice", canon::<LeaveNotice>),
     ("cert_revoke", canon::<CertRevoke>),
@@ -158,6 +144,11 @@ fn corpus() -> Vec<Vec<u8>> {
     out.push(ReplicateOp { shard: 1, epoch: 2, seq: 3, op_kind: OpKind::Delete, body: DeleteOp { owner_ed25519: [3; 32], shard: 5 }.body_bytes() }.encode_signed(&sig));
     out.push(ReplicateOp { shard: 2, epoch: 3, seq: 4, op_kind: OpKind::TimeMark, body: encode_mark(4, 99) }.encode_signed(&sig));
     out.push(LeaseGrant { shard: 5, epoch: 3, primary_ed25519: [0x11; 32], dht_peer_id: vec![0x00, 0x24, 0x00], expires_at_bucket: 40_000 }.encode_signed(&sig));
+    // Кусок снапшота: граница kуска (offset+chunk == total_len) и максимальный chunk.
+    out.push(SnapshotOffer { shard: 5, epoch: 3, snapshot_seq: 1, oldest_wal_needed: 0, applied_seq: 0, next_slot: 0, time_mark_bucket: 0, total_len: 1, offset: 0, content_hash: [0x4D; 32], chunk: vec![0x7F] }.encode_signed(&sig));
+    out.push(SnapshotOffer { shard: 63, epoch: u64::MAX, snapshot_seq: u64::MAX, oldest_wal_needed: u64::MAX, applied_seq: u64::MAX, next_slot: u64::MAX, time_mark_bucket: u32::MAX, total_len: 768, offset: 256, content_hash: [0x4D; 32], chunk: vec![0xEE; 512] }.encode_signed(&sig));
+    out.push(ReplicateAck { shard: 5, epoch: 3, seq: 1_024, replica_ed25519: [0x22; 32], applied_seq: 1_024, ok: true }.encode_signed(&sig));
+    out.push(ReplicateAck { shard: 0, epoch: 0, seq: 0, replica_ed25519: [0x00; 32], applied_seq: u64::MAX, ok: false }.encode_signed(&sig));
     out.push(MembershipUpdate { epoch: 1, shard: 2, members: vec![Member { owner_ed25519: [7; 32], dht_peer_id: vec![0; 64], capacity_entries: u64::MAX }], primary_idx: 0, generated_at: 5, sigs: vec![(0, [9u8; 64])] }.encode_signed(&sig));
     out.push(LeaveNotice { epoch: u64::MAX, shard: 63, leaving_owner: [8; 32], drain_deadline_bucket: u32::MAX }.encode_signed(&sig));
     out.push(CertRevoke { nonce: [0x01; 16], revoked_at: u32::MAX, reason: "compromised".into(), authority_sigs: vec![[0x77; 64]; 16] }.encode_signed(&sig));
@@ -364,6 +355,6 @@ fn corpus_covers_every_kind() {
         .map(|f| f.header.kind as u8)
         .collect();
     for k in ALL_KINDS {
-        assert!(present.contains(&(k as u8)), "kind {k:?} не представлен в корпусе фаззера");
+        assert!(present.contains(&(*k as u8)), "kind {k:?} не представлен в корпусе фаззера");
     }
 }
