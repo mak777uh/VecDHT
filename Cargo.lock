@@ -1603,6 +1603,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "vecdht-benches"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "vecdht-artifact",
+ "vecdht-crypto",
+ "vecdht-embed",
+ "vecdht-index",
+ "vecdht-wire",
+]
+
+[[package]]
+name = "vecdht-cli"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "hex",
+ "thiserror 1.0.69",
+ "vecdht-artifact",
+ "vecdht-crypto",
+ "vecdht-embed",
+ "vecdht-index",
+ "vecdht-wire",
+]
+
+[[package]]
 name = "vecdht-crypto"
 version = "0.1.0"
 dependencies = [

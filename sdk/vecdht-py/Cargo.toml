@@ -1,0 +1,40 @@
+# Каркас Python SDK (§17.1): `vecdht-py`.
+#
+# Crate намеренно **не** входит в `members` корневого workspace и живёт в `exclude`: собирать его
+# можно только там, где стоит Python, а `cargo test` в основном дереве обязан оставаться зелёным на
+# машине без интерпретатора. Отсюда и `[workspace]` ниже — crate сам себе root, иначе `cargo`
+# поднялся бы к родительскому манифесту, увидел бы себя в `exclude` и отказался собирать.
+#
+# Зависимости — только path на crate репозитория плюс `pyo3` из белого списка §17.2. Никакого
+# кодирования на Python: байтовые форматы, квантование, assign и PoW живут в Rust, сюда они
+# проброшены обёртками.
+#
+# Сборка (из `sdk/vecdht-py`):
+#   cargo build --release
+# Полученный `target/release/vecdht_pyd.pyd` (Windows) / `.so` копируется в `vecdht/vecdht_pyd.pyd`
+# и импортируется как `import vecdht_pyd`. Проверка каркаса без колбэка — `test.py`.
+
+[workspace]
+
+[package]
+name = "vecdht-py"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.77"
+license = "MIT OR Apache-2.0"
+description = "VecDHT v8 — Python SDK поверх Rust-контракта (спека §17.1): ноль кодирования на Python"
+
+[lib]
+name = "vecdht_pyd"
+# Только cdylib: CPython грузит расширение как DLL. `rlib` здесь означал бы, что crate можно
+# линковать во второй Rust-бинарник, и тихонько тащил бы pyo3-зависимость в основной граф.
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py38"] }
+hex = "0.4"
+
+vecdht-wire = { path = "../../crates/vecdht-wire" }
+vecdht-crypto = { path = "../../crates/vecdht-crypto" }
+vecdht-artifact = { path = "../../crates/vecdht-artifact" }
+vecdht-embed = { path = "../../crates/vecdht-embed" }

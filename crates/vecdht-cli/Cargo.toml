@@ -1,0 +1,28 @@
+[package]
+name = "vecdht-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v8 — бинарник оператора: артефакт, encode, PoW, офлайновый путь find, разбор кадров (§17.1)"
+
+[[bin]]
+name = "vecdht-cli"
+path = "src/main.rs"
+
+[dependencies]
+vecdht-wire = { workspace = true }
+vecdht-crypto = { workspace = true }
+vecdht-artifact = { workspace = true }
+vecdht-index = { workspace = true }
+vecdht-embed = { workspace = true }
+blake3 = { workspace = true }
+hex = { workspace = true }
+thiserror = { workspace = true }
+
+[features]
+# Инференс подключается опционально: без него `encode` работает только с явным
+# `--allow-surrogate`, и CLI обязан собираться на машине без весов (§17.2).
+default = []
+candle = ["vecdht-embed/candle"]

@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
-# В members только те crate, которые собираются и тестируются. Остальные (cli) добавляется по
-# мере готовности — чтобы `cargo test` в main всегда был зелёным.
+# В members только те crate, которые собираются и тестируются. Остальные (sdk/vecdht-py) остаются в
+# exclude — чтобы `cargo test` в main всегда был зелёным на машине без нужного рантайма.
 members = [
     "crates/vecdht-wire",
     "crates/vecdht-crypto",
@@ -9,6 +9,10 @@ members = [
     "crates/vecdht-index",
     "crates/vecdht-node",
     "crates/vecdht-embed",
+    "crates/vecdht-cli",
+    # Замеры (§17.1): собираются и компилируются вместе со всеми, но не запускаются `cargo test`
+    # — у мишеней `test = false`, потому что замер печатает числа, а не проверяет предикат.
+    "benches",
 ]
 
 # `vecdht-py` (PyO3) требует установленного Python и собирается отдельно:

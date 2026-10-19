@@ -1,0 +1,47 @@
+[package]
+name = "vecdht-benches"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Замеры §17.1: P0-гейты (recall/throughput/determinism), индекс, wire. Печатают числа, а не вердикты."
+
+# Цели объявлены явно: каталог пакета называется `benches`, и автообнаружение искало бы мишени
+# внутри него (`benches/benches/*.rs`). `harness = false` обязателен: в whitelist §17.2 нет
+# `criterion`, а invented-фреймворк сравнения чисел лучше честной печати.
+autobenches = false
+autoexamples = false
+autotests = false
+
+[lib]
+path = "src/lib.rs"
+# Библиотека — только общие помощники замера; она не является публичным API проекта.
+
+[[bench]]
+name = "wire"
+path = "src/bench/wire.rs"
+harness = false
+# `test = false`: замер не предикат, и `cargo test` обязан не запускать его (иначе ночной
+# прогон платит временем за числа, которые в debug-профиле всё равно непригодны).
+test = false
+
+[[bench]]
+name = "index"
+path = "src/bench/index.rs"
+harness = false
+test = false
+
+[[bench]]
+name = "p0"
+path = "src/bench/p0.rs"
+harness = false
+test = false
+
+[dependencies]
+vecdht-wire = { workspace = true }
+vecdht-crypto = { workspace = true }
+vecdht-artifact = { workspace = true }
+vecdht-index = { workspace = true }
+vecdht-embed = { workspace = true }
+blake3 = { workspace = true }
