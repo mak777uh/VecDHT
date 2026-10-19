@@ -49,7 +49,9 @@ pub fn snapshot_size_for(live: usize) -> usize {
 pub struct SnapshotMeta {
     /// `applied_seq` на момент снапшота: с него+1 начинается нужный хвост WAL.
     pub snapshot_seq: u64,
-    /// Следующий slot. Персистится, потому что slot'ы не перенумеровываются (§8.3).
+    /// High-water живой части арены: `max(live slot) + 1`. Персистится, потому что живые slot'ы
+    /// не перенумеровываются (§8.3); хвост из мёртвых дыр в это число не входит — он не влияет
+    /// на выдачу следующих slot'ов (`trimmed_next_slot` в `ivf`).
     pub next_slot: u64,
     pub time_mark_bucket: u32,
     pub max_epoch_served: u64,
@@ -320,6 +322,10 @@ pub fn parse_snapshot(bytes: &[u8]) -> Result<(SnapshotMeta, IvfIndex), Snapshot
     if p.remaining() != 0 {
         return Err(SnapshotError::TooShort(p.remaining()));
     }
+    // Подсказка аллокатора вычитается из bitmap, а bitmap построился `load_entry`'ом: без этого
+    // вызова следующий `insert` выдал бы не тот slot, что у узла, который через снапшот не
+    // проходил (§10.5: «recover == replay»).
+    index.recompute_min_dead();
     index.check_invariants().map_err(SnapshotError::Index)?;
     Ok((meta, index))
 }

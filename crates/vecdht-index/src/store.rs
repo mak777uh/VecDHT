@@ -505,6 +505,11 @@ impl ShardStore {
         let seq = self.applied_seq;
         // 1. fsync текущего WAL-сегмента.
         self.wal.fsync()?;
+        // Хвост из мёртвых slot'ов в файл не пишется и в `next_slot` не попадает: он ничего не
+        // описывает, а стоит 424 Б на дыру. Аллокатор от подрезки не меняется (§8.3, тест
+        // `trimming_the_tail_does_not_change_future_slot_numbers`), поэтому равенство
+        // `recover == replay` сохраняется.
+        let next_slot = u64::from(self.index.trimmed_next_slot());
         // 2. потоковая запись snap.<seq>.partial → fsync файла.
         let partial = self.dir.join(partial_name(seq));
         let mut file = std::fs::OpenOptions::new()
@@ -516,7 +521,7 @@ impl ShardStore {
             .map_err(|e| StoreError::Io { ctx: "open partial", detail: e.to_string() })?;
         let meta = SnapshotMeta {
             snapshot_seq: seq,
-            next_slot: self.index.next_slot() as u64,
+            next_slot,
             time_mark_bucket: self.time_mark_bucket,
             max_epoch_served: self.max_epoch_served,
             shard: self.shard,
@@ -543,13 +548,17 @@ impl ShardStore {
             snapshot_seq: seq,
             oldest_wal_needed: self.wal.start_seq(),
             applied_seq: self.applied_seq,
-            next_slot: self.index.next_slot() as u64,
+            next_slot,
             time_mark_bucket: self.time_mark_bucket,
         };
         write_manifest(&self.dir, &mf, self.fault)?;
         // 6. и только теперь удалять сегменты старше `oldest_wal_needed`.
         WalWriter::delete_older_than(&self.dir, self.wal.start_seq())
             .map_err(|e| StoreError::Io { ctx: "delete segments", detail: e.to_string() })?;
+        // 7. отдать память хвоста, который файл уже не описывает. Порядок важен: до rename и
+        // переписанного MANIFEST'а арена обязана оставаться прежней, иначе падение между шагами
+        // 3 и 5 оставило бы на диске снапшот, не соответствующий памяти (§10.4).
+        self.index.truncate_holes();
         self.last_snapshot_seq = seq;
         Ok(written)
     }

@@ -2,12 +2,25 @@
 //!
 //! Инварианты, которые держит этот модуль:
 //!
-//! * `slot` назначается монотонно и никогда не перенумеровывается (§8.3) — дыры остаются дырами;
+//! * `slot` живой записи не меняется никогда: ни при перепубликации того же `(owner, shard)`
+//!   (замена на месте), ни при тряске снапшота (§8.3) — поэтому `entry_key`, в котором `slot`
+//!   участвует, не «переезжает» под ногами у держателя `MatchResult`;
+//! * мёртвый `slot` переиспользуется детерминированно: alloc берёт **наименьший** мёртвый slot,
+//!   а если мёртвых нет — продолжает арену (§8.3, recycling; см. «Почему без этого гейт P5
+//!   недостижим» ниже). Живые при этом не переносятся, поэтому первый инвариант не нарушается;
 //! * `lists[c]` отсортирован по возрастанию `slot` — из этого следует побайтовая идентичность
 //!   снапшота двух реплик на одном потоке опсов (§19.1);
 //! * путь применения опсов не читает часы: экспирация считается только от `TimeMark`/`GcTick`
 //!   (§9.6), поэтому узлы с часами ±40 мин дают один и тот же файл;
 //! * `search` возвращает `(l2_sq, slot)` и сортирует строго по контракту §8.4.
+//!
+//! Почему без этого гейт P5 недостижим. §11.3.3 разрешает переполнение шарда вытеснением, а
+//! арена растёт монотонным `next_slot`. Их сочетание — это не «дороже», а вектор атаки: вытесненная
+//! запись оставляет tombstone на 424 Б, который не снимает даже снапшот (формат файла хранит
+//! slot'ы, §10.4). Атакующий на 100 admits/с (§11.3.4) раздувал бы арену на 42 КБ/с — 3,7 ГБ
+//! сутки на шард, и «память узла плоская» (§18.6) было бы невыполнимо даже после того, как спам
+//! истечёт по TTL. Переиспользование мёртвого slot'а стоит одно поле (`min_dead`) и делает память
+//! плоской: арена ограничена пиком живых записей, а не суммой живых и вытесненных.
 //!
 //! Чисел с плавающей точкой в путях индекса нет; `f64` встречается только в диагностике
 //! бюджета памяти.
@@ -79,6 +92,11 @@ pub struct IvfIndex {
     pub owners: OwnerTable,
     pub live: usize,
     pub tombstones: usize,
+    /// Наименьший мёртвый slot ниже `next_slot`, если такой есть. Это не отдельное состояние, а
+    /// функция bitmap: `mark_dead` умеет только понижать его, `alloc` поднимает сканом вперёд,
+    /// загрузка снапшота пересчитывает значение заново. Поэтому primary и реплика, применившие
+    /// один и тот же поток опсов, обязаны сойтись на одном значении — и на выданном slot'е.
+    min_dead: Option<u32>,
 }
 
 impl IvfIndex {
@@ -102,6 +120,7 @@ impl IvfIndex {
             owners: OwnerTable::with_capacity(n),
             live: 0,
             tombstones: 0,
+            min_dead: None,
         }
     }
 
@@ -167,6 +186,102 @@ impl IvfIndex {
 
     // --- мутации ------------------------------------------------------------
 
+    /// Слот для **новой** записи (не перепубликации): наименьший мёртвый, а если дыр нет —
+    /// продолжение арены. После вызова `entries[slot]` существует и не жив.
+    ///
+    /// Порядок «наименьший, а не любой» выбран не для локальности: он обязан быть выводим из
+    /// состояния индекса, чтобы primary и реплика выдали один и тот же slot одному и тому же
+    /// опсу. Любой список-буфер дыр для этого не подошёл бы — его пришлось бы персистить и
+    /// согласовывать, а он вычитается из bitmap за одну строку.
+    fn alloc_slot(&mut self) -> Result<u32, IndexError> {
+        if let Some(slot) = self.min_dead {
+            if slot < self.next_slot() {
+                debug_assert!(!self.is_live(slot), "min_dead указал на живой slot {slot}");
+                // Забираем дыру: следующий кандидат ищётся сканом вперёд, `min_dead` при этом
+                // остаётся корректной нижней границей.
+                self.min_dead = self.next_dead_from(slot + 1);
+                self.tombstones = self.tombstones.saturating_sub(1);
+                return Ok(slot);
+            }
+            // Дыра за хвостом невозможна по построению; эта ветка — страховка на случай, если
+            // арену подрезали (`truncate_holes`), а подсказка осталась за новым концом.
+            self.min_dead = None;
+        }
+        let len = self.entries.len();
+        let slot = u32::try_from(len).map_err(|_| IndexError::ArenaFull(len))?;
+        if len == self.entries.capacity() {
+            self.entries.reserve_exact(ARENA_BLOCK);
+        }
+        self.entries.push(IndexEntry::default());
+        Ok(slot)
+    }
+
+    /// Наименьший мёртвый slot, начиная с `from`, в пределах арены.
+    ///
+    /// Слово bitmap целиком живое ⇒ переход на 64 slot'а за одну итерацию: полный скан 2M
+    /// slot'ов стоит 31 250 проверок слова, а не 2 000 000 проверок бита, и именно поэтому
+    /// подсказку можно сбрасывать и пересчитывать без страха за бюджет (§11.3.4 — 100 admits/с).
+    fn next_dead_from(&self, from: u32) -> Option<u32> {
+        let limit = self.next_slot();
+        let mut s = from;
+        while s < limit {
+            let (w, b) = Self::bit_pos(s);
+            let word = self.live_words.get(w).copied().unwrap_or(0);
+            if word == u64::MAX {
+                s = (w as u32 + 1) * 64;
+                continue;
+            }
+            for bit in b..64 {
+                if s >= limit {
+                    return None;
+                }
+                if word >> bit & 1 == 0 {
+                    return Some(s);
+                }
+                s += 1;
+            }
+        }
+        None
+    }
+
+    /// Пересчитать подсказку с нуля: нужно после загрузки снапшота, где `load_entry` заполняет
+    /// живые slot'ы, а дыры между ними остаются от `resize`. Идемпотентно и дорого ровно один
+    /// раз на открытие узла.
+    pub fn recompute_min_dead(&mut self) {
+        self.min_dead = self.next_dead_from(0);
+    }
+
+    /// Конец арены без хвоста из мёртвых slot'ов: `max(live) + 1`, или 0, если живых нет.
+    ///
+    /// Подрезка не меняет поведение аллокатора. Если живые занимают `0..=k`, а выше только
+    /// дыры, то «наименьшая дыра» у подрезанной и неподрезанной копий одна и та же: дыры ниже
+    /// `k` либо есть (тогда они и выбираются, `k+1` до них не доходит), либо их нет — и тогда
+    /// `0..=k` целиком живые, а следующая дыра в обеих копиях ровно `k + 1`. Значит снапшот,
+    /// из которого убрали хвост, и индекс, который его не резал, выдают одинаковые slot'ы на
+    /// одинаковом потоке опсов — а это и есть требование §10.5 («recover == replay»).
+    pub fn trimmed_next_slot(&self) -> u32 {
+        // Старший живой бит сверху вниз: нулевое слово стоит одной итерации, а не 64.
+        let mut w = self.live_words.len();
+        while w > 0 {
+            let word = self.live_words[w - 1];
+            if word != 0 {
+                return (w as u32 - 1) * 64 + (64 - word.leading_zeros());
+            }
+            w -= 1;
+        }
+        0
+    }
+
+    /// Убрать хвост из мёртвых slot'ов: память, которую снапшот уже не описывает (§10.4).
+    /// Вызывать сразу после записи снапшота, когда `trimmed_next_slot()` — это и есть записанный
+    /// `next_slot`.
+    pub fn truncate_holes(&mut self) {
+        self.entries.truncate(self.trimmed_next_slot() as usize);
+        // Слова bitmap оставляем длиннее: биты выше хвоста нулевые, и `is_live` за пределами
+        // арены отвечает «мёртв», как и обязана.
+        self.recompute_min_dead();
+    }
+
     /// Вставить запись. Дедупликация: перепубликация того же `(owner, shard)` заменяет на месте
     /// в том же slot'е (§8.3, тест §19.1 «живых записей одна»).
     pub fn insert(&mut self, e: IndexEntry) -> Result<InsertOutcome, IndexError> {
@@ -187,15 +302,13 @@ impl IvfIndex {
             self.entries[slot as usize] = e;
             return Ok(InsertOutcome { slot, replaced: true });
         }
-        let slot = u32::try_from(self.entries.len()).map_err(|_| IndexError::ArenaFull(self.entries.len()))?;
-        if self.entries.len() == self.entries.capacity() {
-            self.entries.reserve_exact(ARENA_BLOCK);
-        }
-        self.entries.push(e);
+        let slot = self.alloc_slot()?;
+        self.entries[slot as usize] = e;
         self.set_live(slot);
         self.live += 1;
-        // Новый slot всегда максимальный ⇒ push в конец сохраняет sorted-инвариант.
-        self.lists[e.cluster_id as usize].push(slot);
+        // Slot'ы из дыр обязаны вставиться в список по порядку; «новый slot всегда максимальный»
+        // больше не инвариант, поэтому здесь `list_insert`, а не `push`.
+        self.list_insert(e.cluster_id, slot);
         let entries = &self.entries;
         self.owners.put(&e.owner_ed25519, slot, |s| {
             entries.get(s as usize).map(|x| x.owner_ed25519)
@@ -210,8 +323,8 @@ impl IvfIndex {
         Some(slot)
     }
 
-    /// Пометить slot мёртвым. Запись остаётся в арене — переиспользование slot'а запрещено
-    /// без явного `CompactOp` (§8.3), которого в v8 нет.
+    /// Пометить slot мёртвым. Запись остаётся в арене и ждёт переиспольования: `slot` живой
+    /// записи при этом не меняется (§8.3), а `CompactOp` с перенумерацией в v8 по-прежнему нет.
     pub fn mark_dead(&mut self, slot: u32) -> bool {
         if !self.is_live(slot) {
             return false;
@@ -224,6 +337,12 @@ impl IvfIndex {
         self.owners.remove(&owner, |s| entries.get(s as usize).map(|x| x.owner_ed25519));
         self.live -= 1;
         self.tombstones += 1;
+        // Единственное место, где дыра появляется: подсказка обязана её заметить, иначе
+        // `alloc_slot` пропустит наименьшую дыру и выдал бы не тот slot, что другой узел.
+        self.min_dead = Some(match self.min_dead {
+            Some(m) => m.min(slot),
+            None => slot,
+        });
         true
     }
 
@@ -417,6 +536,13 @@ impl IvfIndex {
         if self.owners.len() != self.live {
             return Err(format!("в таблице {} записей против {} живых", self.owners.len(), self.live));
         }
+        // Подсказка аллокатора обязана быть exactly наименьшей дырой, а не «примерно где-то
+        // снизу»: на ней держится совпадение slot'ов между primary и репликой. Проверка полная
+        // и дорогая — но `check_invariants` вызывается из тестов, а не из пути применения.
+        let truth = (0..self.next_slot()).find(|s| !self.is_live(*s));
+        if self.min_dead != truth {
+            return Err(format!("min_dead={:?}, наименьшая дыра {:?}", self.min_dead, truth));
+        }
         Ok(())
     }
 }
@@ -450,7 +576,7 @@ mod tests {
     }
 
     #[test]
-    fn slots_are_monotone_and_never_renumbered() {
+    fn live_slots_never_move_but_dead_ones_are_reused_from_the_bottom() {
         let mut ix = idx();
         let a = ix.insert(entry(1, 3, 0, 100)).unwrap().slot;
         let b = ix.insert(entry(2, 4, 0, 100)).unwrap().slot;
@@ -458,11 +584,49 @@ mod tests {
         assert_eq!((a, b, c), (0, 1, 2));
         ix.mark_dead(b);
         let d = ix.insert(entry(4, 3, 0, 100)).unwrap().slot;
-        assert_eq!(d, 3, "удалённый slot не имеет права переиспользоваться (§8.3)");
+        assert_eq!(d, 1, "дыра переиспользуется раньше, чем арена растёт (§8.3, память плоская)");
+        assert_eq!(ix.next_slot(), 3, "подрезанный хвост не вырос новой дырой");
         assert_eq!(ix.entry(a).unwrap().owner_ed25519, [1u8; 32]);
         assert_eq!(ix.entry(c).unwrap().owner_ed25519, [3u8; 32]);
-        assert_eq!(ix.entry(b), None);
+        // Бывший владелец дыры ушёл, а живой slot'ы остались на своих местах: ровно то, что
+        // запрещает любой `CompactOp` с перенумерацией (§8.3).
+        assert_eq!(ix.owner_slot(&[2u8; 32]), None);
         ix.check_invariants().unwrap();
+        // Дыра кончилась ⇒ аллокатор возвращается к хвосту.
+        let e = ix.insert(entry(5, 3, 0, 100)).unwrap().slot;
+        assert_eq!(e, 3);
+        ix.check_invariants().unwrap();
+    }
+
+    #[test]
+    fn trimming_the_tail_does_not_change_future_slot_numbers() {
+        // Тот поток опсов на подрезанной и неподрезанной арене обязан дать одинаковые slot'ы:
+        // иначе «recover(disk) == replay(all ops)» (§10.5) зависит от момента снапшота.
+        let mut keep = idx();
+        let mut cut = idx();
+        for ix in [&mut keep, &mut cut] {
+            for o in 1..6u8 {
+                ix.insert(entry(o, o as u16 % 4, 0, 100)).unwrap();
+            }
+        }
+        // В обеих снимаем 4 и 5 (верхние) — дыры в хвосте.
+        for ix in [&mut keep, &mut cut] {
+            ix.mark_dead(3);
+            ix.mark_dead(4);
+        }
+        cut.truncate_holes();
+        assert_eq!(keep.next_slot(), 5);
+        assert_eq!(cut.next_slot(), 3, "хвост из двух дыр убран");
+        for ix in [&mut keep, &mut cut] {
+            ix.insert(entry(9, 1, 0, 100)).unwrap();
+            ix.insert(entry(10, 2, 0, 100)).unwrap();
+        }
+        assert_eq!(
+            keep.live_slots().map(|(s, e)| (s, e.owner_ed25519)).collect::<Vec<_>>(),
+            cut.live_slots().map(|(s, e)| (s, e.owner_ed25519)).collect::<Vec<_>>()
+        );
+        keep.check_invariants().unwrap();
+        cut.check_invariants().unwrap();
     }
 
     #[test]
@@ -644,8 +808,9 @@ mod tests {
         assert_eq!(ix.remove_owner(&[5u8; 32]), None, "повторное delete — no-op");
         assert_eq!(ix.live, 0);
         let again = ix.insert(entry(5, 0, 1, 1000)).unwrap();
-        assert!(!again.replaced, "после delete owner свободен ⇒ новый slot");
-        assert_eq!(again.slot, 1);
+        assert!(!again.replaced, "после delete owner свободен ⇒ это новая запись, а не замена");
+        assert_eq!(again.slot, slot, "дыра переиспользуется вместо роста арены (§8.3 recycling)");
+        assert_eq!(ix.next_slot(), 1, "переиспользованная дыра не добавила slot");
         ix.check_invariants().unwrap();
     }
 
