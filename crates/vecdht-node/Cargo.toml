@@ -1,0 +1,16 @@
+[package]
+name = "vecdht-node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v8 — узел шарда: самовалидируемая цепочка членства, lease/epoch, репликация W=2 из R=3, handoff и отдача снапшота (спека §9, §12)"
+
+[dependencies]
+blake3 = { workspace = true }
+thiserror = { workspace = true }
+vecdht-wire = { workspace = true }
+vecdht-crypto = { workspace = true }
+vecdht-artifact = { workspace = true }
+vecdht-index = { workspace = true }

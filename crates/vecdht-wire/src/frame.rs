@@ -98,6 +98,33 @@ impl Kind {
         })
     }
 
+    /// Имя вида кадра — только для логов, ошибок и `vecdht-cli dump`. Протокол по имени ничего
+    /// не решает, поэтому расхождение с `from_u8` не опаснее косметики; тест ниже обязывает
+    /// покрывать `ALL`, чтобы новый kind не остался без имени.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Kind::Handshake => "Handshake",
+            Kind::Error => "Error",
+            Kind::Publish => "Publish",
+            Kind::PublishAck => "PublishAck",
+            Kind::Find => "Find",
+            Kind::MatchResult => "MatchResult",
+            Kind::IntentTextRequest => "IntentTextRequest",
+            Kind::IntentTextResponse => "IntentTextResponse",
+            Kind::WalPullRequest => "WalPullRequest",
+            Kind::WalPullResponse => "WalPullResponse",
+            Kind::ReplicateOp => "ReplicateOp",
+            Kind::LeaseGrant => "LeaseGrant",
+            Kind::SnapshotOffer => "SnapshotOffer",
+            Kind::ReplicateAck => "ReplicateAck",
+            Kind::MembershipUpdate => "MembershipUpdate",
+            Kind::LeaveNotice => "LeaveNotice",
+            Kind::CertRevoke => "CertRevoke",
+            Kind::RendezvousAccept => "RendezvousAccept",
+            Kind::ArtifactAnnounce => "ArtifactAnnounce",
+        }
+    }
+
     /// Требует ли подпись для этого типа (спека §4.3, матрица подписей).
     pub fn signature_required(&self) -> bool {
         matches!(

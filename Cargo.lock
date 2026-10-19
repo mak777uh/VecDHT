@@ -462,6 +462,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "vecdht-node"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "thiserror",
+ "vecdht-artifact",
+ "vecdht-crypto",
+ "vecdht-index",
+ "vecdht-wire",
+]
+
+[[package]]
 name = "vecdht-wire"
 version = "0.1.0"
 dependencies = [
