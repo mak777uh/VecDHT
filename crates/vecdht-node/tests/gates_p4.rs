@@ -273,9 +273,10 @@ fn three_replicas_converge_and_quorum_needs_a_second_copy() {
     }
     let before = s.net.node(&primary).unwrap().applied_seq();
     let last = &owners[2];
+    let got = probe(&mut s.net, last, &testing::vector(12));
     assert!(
-        probe(&mut s.net, last, &testing::vector(12)).is_none(),
-        "без второй копии подтверждать нечем: W=2 из R=3 не превращается в W=1"
+        got.is_none(),
+        "без второй копии подтверждать нечем: W=2 из R=3 не превращается в W=1, а пришло {got:?}"
     );
     let after = s.net.node(&primary).unwrap().applied_seq();
     assert!(after > before, "WAL primary записан: отказ в ack — это не откат записи (§10.1)");
