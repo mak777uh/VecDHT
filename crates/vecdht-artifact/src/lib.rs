@@ -228,7 +228,16 @@ pub fn reference_manifest() -> Manifest {
             nprobe_allowed: vec![4, 16, 32],
         },
         time: Time { bucket_sec: 16, time_mark_every: 512, ttl_default_sec: 3600, ttl_max_sec: 86_400 },
-        power: Power { pow_bits_default: 24, pow_bits_min: 24, pow_bits_max: 28, blake3_mhz_core: 200 },
+        // Диапазон и скорость берутся из `vecdht-crypto`, а не написаны здесь литерами: манифест
+        // обязан проходить сверку `Power::check` против компилируемой политики (§11.2), а
+        // `blake3_mhz_core` — это измеренное число (§11.1, `cargo bench --bench wire`), целое,
+        // потому что float в подписанном манифесте дал бы расхождение между платформами.
+        power: Power {
+            pow_bits_default: vecdht_crypto::pow::POW_BITS_DEFAULT,
+            pow_bits_min: vecdht_crypto::pow::POW_BITS_MIN,
+            pow_bits_max: vecdht_crypto::pow::POW_BITS_MAX,
+            blake3_mhz_core: vecdht_crypto::pow::BLAKE3_MHZ_CORE_FALLBACK as u32,
+        },
         admission: Admission {
             max_live_per_shard: 2_000_000,
             per_peer_publish_rps: 1,

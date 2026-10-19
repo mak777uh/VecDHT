@@ -167,8 +167,17 @@ mod tests {
         assert_eq!((p.lease_buckets, p.renew_buckets, p.election_buckets), (6, 2, 4));
         assert_eq!(p.time_mark_every, 512);
         assert_eq!(p.peer_acks_needed(), 1);
-        // §11.2: сложность берётся из артефакта, а не из константы кода.
-        assert_eq!((p.pow_bits, p.pow_bits_min, p.pow_bits_max), (24, 24, 28));
+        // §11.2: сложность берётся из артефакта, а не из константы кода. Сами числа при этом
+        // сверяются с константами — `[P0]`-калибровка сдвигает диапазон, и литерал в тесте
+        // протух бы на первом же пересняте.
+        assert_eq!(
+            (u32::from(p.pow_bits), u32::from(p.pow_bits_min), u32::from(p.pow_bits_max)),
+            (
+                vecdht_crypto::pow::POW_BITS_DEFAULT,
+                vecdht_crypto::pow::POW_BITS_MIN,
+                vecdht_crypto::pow::POW_BITS_MAX
+            )
+        );
         assert_eq!(p.max_live_per_shard, 2_000_000);
         assert_eq!(p.top_k_max, 64);
         // Продление обязано случаться до истечения, иначе handoff идёт по election, а не по lease.
@@ -206,10 +215,17 @@ mod tests {
         m.time.time_mark_every = 0;
         assert_eq!(Params::from_manifest(&m), Err(ParamError::TimeMarkEveryZero));
         let mut m = vecdht_artifact::reference_manifest();
-        m.power.pow_bits_default = 20;
+        // Число берётся от диапазона: тест про «default ниже min этого же артефакта», а не про
+        // конкретные биты, которые переснимает замер (§11.2).
+        let too_easy = vecdht_crypto::pow::POW_BITS_MIN - 1;
+        m.power.pow_bits_default = too_easy;
         assert_eq!(
             Params::from_manifest(&m),
-            Err(ParamError::PowRange { def: 20, min: 24, max: 28 }),
+            Err(ParamError::PowRange {
+                def: too_easy,
+                min: vecdht_crypto::pow::POW_BITS_MIN,
+                max: vecdht_crypto::pow::POW_BITS_MAX
+            }),
             "сложность ниже заявленного диапазона артефакта — это не «чуть дешевле», а манифест, \
              который узел не умеет обслуживать"
         );

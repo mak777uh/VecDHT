@@ -14,7 +14,7 @@ use std::path::PathBuf;
 use ed25519_dalek::SigningKey;
 use vecdht_crypto::cert::{sign_cert, AuthoritySet, DOMAIN_NODE_CERT};
 use vecdht_crypto::ids::{candidate_order_key, content_hash, entry_key, intent_id, intent_text_hash};
-use vecdht_crypto::pow::{mine_pow, pow_input, POW_BITS_MIN};
+use vecdht_crypto::pow::{mine_pow, pow_input};
 use vecdht_crypto::quant::{
     assign_cluster, clusters_of_shard, dequantize, group_by_shard, l2_normalize, l2_sq, quantize_slice,
     round_half_away, shard_of_cluster, similarity_from_d2, top_clusters, DIM,
@@ -34,6 +34,12 @@ fn golden_path() -> PathBuf {
 /// это константа, и ей остаётся только пройти проверку порога.
 const POW_NONCE: u64 = 0x0ADE_0000_0016_7751;
 const POW_NONCE_START: u64 = 0x0ADE_0000_0000_0000;
+
+/// Сложность, на которой зафиксирован nonce. Это **не** `POW_BITS_MIN`: фикстура закрепляет
+/// алгоритм (вход → порог), а политику сложности `[P0]`-замер может менять, и смена диапазона не
+/// должна делать golden-файл невалидным — иначе вся фикстура и все её байты перегенерировались бы
+/// из-за одного числа.
+const POW_BITS_FIXTURE: u32 = 24;
 
 /// Детерминированная «f32-подобная» последовательность без трансцендентных функций:
 /// целое, поделённое на 105.5 (= 211/2), — корректно округлённое деление IEEE одинаково везде.
@@ -140,16 +146,16 @@ fn vectors() -> BTreeMap<String, Vec<u8>> {
     let input = pow_input(&[0xA1; 32], 5, 99, &slot, 106_250_010);
     add("pow.input", input.clone());
     // При перегенерации фикстуры nonce ищется перебором (секунды), при обычной проверке
-    // берётся из const и только проверяется на порог (5 нс).
+    // берётся из const и только проверяется на порог (один blake3).
     let nonce = if std::env::var("VEC_DHT_GOLDEN").is_ok() {
-        mine_pow(&input, POW_BITS_MIN, POW_NONCE_START, 1 << 28)
+        mine_pow(&input, POW_BITS_FIXTURE, POW_NONCE_START, 1 << 28)
             .expect("24 бита находятся за 2^28 попыток с вероятностью ~1")
     } else {
         POW_NONCE
     };
     add("pow.nonce", nonce.to_le_bytes().to_vec());
     assert!(
-        vecdht_crypto::pow::pow_ok(&input, nonce, POW_BITS_MIN),
+        vecdht_crypto::pow::pow_ok(&input, nonce, POW_BITS_FIXTURE),
         "nonce не проходит порог: вход PoW изменился — перегенерируй фикстуру и обнови POW_NONCE"
     );
 
@@ -277,10 +283,16 @@ fn golden_vectors_match_checked_in_fixture() {
 fn pow_nonce_in_fixture_satisfies_the_threshold() {
     let v = vectors();
     // Генерация находит nonce перебором; проверка — это то, что делает узел, и она обязана
-    // оставаться дешёвой (5 нс) для любого входа из фикстуры.
+    // оставаться дешёвой (один blake3) для любого входа из фикстуры.
     let input = &v["pow.input"];
     let nonce = u64::from_le_bytes(v["pow.nonce"].as_slice().try_into().unwrap());
-    assert!(vecdht_crypto::pow::pow_ok(input, nonce, POW_BITS_MIN));
+    assert!(vecdht_crypto::pow::pow_ok(input, nonce, POW_BITS_FIXTURE));
+    // Монотонность порога: nonce, выполненный на 24 битах, годится и на любой более лёгкой
+    // политике, то есть на всём адаптивном диапазоне §11.2 — иначе смена `POW_BITS_MIN`
+    // отвергала бы уже принятые сетью записи.
+    for bits in vecdht_crypto::pow::POW_BITS_MIN..=vecdht_crypto::pow::POW_BITS_MAX {
+        assert!(vecdht_crypto::pow::pow_ok(input, nonce, bits), "bits {bits}");
+    }
     // 13 (доменная строка) + 32 (owner) + 2 (shard) + 8 (epoch) + 32 (slot) + 4 (expires_bucket)
     assert_eq!(input.len(), 13 + 32 + 2 + 8 + 32 + 4);
 }

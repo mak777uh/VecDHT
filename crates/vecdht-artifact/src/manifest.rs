@@ -1005,7 +1005,9 @@ mod tests {
         assert!(format!("{}", m.check().unwrap_err()).contains("не i8/127"));
 
         let mut m = reference_manifest();
-        m.power.pow_bits_default = 20;
+        // Значение берётся от диапазона, а не литералом: тест проверяет «default вне [min; max]»,
+        // и он не должен протухнуть, когда `[P0]`-замер сдвинет сам диапазон (§11.2).
+        m.power.pow_bits_default = POW_BITS_MAX + 1;
         assert!(format!("{}", m.check().unwrap_err()).contains("диапазон PoW"));
     }
 
