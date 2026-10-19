@@ -1,0 +1,16 @@
+[package]
+name = "vecdht-artifact"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v8 — подписанный model artifact: канонический manifest и замороженные центроиды (спека §15)"
+
+[dependencies]
+blake3 = { workspace = true }
+ed25519-dalek = { workspace = true }
+hex = { workspace = true }
+thiserror = { workspace = true }
+vecdht-wire = { workspace = true }
+vecdht-crypto = { workspace = true }

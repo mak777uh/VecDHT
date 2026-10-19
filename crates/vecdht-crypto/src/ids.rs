@@ -115,7 +115,7 @@ mod tests {
 
     #[test]
     fn dedup_key_orders_deterministically() {
-        let mut ks = vec![
+        let mut ks = [
             DedupKey::new([2u8; 32], 5),
             DedupKey::new([1u8; 32], 7),
             DedupKey::new([1u8; 32], 5),

@@ -208,7 +208,6 @@ mod tests {
 
         let mut c = sample();
         c.shards = vec![64];
-        assert!(c.encode().len() > 0);
         let enc = c.encode();
         assert!(matches!(NodeCert::decode(&enc), Err(DecodeError::BadEnum { what: "shard", .. })));
     }
