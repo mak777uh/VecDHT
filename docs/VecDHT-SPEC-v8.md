@@ -1176,7 +1176,7 @@ models/             manifest.json + fetch/verify scripts
 Что в этом дереве стоит прямо сейчас (срез после P5):
 
 * `vecdht-wire`, `vecdht-crypto`, `vecdht-artifact`, `vecdht-index`, `vecdht-node`, `vecdht-embed`,
-  `vecdht-net` — в `workspace.members`, 494 теста зелёных (три игнорируемых: полный PoW-майнинг
+  `vecdht-net` — в `workspace.members`, 497 тестов зелёных (три игнорируемых: полный PoW-майнинг
   CLI, 10-минутный гейт P5 и P0(ii) под `--features candle`; последний измерен и провален —
   §8.6); `vecdht-node`
   держит машину шарда, транспорт вынесен в `vecdht-net` (libp2p QUIC и TCP+Noise+Yamux, handshake
@@ -1186,9 +1186,12 @@ models/             manifest.json + fetch/verify scripts
   гейт §18.6 лежат в `crates/vecdht-node/tests/adversarial.rs`;
 * `vecdht-cli` — офлайн-поверхность: `artifact init/show/verify`, `encode`, `pow mine/verify`,
   `index create/add/search/stats/snapshot`, `wire kinds/decode`, `demo`; плюс сетевые
-  `agent publish/find/session` поверх `vecdht-net`. Команды `node` и `agent run` (постоянный
-  listener) ещё не сделаны, и нарочно не стали «заглушками, которые что-то печатают»: CLI, который
-  видимо выдаёт успех там, где соединения нет, дороже ошибки;
+  `agent publish/find/session` и постоянный listener `agent run` поверх `vecdht-net`. `run` поднимает
+  listener, шагает вне вызовов и печатает счётчики кадров/ошибок, но **смыслового слоя входящих нет**:
+  `IntentTextRequest` узлом не обслуживается (§12.6), поэтому сессии принимаются, а содержательных
+  ответов процесс не даёт, и «успех без поднятого listener'а» он не объявляет. Команда `node` (машина
+  шарда с bootstrap членства и genesis) ещё не сделана, и нарочно не стала «заглушкой, которая что-то
+  печатает»: CLI, который видимо выдаёт успех там, где соединения нет, дороже ошибки;
 * `sdk/vecdht-py` — PyO3 0.23, `extension-module` + `abi3-py38`, crate вне `members` (он требует
   Python, а `cargo test` на машине без него обязан оставаться зелёным). Наружу выведены константы,
   `Artifact` (load/reference/save/hash/manifest/verify), `normalize`/`is_canonical`, `finalize`,

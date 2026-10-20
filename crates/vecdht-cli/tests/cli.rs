@@ -350,3 +350,36 @@ fn help_and_unknown_flags_stay_code_usage() {
     // Пустой argv — справка, а не ошибка: `vecdht-cli` без аргументов обязан объяснять, что умеет.
     assert_eq!(run(&[]).code, CODE_OK);
 }
+
+#[test]
+fn agent_run_raises_a_listener_and_stops_on_the_registered_budget() {
+    // Проверяется ровно то, чего не может увидеть клиентский путь: listener поднимается (адрес
+    // печатается), цикл шагает вне вызовов, а отчёт о остановке называет счётчики. Ожидание
+    // адреса без шага оставило бы процесс «слушающим» и молчащим — это и есть регрессия, ради
+    // которой тест существует.
+    let d = make_artifact("agent-run");
+    let o = run(&[
+        "agent", "run",
+        "--artifact", &s(&d),
+        "--seed", &"42".repeat(32),
+        "--listen", "/ip4/127.0.0.1/udp/0/quic-v1",
+        "--status-sec", "0",
+        "--run-seconds", "1",
+    ]);
+    assert_eq!(o.code, CODE_OK, "{:?}", o.stderr);
+    assert!(o.stdout.contains("слушаю: /ip4/127.0.0.1/udp/"), "{}", o.stdout);
+    assert!(o.stdout.contains("остановлен через"), "{}", o.stdout);
+    assert!(o.stdout.contains("кадров 0"), "{}", o.stdout);
+    // Строка на каждую транспортную ошибку — «ошибка транспорта: …» (единственное число), а сводка
+    // всегда называет их число в родительном падеже («ошибок транспорта 0»). Проверяем отсутствие
+    // именно построчных сообщений: их не должно быть на пустой сети.
+    assert!(!o.stdout.contains("ошибка транспорта: "), "{}", o.stdout);
+
+    // Без слушателя процесс бесполезен, и это отказ с кодом 2, а не «тихий клиент».
+    let no_listen = run(&[
+        "agent", "run", "--artifact", &s(&d), "--seed", &"42".repeat(32),
+    ]);
+    assert_eq!(no_listen.code, CODE_FAILED, "{no_listen:?}");
+    assert!(no_listen.stderr.contains("--listen"), "{}", no_listen.stderr);
+    remove(&d);
+}

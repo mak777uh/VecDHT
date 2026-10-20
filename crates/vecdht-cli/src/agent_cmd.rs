@@ -13,6 +13,7 @@
 //! `agent session` принимает кадр приёма и ключ издателя ровно в том виде, в каком их напечатал
 //! `agent find`: пересобирать приём из полей нельзя, подпись считается по исходным байтам (§5.2).
 
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use libp2p::Multiaddr;
@@ -23,6 +24,7 @@ use vecdht_net::{
     Agent, AgentConfig, FindQuery, NetworkParams, PublishRequest,
 };
 use vecdht_node::buckets;
+use vecdht_wire::frame::parse_header;
 
 use crate::args::Parsed;
 use crate::model::{build_model, push_vector, warn_surrogate, Source};
@@ -31,6 +33,7 @@ use crate::{CliError, fail, vector_hex};
 pub const CMD_PUBLISH: &str = "agent publish";
 pub const CMD_FIND: &str = "agent find";
 pub const CMD_SESSION: &str = "agent session";
+pub const CMD_RUN: &str = "agent run";
 
 pub const FLAGS_PUBLISH: &[&str] = &[
     "artifact",
@@ -56,6 +59,16 @@ pub const FLAGS_FIND: &[&str] = &[
     "show-vector",
 ];
 pub const FLAGS_SESSION: &[&str] = &["artifact", "accept", "issuer", "to", "seed", "bootstrap", "timeout"];
+pub const FLAGS_RUN: &[&str] = &[
+    "artifact",
+    "seed",
+    "listen",
+    "bootstrap",
+    "timeout",
+    "idle",
+    "status-sec",
+    "run-seconds",
+];
 
 pub const HELP_PUBLISH: &str = "\
 agent publish — опубликовать интент по сети (§12.1)
@@ -96,6 +109,25 @@ agent session — открыть прямой аутентифицированн
 
 Relay/DCUtR в v1 не подняты: без `--to` цель должна быть известна Kademlia/identify.";
 
+pub const HELP_RUN: &str = "\
+agent run — постоянный listener: агент шагает вне вызовов и принимает входящие (§12.5)
+  --artifact DIR        артефакт сети
+  --seed HEX            Ed25519-ключ оператора, 32 байта hex
+  --listen ADDR         адрес прослушивания; можно повторять, нужен минимум один
+  --bootstrap ADDR      адрес узла или агента; можно повторять, необязательно
+  --timeout SEC         дедлайн клиентских вызовов, по умолчанию 20
+  --idle SEC            таймаут простаивающего соединения, по умолчанию 60
+  --status-sec SEC      период строки состояния, по умолчанию 30; 0 — не печатать
+  --run-seconds SEC     остановиться через N секунд (тесты и скрипты); 0 или отсутствие — до сигнала
+
+Цикл обязателен: без шага вне вызовов входящий handshake не проходит, и процесс, который «слушает»
+и молчит, неотличим от зависшего. Поэтому команда печатает адреса, считает принятые кадры по видам
+и печатает ошибки транспорта, а успех без поднятого listener'а не объявляет.
+
+Смыслового слоя входящих в v1 нет: `IntentTextRequest` узлом не обслуживается (в `ShardNode` нет
+держателя текста), поэтому `run` делает агента достижимым для handshake, ack и приёма, а не
+«сервером», который отвечает на всё.";
+
 fn load(p: &Parsed, cmd: &str) -> Result<Artifact, CliError> {
     let dir = p.required(cmd, "artifact")?;
     Artifact::load(std::path::Path::new(&dir)).map_err(|e| fail("чтение артефакта", e))
@@ -112,25 +144,37 @@ fn identity(p: &Parsed, cmd: &str) -> Result<Identity, CliError> {
 }
 
 fn bootstrap(p: &Parsed, cmd: &str) -> Result<Vec<Multiaddr>, CliError> {
-    p.values(cmd, "bootstrap")?
+    multiaddrs(p, cmd, "bootstrap")
+}
+
+fn multiaddrs(p: &Parsed, cmd: &str, flag: &str) -> Result<Vec<Multiaddr>, CliError> {
+    p.values(cmd, flag)?
         .into_iter()
         .map(|raw| {
             raw.parse::<Multiaddr>()
-                .map_err(|e| CliError::Fail(format!("--bootstrap {raw}: {e}")))
+                .map_err(|e| CliError::Fail(format!("--{flag} {raw}: {e}")))
         })
         .collect()
 }
 
 fn agent_config(p: &Parsed, cmd: &str, bootstrap: Vec<Multiaddr>) -> Result<AgentConfig, CliError> {
+    // Сетевой CLI-вызов — клиент: слушателя нет, входящие сессии принимает `agent run`.
+    agent_config_with(p, cmd, bootstrap, Vec::new())
+}
+
+fn agent_config_with(
+    p: &Parsed,
+    cmd: &str,
+    bootstrap: Vec<Multiaddr>,
+    listen: Vec<Multiaddr>,
+) -> Result<AgentConfig, CliError> {
     let timeout = p.num_or::<u64>(cmd, "timeout", 20)?;
     if timeout == 0 {
         return Err(CliError::Fail("--timeout 0: вызов без дедлайна неотличим от зависания".into()));
     }
     Ok(AgentConfig {
         bootstrap,
-        // Сетевой CLI-вызов — клиент: слушателя нет, входящие сессии принимает `agent run`,
-        // которого в v1 ещё нет. Отсутствие listen не мешает publish/find/session.
-        listen: Vec::new(),
+        listen,
         call_timeout: Duration::from_secs(timeout),
         ..AgentConfig::default()
     })
@@ -390,6 +434,148 @@ pub fn exec_session(p: &Parsed, out: &mut String) -> Result<(), CliError> {
     Ok(())
 }
 
+pub fn exec_run(p: &Parsed, out: &mut String) -> Result<(), CliError> {
+    let a = load(p, CMD_RUN)?;
+    let listen = multiaddrs(p, CMD_RUN, "listen")?;
+    if listen.is_empty() {
+        return Err(CliError::Fail(
+            "нужен хотя бы один --listen: агент без слушателя не принимает входящих, и \
+             «работающий» процесс был бы неотличим от зависшего"
+                .into(),
+        ));
+    }
+    let idle = p.num_or::<u64>(CMD_RUN, "idle", 60)?;
+    if idle == 0 {
+        return Err(CliError::Fail(
+            "--idle 0: простаивающее соединение без таймаута занимает сокет и память вечно".into(),
+        ));
+    }
+    let status_sec = p.num_or::<u64>(CMD_RUN, "status-sec", 30)?;
+    let run_seconds = p.num_or::<u64>(CMD_RUN, "run-seconds", 0)?;
+    let bootstrap = bootstrap(p, CMD_RUN)?;
+    let cfg = AgentConfig {
+        idle_timeout: Duration::from_secs(idle),
+        ..agent_config_with(p, CMD_RUN, bootstrap, listen)?
+    };
+    let id = identity(p, CMD_RUN)?;
+    let rt = runtime()?;
+    // Агент строится **внутри** рантайма: QUIC-транспорт требует реактора уже на сборке
+    // swarm, и создание вне `block_on` падает «no reactor running», а не даёт рабочий listener.
+    rt.block_on(async {
+        let agent = new_agent(id, &a, cfg)?;
+        serve(
+            agent,
+            Duration::from_secs(run_seconds),
+            Duration::from_secs(status_sec),
+            out,
+        )
+        .await
+    })
+}
+
+/// Цикл `run`: агент обязан шагать и вне своих вызовов, иначе входящий handshake не проходит, а
+/// «слушающий» процесс молчит до первого вопроса. Это тот же цикл, что `Agent::run` крутит вечно;
+/// здесь он ограничен `--run-seconds` ради тестов и скриптов, а не ослаблен.
+///
+/// Функция не молчит об ошибках транспорта и не объявляет успех без поднятого listener'а: пустой
+/// список адресов — отказ, а не «похоже, слушает».
+async fn serve(
+    mut agent: Agent,
+    limit: Duration,
+    status_every: Duration,
+    out: &mut String,
+) -> Result<(), CliError> {
+    let listen_deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+    while agent.listen_addrs().is_empty() {
+        agent.net_mut().step().await;
+        if tokio::time::Instant::now() >= listen_deadline {
+            return Err(CliError::Fail(
+                "listener не поднялся за 10 с: адрес не опубликован, объявлять успех нечем".into(),
+            ));
+        }
+    }
+    let addrs: Vec<String> = agent.listen_addrs().iter().map(ToString::to_string).collect();
+    out.push_str(&format!(
+        "артефакт {}\nagent run: peer {} owner {}\nсеть: genesis {}\nслушаю: {}\n",
+        agent.network().model_version,
+        agent.peer_id(),
+        hex::encode(agent.owner()),
+        hex::encode(agent.network().genesis_hash),
+        addrs.join(", "),
+    ));
+    if !agent.config().bootstrap.is_empty() {
+        out.push_str(&format!(
+            "bootstrap: {}\n",
+            agent
+                .config()
+                .bootstrap
+                .iter()
+                .map(ToString::to_string)
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
+
+    let started = tokio::time::Instant::now();
+    let stop_at = (!limit.is_zero()).then(|| started + limit);
+    let mut next_status =
+        (!status_every.is_zero()).then(|| started + status_every);
+    let mut frames = 0usize;
+    let mut frame_bytes = 0usize;
+    let mut by_kind: BTreeMap<&'static str, usize> = BTreeMap::new();
+    let mut errors = 0usize;
+    loop {
+        agent.net_mut().step().await;
+        for (_peer, frame) in agent.net_mut().take_inbox() {
+            frames += 1;
+            frame_bytes += frame.len();
+            let name = parse_header(&frame).map_or("нечитаемый", |(h, _)| h.kind.name());
+            *by_kind.entry(name).or_default() += 1;
+        }
+        for e in agent.net_mut().take_errors() {
+            errors += 1;
+            out.push_str(&format!("ошибка транспорта: {e}\n"));
+        }
+        let now = tokio::time::Instant::now();
+        if stop_at.is_some_and(|at| now >= at) {
+            break;
+        }
+        if let Some(mut at) = next_status {
+            if now >= at {
+                out.push_str(&format!(
+                    "t={:.0} с: кадров {frames} ({frame_bytes} Б), ошибок {errors}, \
+                     аутентифицировано {}, kad {}, отзывов {}\n",
+                    now.duration_since(started).as_secs_f64(),
+                    agent.net().authenticated_peers().len(),
+                    agent.net_mut().kad_peer_count(),
+                    agent.net().revocation_count(),
+                ));
+                while at <= now {
+                    at += status_every;
+                }
+                next_status = Some(at);
+            }
+        }
+    }
+
+    let kinds = if by_kind.is_empty() {
+        "нет".to_string()
+    } else {
+        by_kind
+            .iter()
+            .map(|(k, n)| format!("{k}×{n}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    };
+    out.push_str(&format!(
+        "остановлен через {:.0} с: кадров {frames} ({frame_bytes} Б), из них {kinds}; \
+         ошибок транспорта {errors}; аутентифицировано {}\n",
+        started.elapsed().as_secs_f64(),
+        agent.net().authenticated_peers().len(),
+    ));
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -410,6 +596,21 @@ mod tests {
         let p = parse(&[CMD_FIND, "--bootstrap", "не-адрес"]);
         let err = bootstrap(&p, CMD_FIND).unwrap_err();
         assert!(err.to_string().contains("--bootstrap"), "{err}");
+    }
+
+    #[test]
+    fn run_without_a_listener_is_refused_by_name() {
+        let p = parse(&[CMD_RUN, "--artifact", "x", "--seed", &"11".repeat(32)]);
+        let listen = multiaddrs(&p, CMD_RUN, "listen").unwrap();
+        assert!(listen.is_empty(), "без --listen список обязан быть пустым");
+        assert_eq!(p.path_str(), CMD_RUN);
+    }
+
+    #[test]
+    fn a_bad_listen_address_is_named_as_listen() {
+        let p = parse(&[CMD_RUN, "--listen", "не-адрес"]);
+        let err = multiaddrs(&p, CMD_RUN, "listen").unwrap_err();
+        assert!(err.to_string().contains("--listen"), "{err}");
     }
 
     #[test]

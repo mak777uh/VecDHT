@@ -6,15 +6,19 @@
 //!
 //! * `artifact init|show|verify` — собрать, посмотреть и проверить артефакт сети (§15);
 //! * `encode` — прогнать текст через пайплайн §6.2 и увидеть `cluster_id`, шард и fan-out;
-//! * `agent publish|find|session` — §12 целиком: публикация, fan-out поиска, приём и прямой канал;
+//! * `agent publish|find|session|run` — §12 целиком: публикация, fan-out поиска, приём, прямой
+//!   канал и постоянный listener, без которого агент не принимает входящий handshake;
 //! * `pow mine|verify` — стоимость publish и её проверка (§11.1);
 //! * `index create|add|search|stats|snapshot` — одноузловой индекс шарда на диске (§8, §10);
 //! * `wire kinds|decode` — разобрать кадр по таблице §5.3, включая проверку каноничности;
 //! * `demo` — весь офлайн-путь в одном процессе: артефакт → encode → 64 шарда → search.
 //!
-//! Честная граница v1: `agent run` (приём входящих сессий) не сделан; `agent publish/find` —
-//! клиентские вызовы с дедлайном. Relay/DCUtR не подняты, поэтому `agent session` идёт прямым
-//! dial'ом по адресу из address book или Kademlia.
+//! Честная граница v1: `agent run` поднимает listener и шагает, но смыслового слоя входящих нет —
+//! `IntentTextRequest` узлом не обслуживается (в `ShardNode` нет держателя текста), поэтому
+//! команда делает агента достижимым для handshake/ack/приёма, а не «сервером, который отвечает на
+//! всё». Команда `node` (машина шарда из CLI) не сделана: ей нужен bootstrap членства и genesis,
+//! и «заглушка, которая печатает успех», была бы дороже её отсутствия. Relay/DCUtR не подняты,
+//! поэтому `agent session` идёт прямым dial'ом по адресу из address book или Kademlia.
 //!
 //! Разбор аргументов свой и без зависимостей ([`args`]), а весь вывод пишется в буфер внутри
 //! `run`, поэтому тесты проверяют бинарник как функцию, а не через `spawn` — и один интеграционный
@@ -149,6 +153,13 @@ pub static COMMANDS: &[Command] = &[
         run: agent_cmd::exec_session,
     },
     Command {
+        path: agent_cmd::CMD_RUN,
+        summary: "постоянный listener: шагать вне вызовов и принимать входящие (§12.5)",
+        flags: agent_cmd::FLAGS_RUN,
+        help: agent_cmd::HELP_RUN,
+        run: agent_cmd::exec_run,
+    },
+    Command {
         path: pow_cmd::CMD_MINE,
         summary: "нафармить publish-PoW для конкретного контекста записи (§11.1)",
         flags: pow_cmd::FLAGS,
@@ -225,7 +236,7 @@ pub static COMMANDS: &[Command] = &[
 pub fn usage() -> String {
     let mut out = String::new();
     out.push_str(&format!(
-        "vecdht-cli {} — VecDHT v8 (§12: agent publish/find/session; §18.1–§18.5 офлайн)\n\n",
+        "vecdht-cli {} — VecDHT v8 (§12: agent publish/find/session/run; §18.1–§18.5 офлайн)\n\n",
         env!("CARGO_PKG_VERSION")
     ));
     out.push_str("КОМАНДЫ\n");
