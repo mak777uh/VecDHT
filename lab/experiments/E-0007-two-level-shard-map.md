@@ -1,0 +1,46 @@
+---
+id: E-0007
+hypothesis: H-0007
+status: planned
+base_commit: ""
+started: ""
+finished: ""
+environment: "Windows, x86_64-pc-windows-gnu; Intel Core i7-10700 2.90 GHz, 8 физических / 16 логических ядер; rustc 1.99.1; release; RAYON_NUM_THREADS=4; кеши эмбеддингов `E-0004` (50k) и `E-0006` (807k), forward не повторяется"
+command: "RAYON_NUM_THREADS=4 VEC_DHT_P0_COARSE=1 VEC_DHT_MODEL_DIR=C:/Users/Admin/models/granite-embedding-97m-r2 VEC_DHT_P0_CORPUS=C:/Users/Admin/models/p0-msmarco/corpus-50k.txt VEC_DHT_P0_QUERIES=C:/Users/Admin/models/p0-msmarco/queries-1k.txt cargo test --release -p vecdht-embed --features candle gate_ii_real_corpus_recall -- --ignored --nocapture"
+threshold: "recall@10 ≥ 0.95 при nprobe=16 грубых ячеек и fan-out ≤16, среднее по 1000 held-out; ground truth = brute-force в том же int8. Контрольная точка: та же конфигурация на 807 596 (кеш `E-0006`)"
+result: "ожидает прогона"
+verdict: inconclusive
+---
+
+## Pre-registration (до прогона)
+
+Вопрос: держится ли провал 0.95 на карте «шард = cluster_id / 16», а не на IVF как таковом.
+Оракул — тот же гейт `p0_real_corpus.rs::gate_ii_real_corpus_recall`, добавлен режим
+`VEC_DHT_P0_COARSE=1`; порог и точка гейта не меняются: **0.95 при nprobe=16 и fan-out ≤16**.
+
+Успех: recall@10 ≥ 0.95 на 50k и подтверждение ≥ 0.95 на 807k (кеш `E-0006`) при fan-out ≤16.
+Провал: < 0.95 на 50k, либо прирост против текущей карты меньше +5 п.п. (то есть < 0.88).
+Промежуточное 0.95–0.97 на 50k но < 0.95 на 807k — масштабная оговорка, а не PASS.
+
+## Прогон
+
+Порядок: (0) пред-полёт на `corpus-3k` (`VEC_DHT_P0_ALLOW_SMALL=1` + `VEC_DHT_P0_COARSE=1`) —
+проверка кода, не гейт; (1) 50k с кешем `E-0004` — k-means 13 с, кривая секунды; (2) 807k с
+кешем `E-0006` — k-means ≈3–5 мин. Режим `COARSE` реализован в тесте (тип-чек пройден,
+`cargo check --release -p vecdht-embed --features candle --tests`) и гейтится переменной
+`VEC_DHT_P0_COARSE=1`; порог и точка гейта в тесте не изменены.
+
+## Результат
+
+Не заполнено: до прогона.
+
+## Вердикт
+
+Не вынесен: до прогона.
+
+## Что это не доказывает
+
+- только эти два корпуса, эта модель, этот seed;
+- перенумерация кластеров и `shard_of_cluster` как контракт — предмет `ADR-0004`, не этого опыта;
+- latency узла при выросшем числе кандидатов не измерена в сети;
+- 1M/10M, rerank и семантическая релевантность не проверяются.

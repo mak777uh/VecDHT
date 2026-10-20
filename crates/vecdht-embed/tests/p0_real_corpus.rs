@@ -20,6 +20,11 @@
 //!
 //! Порог и процедура зафиксированы до прогона в `H-0004`/`E-0004`. Тест не ослабляет порог: при
 //! recall@16 < 0.95 он падает и печатает лестницу §8.6, а не «почти прошёл».
+//!
+//! Режимы (переменные окружения, каждый — отдельная зарегистрированная гипотеза, порог один):
+//! `VEC_DHT_P0_NLIST` — лестница §8.6, nlist 1024→512 (`E-0004`); `VEC_DHT_P0_SHARD_COMPLETE=1` —
+//! полный скан выбранных шардов (`E-0005`); `VEC_DHT_P0_COARSE=1` — двухуровневая карта шардов
+//! `H-0007`/`E-0007`: шард = грубая ячейка из 16 пространственно близких кластеров.
 
 #![cfg(feature = "candle")]
 
@@ -140,6 +145,14 @@ fn gate_ii_real_corpus_recall() {
     // §8.6, вариант «точный скан всех кластеров шарда»: топ-nprobe кластеров выбирает шарды,
     // но каждый выбранный шард сканирует все 16 своих кластеров. Fan-out при этом не растёт.
     let shard_complete = matches!(std::env::var("VEC_DHT_P0_SHARD_COMPLETE").as_deref(), Ok("1"));
+    // H-0007/E-0007: двухуровневая карта шардов. Верхний уровень — `nlist / 16` грубых
+    // центроидов над замороженными 1024; шард = грубая ячейка, поэтому полный скан выбранного
+    // шарда перестаёт быть лотереей: он покрывает пространственно связную область, а не
+    // случайные кластеры `cluster_id / 16`. Fan-out тот же, меняется только карта.
+    let coarse = matches!(std::env::var("VEC_DHT_P0_COARSE").as_deref(), Ok("1"));
+    if coarse && shard_complete {
+        println!("COARSE и SHARD-COMPLETE заданы вместе: считается только COARSE");
+    }
     let k = nlist;
     let cap = (2 * corpus.len()).div_ceil(k);
     let config = KMeansConfig { k, max_iters: MAX_ITERS, seed: SEED, balance_cap: cap };
@@ -151,6 +164,13 @@ fn gate_ii_real_corpus_recall() {
         println!(
             "режим SHARD-COMPLETE: каждый выбранный шард сканирует все {CLUSTERS_PER_SHARD} кластера; \
              fan-out считается по топ-{NPROBE_GATE} кластерам и не меняется"
+        );
+    }
+    if coarse {
+        println!(
+            "режим COARSE: шард = грубая ячейка ({} ячеек над {nlist} кластерами); выбранный шард \
+             сканирует все свои кластеры, fan-out считается по топ-{NPROBE_GATE} ячейкам",
+            nlist / CLUSTERS_PER_SHARD as usize
         );
     }
     let started = Instant::now();
@@ -214,6 +234,30 @@ fn gate_ii_real_corpus_recall() {
     }
     print_cluster_stats(&actual_counts, cap);
 
+    // Верхний уровень карты шардов (только режим COARSE): грубые ячейки над теми же
+    // замороженными центроидами. Обучается после int8-присваивания и не влияет на него.
+    let cells = coarse.then(|| build_cells(&trained.centroids, &centroid_store, nlist, threads));
+    if let Some(c) = &cells {
+        let sizes = &c.counts;
+        let min = sizes.iter().copied().min().unwrap_or(0);
+        let max = sizes.iter().copied().max().unwrap_or(0);
+        let over = sizes.iter().filter(|&&n| n as usize > CLUSTERS_PER_SHARD as usize).count();
+        let empty = sizes.iter().filter(|&&n| n == 0).count();
+        println!(
+            "COARSE: {} ячеек над {nlist} кластерами, k-means top-level за {} итераций; \
+             размер ячейки min {min} / max {max} (ровно {} ожидалось), over_cap={over}, пустых={empty}",
+            c.rows.len(),
+            c.iterations,
+            CLUSTERS_PER_SHARD
+        );
+        println!(
+            "COARSE: fan-out при nprobe=16 ячеек ≤16 шардов, скан {} кластеров ({}% nlist) — \
+             против {CLUSTERS_PER_SHARD} кластеров у пересечения",
+            16 * CLUSTERS_PER_SHARD as usize,
+            16 * CLUSTERS_PER_SHARD as usize * 100 / nlist
+        );
+    }
+
     let truth_started = Instant::now();
     let truth = parallel_map(query_i8.len(), threads, |qi| {
         brute_force(&corpus_i8, &query_i8[qi])
@@ -229,15 +273,17 @@ fn gate_ii_real_corpus_recall() {
     // Точка гейта — nprobe=16. Остальные точки (включая полный скан nprobe=nlist) —
     // данные лестницы §8.6: они показывают, где recall упирается в потолок зондирования.
     let mut probes = vec![1usize, 4, 8, NPROBE_GATE, 24, 32, 64, 128, 256];
-    probes.retain(|&p| p <= nlist);
-    if probes.last().copied() != Some(nlist) {
-        probes.push(nlist);
+    // В режиме COARSE единица зондирования — грубая ячейка (их nlist/16), а не кластер.
+    let scan_units = cells.as_ref().map_or(nlist, |c| c.rows.len());
+    probes.retain(|&p| p <= scan_units);
+    if probes.last().copied() != Some(scan_units) {
+        probes.push(scan_units);
     }
     let mut recall_at_16 = 0.0;
     for nprobe in probes {
         let started = Instant::now();
         let runs: Vec<AnnRun> = parallel_map(query_i8.len(), threads, |qi| {
-            ann_search(&rows, &members, &corpus_i8, &query_i8[qi], nprobe, shard_complete)
+            ann_search(&rows, &members, &corpus_i8, &query_i8[qi], nprobe, shard_complete, cells.as_ref())
         });
         let per_query: Vec<f64> = runs
             .iter()
@@ -264,6 +310,12 @@ fn gate_ii_real_corpus_recall() {
 
     if smoke {
         println!("SMOKE: recall@10 = {recall_at_16:.4} при nprobe={NPROBE_GATE} — не гейт, размер корпуса ниже §18.1");
+    } else if coarse {
+        println!(
+            "COARSE (H-0007): recall@10 = {recall_at_16:.4} при nprobe={NPROBE_GATE} ячеек, порог 0.95, \
+             цель 0.98 — {}",
+            if recall_at_16 >= 0.95 { "PASS" } else { "FAIL" }
+        );
     } else if ladder {
         println!(
             "ЛЕСТНИЦА §8.6: nlist={nlist}, recall@10 = {recall_at_16:.4} при nprobe={NPROBE_GATE}, \
@@ -283,11 +335,16 @@ fn gate_ii_real_corpus_recall() {
         );
     }
     if !smoke {
+        let hint = if coarse {
+            "COARSE (H-0007): связная карта шардов не подняла recall до 0.95 — механизм \
+             опровергнут, и следующим шагом идёт другой индекс, а не подкрутка порога"
+        } else {
+            "Лестница §8.6: nprobe=24/32 → nlist=512 → полный скан; при недостижимости — \
+             пересмотр claim'а §8.6, а не порога"
+        };
         assert!(
             recall_at_16 >= 0.95,
-            "гейт (ii): nlist={nlist}, recall@10 = {recall_at_16:.4} < 0.95 при nprobe={NPROBE_GATE}. \
-             Лестница §8.6: nprobe=24/32 → nlist=512 → полный скан; при недостижимости — \
-             пересмотр claim'а §8.6, а не порога"
+            "гейт (ii): nlist={nlist}, recall@10 = {recall_at_16:.4} < 0.95 при nprobe={NPROBE_GATE}. {hint}"
         );
     }
 }
@@ -305,19 +362,34 @@ fn ann_search(
     query: &[i8; DIM],
     nprobe: usize,
     shard_complete: bool,
+    cells: Option<&Cells>,
 ) -> AnnRun {
-    let clusters = top_clusters(query, centroids, nprobe);
-    let shards = group_by_shard(&clusters);
-    let fanout = shards.len();
-    // Shard-complete: узел уже выбран, его 16 кластеров лежат локально, поэтому сканируем их
-    // все. Множество кластеров — объединение по шардам; дублей нет, шарды не пересекаются.
-    let scan_clusters: Vec<u16> = if shard_complete {
-        shards
-            .iter()
-            .flat_map(|(shard, _)| clusters_of_shard(*shard))
-            .collect()
+    let (scan_clusters, fanout) = if let Some(c) = cells {
+        // Зонд единица — грубая ячейка. Выбранные ячейки — шарды; каждый сканирует свои
+        // кластеры целиком (их ровно `CLUSTERS_PER_SHARD`), дублей нет.
+        let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
+        let chosen = top_clusters(query, &refs, nprobe);
+        let mut scan: Vec<u16> = Vec::with_capacity(chosen.len() * CLUSTERS_PER_SHARD as usize);
+        for cell in &chosen {
+            scan.extend_from_slice(&c.clusters_of_cell[*cell as usize]);
+        }
+        let fanout = chosen.len();
+        (scan, fanout)
     } else {
-        clusters
+        let clusters = top_clusters(query, centroids, nprobe);
+        let shards = group_by_shard(&clusters);
+        let fanout = shards.len();
+        // Shard-complete: узел уже выбран, его 16 кластеров лежат локально, поэтому сканируем их
+        // все. Множество кластеров — объединение по шардам; дублей нет, шарды не пересекаются.
+        let scan = if shard_complete {
+            shards
+                .iter()
+                .flat_map(|(shard, _)| clusters_of_shard(*shard))
+                .collect()
+        } else {
+            clusters
+        };
+        (scan, fanout)
     };
     let mut top = TopK::new();
     let mut candidates = 0;
@@ -328,6 +400,43 @@ fn ann_search(
         }
     }
     AnnRun { ids: top.ids(), fanout, candidates }
+}
+
+/// Верхний уровень карты шардов для режима COARSE: `k = nlist / CLUSTERS_PER_SHARD` грубых
+/// центроидов над замороженными, cap = `CLUSTERS_PER_SHARD`, чтобы шард держал ровно 16
+/// кластеров. Ячейка кластера — int8-argmin, тот же контракт, что у присваивания записи (§7.2).
+struct Cells {
+    rows: Vec<[i8; DIM]>,
+    clusters_of_cell: Vec<Vec<u16>>,
+    counts: Vec<u32>,
+    iterations: usize,
+}
+
+fn build_cells(
+    centroids_f32: &[f32],
+    fine_i8: &[[i8; DIM]],
+    nlist: usize,
+    threads: usize,
+) -> Cells {
+    let k = nlist / CLUSTERS_PER_SHARD as usize;
+    assert!(k > 0, "nlist={nlist} меньше одного шарда из {CLUSTERS_PER_SHARD} кластеров");
+    let cfg =
+        KMeansConfig { k, max_iters: MAX_ITERS, seed: SEED ^ 0x0007, balance_cap: CLUSTERS_PER_SHARD as usize };
+    let trained = kmeans::train(centroids_f32, DIM, cfg, threads).expect("верхний уровень k-means");
+    let coarse_f64: Vec<f64> = trained.centroids.iter().map(|&x| f64::from(x)).collect();
+    let rows: Vec<[i8; DIM]> = coarse_f64
+        .chunks_exact(DIM)
+        .map(|chunk| quantize_slice(chunk).expect("центроид ячейки квантуется"))
+        .collect();
+    let refs: Vec<&[i8; DIM]> = rows.iter().collect();
+    let mut clusters_of_cell = vec![Vec::new(); k];
+    let mut counts = vec![0u32; k];
+    for (cluster, fine) in fine_i8.iter().enumerate() {
+        let cell = assign_cluster(fine, &refs) as usize;
+        clusters_of_cell[cell].push(cluster as u16);
+        counts[cell] += 1;
+    }
+    Cells { rows, clusters_of_cell, counts, iterations: trained.iterations }
 }
 
 fn brute_force(corpus: &[[i8; DIM]], query: &[i8; DIM]) -> Vec<u32> {
