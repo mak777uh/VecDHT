@@ -436,6 +436,17 @@ fn build_cells(
         clusters_of_cell[cell].push(cluster as u16);
         counts[cell] += 1;
     }
+    // Внутренняя непротиворечивость карты: каждый замороженный кластер попал ровно в одну ячейку.
+    // Это инвариант построения (кластер присваивается один раз), а не метрика качества: если он
+    // нарушится, recall посчитается по неполному покрытию и число будет ложно низким, а причина
+    // будет выглядеть как «механизм не работает».
+    let covered: usize = counts.iter().map(|&n| n as usize).sum();
+    assert_eq!(
+        covered,
+        fine_i8.len(),
+        "ячейки покрывают {covered} кластеров из {} — карта неполна",
+        fine_i8.len()
+    );
     Cells { rows, clusters_of_cell, counts, iterations: trained.iterations }
 }
 
