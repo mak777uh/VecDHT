@@ -26,15 +26,15 @@ use libp2p::request_response::{self, OutboundRequestId, ProtocolSupport};
 use libp2p::swarm::{Swarm, SwarmEvent};
 use libp2p::{identify, noise, tcp, yamux, Multiaddr, PeerId, StreamProtocol, SwarmBuilder};
 use thiserror::Error;
-use vecdht_crypto::{verify_body, AuthoritySet, Identity};
+use vecdht_crypto::{verify_body, verify_revoke, AuthoritySet, Identity};
 use vecdht_node::{Clock, Envelope, ShardNode};
 use vecdht_wire::cert::NodeCert;
 use vecdht_wire::constants::{shard_of, shard_provider_key, SHARDS};
 use vecdht_wire::frame::{decode_frame, Kind};
 use vecdht_wire::messages::{
-    domain, err_code, Codec, Find, Handshake, LeaseGrant, LeaveNotice, MembershipUpdate,
-    ProtocolError, Publish, ReplicateAck, ReplicateOp, Role, SnapshotOffer, WalPullRequest,
-    WalPullResponse,
+    domain, err_code, CertRevoke, Codec, Find, Handshake, LeaseGrant, LeaveNotice,
+    MembershipUpdate, ProtocolError, Publish, ReplicateAck, ReplicateOp, Role, SnapshotOffer,
+    WalPullRequest, WalPullResponse,
 };
 
 use crate::behaviour::{Behaviour, BehaviourEvent};
@@ -46,6 +46,17 @@ use crate::keys;
 /// тема, без band-суффиксов, которые в v7.5 умножали записи без пользы.
 pub fn shard_topic(shard: u16) -> String {
     format!("vdht/s8/{shard}/gossip")
+}
+
+/// Тема отзывов `CertRevoke` (§4.2). Отзыв не привязан к шарду: один `nonce` покрывает набор
+/// шардов кредашиала, и весть обязана дойти до всех, кто уже говорит с этим ключом, а не
+/// только до держателей одного шарда. Отдельная тема, а не shard-тема, ещё и потому, что
+/// `CertRevoke` — единственный кадр, чья авторитетность доказана структурным порогом, а не
+/// подписью отправителя кадра.
+pub const CONTROL_TOPIC: &str = "vdht/s8/control";
+
+fn control_topic() -> IdentTopic {
+    IdentTopic::new(CONTROL_TOPIC)
 }
 
 #[derive(Debug, Error)]
@@ -126,6 +137,12 @@ pub struct NetService {
     /// Обратный указатель для `Envelope.to`: узел адресует ответы владельцу, а транспорт
     /// знает только `PeerId`.
     owners: HashMap<[u8; 32], PeerId>,
+    /// Отзывы §4.2 по `nonce` кредашиала. Множество переживает смену эпохи: отзыв — это
+    /// свойство ключа, а не эпизода членства (§11.4).
+    revoked: BTreeSet<[u8; 16]>,
+    /// Свой `nonce` — чтобы узнать в потоке отзывов собственный и замолчать.
+    own_cert_nonce: Option<[u8; 16]>,
+    self_revoked: bool,
     pending: HashMap<OutboundRequestId, Pending>,
     /// Кадры, которые не принадлежат ни одному локальному шарду: ответы агента (`PublishAck`,
     /// `MatchResult`, `RendezvousAccept`, `Error`) и чужой gossip. Агент забирает их отсюда.
@@ -168,6 +185,7 @@ impl NetService {
             cfg.genesis_hash,
             cert.as_ref(),
         )?;
+        let own_cert_nonce = cert.as_ref().map(|c| c.nonce);
         let keypair = keys::keypair(&local);
         let local_peer = keypair.public().to_peer_id();
         let is_server = !nodes.is_empty();
@@ -231,6 +249,14 @@ impl NetService {
                 .subscribe(&topic)
                 .map_err(|e| NetError::Build(e.to_string()))?;
         }
+        // Control-тема нужна всем ролям: агенту — чтобы не жать руку отозванному узлу, узлу —
+        // чтобы сбросить уже установленные соединения. Подписка без держателей шарда ничего
+        // не стоит: сообщений в этой теме ровно столько, сколько отзывов.
+        swarm
+            .behaviour_mut()
+            .gossip
+            .subscribe(&control_topic())
+            .map_err(|e| NetError::Build(e.to_string()))?;
 
         Ok(Self {
             swarm,
@@ -244,6 +270,9 @@ impl NetService {
             nodes: nodes.into_iter().map(|n| (n.shard, n)).collect(),
             peers: HashMap::new(),
             owners: HashMap::new(),
+            revoked: BTreeSet::new(),
+            own_cert_nonce,
+            self_revoked: false,
             pending: HashMap::new(),
             inbox: Vec::new(),
             providers: BTreeMap::new(),
@@ -304,6 +333,22 @@ impl NetService {
         v
     }
 
+    /// Был ли `nonce` отозван порогом авторитетов. Наблюдаемость для тестов и оператора:
+    /// «сообщение прошло» и «отзыв применён» — разные утверждения.
+    pub fn is_revoked_nonce(&self, nonce: &[u8; 16]) -> bool {
+        self.revoked.contains(nonce)
+    }
+
+    pub fn revocation_count(&self) -> usize {
+        self.revoked.len()
+    }
+
+    /// Свой кредашиал отозван: сервис перестал отвечать, подписывать и объявлять шарды.
+    /// Процесс при этом не завершается — оператору нужно место, где увидеть причину.
+    pub fn is_self_revoked(&self) -> bool {
+        self.self_revoked
+    }
+
     pub fn take_inbox(&mut self) -> Vec<(PeerId, Vec<u8>)> {
         std::mem::take(&mut self.inbox)
     }
@@ -338,6 +383,10 @@ impl NetService {
     /// Отправить один кадр как запрос. Разрешено только аутентифицированному пиру: иначе
     /// `from` на той стороне не будет существовать, а анонимный publish — это уже не v8.
     pub fn send_frame(&mut self, peer: PeerId, frame: Vec<u8>) -> bool {
+        if self.self_revoked {
+            self.errors.push("свой кредашиал отозван: кадры не отправляются".to_string());
+            return false;
+        }
         if !self.peers.contains_key(&peer) {
             self.errors.push(format!("{peer}: кадр до завершения handshake не отправляется"));
             return false;
@@ -386,6 +435,11 @@ impl NetService {
     /// heartbeat gossipsub, поэтому один `Publish` подряд с подпиской может не уйти никому.
     /// Гарантированный путь — прямое соединение; gossip нужен для широковещательного поиска.
     pub fn publish_gossip(&mut self, shard: u16, frame: Vec<u8>) -> Result<(), NetError> {
+        if self.self_revoked {
+            return Err(NetError::Build(
+                "свой кредашиал отозван: публикация в темы шардов прекращена".to_string(),
+            ));
+        }
         let signed = decode_frame(&frame).map(|f| f.header.signed()).unwrap_or(false);
         if !signed {
             return Err(NetError::Build(format!(
@@ -397,6 +451,26 @@ impl NetService {
             .behaviour_mut()
             .gossip
             .publish(IdentTopic::new(shard_topic(shard)), frame)
+            .map(|_| ())
+            .map_err(|e| NetError::Build(e.to_string()))
+    }
+
+    /// Разослать отзыв по control-теме. Сервис не проверяет его и ничего не добавляет от
+    /// себя: авторитетность `CertRevoke` — это порог подписей внутри тела, а подпись
+    /// сервиса не значила бы в нём ничего. Проверяет получатель, и делает это до записи
+    /// nonce в множество; иначе ослабленный отзыв (2-of-5) отзывал бы ключи у всех, кто
+    /// доверяет ретранслятору, а не авторитетам.
+    pub fn publish_revoke(&mut self, revoke: &CertRevoke) -> Result<(), NetError> {
+        let topic = control_topic();
+        self.swarm
+            .behaviour_mut()
+            .gossip
+            .subscribe(&topic)
+            .map_err(|e| NetError::Build(e.to_string()))?;
+        self.swarm
+            .behaviour_mut()
+            .gossip
+            .publish(topic, revoke.encode_unsigned())
             .map(|_| ())
             .map_err(|e| NetError::Build(e.to_string()))
     }
@@ -440,22 +514,11 @@ impl NetService {
                 if num_established > 0 {
                     return;
                 }
-                let Some(who) = self.peers.remove(&peer_id) else { return };
-                self.owners.retain(|_, p| *p != peer_id);
+                let Some(who) = self.forget_peer(peer_id) else { return };
                 // §9.8: смерть пира доказывается событием транспорта, а не тишиной. Без
                 // этого вызова primary ждал бы истечения lease (90 с), и handoff начинался
                 // бы после простоя шарда, а не в ту же секунду.
-                let clock = Clock::at(now_sec());
-                let mut out = Vec::new();
-                for node in self.nodes.values_mut() {
-                    match node.peer_lost(who.owner, clock.bucket) {
-                        Ok(list) => out.extend(list),
-                        Err(e) => self.errors.push(format!("peer_lost шарда {}: {e}", node.shard)),
-                    }
-                }
-                for env in out {
-                    self.dispatch(env);
-                }
+                self.notify_peer_lost(who.owner);
             }
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 self.errors.push(format!("dial {peer_id:?}: {error}"));
@@ -469,6 +532,12 @@ impl NetService {
     }
 
     fn start_handshake(&mut self, peer: PeerId) {
+        if self.self_revoked {
+            // Предъявлять отозванный кредашиал нечего: соединение закрывается до обмена
+            // приветствиями, чтобы встречная сторона не приняла нас за живого узла.
+            let _ = self.swarm.disconnect_peer_id(peer);
+            return;
+        }
         let frame = self.greeting.encode_unsigned();
         let id = self.swarm.behaviour_mut().frames.send_request(&peer, frame);
         self.pending.insert(id, Pending::Handshake);
@@ -506,6 +575,12 @@ impl NetService {
     }
 
     fn on_request(&mut self, peer: PeerId, request: Vec<u8>) -> Vec<Vec<u8>> {
+        if self.self_revoked {
+            // Ни handshake, ни прикладной кадр: узел без действующего кредашиала не имеет
+            // права ни отвечать, ни подписывать. Отказ явный, чтобы встречная сторона не
+            // ждала таймаута и не считала молчание согласием.
+            return vec![error_frame(err_code::CERT_INVALID, 0, 0, "кредашиал отозван")];
+        }
         let kind = match decode_frame(&request) {
             Ok(f) => f.header.kind,
             Err(e) => return vec![error_frame(err_code::BAD_ENUM, 0, 0, &e.to_string())],
@@ -536,6 +611,7 @@ impl NetService {
             model_version: &self.model_version,
             preprocessing_version: self.preprocessing_version,
             now_sec: now,
+            revoked_nonces: &self.revoked,
         };
         let who = handshake::verify(&hs, peer, &v)?;
         self.owners.insert(who.owner, peer);
@@ -619,11 +695,28 @@ impl NetService {
 
     fn on_gossip_event(&mut self, ev: gossipsub::Event) {
         if let gossipsub::Event::Message { propagation_source, message, .. } = ev {
+            // Control-тема несёт только `CertRevoke`; всё остальное в ней — не «будущее
+            // расширение», а кадр не по адресу. Проверка идёт до любых ранних выходов:
+            // отзыв должен приниматься и тогда, когда сервис уже замолчал.
+            if message.topic == control_topic().hash() {
+                self.on_control_message(propagation_source, &message.data);
+                return;
+            }
+            if self.self_revoked {
+                return;
+            }
             // Темы шардов несут только прикладные кадры; Handshake по gossip — это попытка
             // выдать себя за соединение, которого не было.
             let Ok(f) = decode_frame(&message.data) else { return };
             if f.header.kind == Kind::Handshake {
                 self.errors.push(format!("gossip {propagation_source}: Handshake в теме шарда"));
+                return;
+            }
+            if f.header.kind == Kind::CertRevoke {
+                // Отзыв в shard-теме обошёл бы адресность: его увидели бы только подписчики
+                // одного шарда, а отзываемый ключ может покрывать несколько.
+                self.errors
+                    .push(format!("gossip {propagation_source}: CertRevoke вне control-темы"));
                 return;
             }
             let Some(owner) = keys::owner(&propagation_source) else { return };
@@ -640,6 +733,110 @@ impl NetService {
             for env in replies {
                 self.dispatch(env);
             }
+        }
+    }
+
+    /// `CertRevoke` из control-темы: порог авторитетов — единственная проверка, которая
+    /// делает отзыв отзывом. Автор конверта здесь ничего не значит: пересылать вправе кто
+    /// угодно, подписать — только порог.
+    fn on_control_message(&mut self, source: PeerId, data: &[u8]) {
+        let revoke = match decode_frame(data) {
+            Ok(f) if f.header.kind == Kind::CertRevoke => match CertRevoke::decode(data) {
+                Ok(r) => r,
+                Err(e) => {
+                    self.errors.push(format!("control {source}: отзыв не разобран: {e}"));
+                    return;
+                }
+            },
+            Ok(f) => {
+                self.errors
+                    .push(format!("control {source}: {:?} в control-теме", f.header.kind));
+                return;
+            }
+            Err(e) => {
+                self.errors.push(format!("control {source}: кадр не разобран: {e}"));
+                return;
+            }
+        };
+        if let Err(e) = verify_revoke(&revoke, &self.authorities) {
+            self.errors.push(format!("control {source}: отзыв отвергнут: {e}"));
+            return;
+        }
+        self.apply_revoke(revoke);
+    }
+
+    /// Применить проверенный отзыв: запомнить `nonce`, сбросить соединения с его носителем и,
+    /// если отозван собственный кредашиал, замолчать целиком.
+    fn apply_revoke(&mut self, revoke: CertRevoke) {
+        let nonce = revoke.nonce;
+        if !self.revoked.insert(nonce) {
+            // Повторная рассылка — штатный retry gossip; отзыв идемпотентен по nonce.
+            return;
+        }
+        if self.own_cert_nonce == Some(nonce) && !self.self_revoked {
+            self.self_revoked = true;
+            self.errors.push(format!(
+                "свой кредашиал отозван ({}): узел перестаёт отвечать, подписывать и объявлять шарды",
+                revoke.reason
+            ));
+            // Провайдер-записи §7.4 — обещание «этот узел держит шард». Отозванный узел его
+            // больше не выполняет; запись обязана исчезнуть, а не дожить до TTL.
+            let shards: Vec<u16> = self.nodes.keys().copied().collect();
+            for shard in shards {
+                let key = RecordKey::new(&shard_provider_key(shard));
+                self.swarm.behaviour_mut().kad.stop_providing(&key);
+                let _ = self
+                    .swarm
+                    .behaviour_mut()
+                    .gossip
+                    .unsubscribe(&IdentTopic::new(shard_topic(shard)));
+            }
+        }
+        let victims: Vec<PeerId> = if self.self_revoked {
+            // Мы больше не узел: любой собеседник говорит с отозванным ключом.
+            self.peers.keys().copied().collect()
+        } else {
+            self.peers
+                .iter()
+                .filter(|(_, who)| who.cert.as_ref().is_some_and(|c| c.nonce == nonce))
+                .map(|(p, _)| *p)
+                .collect()
+        };
+        for peer in victims {
+            if let Some(who) = self.forget_peer(peer) {
+                let _ = self.swarm.disconnect_peer_id(peer);
+                // Себя отозванный узел не уведомляет: `peer_lost` стартует выборы и подписывает
+                // кадры членства, а отозванный ключ не подписывает ничего (§4.2). Для уже
+                // мёртвого узла это не потеря состояния, а исполнение обязательства.
+                if !self.self_revoked {
+                    self.notify_peer_lost(who.owner);
+                }
+            }
+        }
+    }
+
+    /// Убрать пира из таблиц, не трогая соединение. Возвращает его личность: решение о
+    /// `peer_lost` принимает вызывающий, потому что у отзыва нет события транспорта, на
+    /// которое можно было бы опереться.
+    fn forget_peer(&mut self, peer: PeerId) -> Option<PeerIdentity> {
+        let who = self.peers.remove(&peer)?;
+        self.owners.retain(|_, p| *p != peer);
+        Some(who)
+    }
+
+    /// Сообщить узлам о потере владельца и разослать их реакции. §9.8: это доказательство
+    /// смерти, а не догадка; отзыв ключа — такая же потеря для репликации.
+    fn notify_peer_lost(&mut self, owner: [u8; 32]) {
+        let clock = Clock::at(now_sec());
+        let mut out = Vec::new();
+        for node in self.nodes.values_mut() {
+            match node.peer_lost(owner, clock.bucket) {
+                Ok(list) => out.extend(list),
+                Err(e) => self.errors.push(format!("peer_lost шарда {}: {e}", node.shard)),
+            }
+        }
+        for env in out {
+            self.dispatch(env);
         }
     }
 
@@ -675,6 +872,12 @@ impl NetService {
     }
 
     fn maybe_tick(&mut self) {
+        if self.self_revoked {
+            // Тик узла подписывает кадры (членство, GC, репликация). Отозванный ключ не
+            // подписывает ничего — это и есть обязательство §4.2, а не только разрыв
+            // соединений.
+            return;
+        }
         let now = now_sec();
         if now == self.last_tick_sec {
             return;
@@ -757,6 +960,9 @@ impl NetService {
 
     /// Входящий ответ по нашему запросу: ack'и и снапшоты — узлу, остальное — в inbox.
     fn route_inbound(&mut self, peer: PeerId, frame: Vec<u8>) {
+        if self.self_revoked {
+            return;
+        }
         let shard = match shard_of_frame(&frame) {
             Ok(Some(s)) if self.nodes.contains_key(&s) => s,
             _ => {
@@ -784,6 +990,11 @@ impl NetService {
 
     /// `Envelope` адресован владельцу, а не `PeerId`: переводим через таблицу handshake'ов.
     fn dispatch(&mut self, env: Envelope) {
+        if self.self_revoked {
+            // Кадр уже подписан узлом до отзыва; отправлять его — значит продолжать говорить
+            // от имени отозванного ключа. Молчание здесь важнее доставки.
+            return;
+        }
         let Some(&peer) = self.owners.get(&env.to) else {
             self.errors.push(format!("нет соединения с владельцем {}…", hex_prefix(&env.to)));
             return;

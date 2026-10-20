@@ -191,6 +191,17 @@ pub fn build_revoke(
     r
 }
 
+/// Добавить подпись авторитета к уже собранному отзыву. Как и [`sign_cert_identity`], нужна
+/// инструментам, которые держат [`Identity`](crate::Identity), а не `SigningKey`: `Identity`
+/// намеренно не отдаёт наружу приватный ключ, и порог из 3-of-5 собирается тремя такими
+/// подписями, а не одной.
+pub fn sign_revoke_identity(revoke: &CertRevoke, signer: &crate::Identity) -> CertRevoke {
+    let mut out = revoke.clone();
+    out.authority_sigs
+        .push(signer.sign_domain(DOMAIN_CERT_REVOKED, &revoke.unsigned_body()));
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -393,6 +404,35 @@ mod tests {
         assert_eq!(r.nonce, [0xAA; 16]);
         assert_ne!(r.unsigned_body(), other.unsigned_body());
         assert!(verify_revoke(&other, &a).is_ok());
+    }
+
+    #[test]
+    fn identity_signed_revoke_uses_the_same_domain_and_body() {
+        let a = five_of_three();
+        let mut r = CertRevoke {
+            nonce: [0xCC; 16],
+            revoked_at: 777,
+            reason: "stolen".to_string(),
+            authority_sigs: Vec::new(),
+        };
+        for seed in [1u8, 2, 3] {
+            r = sign_revoke_identity(&r, &crate::Identity::from_seed([seed; 32]));
+        }
+        // Та же подпись, что у `build_revoke`: форма ключа не должна менять байты отзыва.
+        let by_keys = build_revoke([0xCC; 16], 777, "stolen", &[key(1), key(2), key(3)]);
+        assert_eq!(r, by_keys);
+        assert_eq!(verify_revoke(&r, &a), Ok(()));
+
+        let mut weak = r.clone();
+        weak.authority_sigs.truncate(2);
+        assert_eq!(
+            verify_revoke(&weak, &a),
+            Err(CertError::BelowThreshold { have: 2, need: 3 })
+        );
+
+        let mut forged = r;
+        forged.reason = "expired".to_string();
+        assert!(verify_revoke(&forged, &a).is_err());
     }
 
     #[test]

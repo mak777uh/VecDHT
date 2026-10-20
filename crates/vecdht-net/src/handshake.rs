@@ -16,6 +16,8 @@
 //! Время здесь берётся из системных часов только для срока действия кредашиала. Это
 //! локальное решение о соединении, а не replicated-путь: индекс от него не зависит (§9.6).
 
+use std::collections::BTreeSet;
+
 use libp2p::PeerId;
 use thiserror::Error;
 use vecdht_crypto::cert::verify_cert;
@@ -80,6 +82,10 @@ pub struct Verifier<'a> {
     pub model_version: &'a str,
     pub preprocessing_version: u16,
     pub now_sec: u32,
+    /// Отзывы §4.2, увиденные этим узлом. Множество приходит из control-темы gossip и живёт
+    /// в сервисе; handshake только спрашивает «этот nonce отозван?» — иначе проверка срока и
+    /// порога была бы полной, а отзыв по-прежнему принимался бы пустым множеством.
+    pub revoked_nonces: &'a BTreeSet<[u8; 16]>,
 }
 
 /// Собрать своё приветствие. Кредашиал кодируется ровно в том виде, в котором подписан.
@@ -141,10 +147,7 @@ pub fn verify(
                 v.authorities,
                 &v.genesis_hash,
                 v.now_sec,
-                // Отзывы приходят gossip'ом (§4.2) и живут в узле; сюда передаётся пустое
-                // множество до подключения `CertRevoke`-пути. Проверка порога и срока от
-                // этого не зависит, а «отозван» без источника отзыва — не проверка.
-                |_| false,
+                |nonce| v.revoked_nonces.contains(nonce),
             )?;
             if cert.role != role {
                 // Роль в заголовке и в кредашиале — два ответа на один вопрос. Расхождение
@@ -180,13 +183,25 @@ mod tests {
         testing::node_cert(seed, peer.to_bytes(), vec![7], role, 0, u32::MAX)
     }
 
+    /// Пустое множество отзывов на всё время тестов: `BTreeSet::new()` — const fn, поэтому
+    /// ссылка на него живёт столько же, сколько сам тест.
+    static NO_REVOKED: BTreeSet<[u8; 16]> = BTreeSet::new();
+
     fn verifier<'a>(authorities: &'a AuthoritySet) -> Verifier<'a> {
+        verifier_with(authorities, &NO_REVOKED)
+    }
+
+    fn verifier_with<'a>(
+        authorities: &'a AuthoritySet,
+        revoked: &'a BTreeSet<[u8; 16]>,
+    ) -> Verifier<'a> {
         Verifier {
             authorities,
             genesis_hash: testing::genesis_hash(),
             model_version: "granite-test",
             preprocessing_version: testing::PREPROCESSING_VERSION,
             now_sec: 1_000,
+            revoked_nonces: revoked,
         }
     }
 
@@ -266,6 +281,31 @@ mod tests {
         assert!(matches!(
             greeting(Role::IndexNode, "m", 1, [0; 32], None),
             Err(HandshakeError::MissingCert(Role::IndexNode))
+        ));
+    }
+
+    #[test]
+    fn a_revoked_nonce_is_rejected_though_the_threshold_is_valid() {
+        // Самое опасное состояние: подписи авторитетов настоящие, срок не истёк, транспорт
+        // совпадает — и только множество отзывов отличает скомпрометированный ключ от живого.
+        let id = testing::identity(15);
+        let peer = keys::peer_id(&id);
+        let cert = cert_for(15, peer, Role::IndexNode);
+        let hs = greeting(
+            Role::IndexNode,
+            "granite-test",
+            testing::PREPROCESSING_VERSION,
+            testing::genesis_hash(),
+            Some(&cert),
+        )
+        .unwrap();
+        let authorities = testing::authority_set();
+        let mut revoked = BTreeSet::new();
+        revoked.insert(cert.nonce);
+        let v = verifier_with(&authorities, &revoked);
+        assert!(matches!(
+            verify(&hs, peer, &v),
+            Err(HandshakeError::CertRejected(vecdht_crypto::CertError::Revoked))
         ));
     }
 

@@ -15,13 +15,16 @@ use libp2p::{Multiaddr, PeerId};
 use tokio::sync::oneshot;
 use tokio::task::LocalSet;
 use vecdht_artifact::{reference_artifact, reference_manifest};
+use vecdht_crypto::sign_revoke_identity;
 use vecdht_net::{
     keys, Agent, AgentConfig, FindQuery, NetConfig, NetService, NetworkParams, PublishRequest,
 };
 use vecdht_node::{testing, Clock, ShardNode};
 use vecdht_wire::cert::NodeCert;
 use vecdht_wire::frame::{decode_frame, Kind};
-use vecdht_wire::messages::{domain, Codec, MatchResult, PublishAck, ProtocolError, Role};
+use vecdht_wire::messages::{
+    domain, CertRevoke, Codec, MatchResult, PublishAck, ProtocolError, Role,
+};
 
 const SHARD: u16 = 7;
 const CLUSTER: u16 = 112;
@@ -140,6 +143,21 @@ fn agent_service(seed: u8, listen: Multiaddr) -> NetService {
         cfg(listen),
     )
     .expect("сервис агента")
+}
+
+/// Отзыв §4.2, подписанный первыми `signers` ключами эталонного набора 3-of-5. Тест играет
+/// авторитетом; сеть не получает приватных ключей и проверяет только порог.
+fn revoke_for(nonce: [u8; 16], signers: usize) -> CertRevoke {
+    let mut r = CertRevoke {
+        nonce,
+        revoked_at: now_sec() as u32,
+        reason: "тестовый отзыв".to_string(),
+        authority_sigs: Vec::new(),
+    };
+    for a in testing::authorities().iter().take(signers) {
+        r = sign_revoke_identity(&r, a);
+    }
+    r
 }
 
 /// Ждать, пока сервис откроет слушателя, и вернуть фактический адрес: порт 0 выбирает ОС.
@@ -786,5 +804,222 @@ fn an_agent_publishes_finds_and_opens_a_direct_session() {
                 let _ = std::fs::remove_dir_all(&d_replica);
             })
             .await;
+    });
+}
+
+// --- отзыв кредашиала §4.2 ---------------------------------------------------
+
+/// §4.2 на живом транспорте: отзыв, подписанный порогом, сбрасывает соединения с носителем
+/// `nonce` и закрывает ему путь назад. Рассылает третья сторона, потому что gossipsub не
+/// возвращает автору его собственное сообщение, а потерять надо обоих собеседников.
+#[test]
+fn a_threshold_revoke_drops_connections_and_blocks_reconnect() {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    rt.block_on(async {
+        let d_a = dir("revoke-a");
+        let d_b = dir("revoke-b");
+        let seed_a = primary_seed();
+        let seed_b = *SEEDS.iter().find(|s| **s != seed_a).expect("второй тестовый сид");
+        let mut a = index_service(seed_a, &d_a, quic_addr());
+        let mut b = index_service(seed_b, &d_b, quic_addr());
+        let mut relay = agent_service(88, quic_addr());
+        let addr_a = wait_listen(&mut a).await;
+        let addr_b = wait_listen(&mut b).await;
+        let _ = wait_listen(&mut relay).await;
+        b.dial(addr_a.clone()).expect("B → A");
+        relay.dial(addr_a.clone()).expect("relay → A");
+        relay.dial(addr_b.clone()).expect("relay → B");
+        let (pa, pb, pr) = (a.peer_id(), b.peer_id(), relay.peer_id());
+        pump_until3(&mut a, &mut b, &mut relay, |x, y, z| {
+            x.is_authenticated(&pb)
+                && x.is_authenticated(&pr)
+                && y.is_authenticated(&pa)
+                && y.is_authenticated(&pr)
+                && z.is_authenticated(&pa)
+                && z.is_authenticated(&pb)
+        })
+        .await;
+
+        let revoke = revoke_for([seed_b; 16], 3);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+        let mut errors = Vec::new();
+        loop {
+            // Gossip собирает mesh на heartbeat: повторная публикация — это доставка, а не
+            // «отзыв с вероятностью». Получатель идемпотентен по nonce.
+            let _ = relay.publish_revoke(&revoke);
+            for _ in 0..10 {
+                relay.step().await;
+                a.step().await;
+                b.step().await;
+            }
+            errors.extend(a.take_errors());
+            errors.extend(b.take_errors());
+            if a.is_revoked_nonce(&revoke.nonce) && b.is_self_revoked() {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "отзыв не применён за 20 с; ошибки: {errors:?}"
+            );
+        }
+        assert_eq!(a.revocation_count(), 1, "один отзыв — одна запись по nonce");
+        assert!(a.peer_identity(&pb).is_none(), "A сбросил соединение с отозванным B");
+        assert!(b.authenticated_peers().is_empty(), "B, отозвав себя, замолчал целиком");
+
+        // Путь назад закрыт: B отклоняет handshake, а A не принимает его за живого.
+        a.dial(addr_b).expect("повторный dial отозванного узла");
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(3);
+        while tokio::time::Instant::now() < deadline {
+            a.step().await;
+            b.step().await;
+            relay.step().await;
+        }
+        assert!(!a.is_authenticated(&pb), "отозванный кредашиал не проходит handshake повторно");
+        assert!(b.is_self_revoked());
+        let _ = std::fs::remove_dir_all(&d_a);
+        let _ = std::fs::remove_dir_all(&d_b);
+    });
+}
+
+/// Порог проверяется на приёме, а не на рассылке: 2-of-5 доходит до узла, логируется как
+/// отвергнутый и не трогает ни nonce, ни соединения. Затем тот же отзыв с третьей подписью
+/// применяется — значит, отвергнут был именно порог, а не канал доставки.
+#[test]
+fn a_revoke_below_threshold_is_rejected_before_it_can_revoke() {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    rt.block_on(async {
+        let d_a = dir("revoke-weak-a");
+        let d_b = dir("revoke-weak-b");
+        let seed_a = primary_seed();
+        let seed_b = *SEEDS.iter().find(|s| **s != seed_a).expect("второй тестовый сид");
+        let mut a = index_service(seed_a, &d_a, quic_addr());
+        let mut b = index_service(seed_b, &d_b, quic_addr());
+        let mut relay = agent_service(89, quic_addr());
+        let addr_a = wait_listen(&mut a).await;
+        let addr_b = wait_listen(&mut b).await;
+        let _ = wait_listen(&mut relay).await;
+        b.dial(addr_a.clone()).expect("B → A");
+        relay.dial(addr_a.clone()).expect("relay → A");
+        relay.dial(addr_b.clone()).expect("relay → B");
+        let (pa, pb, pr) = (a.peer_id(), b.peer_id(), relay.peer_id());
+        pump_until3(&mut a, &mut b, &mut relay, |x, y, z| {
+            x.is_authenticated(&pb)
+                && x.is_authenticated(&pr)
+                && y.is_authenticated(&pa)
+                && y.is_authenticated(&pr)
+                && z.is_authenticated(&pa)
+                && z.is_authenticated(&pb)
+        })
+        .await;
+
+        let weak = revoke_for([seed_b; 16], 2);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+        let mut errors = Vec::new();
+        loop {
+            let _ = relay.publish_revoke(&weak);
+            for _ in 0..10 {
+                relay.step().await;
+                a.step().await;
+                b.step().await;
+            }
+            errors.extend(a.take_errors());
+            if errors.iter().any(|e| e.contains("отзыв отвергнут")) {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "ослабленный отзыв не дошёл до проверки за 20 с; ошибки: {errors:?}"
+            );
+        }
+        assert!(!a.is_revoked_nonce(&weak.nonce), "2-of-5 не отзывает nonce");
+        assert!(!b.is_self_revoked());
+        assert_eq!(a.revocation_count(), 0);
+        assert!(
+            a.is_authenticated(&pb) && b.is_authenticated(&pa),
+            "ослабленный отзыв не сбрасывает соединения"
+        );
+
+        let strong = revoke_for([seed_b; 16], 3);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+        loop {
+            let _ = relay.publish_revoke(&strong);
+            for _ in 0..10 {
+                relay.step().await;
+                a.step().await;
+                b.step().await;
+            }
+            if a.is_revoked_nonce(&strong.nonce) && b.is_self_revoked() {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "тот же отзыв с третьей подписью не применён за 20 с"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&d_a);
+        let _ = std::fs::remove_dir_all(&d_b);
+    });
+}
+
+/// Отзыв — управляющий кадр, а не данные шарда. Валидный `CertRevoke` в shard-теме обязан
+/// быть отвергнут по адресу: иначе отзыв увидели бы только подписчики одного шарда, а nonce
+/// может покрывать несколько.
+#[test]
+fn a_valid_revoke_on_a_shard_topic_is_refused() {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    rt.block_on(async {
+        let d_a = dir("revoke-topic-a");
+        let d_b = dir("revoke-topic-b");
+        let seed_a = primary_seed();
+        let seed_b = *SEEDS.iter().find(|s| **s != seed_a).expect("второй тестовый сид");
+        let mut a = index_service(seed_a, &d_a, quic_addr());
+        let mut b = index_service(seed_b, &d_b, quic_addr());
+        let mut relay = agent_service(90, quic_addr());
+        let addr_a = wait_listen(&mut a).await;
+        let addr_b = wait_listen(&mut b).await;
+        let _ = wait_listen(&mut relay).await;
+        b.dial(addr_a.clone()).expect("B → A");
+        relay.dial(addr_a.clone()).expect("relay → A");
+        relay.dial(addr_b.clone()).expect("relay → B");
+        let (pa, pb, pr) = (a.peer_id(), b.peer_id(), relay.peer_id());
+        pump_until3(&mut a, &mut b, &mut relay, |x, y, z| {
+            x.is_authenticated(&pb)
+                && x.is_authenticated(&pr)
+                && y.is_authenticated(&pa)
+                && y.is_authenticated(&pr)
+                && z.is_authenticated(&pa)
+                && z.is_authenticated(&pb)
+        })
+        .await;
+
+        let revoke = revoke_for([seed_b; 16], 3);
+        // Подпись кадра здесь ни на что не влияет: авторитетность `CertRevoke` — это порог
+        // в теле. Кадровый `signed()` нужен только потому, что `publish_gossip` не пускает
+        // неподписанные прикладные кадры.
+        let frame = revoke.encode_signed(&[0x11; 64]);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
+        let mut errors = Vec::new();
+        loop {
+            let _ = relay.publish_gossip(SHARD, frame.clone());
+            for _ in 0..10 {
+                relay.step().await;
+                a.step().await;
+                b.step().await;
+            }
+            errors.extend(a.take_errors());
+            if errors.iter().any(|e| e.contains("CertRevoke вне control-темы")) {
+                break;
+            }
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "отзыв в shard-теме не дошёл за 20 с; ошибки: {errors:?}"
+            );
+        }
+        assert!(!a.is_revoked_nonce(&revoke.nonce));
+        assert!(!b.is_self_revoked());
+        assert_eq!(a.revocation_count(), 0);
+        assert!(a.is_authenticated(&pb) && b.is_authenticated(&pa));
+        let _ = std::fs::remove_dir_all(&d_a);
+        let _ = std::fs::remove_dir_all(&d_b);
     });
 }

@@ -1156,10 +1156,11 @@ models/             manifest.json + fetch/verify scripts
 Что в этом дереве стоит прямо сейчас (срез после транспорта P5):
 
 * `vecdht-wire`, `vecdht-crypto`, `vecdht-artifact`, `vecdht-index`, `vecdht-node`, `vecdht-embed`,
-  `vecdht-net` — в `workspace.members`, 479 тестов зелёные (один игнорируемый); `vecdht-node`
+  `vecdht-net` — в `workspace.members`, 484 теста зелёные (один игнорируемый); `vecdht-node`
   держит машину шарда, транспорт вынесен в `vecdht-net` (libp2p QUIC и TCP+Noise+Yamux, handshake
   с `NodeCert`,
-  Kademlia-провайдеры шардов, gossip-темы; §4, §5.3, §7.4);
+  Kademlia-провайдеры шардов, gossip-темы, `CertRevoke` по порогу в control-теме со сбросом
+  соединений и молчанием отозванного узла; §4, §5.3, §7.4);
 * `vecdht-cli` — офлайн-поверхность: `artifact init/show/verify`, `encode`, `pow mine/verify`,
   `index create/add/search/stats/snapshot`, `wire kinds/decode`, `demo`; плюс сетевые
   `agent publish/find/session` поверх `vecdht-net`. Команды `node` и `agent run` (постоянный
