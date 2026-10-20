@@ -25,6 +25,7 @@
 #![forbid(unsafe_code)]
 
 pub mod cache;
+pub mod kmeans;
 pub mod metrics;
 pub mod model;
 pub mod prefix;
