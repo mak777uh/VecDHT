@@ -117,6 +117,13 @@ pub struct Params {
     /// Потолок живых записей на шард (§13.2 `admission.max_live_per_shard`) — по нему primary
     /// отвечает `SHARD_FULL`, а не начинает вытеснять чужие записи.
     pub max_live_per_shard: u64,
+    /// `preprocessing_version` артефакта (§6.6): её обязан объявить каждый `Publish` и `Find`.
+    ///
+    /// Handshake сверяет версии между узлами (§6.7), но `Publish`/`Find` приходят и от агентов;
+    /// без проверки на месте «почти совместимый» клиент положил бы в индекс вектор из другой
+    /// сетки, и запись находилась бы с тихо испорченным recall. §19.3 называет это
+    /// mismatched artifact, а ответ — `MODEL_MISMATCH`, а не молчаливое совпадение.
+    pub preprocessing_version: u16,
     /// Refill publish-квоты на ключ, токенов в секунду (§11.3.1).
     pub per_peer_publish_rps: u32,
     /// Burst publish-квоты на ключ (§11.3.1). Двадцать — это не «запас на всякий случай», а
@@ -226,6 +233,7 @@ impl Params {
             pow_bits_min: pow.pow_bits_min as u8,
             pow_bits_max: pow.pow_bits_max as u8,
             max_live_per_shard: ad.max_live_per_shard,
+            preprocessing_version: m.preprocessing_version,
             per_peer_publish_rps: ad.per_peer_publish_rps,
             per_peer_publish_burst: ad.per_peer_publish_burst,
             per_peer_find_rps: ad.per_peer_find_rps,

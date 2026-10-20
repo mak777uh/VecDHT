@@ -18,7 +18,9 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use thiserror::Error;
-use vecdht_crypto::{pow_input, pow_ok, shard_of_cluster, verify_body, AuthoritySet, Identity};
+use vecdht_crypto::{
+    intent_id, pow_input, pow_ok, shard_of_cluster, verify_body, AuthoritySet, Identity,
+};
 use vecdht_index::wal::{list_segments, read_segment, WalFrame};
 use vecdht_index::{IndexEntry, ShardStore, StoreError, StoreManifest};
 use vecdht_wire::codec::MAX_BODY_LEN;
@@ -653,6 +655,21 @@ impl ShardNode {
                 return self.err(from, err_code::DENIED, 0);
             }
         }
+        // §6.7/§15.3: `preprocessing_version` — часть идентичности сети. Handshake уже сверил
+        // её для узлов, но publish приходит и от агента; без этой проверки вектор из другой
+        // сетки лёг бы в индекс и находился бы «почти правильно» — тихая потеря recall,
+        // которую §19.3 требует ловить отказом, а не совпадением.
+        if msg.preprocessing_version != self.params.preprocessing_version {
+            return self.err(from, err_code::MODEL_MISMATCH, 0);
+        }
+        // §11.1: PoW привязан к `intent_id` — slot_key, который клиент обязан вычислить из
+        // вектора и `preprocessing_version` (§6.5). Проверять только nonce недостаточно:
+        // подменив `vec_q` при чужом `intent_id`, плативший за один слот получил бы другой
+        // без новой работы. Честный клиент всегда считает `intent_id` из вектора, поэтому
+        // расхождение — подделка, а не другая реализация.
+        if msg.intent_id != intent_id(&msg.vec_q, msg.preprocessing_version) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
         if shard_of_cluster(msg.cluster_id) != self.shard {
             return self.err(from, err_code::SHARD_MISMATCH, 0);
         }
@@ -955,6 +972,12 @@ impl ShardNode {
             return self.err(from, code, verdict.retry_after_ms());
         }
         let q = Find::decode(bytes)?;
+        // §6.7: поиск из чужой сетки не должен доходить до matching. Сравнение идёт после
+        // decode и до поиска: `MODEL_MISMATCH` — отказ, а не пустой `MatchResult`, который
+        // агент принял бы за «ничего не найдено».
+        if q.preprocessing_version != self.params.preprocessing_version {
+            return self.err(from, err_code::MODEL_MISMATCH, 0);
+        }
         if q.clusters.iter().any(|c| shard_of_cluster(*c) != self.shard) {
             return self.err(from, err_code::SHARD_MISMATCH, 0);
         }

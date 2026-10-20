@@ -1149,18 +1149,23 @@ crates/
   vecdht-cli/       бинарник node/agent/demo
 sdk/vecdht-py/      PyO3: Agent.publish/find/session, ноль кодирования на Python
 benches/            P0-harness (recall/throughput/determinism), индекс, wire
-tests/              crash_matrix.rs, cross_clock_gc.rs, golden_vectors, adversarial/
+tests/              интеграционные наборы крейтов: crash_matrix, golden_vectors, gates_p4,
+                    admission, rendezvous, adversarial (гейт P5) и др.
+AGENTS.md           контракт для людей и агентов: где истина, как менять протокол
+lab/                научный контур: гипотезы H-XXXX, эксперименты E-XXXX, ADR
 models/             manifest.json + fetch/verify scripts
 ```
 
-Что в этом дереве стоит прямо сейчас (срез после транспорта P5):
+Что в этом дереве стоит прямо сейчас (срез после P5):
 
 * `vecdht-wire`, `vecdht-crypto`, `vecdht-artifact`, `vecdht-index`, `vecdht-node`, `vecdht-embed`,
-  `vecdht-net` — в `workspace.members`, 484 теста зелёные (один игнорируемый); `vecdht-node`
+  `vecdht-net` — в `workspace.members`, 491 тест зелёный (два игнорируемых: полный PoW-майнинг
+  CLI и 10-минутный гейт P5); `vecdht-node`
   держит машину шарда, транспорт вынесен в `vecdht-net` (libp2p QUIC и TCP+Noise+Yamux, handshake
   с `NodeCert`,
   Kademlia-провайдеры шардов, gossip-темы, `CertRevoke` по порогу в control-теме со сбросом
-  соединений и молчанием отозванного узла; §4, §5.3, §7.4);
+  соединений и молчанием отозванного узла; §4, §5.3, §7.4). Adversarial-набор §19.3 и полный
+  гейт §18.6 лежат в `crates/vecdht-node/tests/adversarial.rs`;
 * `vecdht-cli` — офлайн-поверхность: `artifact init/show/verify`, `encode`, `pow mine/verify`,
   `index create/add/search/stats/snapshot`, `wire kinds/decode`, `demo`; плюс сетевые
   `agent publish/find/session` поверх `vecdht-net`. Команды `node` и `agent run` (постоянный
@@ -1176,8 +1181,8 @@ models/             manifest.json + fetch/verify scripts
   P6. SDK собирается и проверяется `python test.py` (23 проверки через FFI-границу);
 * `benches/` — три мишени (`wire`, `index`, `p0`) с `harness = false` и `test = false`: замер
   печатает числа, порог проверяет тест. Числа прогона — §19.5;
-* нет и не может быть на этом срезе: `models/` (нужен каталог весов, §18.1 (v)) и
-  `tests/adversarial/` (§18.6–§18.7, P5/P6).
+* нет и не может быть на этом срезе: `models/` (нужен каталог весов, §18.1 (v)); честные
+  границы adversarial — в §19.3 и README, а не в виде «пройдено» там, где механизма нет.
 
 ### 17.2 Whitelist зависимостей
 
@@ -1290,6 +1295,8 @@ libp2p QUIC+kad, ~200 узлов (in-process/LAN), 64 ключа, `provider_reco
 
 Гейт: 16-ядерный sybil 10 минут ⇒ ≤ 64 000 записей при default 20 бит (≤ 4 000 при bits=24, §11.1) и ровно ≤ M записей в шарде, память узла плоская, p50 легитимных не деградирует; `pow_bits`-evict работает; rendezvous-приём проверяется целью и одноразовый. Число 64 000 — верхняя граница при калибровке 7 МХеш/с: на стенде 3,0–3,7 это ~27 500–34 000, и тест от этого не меняется, потому что проверяется «не больше», а не «примерно столько».
 
+Прогон 2026-10-20 (i7-10700, 8 физических ядер / 16 потоков; 16 майнящих потоков, 600 с, 20 бит): **31 891** попытка, **31 680** принято, **211** `BUSY`, **0** вытеснений, store = 31 680, p50 легитимного `Find` = **2.25 мс**. Порог 64 000 выполнен с запасом ×2.0; узловой бюджет 100 admits/с не насыщен, потому что потолок задаёт CPU (≈3,5 МХеш/с на поток, ≈3,3 кадра/с) — это и есть предсказанная §11.1 линейность по `blake3_mhz_core`, а не ослабление гейта. `evicted = 0` ожидаемо: `M = 2 000 000` не достигнут; механика `pow_bits`-evict проверена масштабированным сценарием на `M = 256`.
+
 ### 18.7 P6 — SDK, relay, метрики (3 недели)
 
 Гейт: два агента за NAT через WAN — find p50 ≤ 1.5 с, p95 ≤ 4 с (§12.6), сессия установлена, `IntentTextResponse.sig` проверена; relay-путь и прямой дают тот же результат; метрики: latency по сегментам, admission drops, evict, replica lag, `applied_seq`.
@@ -1352,6 +1359,21 @@ Adversarial-набор (§19.3), retry/timeout-политика, observability, 
 - flood publish при bucket=1/с и M=2M ⇒ квоты держатся, evict по `pow_bits`;
 - подмена `intent_text` (text ≠ подпись) ⇒ отклонён, в контекст агента не попадает;
 - mismatched artifact ⇒ узел не участвует в matching.
+
+Из этого списка уже стоит как оракул (`crates/vecdht-node/tests/adversarial.rs`, семь быстрых
+сценариев + `#[ignore]`-гейт §18.6): pre-farmed PoW для другого шарда/эпохи/срока/slot; подмена
+`vec_q` при чужом `intent_id`; `MODEL_MISMATCH` на `Publish` и `Find` (проверка в узле, а не
+только в handshake); `ReplicateOp` со старой эпохой или чужим подписантом (без ack); тысяча
+DHT-подобных кадров не двигает членство; подмена текста лгущим index-node ловится подписью
+владельца; rendezvous-приём связан с целью и одноразовый; sybil на 16 ключах упирается ровно в
+`M`, память арены после `M` не растёт, а `pow_bits`-evict вытесняет дешёвую запись.
+
+Чего в v1 нет и что поэтому **не** объявлено проверенным: penalty/reputation table (§14.2 —
+клиентская политика показа; репутационный слой исключён §20.5), сигнал расхождения владельцев
+одного кластера (агент опрашивает по одному узлу на шард) и verifiable re-computation `l2_sq`
+агентом (в v1 агент не скачивает байты записи). Это работа P6/P7. Криптографический барьер —
+подпись владельца и привязка PoW — уже делает ложь бесполезной, но он не заменяет перечисленные
+механизмы, и SPEC не притворяется, что заменяет.
 
 ### 19.4 Бенчмарки (целевые значения пересчитаны)
 
