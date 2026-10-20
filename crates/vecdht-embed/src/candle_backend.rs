@@ -307,4 +307,93 @@ mod tests {
             "гейт (v): минимальный косинус {worst} ниже 0.999 — нужен fallback из §6.1"
         );
     }
+
+    /// Гейт (i) из §18.1: фактический throughput реального инференса.
+    ///
+    /// Это измерение, а не порог: у гейта (i) нет pass/fail — его числа пересчитывают бюджеты
+    /// §6.1/§12.6 и решают, сколько стоит корпус для гейта (ii). Тяжёлый прогон, поэтому
+    /// `#[ignore]`: `cargo test` без весов и без явного вызова его не запускает.
+    ///
+    /// `RAYON_NUM_THREADS` задаёт intra-op параллелизм candle; без переменной rayon берёт все
+    /// логические ядра. Прогон на 1/4/16 потоках — три отдельных процесса, потому что пул
+    /// rayon фиксируется при старте.
+    #[test]
+    #[ignore = "P0(i): требует весов; запускать вручную с RAYON_NUM_THREADS"]
+    fn measure_i_real_inference_throughput() {
+        use std::time::{Duration, Instant};
+
+        let Some(embedder) = ModernBertEmbedder::from_env(&pipeline(), "granite-embedding-97m-v2")
+            .expect("VEC_DHT_MODEL_DIR задан, но модель не загружается")
+        else {
+            println!("гейт (i) НЕ ИЗМЕРЕН: {MODEL_DIR_ENV} не задан");
+            return;
+        };
+
+        // 20–80 токенов по §6.1: три длины, по семь текстов. Повтор базы — не «реалистичный
+        // корпус», а способ получить предсказуемую длину входа; стоимость forward зависит от
+        // неё, а не от смысла текста.
+        const PER_LENGTH: usize = 7;
+        let base = "Ищу контрагента для векторного поиска в распределённой сети без центрального \
+                    сервера и обязательной регистрации";
+        let mut texts = Vec::new();
+        for repeat in 1..=3 {
+            let text = vec![base; repeat].join(" ");
+            for _ in 0..PER_LENGTH {
+                texts.push(text.clone());
+            }
+        }
+
+        let token_lens: Vec<usize> = texts
+            .iter()
+            .map(|t| embedder.token_len(t).expect("tokenizer"))
+            .collect();
+        let mut sorted_lens = token_lens.clone();
+        sorted_lens.sort_unstable();
+        let median_tokens = sorted_lens[sorted_lens.len() / 2];
+
+        // Прогрев: первый forward включает ленивую инициализацию ядер, его нельзя мешать с
+        // установившимся режимом.
+        for text in texts.iter().take(3) {
+            embedder.embed_pooled(text).expect("прогрев");
+        }
+
+        let mut durations = Vec::with_capacity(texts.len());
+        let total_start = Instant::now();
+        for text in &texts {
+            let start = Instant::now();
+            let vector = embedder.embed_pooled(text).expect("forward");
+            durations.push(start.elapsed());
+            assert_eq!(vector.len(), DIM);
+        }
+        let total = total_start.elapsed();
+
+        durations.sort_unstable();
+        let p50 = durations[durations.len() / 2];
+        let p95 = durations[(durations.len() * 95 / 100).min(durations.len() - 1)];
+        let throughput = texts.len() as f64 / total.as_secs_f64();
+        let threads = std::env::var("RAYON_NUM_THREADS")
+            .unwrap_or_else(|_| format!("unset ({} доступных)", std::thread::available_parallelism().map_or(0, |n| n.get())));
+
+        println!(
+            "P0(i): потоков rayon {threads}; текстов {}; токенов {}..{} (медиана {median_tokens}); \
+             прогрев 3",
+            texts.len(),
+            sorted_lens[0],
+            sorted_lens[sorted_lens.len() - 1],
+        );
+        println!(
+            "  p50 {:.1} мс, p95 {:.1} мс, min {:.1} мс, max {:.1} мс; \
+             throughput {throughput:.3} emb/s (весь батч за {:.2} с)",
+            ms(p50),
+            ms(p95),
+            ms(durations[0]),
+            ms(durations[durations.len() - 1]),
+            total.as_secs_f64(),
+        );
+        assert!(throughput.is_finite() && throughput > 0.0);
+
+        fn ms(d: Duration) -> f64 {
+            d.as_secs_f64() * 1000.0
+        }
+    }
 }

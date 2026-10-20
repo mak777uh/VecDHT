@@ -96,6 +96,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 cargo test --release -p vecdht-node --test adversarial -- --ignored --nocapture
 cargo bench -p vecdht-benches
 cargo test -p vecdht-embed --test p0_harness --release
+RAYON_NUM_THREADS=1 VEC_DHT_MODEL_DIR=<...> cargo test --release -p vecdht-embed \
+  --features candle measure_i_real_inference_throughput -- --ignored --nocapture
 ```
 
 `cargo test` не запускает 10-минутный P5-гейт: он помечен `#[ignore]`, потому что это измерение
@@ -106,6 +108,9 @@ cargo test -p vecdht-embed --test p0_harness --release
 - `H-0001` — sybil-потолок и стоимость атаки; подтверждена `E-0001` в пределах стенда.
 - `H-0002` — candle воспроизводит `granite-embedding-97m-r2` на реальных весах; подтверждена
   `E-0002`: 5/5 текстов, косинус 1.000000 при пороге 0.999.
+- `H-0003` — реальный forward укладывается в бюджет §6.1 и масштабируется хотя бы на 4 потока;
+  подтверждена `E-0003`: 10.96–11.96 emb/s на потоке, 17.82–18.09 на 4, 16.22–16.54 на 16 при
+  p95 ≤ 142 мс. Бюджет 0.3–1.0 с консервативен, 100 emb/s из v7.5 не достигнуты.
 - `ADR-0001` — принят этот протокол; пересмотр — после десяти экспериментов или первого
   содержательного конфликта, что наступит раньше.
 - `ADR-0002` — вендорить ModernBERT-backbone, потому что upstream candle 0.10.2 игнорирует
