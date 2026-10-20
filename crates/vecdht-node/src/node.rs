@@ -36,6 +36,7 @@ use crate::config::{Clock, Params};
 use crate::lease::Lease;
 use crate::membership::{self, Chain, Membership, MembershipError, GENESIS_EPOCH};
 use crate::net::{Addr, Envelope};
+use crate::rendezvous::Issuer;
 use crate::snapshot::{self, Assembler, SyncError};
 
 #[derive(Debug, Error)]
@@ -131,6 +132,10 @@ pub struct ShardNode {
     /// Кандидаты на вытеснение и достигнутые биты PoW (§11.3.3). RAM и на шард: slot'ы
     /// принадлежат индексу этого шарда.
     pub evictor: Evictor,
+    /// Выпущенные rendezvous-приёмы (§12.3). RAM и на шард: `slot` в приёме адресует запись
+    /// именно этого шарда, и при переносе шарда на другой узел старые приёмы всё равно истекают
+    /// по TTL, а не переезжают.
+    pub rendezvous: Issuer,
 }
 
 impl ShardNode {
@@ -169,6 +174,7 @@ impl ShardNode {
         admission: SharedAdmission,
     ) -> Result<Self, NodeError> {
         let store = ShardStore::open(dir, shard)?;
+        let rendezvous_ttl = params.rendezvous_ttl;
         let chain = Chain { shard, params, authorities };
         let last_mark_applied = store.applied_seq;
         let mut node = ShardNode {
@@ -193,6 +199,7 @@ impl ShardNode {
             pull_attempts: 0,
             admission,
             evictor: Evictor::new(admission::EVICT_RESERVOIR),
+            rendezvous: Issuer::new(rendezvous_ttl),
         };
         node.membership = node.load_chain()?;
         Ok(node)
@@ -936,7 +943,25 @@ impl ShardNode {
         }
         let body = res.body_bytes();
         let sig = self.id.sign_body(domain::MATCH, Kind::MatchResult, &body);
-        Ok(vec![Envelope::new(from, res.encode_signed(&sig))])
+        let mut out = Vec::with_capacity(1 + res.matches.len());
+        out.push(Envelope::new(from, res.encode_signed(&sig)));
+        // Приём — отдельный кадр 0x50 на каждую найденную запись (§12.3): у `Match` нет поля под
+        // него, и склеивать их значило бы менять формат `MatchResult`. `seeker` — транспортный
+        // `from`, а не `requester_ed25519` из тела: тело `Find` не подписано, и второй свободен
+        // для подмены; привязка к аутентифицированному адресу — единственная, которую цель может
+        // перепроверить (§4.3).
+        for m in &res.matches {
+            let Some(acc) = self.rendezvous.issue(from, m.owner_ed25519, self.shard, m.slot, now.bucket)
+            else {
+                // Потолок lease-таблицы. Это не ошибка `Find`: `MatchResult` уже собран, а приём —
+                // дополнение к нему, без которого поиск остаётся корректным (§12.3).
+                continue;
+            };
+            let body = acc.body_bytes();
+            let sig = self.id.sign_body(domain::RENDEZVOUS, Kind::RendezvousAccept, &body);
+            out.push(Envelope::new(from, acc.encode_signed(&sig)));
+        }
+        Ok(out)
     }
 
     // --- догоняющий WAL и снапшот ------------------------------------------------

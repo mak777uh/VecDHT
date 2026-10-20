@@ -7,6 +7,9 @@
 //! * [`lease`] — грант primary и fencing по `epoch` (§9.8);
 //! * [`snapshot`] — кусковая передача снапшота и установка с диска (§9.5, §10.4);
 //! * [`node`] — машина состояний шарда, собирающая всё предыдущее;
+//! * [`admission`] — локальная политика приёма и вытеснение (§11.3);
+//! * [`rendezvous`] — одноразовые приёмы §12.3: выпуск на шарде и расход у цели;
+//! * [`session`] — подписанные тексты интентов между агентами (§6.6, §12.4);
 //! * [`net`] — транспорт в процессе, на котором стоят гейты §19.1;
 //! * [`testing`] — дешёвый PoW и эталонное genesis для этих гейтов.
 //!
@@ -37,6 +40,8 @@ pub mod lease;
 pub mod membership;
 pub mod net;
 pub mod node;
+pub mod rendezvous;
+pub mod session;
 pub mod snapshot;
 pub mod testing;
 
@@ -47,3 +52,5 @@ pub use lease::{Lease, LeaseError};
 pub use membership::{Chain, Membership, MembershipError, GENESIS_EPOCH};
 pub use net::{Addr, Envelope, LocalNet};
 pub use node::{NodeError, ShardNode};
+pub use rendezvous::{AcceptError, Grant, Issuer, Spend, MAX_ACCEPTS};
+pub use session::{IntentText, TextError};

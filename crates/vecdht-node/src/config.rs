@@ -88,6 +88,8 @@ pub enum ParamError {
     NodeAdmitsZero,
     #[error("node_admits_per_s={node} < per_peer_publish_rps={peer}: единственный легитимный агент шарда не проходит узловой бюджет")]
     NodeBelowPeerQuota { node: u32, peer: u32 },
+    #[error("rendezvous_ttl_sec={0}: приём §12.3 обязан жить хотя бы бакет и обязан влезать в u16")]
+    RendezvousTtl(u32),
 }
 
 /// То, что узел читает из артефакта и с чем живёт. `Copy`, чтобы обработчики не держали
@@ -128,6 +130,10 @@ pub struct Params {
     pub node_admits_per_s: u32,
     /// Потолок `top_k` в `Find` (§7.5): без него один запрос может вытащить из индекса всё.
     pub top_k_max: u16,
+    /// Сколько живёт выписанный `RendezvousAccept` (§12.3, `rendezvous_ttl_sec`). Значение из
+    /// артефакта, а не константа узла: цель сверяет по нему `issued_bucket`, и разошедшиеся
+    /// TTL означали бы, что легитимный приём отвергнут как истёкший.
+    pub rendezvous_ttl: u16,
 }
 
 impl Params {
@@ -202,6 +208,11 @@ impl Params {
                 peer: ad.per_peer_publish_rps,
             });
         }
+        // Приём §12.3 живёт в бакетах: `ttl_sec = 0` выписывал бы мёртвый приём, а значение
+        // больше u16 не влезает в кадр — оба случая обязаны падать на старте.
+        if m.query.rendezvous_ttl_sec == 0 || m.query.rendezvous_ttl_sec > u16::MAX as u32 {
+            return Err(ParamError::RendezvousTtl(m.query.rendezvous_ttl_sec));
+        }
         Ok(Params {
             r: rep.r as usize,
             w: rep.w as usize,
@@ -220,6 +231,7 @@ impl Params {
             per_peer_find_rps: ad.per_peer_find_rps,
             node_admits_per_s: ad.node_admits_per_s,
             top_k_max: m.query.top_k_max,
+            rendezvous_ttl: m.query.rendezvous_ttl_sec as u16,
         })
     }
 
@@ -265,6 +277,8 @@ mod tests {
             (1, 20, 5, 100)
         );
         assert_eq!(p.max_live_per_shard, 2_000_000);
+        // §12.3: приём rendezvous живёт 300 с; значение берётся из артефакта, а не из кода.
+        assert_eq!(p.rendezvous_ttl, 300);
     }
 
     #[test]
