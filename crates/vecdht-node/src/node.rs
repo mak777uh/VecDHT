@@ -240,6 +240,13 @@ impl ShardNode {
         self.membership.as_ref().map(|m| m.peers(&me)).unwrap_or_default()
     }
 
+    /// Транспорт подтвердил недоступность адреса (§9.8). Наблюдаемость для гейтов:
+    /// «соединение закрылось» и «узел узнал, что коллега умер» — разные звенья одной
+    /// цепочки, и проверять надо второе.
+    pub fn is_unreachable(&self, addr: &Addr) -> bool {
+        self.unreachable.contains(addr)
+    }
+
     #[inline]
     pub fn applied_seq(&self) -> u64 {
         self.store.applied_seq

@@ -1203,6 +1203,7 @@ zeroize = "1.7"
 # async / net
 tokio = { version = "1", features = ["net","rt","rt-multi-thread","sync","time","macros","fs"] }
 libp2p = { version = "0.54", features = ["kad","quic","noise","tcp","yamux","gossipsub","identify","autonat","ping","dcutr","relay","dns"] }
+async-trait = "0.1"                 # impl чужого трейта request_response::Codec (пояснение ниже)
 
 # ml (pure rust)
 candle-core = "0.10"
@@ -1224,6 +1225,8 @@ pyo3 = { version = "0.23", features = ["extension-module"] }
 * `unicode-normalization` — §6.6 нормативно требует NFC **до** проверки лимита в 1000 байт (composition меняет число байт, поэтому «1000 байт до NFC» и «1000 байт после NFC» — это разные тексты). Реализовать NFC вручную означало бы завести собственную версию таблицы Unicode: она расходится с эталонной на редких, но реальных комбинированных акцентах, а расхождение канонических форм — это расхождение `intent_text_hash` (§6.5), подписи автора (§6.6) и ключа кеша, то есть тихая подмена идентичности записи, а не косметический баг.
 * `candle-nn` — `VarBuilder` из него единственный способ прочитать `model.safetensors` с апкастом bf16 → f32 при загрузке; §6.1 фиксирует f32 контрактной точностью. Конвертировать веса на диске стороной нельзя, иначе `blake3` артефакта (§15.1) перестанет совпадать с исходным файлом IBM, и проверка манифеста превратится в проверку собственного кэша.
 * `tokenizers` с `default-features = false` — `onig` (C-зависимость) не нужен: регулярки Granite tokenizer'а покрывает `fancy-regex`, а лишняя C-линковка ломает сборку на Windows/GNU, где `vecdht-embed` обязан собираться.
+* `async-trait` — libp2p объявляет трейт `request_response::Codec` через `#[async_trait]`; без того же атрибута на нашем impl сигнатуры трейта не совпадают, и транспортный кодек кадров v8 не собрать. Это макрос, а не второй async-рантайм: `async-trait` уже транзитивно тянет libp2p, а tokio остаётся единственным исполнителем.
+* Фичи `libp2p` в текущей сборке — пересечение whitelist и реально поднятого транспорта: `request-response` несёт кадры v8 (батч ответов `Find`), `macros` — только derive `NetworkBehaviour`, `ed25519`/`tokio` — идентичность §4.1 и исполнитель, `dns`/`ping` — служебные. `relay`/`dcutr`/`autonat` остаются целью §16.3 и в v1 не подняты: путь через NAT без прямого dial не проверен, и текст спеки не следует читать как обещание, что он уже работает.
 
 **Исключено:** `prost`/`protobuf` (один кодек, §5.1), `rocksdb`, `sled`, `redb`, `hnsw-rs`, `instant-distance`, `argon2` (NodeID-PoW удалён), `x25519-dalek` (слой шифрования embedding удалён), `bincode` для снапшотов (снапшот пишет arena-образ в собственном формате, чтобы byte-equality-тест §9.6 имел смысл).
 

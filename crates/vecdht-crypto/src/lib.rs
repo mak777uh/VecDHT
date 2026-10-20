@@ -23,8 +23,8 @@ pub mod quant;
 pub mod sig;
 
 pub use cert::{
-    build_revoke, sign_cert, verify_cert, verify_index_cert, verify_revoke, AuthoritySet,
-    CertError, DOMAIN_CERT_REVOKED, DOMAIN_NODE_CERT, MAX_AUTHORITY_SIGS,
+    build_revoke, sign_cert, sign_cert_identity, verify_cert, verify_index_cert, verify_revoke,
+    AuthoritySet, CertError, DOMAIN_CERT_REVOKED, DOMAIN_NODE_CERT, MAX_AUTHORITY_SIGS,
 };
 pub use ids::{
     candidate_order_key, content_hash, entry_key, intent_id, intent_text_hash, DedupKey,

@@ -91,6 +91,17 @@ pub fn sign_cert(cert: &NodeCert, signing_key: &ed25519_dalek::SigningKey) -> No
     out
 }
 
+/// Та же подпись, но ключом приложения: авторитет в v8 — такой же Ed25519-владелец, и
+/// отдельная форма с `SigningKey` нужна только инструментам, которые держат ключ не как
+/// [`Identity`](crate::Identity). Две формы вместо одной — потому что `Identity` намеренно не
+/// отдаёт наружу приватный ключ.
+pub fn sign_cert_identity(cert: &NodeCert, signer: &crate::Identity) -> NodeCert {
+    let mut out = cert.clone();
+    let sig = signer.sign_domain(DOMAIN_NODE_CERT, &cert.unsigned_body());
+    out.authority_sigs.push(sig);
+    out
+}
+
 /// Полная проверка кредашиала перед тем, как принять соединение или запись.
 ///
 /// `revoked_nonces` — множество отзывов из §4.2; проверка идёт до подписи, потому что

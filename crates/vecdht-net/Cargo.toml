@@ -1,0 +1,20 @@
+[package]
+name = "vecdht-net"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v8 — транспорт: QUIC/TCP+Noise+Yamux, Kademlia-провайдеры шардов и кадры v8 поверх libp2p (спека §4, §7.4, §5.3)"
+
+[dependencies]
+thiserror = { workspace = true }
+tokio = { workspace = true }
+libp2p = { workspace = true }
+async-trait = { workspace = true }
+vecdht-wire = { workspace = true }
+vecdht-crypto = { workspace = true }
+vecdht-node = { workspace = true }
+
+[dev-dependencies]
+vecdht-artifact = { workspace = true }

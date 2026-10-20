@@ -19,8 +19,9 @@
 use std::path::Path;
 
 use vecdht_artifact::Manifest;
-use vecdht_crypto::{intent_id, pow_input, pow_ok, AuthoritySet, Identity};
-use vecdht_wire::messages::{Codec, Find, Member, MembershipUpdate, Publish, Tlv};
+use vecdht_crypto::{intent_id, pow_input, pow_ok, sign_cert_identity, AuthoritySet, Identity};
+use vecdht_wire::cert::{NodeCert, CERT_VERSION};
+use vecdht_wire::messages::{Codec, Find, Member, MembershipUpdate, Publish, Role, Tlv};
 use vecdht_wire::DIM;
 
 use crate::candidates::{self, Holder};
@@ -71,6 +72,51 @@ pub fn authorities() -> Vec<Identity> {
 pub fn authority_set() -> AuthoritySet {
     let m = vecdht_artifact::reference_manifest();
     AuthoritySet::new(m.authority.keys.clone(), m.authority.threshold as usize)
+}
+
+/// `genesis_hash` эталонного артефакта — то, что обязаны нести `Handshake` и `NodeCert`.
+///
+/// Не `manifest(pow_bits)`: сложность PoW — параметр *узла*, а `genesis_hash` — идентичность
+/// *сети*. Скрестить их значило бы, что тест с другой сложностью объявляет другую сеть.
+pub fn genesis_hash() -> [u8; 32] {
+    vecdht_artifact::reference_artifact().artifact_hash()
+}
+
+/// Кредашиал роли, подписанный порогом эталонного артефакта (§4.2).
+///
+/// `dht_peer_id` — байты настоящего libp2p `PeerId`, полученные из того же seed через
+/// `vecdht-net`: кредашиал и транспорт обязаны указывать на один ключ, иначе handshake
+/// отвергнет соединение правилом 3. `role` — параметр, а не всегда `IndexNode`, потому что
+/// `verify_handshake` обязан уметь отвергать и чужую роль, и тест на это должен строить
+/// легитимно подписанный кредашиал, а не портить байты.
+///
+/// `nonce` детерминирован по seed: отзыв в тестах не эмулируется, а разные ключи должны
+/// получать разные nonce, чтобы проверка «отозван» не срабатывала на всех сразу.
+pub fn node_cert(
+    seed: u8,
+    dht_peer_id: Vec<u8>,
+    shards: Vec<u16>,
+    role: Role,
+    valid_from: u32,
+    valid_until: u32,
+) -> NodeCert {
+    let mut cert = NodeCert {
+        version: CERT_VERSION,
+        genesis_hash: vecdht_artifact::reference_artifact().artifact_hash(),
+        role,
+        owner_ed25519: identity(seed).pubkey(),
+        dht_peer_id,
+        shards,
+        capacity_entries: SPACIOUS_CAPACITY as u32,
+        valid_from,
+        valid_until,
+        nonce: [seed; 16],
+        authority_sigs: Vec::new(),
+    };
+    for a in authorities().iter().take(authority_set().threshold) {
+        cert = sign_cert_identity(&cert, a);
+    }
+    cert
 }
 
 /// Держатель кредашиала с тестовой ёмкостью. `Holder` собирается напрямую, а не из `NodeCert`:

@@ -8,6 +8,7 @@ members = [
     "crates/vecdht-artifact",
     "crates/vecdht-index",
     "crates/vecdht-node",
+    "crates/vecdht-net",
     "crates/vecdht-embed",
     "crates/vecdht-cli",
     # Замеры (§17.1): собираются и компилируются вместе со всеми, но не запускаются `cargo test`
@@ -39,6 +40,20 @@ serde_json = "1.0"
 hex = "0.4"
 unicode-normalization = "0.1"
 
+# Транспорт (§17.2). `libp2p` 0.54 — та версия, под которую писан §4.1: PeerId выводит
+# транспорт, а не мы. `request-response` не новый crate, а фича того же libp2p: кадры v8 —
+# это запрос с батчем ответов, и половина протокола (`Find` → `MatchResult` + N приёмов) в
+# один ответ иначе не укладывается.
+tokio = { version = "1", features = ["net", "rt", "rt-multi-thread", "sync", "time", "macros", "fs"] }
+libp2p = { version = "0.54", features = [
+    "ed25519", "kad", "quic", "noise", "tcp", "yamux", "gossipsub", "identify",
+    "dns", "ping", "request-response", "tokio", "macros",
+] }
+# Только макрос для реализации чужого трейта `request_response::Codec`: libp2p объявляет его
+# через `#[async_trait]`, и без того же атрибута на impl сигнатуры не совпадают. Это не
+# async-рантайм и не новая транзитивная зависимость — libp2p уже тянет async-trait.
+async-trait = "0.1"
+
 # ML-рантайм (§17.2). Только под feature `candle` в vecdht-embed: без него crate собирается,
 # и детерминированная половина контракта тестируется на машине без весов.
 candle-core = "0.10"
@@ -51,6 +66,7 @@ vecdht-crypto = { path = "crates/vecdht-crypto" }
 vecdht-artifact = { path = "crates/vecdht-artifact" }
 vecdht-index = { path = "crates/vecdht-index" }
 vecdht-node = { path = "crates/vecdht-node" }
+vecdht-net = { path = "crates/vecdht-net" }
 vecdht-embed = { path = "crates/vecdht-embed" }
 
 [profile.release]
