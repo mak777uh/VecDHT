@@ -30,6 +30,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod admission;
 pub mod candidates;
 pub mod config;
 pub mod lease;
@@ -39,8 +40,9 @@ pub mod node;
 pub mod snapshot;
 pub mod testing;
 
+pub use admission::{Admission, Candidate, Evictor, SharedAdmission, Verdict};
 pub use candidates::{expected_update, keeper, members, Holder, MemberList};
-pub use config::{bucket_of, buckets, ParamError, Params};
+pub use config::{bucket_of, buckets, Clock, ParamError, Params};
 pub use lease::{Lease, LeaseError};
 pub use membership::{Chain, Membership, MembershipError, GENESIS_EPOCH};
 pub use net::{Addr, Envelope, LocalNet};

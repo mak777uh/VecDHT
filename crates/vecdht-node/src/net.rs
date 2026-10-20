@@ -12,7 +12,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use crate::config::bucket_of;
+use crate::config::{bucket_of, Clock};
 use crate::node::ShardNode;
 
 /// Адрес узла или агента = его Ed25519-ключ (§4.1).
@@ -171,11 +171,13 @@ impl LocalNet {
             }
             for (from, _, frame) in due {
                 self.delivered += 1;
-                // `now_bucket` считается до заимствования: вызов `on_frame` держит `&mut self.nodes`,
-                // и тот же `self` внутри аргумента — это конфликт заимствований.
-                let bucket = self.now_bucket();
+                // Часы считаются до заимствования: вызов `on_frame` держит `&mut self.nodes`, и
+                // тот же `self` внутри аргумента — это конфликт заимствований. Секунда нужна
+                // admission'у (§11.3), бакет — протоколу (§9.6): доставка внутри бакета не обязана
+                // приходиться на его границу.
+                let now = Clock::at(self.now_sec);
                 let replies = match self.nodes.get_mut(&addr) {
-                    Some(node) => node.on_frame(from, &frame, bucket),
+                    Some(node) => node.on_frame(from, &frame, now),
                     None => continue,
                 };
                 match replies {

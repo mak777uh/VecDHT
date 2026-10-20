@@ -24,7 +24,7 @@ use vecdht_wire::messages::{Codec, Find, Member, MembershipUpdate, Publish, Tlv}
 use vecdht_wire::DIM;
 
 use crate::candidates::{self, Holder};
-use crate::config::Params;
+use crate::config::{Clock, Params};
 use crate::membership::{self, Chain, GENESIS_EPOCH};
 use crate::node::ShardNode;
 
@@ -137,6 +137,13 @@ pub fn signed_frame(upd: &MembershipUpdate) -> Vec<u8> {
         Some((_, sig)) => upd.encode_signed(sig),
         None => upd.encode_unsigned(),
     }
+}
+
+/// Часы гейта по одному бакету: секунда берётся на его границе, и `Clock::at` выводит тот же
+/// бакет обратно. Нужно тестам, которым важен только протокольный бакет (§9.6): admission на
+/// них не опирается, а выдумывать «секунду посередине» значило бы проверять не то время.
+pub fn clock(bucket: u32) -> Clock {
+    Clock::at(bucket as u64 * vecdht_wire::TIME_BUCKET_SEC as u64)
 }
 
 /// Детерминированный тестовый вектор: значения зависят только от сида и координаты, без `sin`

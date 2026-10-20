@@ -73,7 +73,11 @@ fn swarm(tag: &str) -> Swarm {
     let carrier = testing::identity(9).pubkey();
     let addrs = net.addrs();
     for addr in addrs {
-        let replies = net.node_mut(&addr).unwrap().on_frame(carrier, &frame, 0).expect("genesis");
+        let replies = net
+            .node_mut(&addr)
+            .unwrap()
+            .on_frame(carrier, &frame, testing::clock(0))
+            .expect("genesis");
         for env in replies {
             net.send(addr, env.to, env.frame);
         }
@@ -301,8 +305,12 @@ fn a_restarted_node_with_a_stale_epoch_refuses_to_serve() {
         .expect("первый в порядке эпохи 1 — это один из тестовых сидов");
     let mut n = testing::node(&d, SHARD, primary_seed, p, &SEEDS);
     let carrier = testing::identity(9).pubkey();
-    n.on_frame(carrier, &testing::signed_frame(&testing::genesis_update(SHARD, &SEEDS, 0)), 0)
-        .expect("genesis");
+    n.on_frame(
+        carrier,
+        &testing::signed_frame(&testing::genesis_update(SHARD, &SEEDS, 0)),
+        testing::clock(0),
+    )
+    .expect("genesis");
     assert!(n.is_primary());
     assert_eq!(n.serving_epoch(0), Some(1), "lease + durable-маркер = обслуживаем (§9.2)");
 
@@ -318,7 +326,7 @@ fn a_restarted_node_with_a_stale_epoch_refuses_to_serve() {
     // Выдаём lease ровно той эпизоды, которую помнит цепочка: fencing обязан сработать на диске.
     let grant = Lease::grant(1, stale.me(), 1, p.lease_buckets)
         .signed_frame(SHARD, &stale.id, testing::DHT_PEER_ID.to_vec());
-    let replies = stale.on_frame(stale.me(), &grant, 1).expect("lease");
+    let replies = stale.on_frame(stale.me(), &grant, testing::clock(1)).expect("lease");
     assert!(replies.is_empty(), "грант от самого primary реплике не пересылается");
     assert!(stale.lease_active(1), "lease по форме правильный: эпоха == принятой, срок не вышел");
     assert_eq!(
@@ -339,7 +347,7 @@ fn a_restarted_node_with_a_stale_epoch_refuses_to_serve() {
         bits: POW,
     }
     .frame();
-    let replies = stale.on_frame(agent.pubkey(), &frame, 1).expect("publish");
+    let replies = stale.on_frame(agent.pubkey(), &frame, testing::clock(1)).expect("publish");
     assert_eq!(replies.len(), 1);
     let err = ProtocolError::decode(&replies[0].frame).expect("агенту вернулся Error");
     assert_eq!(err.code, err_code::EPOCH_STALE, "ровно этот код обещан §12.1: {err:?}");
@@ -361,7 +369,9 @@ fn a_restarted_node_with_a_stale_epoch_refuses_to_serve() {
         .expect("подписант обязан быть участником эпохи 1");
     let sig = other.sign_domain(domain::MEMBER, &draft.unsigned_body());
     let upd = membership::build_update(&list, vec![(idx as u8, sig)]);
-    stale.on_frame(other.pubkey(), &testing::signed_frame(&upd), 1).expect("цепочка эпохи 2");
+    stale
+        .on_frame(other.pubkey(), &testing::signed_frame(&upd), testing::clock(1))
+        .expect("цепочка эпохи 2");
     assert_eq!(stale.epoch(), Some(2));
     assert_eq!(stale.serving_epoch(1), Some(2), "цепочка догнала диск — обслуживание вернулось");
     remove(&d);

@@ -1,7 +1,7 @@
 //! `ShardNode`: один шард на одном узле как машина состояний (§9.2–§9.8, §10, §12).
 //!
 //! Узел ничего не ждёт и никуда не звонит сам: у него нет ни потока, ни таймеров. Внешний мир
-//! вызывает `on_frame(from, bytes, now_bucket)` и `tick(now_bucket)`, а узел возвращает список
+//! вызывает `on_frame(from, bytes, now)` и `tick(now_bucket)`, а узел возвращает список
 //! писем, которые транспорт обязан доставить. Отсюда три следствия, и все три нужны для гейтов:
 //!
 //! * детерминизм — при тех же кадрах и тех же бакетах та же последовательность ответов;
@@ -24,14 +24,15 @@ use vecdht_index::{IndexEntry, ShardStore, StoreError, StoreManifest};
 use vecdht_wire::codec::MAX_BODY_LEN;
 use vecdht_wire::frame::{decode_frame, Kind};
 use vecdht_wire::messages::{
-    domain, encode_mark, err_code, Codec, Find, LeaveNotice, MatchResult, Member, MembershipUpdate,
-    OpKind, ProtocolError, Publish, PublishAck, ReplicateAck, ReplicateOp, SnapshotOffer,
-    WalPullRequest, WalPullResponse,
+    domain, encode_mark, err_code, Codec, DeleteOp, Find, LeaveNotice, MatchResult, Member,
+    MembershipUpdate, OpKind, ProtocolError, Publish, PublishAck, ReplicateAck, ReplicateOp,
+    SnapshotOffer, WalPullRequest, WalPullResponse,
 };
 use vecdht_wire::DecodeError;
 
+use crate::admission::{self, Candidate, Evictor, SharedAdmission};
 use crate::candidates::{self, Holder, MemberList};
-use crate::config::Params;
+use crate::config::{Clock, Params};
 use crate::lease::Lease;
 use crate::membership::{self, Chain, Membership, MembershipError, GENESIS_EPOCH};
 use crate::net::{Addr, Envelope};
@@ -124,6 +125,12 @@ pub struct ShardNode {
     pull_attempts: u32,
     /// `applied_seq` на момент последнего `TimeMark` — по нему считается барьер в 512 опсов.
     last_mark_applied: u64,
+    /// Локальная политика приёма (§11.3). Разделяется всеми шардами одного процесса: §11.3.4
+    /// нормирует «100 admits/с на узел», а не на шард.
+    pub admission: SharedAdmission,
+    /// Кандидаты на вытеснение и достигнутые биты PoW (§11.3.3). RAM и на шард: slot'ы
+    /// принадлежат индексу этого шарда.
+    pub evictor: Evictor,
 }
 
 impl ShardNode {
@@ -137,6 +144,29 @@ impl ShardNode {
         params: Params,
         authorities: AuthoritySet,
         roster: Vec<Holder>,
+    ) -> Result<Self, NodeError> {
+        let admission = admission::shared(&params);
+        Self::open_with_admission(dir, shard, id, dht_peer_id, params, authorities, roster, admission)
+    }
+
+    /// Открыть шард с уже существующим admission узла.
+    ///
+    /// Процесс, держащий несколько шардов (§11.3.4: узел — это процесс, а не шард), обязан
+    /// передать один и тот же [`SharedAdmission`] всем `open_with_admission`: иначе лимит 100/с
+    /// молча умножался бы на число шардов, и «на узел» в спеке означало бы «на шард». `open`
+    /// создаёт собственный — это верно ровно для процесса с одним шардом, поэтому мультишардовый
+    /// тест `shards_of_one_process_share_the_node_budget` фиксирует, что второй путь существует
+    /// и работает.
+    #[allow(clippy::too_many_arguments)]
+    pub fn open_with_admission(
+        dir: &Path,
+        shard: u16,
+        id: Identity,
+        dht_peer_id: Vec<u8>,
+        params: Params,
+        authorities: AuthoritySet,
+        roster: Vec<Holder>,
+        admission: SharedAdmission,
     ) -> Result<Self, NodeError> {
         let store = ShardStore::open(dir, shard)?;
         let chain = Chain { shard, params, authorities };
@@ -161,6 +191,8 @@ impl ShardNode {
             assembly: None,
             cold: BTreeMap::new(),
             pull_attempts: 0,
+            admission,
+            evictor: Evictor::new(admission::EVICT_RESERVOIR),
         };
         node.membership = node.load_chain()?;
         Ok(node)
@@ -576,13 +608,13 @@ impl ShardNode {
 
     // --- publish ---------------------------------------------------------------
 
-    /// Путь агента: PoW → durable WAL primary → `ReplicateOp` репликам → `PublishAck` после
-    /// `w` подтверждений (§9.4, §10.1).
+    /// Путь агента: admission (§11.3) → PoW → durable WAL primary → `ReplicateOp` репликам →
+    /// `PublishAck` после `w` подтверждений (§9.4, §10.1).
     fn handle_publish(
         &mut self,
         from: Addr,
         bytes: &[u8],
-        now_bucket: u32,
+        now: Clock,
     ) -> Result<Vec<Envelope>, NodeError> {
         let frame = decode_frame(bytes)?;
         let msg = Publish::decode(bytes)?;
@@ -612,12 +644,18 @@ impl ShardNode {
         if !self.is_primary() {
             return self.err(from, err_code::NOT_OWNER, 1_000);
         }
-        let epoch = match self.serving_epoch(now_bucket) {
+        let epoch = match self.serving_epoch(now.bucket) {
             Some(e) => e,
             None => return self.err(from, err_code::EPOCH_STALE, 1_000),
         };
-        if (self.store.len() as u64) >= self.params.max_live_per_shard {
-            return self.err(from, err_code::SHARD_FULL, 10_000);
+        // §11.3: локальный приём — до работы, которую отказ делает бессмысленной. Denylist и
+        // бакет ключа стоят поиска в двух BTreeMap, а PoW — один blake3, поэтому бакет идёт
+        // раньше проверки nonce: иначе узел верифицировал бы работу, которую заведомо не примет.
+        // Платит и `from`, и заявленный owner: подпись в Publish опциональна (§5.3), поэтому
+        // бакет только по owner обнулялся бы сменой литерала (см. `Admission::check_publish`).
+        let verdict = self.admission.borrow_mut().check_publish(&from, &msg.owner_ed25519, now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
         }
         // `slot_key` из §11.1 — это `intent_id`: слот узел назначает сам и агент узнать его
         // не может (спека, §11.1: привязка к identity, которую доприём вычисляет клиент).
@@ -633,6 +671,56 @@ impl ShardNode {
         if !pow_ok(&input, msg.pow_nonce, bits) {
             return self.err(from, err_code::POW_INVALID, 0);
         }
+        // §11.3.4: узловой бюджет резервируется *до* вытеснения. Обратный порядок оставлял бы
+        // за `BUSY` уже удалённую чужую запись — отказ дешевле принятия, но не ценой чужого
+        // слота. Токен при последующем `SHARD_FULL` не возвращается: см. политику в
+        // `Admission::check_publish`.
+        let verdict = self.admission.borrow_mut().reserve_admit(now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        // §11.3.2: живая запись у owner'а ровно одна, и перепубликация (§6.5) заменяет её на
+        // месте. Поэтому вместимость шарда её не касается — иначе полный шард замёрз бы навсегда:
+        // M записей не смогли бы даже обновиться, а TTL у них общий, и обновление продлевало бы
+        // жизнь записи, не занимая нового slot'а.
+        let replacing = self.store.index.owner_slot(&msg.owner_ed25519).is_some();
+        let mut victim = None;
+        if !replacing && (self.store.len() as u64) >= self.params.max_live_per_shard {
+            let newcomer = Candidate::newcomer(bits, msg.published_bucket);
+            victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            if victim.is_none() {
+                // Резервуар не знает всех цен: он видел только те записи, что принял этот узел
+                // (рестарт и handoff обнуляют знание, §11.3.3). Один ограниченный проход по арене
+                // дешевле, чем O(M) на каждый publish, и честнее, чем «жертвы нет» при живой
+                // дешёвой записи.
+                let from_slot = self.evictor.scan_from();
+                let arena_end = self.store.index.next_slot();
+                let entries = self
+                    .store
+                    .index
+                    .live_slots_from(from_slot)
+                    .map(|(s, e)| (s, e.published_bucket));
+                self.evictor.refill(entries, arena_end, admission::EVICT_SCAN_BUDGET);
+                victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            }
+            if victim.is_none() {
+                // §11.3.3: дешевле новичка никого — значит отказ, а не вытеснение дорогой записи.
+                return self.err(from, err_code::SHARD_FULL, 10_000);
+            }
+        }
+        // Владелец жертвы нужен и для WAL-фрейма `Delete`, и для реплики: удаление — это
+        // изменение индекса, а не локальная политика, и сойтись после handoff'a узлы смогут
+        // только если обе стороны применили один и тот же фрейм (§8.3).
+        let victim_entry = match victim {
+            Some(c) => match self.store.index.entry(c.slot) {
+                Some(e) => Some((c, e)),
+                None => {
+                    self.evictor.forget(c.slot);
+                    return self.err(from, err_code::SHARD_FULL, 10_000);
+                }
+            },
+            None => None,
+        };
         let entry = IndexEntry {
             owner_ed25519: msg.owner_ed25519,
             vec_q: msg.vec_q,
@@ -640,10 +728,21 @@ impl ShardNode {
             published_bucket: msg.published_bucket,
             ttl_buckets: msg.ttl_buckets,
         };
-        let seq = match self.store.stage_insert(entry) {
+        let insert_seq = match self.store.stage_insert(entry) {
             Ok(seq) => seq,
             Err(StoreError::WalFailed(_)) => return self.err(from, err_code::WAL_FAILED, 100),
             Err(e) => return Err(NodeError::Store(e)),
+        };
+        // insert ставится в WAL раньше delete, и реплицируется в том же порядке: реплика
+        // отвергает фрейм с `seq > applied_seq + 1` (`WalGap`), поэтому «удалить, потом вставить»
+        // на проводе потеряло бы delete, а «вставить, потом удалить» — нет.
+        let delete_seq = match victim_entry {
+            Some((_, e)) => match self.store.stage_delete(e.owner_ed25519) {
+                Ok(seq) => Some(seq),
+                Err(StoreError::WalFailed(_)) => return self.err(from, err_code::WAL_FAILED, 100),
+                Err(e) => return Err(NodeError::Store(e)),
+            },
+            None => None,
         };
         if let Err(e) = self.store.commit() {
             return match e {
@@ -652,13 +751,20 @@ impl ShardNode {
             };
         }
         let slot = self.store.index.owner_slot(&msg.owner_ed25519).unwrap_or(0);
-        let out = self.replicate(seq, OpKind::Insert, entry.to_insert().body_bytes());
+        self.evictor.observe(slot, bits as u8, msg.published_bucket);
+        let mut out = self.replicate(insert_seq, OpKind::Insert, entry.to_insert().body_bytes());
+        if let (Some(seq), Some((c, e))) = (delete_seq, victim_entry) {
+            let op = DeleteOp { owner_ed25519: e.owner_ed25519, shard: self.shard };
+            out.extend(self.replicate(seq, OpKind::Delete, op.body_bytes()));
+            self.evictor.forget(c.slot);
+            self.evictor.evicted += 1;
+        }
         // Собственный fsync — первое подтверждение кворума, а не весь кворум (§9.4: «сам + один
         // реплика»). Поэтому здесь никогда не может быть немедленного `PublishAck{OK}`: если
         // подтверждать при пустом составе, агент получил бы гарантию durable для записи, которую
         // держит один диск, и потеря шарда стала бы тихой потерей данных. `w >= 2` гарантируется
         // `Params` (`WTooSmall`), так что ожидающий ack набор всегда имеет смысл.
-        self.awaiting.insert(seq, Awaiting { agent: from, slot, acks: vec![self.me()] });
+        self.awaiting.insert(insert_seq, Awaiting { agent: from, slot, acks: vec![self.me()] });
         Ok(out)
     }
 
@@ -795,10 +901,17 @@ impl ShardNode {
 
     // --- чтение ----------------------------------------------------------------
 
-    /// Поиск по шарду. `now_bucket` не нужен: экспирация уже учтена индексом (`search` отбрасывает
-    /// протухшие slot'ы по последнему `TimeMark`), а время внутри чтения — это wall-clock в
-    /// детерминированном пути (§9.6).
-    fn handle_find(&mut self, from: Addr, bytes: &[u8]) -> Result<Vec<Envelope>, NodeError> {
+    /// Поиск по шарду. Бакет берётся по `Clock::sec` (§11.3.6) — это локальная политика приёма,
+    /// единственное место, где время допустимо не из `TimeMark`; сама выдача по-прежнему смотрит
+    /// на последний применённый `TimeMark` (`search`), а не на часы узла (§9.6).
+    fn handle_find(&mut self, from: Addr, bytes: &[u8], now: Clock) -> Result<Vec<Envelope>, NodeError> {
+        // Отказ до разбора тела: `Find` — самый дорогой decode в протоколе (§19.5), и тратить его
+        // на ключ, который всё равно получит `QUOTA_FIND`, незачем. Ключ — аутентифицированный
+        // `from`, а не `requester_ed25519` из тела: второй в неподписанном кадре свободен.
+        let verdict = self.admission.borrow_mut().check_find(&from, now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
         let q = Find::decode(bytes)?;
         if q.clusters.iter().any(|c| shard_of_cluster(*c) != self.shard) {
             return self.err(from, err_code::SHARD_MISMATCH, 0);
@@ -1175,8 +1288,10 @@ impl ShardNode {
     // --- диспетчер -----------------------------------------------------------------
 
     /// Один входящий кадр. `from` — аутентифицированный ключ пира из транспорта (§4.3); для
-    /// агентов это его `owner_ed25519`.
-    pub fn on_frame(&mut self, from: Addr, bytes: &[u8], now_bucket: u32) -> Result<Vec<Envelope>, NodeError> {
+    /// агентов это его `owner_ed25519`. `now` несёт и секунду, и бакет: бакет обслуживает
+    /// протокол (§9.6), секунда — только per-key бакеты admission (§11.3), которым часовая
+    /// гранулярность не подходит.
+    pub fn on_frame(&mut self, from: Addr, bytes: &[u8], now: Clock) -> Result<Vec<Envelope>, NodeError> {
         let f = decode_frame(bytes)?;
         if f.header.kind.signature_required() && !f.header.signed() {
             // Обязательная подпись отсутствует (§5.3): кадр не проходит дальше.
@@ -1186,16 +1301,16 @@ impl ShardNode {
         // живущей внутри одного обработчика.
         let kind = f.header.kind;
         match kind {
-            Kind::Publish => self.handle_publish(from, bytes, now_bucket),
-            Kind::Find => self.handle_find(from, bytes),
+            Kind::Publish => self.handle_publish(from, bytes, now),
+            Kind::Find => self.handle_find(from, bytes, now),
             Kind::ReplicateOp => self.handle_replicate(from, bytes),
             Kind::ReplicateAck => self.handle_replicate_ack(from, bytes),
-            Kind::MembershipUpdate => self.handle_membership(bytes, now_bucket),
-            Kind::LeaseGrant => self.handle_lease_grant(from, bytes, now_bucket),
-            Kind::WalPullRequest => self.handle_pull_request(from, bytes, now_bucket),
+            Kind::MembershipUpdate => self.handle_membership(bytes, now.bucket),
+            Kind::LeaseGrant => self.handle_lease_grant(from, bytes, now.bucket),
+            Kind::WalPullRequest => self.handle_pull_request(from, bytes, now.bucket),
             Kind::WalPullResponse => self.handle_pull_response(from, bytes),
             Kind::SnapshotOffer => self.handle_snapshot_offer(from, bytes),
-            Kind::LeaveNotice => self.handle_leave(from, bytes, now_bucket),
+            Kind::LeaveNotice => self.handle_leave(from, bytes, now.bucket),
             // Handshake/Error/PublishAck/IntentText*/ArtifactAnnounce/RendezvousAccept/CertRevoke —
             // не входят в путь шарда; узел их не порождает и принимать не обязан (§4.3).
             _ => Ok(Vec::new()),
