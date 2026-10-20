@@ -1,7 +1,7 @@
 //! Шаг 4 пайплайна §6.2: forward модели. Только под feature `candle` (§17.2, §18.1 v).
 //!
 //! Здесь живёт единственная часть контракта, которая не может быть детерминирована по построению,
-//! — поэтому она и изолирована: без весов crate не собирается с этойfeature'ой, а с feature'ой,
+//! — поэтому она и изолирована: без весов crate не собирается с этой feature'ой, а с feature'ой,
 //! но без каталога модели, — падает на загрузке с внятной ошибкой, а не на первом же инференсе.
 //!
 //! Почему f32, а не bf16 (§6.1): веса лежат в bfloat16, и candle апкастит их один раз при
@@ -18,8 +18,10 @@ use std::path::Path;
 
 use candle_core::{D, Device, DType, IndexOp, Tensor};
 use candle_nn::VarBuilder;
-use candle_transformers::models::modernbert::{Config, ModernBert};
+use candle_transformers::models::modernbert::Config;
 use tokenizers::{TruncationParams, Tokenizer};
+
+use crate::modernbert_backbone::{activation_from_config_json, Backbone};
 
 use vecdht_artifact::Pooling;
 use vecdht_crypto::DIM;
@@ -39,7 +41,7 @@ pub const MODEL_DIR_ENV: &str = "VEC_DHT_MODEL_DIR";
 /// Bi-encoder ModernBERT на candle: шаги 3–5 пайплайна (§6.2).
 pub struct ModernBertEmbedder {
     tokenizer: Tokenizer,
-    model: ModernBert,
+    model: Backbone,
     device: Device,
     pooling: Pooling,
     add_special_tokens: bool,
@@ -57,6 +59,10 @@ impl ModernBertEmbedder {
             .map_err(|e| backend(format!("{CONFIG_FILE} не читается в {dir:?}: {e}")))?;
         let config: Config = serde_json::from_str(&cfg_text)
             .map_err(|e| backend(format!("{CONFIG_FILE}: {e}")))?;
+        // Активация — часть контракта модели, но не часть candle-структуры Config: без
+        // отдельного чтения `hidden_activation: silu` превращается в GELU (см. гейт v).
+        let activation = activation_from_config_json(&cfg_text)
+            .map_err(|e| backend(format!("{CONFIG_FILE}: {e}")))?;
         // Размерность выхода — часть контракта: 384 (§6.1). Модель с другим hidden_size это уже
         // не `granite-embedding-97m-v2`, и её векторы не лягут в тот же артефакт.
         if config.hidden_size != DIM {
@@ -66,9 +72,23 @@ impl ModernBertEmbedder {
         let device = Device::Cpu;
         let weights = std::fs::read(dir.join(WEIGHTS_FILE))
             .map_err(|e| backend(format!("{WEIGHTS_FILE} не читается: {e}")))?;
-        let vb = VarBuilder::from_buffered_safetensors(weights, DType::F32, &device)
+        // `candle_transformers::models::modernbert::ModernBert::load` адресует веса как
+        // `model.embeddings...` (checkpoint `ModernBertForMaskedLM`), а опубликованный
+        // granite-97m-r2 — это `ModernBertModel`: в его `model.safetensors` префикса `model.`
+        // нет. Без переименования загрузка падает на первом же тензоре, поэтому префикс
+        // добавляется здесь, один раз; формат самого файла и его хеш не меняются.
+        let tensors = candle_core::safetensors::load_buffer(&weights, &device)
             .map_err(|e| backend(format!("{WEIGHTS_FILE}: {e}")))?;
-        let model = ModernBert::load(vb, &config).map_err(|e| backend(format!("сборка модели: {e}")))?;
+        let tensors = match tensors.keys().any(|k| k.starts_with("model.")) {
+            true => tensors,
+            false => tensors
+                .into_iter()
+                .map(|(name, tensor)| (format!("model.{name}"), tensor))
+                .collect(),
+        };
+        let vb = VarBuilder::from_tensors(tensors, DType::F32, &device);
+        let model = Backbone::load(vb, &config, activation)
+            .map_err(|e| backend(format!("сборка модели: {e}")))?;
 
         let tokenizer_path = dir.join(TOKENIZER_FILE);
         let mut tokenizer =
@@ -161,8 +181,11 @@ impl EmbeddingModel for ModernBertEmbedder {
                 sum.broadcast_div(&n).map_err(|e| backend(format!("mean: div: {e}")))?
             }
         };
+        // `pooled` уже имеет ранг 2 — `(1, DIM)` после среза CLS или mean; `to_vec1` требует
+        // ранг 1. Первая версия делала `reshape((1, DIM))` и падала на любом реальном выходе:
+        // без весов этот путь не исполнялся, поэтому ошибка дожила до гейта (v).
         let flat = pooled
-            .reshape((1, DIM))
+            .reshape(DIM)
             .and_then(|t| t.contiguous())
             .and_then(|t| t.to_vec1::<f32>())
             .map_err(|e| backend(format!("pooling → vec: {e}")))?;
@@ -202,7 +225,34 @@ mod tests {
         Pipeline::from_manifest(&reference_manifest()).unwrap()
     }
 
-    /// Гейт (v) из §18.1: granite-97m-r2 против HF-референса, косинус ≥ 0.999.
+    /// Тексты гейта (v) — часть протокола измерения, а не удобная выборка: смена строк делает
+    /// `VEC_DHT_HF_REFERENCE` недействительным и требует перегенерации референса.
+    ///
+    /// Набор закрывает классы, на которых ошибка загрузки или активации может не проявиться на
+    /// одном коротком предложении: кириллица, английский, очень короткий вход, смешанная
+    /// мультиязычность и ровно `max_length = 256` токенов, то есть обе ветки обрезки.
+    fn gate_v_texts() -> Vec<String> {
+        vec![
+            "Ищу контрагента для vector search".to_string(),
+            "Find a contractor for vector search".to_string(),
+            "короткий текст".to_string(),
+            "мультиязычный запрос: 東京でベクトル検索".to_string(),
+            // Python-референс писал `(sentence * 40).strip()`; `trim()` даёт те же байты UTF-8.
+            "Это длинный текст для проверки обрезки по max_length. "
+                .repeat(40)
+                .trim()
+                .to_string(),
+        ]
+    }
+
+    fn cosine(a: &[f32], b: &[f32]) -> f64 {
+        let dot: f64 = a.iter().zip(b).map(|(x, y)| f64::from(*x) * f64::from(*y)).sum();
+        let na: f64 = a.iter().map(|x| f64::from(*x) * f64::from(*x)).sum::<f64>().sqrt();
+        let nb: f64 = b.iter().map(|y| f64::from(*y) * f64::from(*y)).sum::<f64>().sqrt();
+        dot / (na * nb)
+    }
+
+    /// Гейт (v) из §18.1: granite-97m-r2 против HF-референса, косинус ≥ 0.999 на каждом тексте.
     ///
     /// Без каталога модели тест **не** считается пройденным и **не** проваливается — он ничего не
     /// утверждает. Проваливать сборку без весов означало бы, что `cargo test` зелёный только там,
@@ -228,13 +278,33 @@ mod tests {
             println!("модель загружена, но VEC_DHT_HF_REFERENCE не задан: сравнивать не с чем");
             return;
         };
-        let got = embedder.embed_pooled("Ищу контрагента для vector search").unwrap();
-        assert_eq!(got.len(), reference.len(), "HF-референс другой размерности: сравнивать нечего");
-        let dot: f64 = got.iter().zip(reference.iter()).map(|(a, b)| f64::from(*a) * f64::from(*b)).sum();
-        let na: f64 = got.iter().map(|a| f64::from(*a) * f64::from(*a)).sum::<f64>().sqrt();
-        let nb: f64 = reference.iter().map(|b| f64::from(*b) * f64::from(*b)).sum::<f64>().sqrt();
-        let cos = dot / (na * nb);
-        println!("косинус candle против HF: {cos:.6}");
-        assert!(cos >= 0.999, "гейт (v): косинус {cos} ниже 0.999 — нужен fallback из §6.1");
+        let texts = gate_v_texts();
+        assert_eq!(
+            reference.len() % DIM,
+            0,
+            "HF-референс длиной {} не кратен DIM={DIM}: это не набор векторов",
+            reference.len()
+        );
+        let vectors = reference.len() / DIM;
+        assert_eq!(
+            vectors,
+            texts.len(),
+            "в HF-референсе {vectors} векторов, а текстов гейта {}: референс и строки разошлись",
+            texts.len()
+        );
+
+        let mut worst = f64::INFINITY;
+        for (i, text) in texts.iter().enumerate() {
+            let got = embedder.embed_pooled(text).unwrap();
+            let want = &reference[i * DIM..(i + 1) * DIM];
+            let cos = cosine(&got, want);
+            println!("вектор {i}: косинус candle против HF = {cos:.6}");
+            worst = worst.min(cos);
+        }
+        println!("минимум по {} текстам: {worst:.6}", texts.len());
+        assert!(
+            worst >= 0.999,
+            "гейт (v): минимальный косинус {worst} ниже 0.999 — нужен fallback из §6.1"
+        );
     }
 }

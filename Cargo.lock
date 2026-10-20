@@ -3907,6 +3907,7 @@ dependencies = [
  "candle-core",
  "candle-nn",
  "candle-transformers",
+ "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokenizers 0.21.4",

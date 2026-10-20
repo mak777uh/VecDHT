@@ -34,6 +34,11 @@ pub mod text;
 #[cfg(feature = "candle")]
 pub mod candle_backend;
 
+/// Вендоренный ModernBERT-backbone: upstream candle жёстко использует GELU и теряет
+/// `hidden_activation: silu` из config.json granite-97m-r2 (§18.1 v).
+#[cfg(feature = "candle")]
+pub(crate) mod modernbert_backbone;
+
 /// Детерминированные оракулы для тестов всего репозитория (см. модуль). Публичный и без feature,
 /// потому что интеграционные тесты собирают crate как зависимость и `cfg(test)` для них
 /// не включается.
