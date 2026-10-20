@@ -23,7 +23,7 @@ supersedes: null
   канонизация NFC/whitespace, без пересечения с held-out);
 - queries: те же 1 000 held-out, что в `E-0004`, в корпус не входят;
 - эмбеддинги — та же модель, пайплайн, int8; кеш пересчитывается с нуля (новый корпус);
-- balanced k-means, nlist=1024, cap=ceil(2N/1024)=1577, тот же seed `0x5645434448540002`;
+- balanced k-means, nlist=1024, cap=ceil(2N/1024)=1578, тот же seed `0x5645434448540002`;
 - IVF: 16 ближайших int8-центроидов, скан только их членов (без shard-complete);
 - ground truth — brute-force по всем 807 596 int8-векторам;
 - recall@10 ≥ 0.95 при nprobe=16; цель 0.98.
