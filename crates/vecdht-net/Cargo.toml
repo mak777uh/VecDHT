@@ -15,6 +15,7 @@ async-trait = { workspace = true }
 vecdht-wire = { workspace = true }
 vecdht-crypto = { workspace = true }
 vecdht-node = { workspace = true }
+vecdht-artifact = { workspace = true }
+hex = { workspace = true }
 
 [dev-dependencies]
-vecdht-artifact = { workspace = true }

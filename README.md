@@ -12,12 +12,12 @@ P2P-семантический поиск и rendezvous агентов: узел
 v8 пишется по этапам P0–P7 из §18 спеки. В `main` только то, что собирается и тестируется:
 байтовый слой протокола (`vecdht-wire`), слой детерминизма (`vecdht-crypto`), подписанный артефакт
 сети (`vecdht-artifact`), одноузловой индекс шарда (`vecdht-index`), машина шарда (`vecdht-node`),
-транспорт на настоящем libp2p (`vecdht-net`), контракт инференса (`vecdht-embed`), офлайн-CLI
-(`vecdht-cli`) и три мишени замеров (`benches`) — 466 тестов зелёные, закрыты гейты P2, P3 и P4,
-транспортная часть P5 и детерминированная половина P0 (см. «Гейты P0», «Гейты P3», «Гейты P4»,
-«Транспорт P5»), калибровка [P0] пересняла политику PoW (§19.5). Остальные добавляются
-этапами — в `workspace.members` попадает только готовое, чтобы `cargo test` на `main` всегда
-проходил.
+транспорт на настоящем libp2p (`vecdht-net`), контракт инференса (`vecdht-embed`), CLI оператора
+(`vecdht-cli`, включая `agent publish/find/session`) и три мишени замеров (`benches`) — 479 тестов
+зелёные, закрыты гейты P2, P3 и P4, транспортная часть P5 и детерминированная половина P0 (см.
+«Гейты P0», «Гейты P3», «Гейты P4», «Транспорт P5»), калибровка [P0] пересняла политику PoW
+(§19.5). Остальные добавляются этапами — в `workspace.members` попадает только готовое, чтобы
+`cargo test` на `main` всегда проходил.
 
 | Crate | Что содержит | Этап |
 |---|---|---|
@@ -28,14 +28,14 @@ v8 пишется по этапам P0–P7 из §18 спеки. В `main` то
 | `crates/vecdht-node` | машина шарда: самовалидируемая цепочка эпох, выборы primary, lease/epoch-fencing, репликация W=2/R=3, уход и снапшот seed, admission §11.3, rendezvous §12.3, модельная сеть для гейтов (§9, §11–§13) | P4 — готов; P5: admission, rendezvous и find-пути готовы; сеть — в `vecdht-net` |
 | `crates/vecdht-net` | транспорт на libp2p: QUIC и TCP+Noise+Yamux, встречный handshake с `NodeCert`, кадры v8 как request-response с батчем ответов, Kademlia-провайдеры шардов и gossip-темы (§4, §5.3, §7.4) | P5 — транспорт готов; гейт P5 (sybil/rendezvous) впереди |
 | `crates/vecdht-embed` | канонизация текста, префиксы, квантование Δ=1/127, assign по замороженным центроидам, кеш интентов, контракт реранка и метрики (§6); candle-forward за feature `candle` | P0 — детерминированная половина готова; (i) инференс, (ii) recall и (v) HF-референс ждут весов и реального корпуса |
-| `crates/vecdht-cli` | офлайн-поверхность без сети: `artifact init/show/verify`, `encode`, `pow mine/verify`, `index create/add/search/stats/snapshot`, `wire kinds/decode`, `demo`; всё в `Result`-стиле, вывод — в stdout, ошибка — в stderr, код выхода различает «разбор» и «дело не вышло» | P2–P4 — готов; `node`/`agent` — P5 |
+| `crates/vecdht-cli` | поверхность оператора: офлайн — `artifact init/show/verify`, `encode`, `pow mine/verify`, `index create/add/search/stats/snapshot`, `wire kinds/decode`, `demo`; сеть — `agent publish/find/session` поверх `vecdht-net`; всё в `Result`-стиле, вывод — в stdout, ошибка — в stderr, код выхода различает «разбор» и «дело не вышло» | P2–P4 — готов; P5: `agent publish/find/session`; `node` и `agent run` впереди |
 | `benches/` | мишени `wire` (кодек, цена publish-PoW, ed25519), `index` (арена, RAM, поиск, fsync, снапшот), `p0` (throughput целочисленной половины, fan-out, детерминизм, механика recall); `harness = false` + `test = false`: замер печатает числа, порог проверяет тест | [P0] — готов, числа в §19.5 |
-| `sdk/vecdht-py` | каркас PyO3 0.23 (`extension-module`, `abi3-py38`), вне `members`: константы, `Artifact`, `normalize`, `finalize`, суррогатные `encode_*`, PoW, `decode_frame`; `Agent.publish/find/session` — `NotImplementedError` с указанием этапа. Python не кодирует и не подписывает сам (§5.1) | каркас собран и проверен `python test.py`; транспорт — P5/P6 |
+| `sdk/vecdht-py` | PyO3 0.23 (`extension-module`, `abi3-py38`), вне `members`: константы, `Artifact`, `normalize`, `finalize`, суррогатные `encode_*`, PoW, `decode_frame` и реальный `Agent.publish/find/session` поверх `vecdht-net` (§12). Python не кодирует и не подписывает сам (§5.1); шаг 4 пока считает `HashModel` и требует `allow_surrogate=True` | сеть §12 готова и проверена `python test.py`; настоящие веса и async-путь — P6 |
 
 ## Сборка
 
 ```
-cargo test                                       # 466 тестов: unit + golden-векторы + быстрый fuzz + гейты P0–P4 + транспорт
+cargo test                                       # 479 тестов: unit + golden-векторы + быстрый fuzz + гейты P0–P4 + транспорт
 cargo clippy --all-targets -- -D warnings        # линкер см. ниже
 cargo clippy -p vecdht-embed --all-targets --features candle -- -D warnings   # candle-половина
 ```
@@ -216,7 +216,7 @@ length-prefix-кадра относится к следующему кадру, 
 ## Транспорт P5 (`vecdht-net`)
 
 ```
-cargo test -p vecdht-net --test transport     # 6 сценариев на настоящем libp2p, ~5 с
+cargo test -p vecdht-net --test transport     # 7 сценариев на настоящем libp2p, ~10 с
 ```
 
 Мок-транспорта здесь нет: тесты поднимают два-три `NetService` в одном `current_thread`-рантайме
@@ -236,15 +236,19 @@ cargo test -p vecdht-net --test transport     # 6 сценариев на нас
 * подписанный `Publish` в gossip-теме шарда доходит до primary и проверяется по подписи тела, а не
   по автору конверта (§5.3);
 * закрытие QUIC-соединения доходит до `ShardNode::peer_lost`: primary узнаёт о смерти реплики
-  событием транспорта, а не по истечении lease (§9.8).
+  событием транспорта, а не по истечении lease (§9.8);
+* весь путь §12 на живом QUIC и PoW 20: агент публикует запись до ack, второй агент находит её
+  через подписанный `Find`, получает приём на пару `(seeker, target, slot)` и открывает по нему
+  прямой аутентифицированный канал; чужой `owner_ed25519` в приёме не проходит проверку.
 
 Честная граница: relay/DCUtR из §16.3 не подняты — адреса распространяются identify/Kademlia, и
 путь через NAT без прямого dial не проверен. `CertRevoke` §4.2 разбирается wire-слоем, но в
 транспорте ещё не подключён: handshake проверяет срок и порог, а отзыв по `nonce` принимается
 пустым множеством. Это известный разрыв, а не «отзыв, который работает». Гейт P5 (16 sybil-ядер,
 ≤M записей, одноразовый rendezvous) ещё не добавлен: `tests/adversarial/` пока нет, а утверждать
-пройденным то, чего не запускали, нельзя. `node`/`agent` в CLI и `Agent.publish/find/session` в
-SDK остаются заглушками до следующего этапа.
+пройденным то, чего не запускали, нельзя. `agent publish/find/session` в CLI и
+`Agent.publish/find/session` в SDK работают по-настоящему; `node` и `agent run` (входящий listener,
+которому нужен постоянный цикл) остаются на P6, а SDK пока не умеет веса — только явный суррогат.
 
 ## Что здесь не так, как в v7.5
 

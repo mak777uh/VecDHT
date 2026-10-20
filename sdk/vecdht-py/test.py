@@ -8,9 +8,11 @@
 установленный пакет: каркас обязан быть проверяемым на той же машине, где его собрали.
 
 Что здесь проверяется и почему именно это: границы между Rust и Python. Сам контракт (квантование,
-assign, PoW) покрыт тестами в `crates/*`; здесь важно, что обёртка ничего не портит при передаче
-через FFI — длину вектора, побайтовость hex, детерминизм повторного вызова и то, что незакрытые
-методы громко падают, а не возвращают правдоподобную заглушку.
+assign, PoW, сетевой путь §12) покрыт тестами в `crates/*`; здесь важно, что обёртка ничего не
+портит при передаче через FFI — длину вектора, побайтовость hex, детерминизм повторного вызова —
+и что отказы приходят с названной причиной, а не с правдоподобной заглушкой. Положительный
+сетевой путь требует узлов, поэтому здесь проверяются его предохранители: без bootstrap агент
+обязан отказать до сети, а суррогат — только по явному `allow_surrogate=True`.
 """
 
 import importlib.util
@@ -131,18 +133,72 @@ def main():
         f"{f['kind']} v{f['version']}, тело {len(f['body_hex']) // 2} байт",
     )
 
-    # 8. Незакрытое должно падать, а не молча возвращать правдоподобные данные.
-    agent = vd.Agent(".")
-    for name, call in [
-        ("publish", lambda: agent.publish("текст")),
-        ("find", lambda: agent.find("текст")),
-        ("session", lambda: agent.session("a1" * 32)),
-    ]:
+    # 8. Сетевой путь §12: предохранители обязаны отказать до сети, а идентичность — выводиться
+    #    из seed. Положительный publish/find проверяется в `crates/vecdht-net/tests/transport.rs`:
+    #    там подняты настоящие узлы, а Python-тест не должен изображать сеть, которой нет.
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as td:
+        art.save(td)
+        seed = "11" * 32
+        agent = vd.Agent(td, seed, allow_surrogate=True, timeout_sec=1.0)
+        ok(
+            "Agent identity из seed",
+            len(agent.owner) == 64 and agent.peer_id.startswith("12D3")
+            and agent.owner == vd.Agent(td, seed, allow_surrogate=True).owner,
+            f"peer {agent.peer_id[:14]}…, owner {agent.owner[:16]}…",
+        )
+        for name, call in [
+            ("publish", lambda: agent.publish("текст")),
+            ("find", lambda: agent.find("текст")),
+        ]:
+            try:
+                call()
+                sys.exit(f"ПРОВАЛ: Agent.{name} без bootstrap вернул результат")
+            except ValueError as exc:
+                ok(f"Agent.{name} без bootstrap", "bootstrap" in str(exc), str(exc)[:72] + "…")
+
+        # Суррогат без явного разрешения — отказ, а не публикация хеша под видом смысла.
+        guarded = vd.Agent(td, seed)
         try:
-            call()
-            sys.exit(f"ПРОВАЛ: Agent.{name} вернул результат, хотя транспорта нет")
-        except NotImplementedError as exc:
-            ok(f"Agent.{name} — NotImplemented", "P" in str(exc), str(exc).splitlines()[0][:60] + "…")
+            guarded.publish("текст")
+            sys.exit("ПРОВАЛ: суррогат принят без allow_surrogate")
+        except ValueError as exc:
+            ok("суррогат требует allow_surrogate", "allow_surrogate" in str(exc), str(exc)[:72] + "…")
+
+        # TTL и timeout проверяются до dial: сеть сюда не вовлечена, адрес может быть мёртвым.
+        try:
+            vd.Agent(
+                td, seed,
+                bootstrap=["/ip4/127.0.0.1/udp/9999/quic-v1"],
+                allow_surrogate=True,
+            ).publish("текст", ttl_sec=10**9)
+            sys.exit("ПРОВАЛ: TTL выше потолка принят")
+        except ValueError as exc:
+            ok("TTL выше потолка отвергается", "ttl_sec" in str(exc), str(exc)[:72] + "…")
+
+        # Приём проверяется по исходным байтам: мусорный кадр отвергается без сети.
+        try:
+            agent.session("aa", "22" * 32, to=["/ip4/127.0.0.1/udp/9999/quic-v1"])
+            sys.exit("ПРОВАЛ: мусорный кадр приёма принят")
+        except RuntimeError as exc:
+            ok("мусорный приём отвергается", "приём" in str(exc) or "кадр" in str(exc), str(exc)[:72] + "…")
+
+        for args, needle in [
+            ((td, "zz" * 32), "seed_hex"),
+            ((td, seed, ["не-адрес"]), "bootstrap[0]"),
+        ]:
+            try:
+                vd.Agent(*args)
+                sys.exit(f"ПРОВАЛ: Agent{args[1:]} принят")
+            except ValueError as exc:
+                ok("аргумент конструктора проверяется", needle in str(exc), str(exc)[:72] + "…")
+
+        try:
+            vd.Agent(td, seed, timeout_sec=0)
+            sys.exit("ПРОВАЛ: timeout_sec=0 принят")
+        except ValueError as exc:
+            ok("нулевой timeout отвергается", "timeout_sec" in str(exc), str(exc)[:72] + "…")
 
     print(f"\nпроверок: {checked} — все пройдены")
 

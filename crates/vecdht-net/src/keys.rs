@@ -30,6 +30,16 @@ pub fn peer_id(identity: &Identity) -> PeerId {
     keypair(identity).public().to_peer_id()
 }
 
+/// `PeerId` из 32-байтового Ed25519-владельца — обратная операция к [`owner`].
+///
+/// Формула та же, что у [`peer_id`]: libp2p выводит id из protobuf-ключа, поэтому владелец
+/// и транспортный адрес однозначно соответствуют друг другу. Нужна агенту: `Find` и адресная
+/// книга знают только `owner_ed25519`, а дозваниваться приходится по `PeerId`.
+pub fn peer_from_owner(owner: &[u8; 32]) -> Option<PeerId> {
+    let pk = libp2p::identity::ed25519::PublicKey::try_from_bytes(owner).ok()?;
+    Some(PeerId::from_public_key(&libp2p::identity::PublicKey::from(pk)))
+}
+
 /// Публичный ключ владельца из `PeerId`, если он там лежит целиком.
 ///
 /// Формат: identity-multihash (код 0x00, длина 36) от protobuf
@@ -63,6 +73,11 @@ mod tests {
         assert_ne!(peer, peer_id(&testing::identity(43)));
         // §4.2 правило 3: владелец из PeerId — это ровно прикладной ключ, не его хеш.
         assert_eq!(owner(&peer), Some(id.pubkey()));
+        // Обратная операция нужна агенту: `MatchResult` и адресная книга знают только
+        // `owner_ed25519`, а дозваниваться приходится по `PeerId`. Расхождение здесь означало бы,
+        // что агент стучится не к тому, кто подписал ответ.
+        assert_eq!(peer_from_owner(&id.pubkey()), Some(peer));
+        assert_eq!(owner(&peer_from_owner(&id.pubkey()).unwrap()), Some(id.pubkey()));
     }
 
     #[test]

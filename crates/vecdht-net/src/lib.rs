@@ -9,7 +9,9 @@
 //!   деривации `PeerId` (§4.1);
 //! * [`handshake`] проверяет `NodeCert` и его привязку к транспорту (§4.2);
 //! * [`service`] владеет `ShardNode`'ами, Kademlia-провайдерами шардов (§7.4), gossip-темами
-//!   и event loop'ом; вся протокольная логика остаётся в `vecdht-node`.
+//!   и event loop'ом; вся протокольная логика остаётся в `vecdht-node`;
+//! * [`agent`] — клиентская половина §12: publish/find/session поверх того же транспорта, чтобы
+//!   CLI и SDK не собирали кадры и не дублировали проверки подписей.
 //!
 //! Транспорт — QUIC с TCP+Noise+Yamux запасным путём, как в P1 §19.1. `request-response`
 //! несёт кадры, потому что `Find` отвечает батчем (`MatchResult` + приёмы), и ответ «сколько
@@ -21,11 +23,16 @@
 
 #![forbid(unsafe_code)]
 
+pub mod agent;
 pub mod behaviour;
 pub mod codec;
 pub mod handshake;
 pub mod keys;
 pub mod service;
 
+pub use agent::{
+    Agent, AgentConfig, AgentError, FindOutcome, FindQuery, FoundMatch, NetworkParams,
+    PublishReceipt, PublishRequest, RendezvousGrant, SessionInfo, ShardAnswer, ShardFailure,
+};
 pub use handshake::{PeerIdentity, HandshakeError};
 pub use service::{shard_topic, NetConfig, NetError, NetService, Step};

@@ -3874,11 +3874,15 @@ version = "0.1.0"
 dependencies = [
  "blake3",
  "hex",
+ "libp2p",
  "thiserror 1.0.69",
+ "tokio",
  "vecdht-artifact",
  "vecdht-crypto",
  "vecdht-embed",
  "vecdht-index",
+ "vecdht-net",
+ "vecdht-node",
  "vecdht-wire",
 ]
 
@@ -3929,6 +3933,7 @@ name = "vecdht-net"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "hex",
  "libp2p",
  "thiserror 1.0.69",
  "tokio",

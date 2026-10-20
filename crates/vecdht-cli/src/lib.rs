@@ -1,16 +1,20 @@
 //! VecDHT v8 — бинарник оператора (спека §17.1: «vecdht-cli/ бинарник node/agent/demo»).
 //!
-//! Что здесь реализовано, а что нет, и почему именно так. Сетевой части (`node`, `agent`) в этом
-//! crate ещё нет: она появляется вместе с P5/P6, когда есть транспорт, и писать её «в форме
-//! заглушки, которая печатает OK» означало бы иметь бинарник, обманывающий оператора. Зато ровно
-//! та работа, которую оператор обязан уметь делать офлайн, собирается и тестируется здесь:
+//! Что здесь реализовано. Сетевой путь (`agent publish|find|session`) собран поверх
+//! `vecdht-net::agent`, как только появился транспорт: кадры, PoW и проверки подписей не
+//! дублируются в CLI. Офлайн-работа оператора тоже на месте:
 //!
 //! * `artifact init|show|verify` — собрать, посмотреть и проверить артефакт сети (§15);
 //! * `encode` — прогнать текст через пайплайн §6.2 и увидеть `cluster_id`, шард и fan-out;
+//! * `agent publish|find|session` — §12 целиком: публикация, fan-out поиска, приём и прямой канал;
 //! * `pow mine|verify` — стоимость publish и её проверка (§11.1);
 //! * `index create|add|search|stats|snapshot` — одноузловой индекс шарда на диске (§8, §10);
 //! * `wire kinds|decode` — разобрать кадр по таблице §5.3, включая проверку каноничности;
 //! * `demo` — весь офлайн-путь в одном процессе: артефакт → encode → 64 шарда → search.
+//!
+//! Честная граница v1: `agent run` (приём входящих сессий) не сделан; `agent publish/find` —
+//! клиентские вызовы с дедлайном. Relay/DCUtR не подняты, поэтому `agent session` идёт прямым
+//! dial'ом по адресу из address book или Kademlia.
 //!
 //! Разбор аргументов свой и без зависимостей ([`args`]), а весь вывод пишется в буфер внутри
 //! `run`, поэтому тесты проверяют бинарник как функцию, а не через `spawn` — и один интеграционный
@@ -23,11 +27,13 @@
 
 #![forbid(unsafe_code)]
 
+pub mod agent_cmd;
 pub mod args;
 pub mod artifact_cmd;
 pub mod demo_cmd;
 pub mod encode_cmd;
 pub mod index_cmd;
+pub mod model;
 pub mod pow_cmd;
 pub mod wire_cmd;
 
@@ -122,6 +128,27 @@ pub static COMMANDS: &[Command] = &[
         run: encode_cmd::exec,
     },
     Command {
+        path: agent_cmd::CMD_PUBLISH,
+        summary: "опубликовать интент в сеть: DHT → primary → эпоха → PoW → ack W=2 (§12.1)",
+        flags: agent_cmd::FLAGS_PUBLISH,
+        help: agent_cmd::HELP_PUBLISH,
+        run: agent_cmd::exec_publish,
+    },
+    Command {
+        path: agent_cmd::CMD_FIND,
+        summary: "найти записи одним Find на шард и получить подписанные приёмы (§12.2)",
+        flags: agent_cmd::FLAGS_FIND,
+        help: agent_cmd::HELP_FIND,
+        run: agent_cmd::exec_find,
+    },
+    Command {
+        path: agent_cmd::CMD_SESSION,
+        summary: "открыть прямой аутентифицированный канал по приёму (§12.5)",
+        flags: agent_cmd::FLAGS_SESSION,
+        help: agent_cmd::HELP_SESSION,
+        run: agent_cmd::exec_session,
+    },
+    Command {
         path: pow_cmd::CMD_MINE,
         summary: "нафармить publish-PoW для конкретного контекста записи (§11.1)",
         flags: pow_cmd::FLAGS,
@@ -198,7 +225,7 @@ pub static COMMANDS: &[Command] = &[
 pub fn usage() -> String {
     let mut out = String::new();
     out.push_str(&format!(
-        "vecdht-cli {} — VecDHT v8 (§18.1–§18.5 реализованы, сети ещё нет)\n\n",
+        "vecdht-cli {} — VecDHT v8 (§12: agent publish/find/session; §18.1–§18.5 офлайн)\n\n",
         env!("CARGO_PKG_VERSION")
     ));
     out.push_str("КОМАНДЫ\n");

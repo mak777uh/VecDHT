@@ -18,10 +18,11 @@ use std::path::Path;
 use vecdht_artifact::Artifact;
 use vecdht_crypto::ids::intent_text_hash;
 use vecdht_embed::testing::HashModel;
-use vecdht_embed::{EmbeddingModel, Encoder, normalize_text};
+use vecdht_embed::{normalize_text, Encoder};
 use vecdht_wire::{NLIST, SHARDS};
 
 use crate::args::Parsed;
+use crate::model::{build_model, push_vector, warn_surrogate, Source};
 use crate::{CliError, fail, vector_hex};
 
 pub const CMD: &str = "encode";
@@ -41,25 +42,6 @@ encode — шаги 1-8 пайплайна §6.2 для одного текст�
   --allow-surrogate     разрешить детерминированный суррогат вместо модели
   --show-vector         напечатать все 768 hex-символов vec_q";
 
-/// Одна из двух реализаций `EmbeddingModel`, доступных CLI. Перечисление, а не `Box<dyn …>`,
-/// потому что источник вектора обязан быть виден в выводе: числа суррогата и модели несопоставимы.
-enum Source<'a> {
-    // Единственное место, где он конструируется, закрыт `#[cfg(feature = "candle")]`, поэтому без
-    // флага вариант выглядит мёртвым, хотя помечать вывод «candle/ModernBERT» обязано быть может.
-    #[cfg_attr(not(feature = "candle"), allow(dead_code))]
-    Model(Box<dyn EmbeddingModel + 'a>),
-    Surrogate,
-}
-
-impl Source<'_> {
-    fn label(&self) -> &'static str {
-        match self {
-            Source::Model(_) => "candle/ModernBERT",
-            Source::Surrogate => "суррогат HashModel",
-        }
-    }
-}
-
 pub fn exec(p: &Parsed, out: &mut String) -> Result<(), CliError> {
     let dir = p.required(CMD, "artifact")?;
     let text = p.required(CMD, "text")?;
@@ -74,24 +56,18 @@ pub fn exec(p: &Parsed, out: &mut String) -> Result<(), CliError> {
     let a = Artifact::load(Path::new(&dir)).map_err(|e| fail("чтение артефакта", e))?;
     let enc = Encoder::from_artifact(&a).map_err(|e| fail("построение Encoder из артефакта", e))?;
 
-    let source = build_model(p, &a, &enc)?;
+    let source = build_model(p, CMD, &a, &enc)?;
     // Суррогат живёт до конца функции, а не создаётся в ветке match: `&HashModel::new()` внутри
     // match был бы ссылкой на временный объект.
     let surrogate = HashModel::new();
-    let model: &dyn EmbeddingModel = match &source {
+    let model: &dyn vecdht_embed::EmbeddingModel = match &source {
         Source::Model(m) => m.as_ref(),
         Source::Surrogate => &surrogate,
     };
 
     out.push_str(&format!("артефакт {}\n", a.manifest.model_version));
     out.push_str(&format!("источник вектора: {}\n", source.label()));
-    if matches!(source, Source::Surrogate) {
-        out.push_str(
-            "ВНИМАНИЕ: вектор посчитан детерминированным суррогатом из тестового оракула, он НЕ \
-             семантический. Годится для проверки механики маршрутизации и разбора форматов, не годится \
-             для суждений о качестве поиска (§18.1: recall на таком стенде не измеряется).\n",
-        );
-    }
+    warn_surrogate(&source, out);
 
     // Шаг 1 печатается отдельно и до всего остального: если канонизация отвергла текст, оператор
     // должен увидеть причину именно так (§6.6), а не как «вектор получился странным».
@@ -135,51 +111,6 @@ pub fn exec(p: &Parsed, out: &mut String) -> Result<(), CliError> {
         }
     }
     Ok(())
-}
-
-/// Кто считает шаг 4. Отказ без feature — не лень, а контракт: собрать candle на этой машине
-/// можно, а «случайно получить f32-инференс из хеша» — нельзя.
-fn build_model<'a>(
-    p: &Parsed,
-    a: &'a Artifact,
-    enc: &Encoder<'a>,
-) -> Result<Source<'a>, CliError> {
-    if let Some(dir) = p.value(CMD, "model-dir")? {
-        #[cfg(feature = "candle")]
-        {
-            let m = vecdht_embed::candle_backend::ModernBertEmbedder::from_dir(
-                Path::new(&dir),
-                enc.pipeline(),
-                &a.manifest.model_version,
-            )
-            .map_err(|e| fail("загрузка модели", e))?;
-            return Ok(Source::Model(Box::new(m)));
-        }
-        #[cfg(not(feature = "candle"))]
-        {
-            let _ = (dir, a, enc);
-            return Err(CliError::Fail(
-                "--model-dir требует сборки с feature `candle`: \
-                 cargo run -p vecdht-cli --features candle".into(),
-            ));
-        }
-    }
-    if !p.bool_flag(CMD, "allow-surrogate")? {
-        return Err(CliError::Fail(
-            "нет источника вектора: нужен --model-dir DIR (feature `candle`) или сознательное \
-             --allow-surrogate; суррогат помечает вывод как немаршрутизируемый по смыслу".into(),
-        ));
-    }
-    Ok(Source::Surrogate)
-}
-
-fn push_vector(hex_vec: &str, show: bool, out: &mut String) {
-    if show {
-        out.push_str(&format!("  vec_q                {hex_vec}\n"));
-    } else {
-        out.push_str(&format!("  vec_q                {}… ({} hex-символов, --show-vector)\n",
-            &hex_vec[..24], hex_vec.len()));
-    }
 }
 
 #[cfg(test)]

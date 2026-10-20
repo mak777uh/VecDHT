@@ -17,6 +17,10 @@ vecdht-crypto = { workspace = true }
 vecdht-artifact = { workspace = true }
 vecdht-index = { workspace = true }
 vecdht-embed = { workspace = true }
+vecdht-net = { workspace = true }
+vecdht-node = { workspace = true }
+libp2p = { workspace = true }
+tokio = { workspace = true }
 blake3 = { workspace = true }
 hex = { workspace = true }
 thiserror = { workspace = true }

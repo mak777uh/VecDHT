@@ -1153,22 +1153,26 @@ tests/              crash_matrix.rs, cross_clock_gc.rs, golden_vectors, adversar
 models/             manifest.json + fetch/verify scripts
 ```
 
-Что в этом дереве стоит прямо сейчас (срез после P4 + калибровка [P0]):
+Что в этом дереве стоит прямо сейчас (срез после транспорта P5):
 
-* `vecdht-wire`, `vecdht-crypto`, `vecdht-artifact`, `vecdht-index`, `vecdht-node`, `vecdht-embed` —
-  в `workspace.members`, все тесты зелёные; `vecdht-node` пока без libp2p (транспорт — P5), вместо
-  него модельная сеть `LocalNet` (§18.5);
-* `vecdht-cli` — офлайн-поверхность без сети: `artifact init/show/verify`, `encode`,
-  `pow mine/verify`, `index create/add/search/stats/snapshot`, `wire kinds/decode`, `demo`.
-  Команды `node`/`agent` появятся вместе с libp2p на P5, и нарочно не сделаны «заглушками, которые
-  что-то печатают»: CLI, который видимо выдаёт успех там, где соединения нет, дороже ошибки;
-* `sdk/vecdht-py` — каркас: PyO3 0.23, `extension-module` + `abi3-py38`, crate вне `members` (он
-  требует Python, а `cargo test` на машине без него обязан оставаться зелёным). Наружу выведено
-  ровно то, что не требует транспорта: константы, `Artifact` (load/reference/hash/manifest/verify),
-  `normalize`/`is_canonical`, `finalize`, суррогатные `encode_intent_surrogate`/
-  `encode_query_surrogate`, `pow_input`/`pow_mine`/`pow_verify`, `decode_frame`. `Agent.publish/
-  find/session` поднимают `NotImplementedError` с указанием этапа. Каркас собирается и проверяется
-  `python test.py` (17 проверок через FFI-границу);
+* `vecdht-wire`, `vecdht-crypto`, `vecdht-artifact`, `vecdht-index`, `vecdht-node`, `vecdht-embed`,
+  `vecdht-net` — в `workspace.members`, 479 тестов зелёные (один игнорируемый); `vecdht-node`
+  держит машину шарда, транспорт вынесен в `vecdht-net` (libp2p QUIC и TCP+Noise+Yamux, handshake
+  с `NodeCert`,
+  Kademlia-провайдеры шардов, gossip-темы; §4, §5.3, §7.4);
+* `vecdht-cli` — офлайн-поверхность: `artifact init/show/verify`, `encode`, `pow mine/verify`,
+  `index create/add/search/stats/snapshot`, `wire kinds/decode`, `demo`; плюс сетевые
+  `agent publish/find/session` поверх `vecdht-net`. Команды `node` и `agent run` (постоянный
+  listener) ещё не сделаны, и нарочно не стали «заглушками, которые что-то печатают»: CLI, который
+  видимо выдаёт успех там, где соединения нет, дороже ошибки;
+* `sdk/vecdht-py` — PyO3 0.23, `extension-module` + `abi3-py38`, crate вне `members` (он требует
+  Python, а `cargo test` на машине без него обязан оставаться зелёным). Наружу выведены константы,
+  `Artifact` (load/reference/save/hash/manifest/verify), `normalize`/`is_canonical`, `finalize`,
+  суррогатные `encode_intent_surrogate`/`encode_query_surrogate`, `pow_input`/`pow_mine`/
+  `pow_verify`, `decode_frame` и настоящий сетевой путь §12 — `Agent.publish/find/session`.
+  Шаг 4 в этой сборке считает `HashModel` из тестового оракула, поэтому `publish`/`find` требуют
+  явного `allow_surrogate=True` и помечают результат; веса (`candle` + `model_dir`) и async-путь —
+  P6. SDK собирается и проверяется `python test.py` (23 проверки через FFI-границу);
 * `benches/` — три мишени (`wire`, `index`, `p0`) с `harness = false` и `test = false`: замер
   печатает числа, порог проверяет тест. Числа прогона — §19.5;
 * нет и не может быть на этом срезе: `models/` (нужен каталог весов, §18.1 (v)) и

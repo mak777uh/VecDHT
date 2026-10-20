@@ -12,8 +12,12 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use libp2p::{Multiaddr, PeerId};
-use vecdht_artifact::reference_manifest;
-use vecdht_net::{keys, NetConfig, NetService};
+use tokio::sync::oneshot;
+use tokio::task::LocalSet;
+use vecdht_artifact::{reference_artifact, reference_manifest};
+use vecdht_net::{
+    keys, Agent, AgentConfig, FindQuery, NetConfig, NetService, NetworkParams, PublishRequest,
+};
 use vecdht_node::{testing, Clock, ShardNode};
 use vecdht_wire::cert::NodeCert;
 use vecdht_wire::frame::{decode_frame, Kind};
@@ -23,6 +27,8 @@ const SHARD: u16 = 7;
 const CLUSTER: u16 = 112;
 const SEEDS: [u8; 3] = [1, 2, 3];
 const POW: u32 = 8;
+/// Сложность эталонного артефакта: её умеет майнить `mine_pow` (18..=24, §11.1).
+const POW_ARTIFACT: u32 = 20;
 
 fn dir(name: &str) -> PathBuf {
     let p = std::env::temp_dir().join(format!("vecdht-net-{}-{name}", std::process::id()));
@@ -87,6 +93,12 @@ fn signed_publish(agent: &vecdht_crypto::Identity, bucket: u32) -> Vec<u8> {
 /// к моменту применения, и узел, открытый «в 1970-м», к реальному времени уже не обслуживает
 /// шард.
 fn index_service(seed: u8, dir: &Path, listen: Multiaddr) -> NetService {
+    index_service_with_pow(seed, dir, listen, POW)
+}
+
+/// Тот же узел, но со сложностью артефакта: `mine_pow` принимает только 18..=24 (§11.1), и
+/// клиентский путь обязан проверяться на сложности, которую умеет считать реальный майнер.
+fn index_service_with_pow(seed: u8, dir: &Path, listen: Multiaddr, pow: u32) -> NetService {
     let id = testing::identity(seed);
     let peer = keys::peer_id(&id);
     let mut node = ShardNode::open(
@@ -94,7 +106,7 @@ fn index_service(seed: u8, dir: &Path, listen: Multiaddr) -> NetService {
         SHARD,
         id.clone(),
         peer.to_bytes(),
-        testing::params(POW),
+        testing::params(pow),
         testing::authority_set(),
         testing::holders(&SEEDS),
     )
@@ -591,5 +603,188 @@ fn gossip_delivers_a_signed_publish_to_the_primary() {
             "в индексе лежит запись именно автора кадра"
         );
         let _ = std::fs::remove_dir_all(&d);
+    });
+}
+
+// --- клиент §12 ----------------------------------------------------------------
+
+/// Параметры агента: та же сеть и та же сложность, что у тестового узла. Не константа клиента:
+/// genesis/модель/TTL/PoW выводятся из манифеста, иначе агент публиковал бы в другую сеть.
+fn agent_network() -> NetworkParams {
+    NetworkParams::from_artifact(&reference_artifact()).expect("параметры артефакта")
+}
+
+fn agent_cfg(bootstrap: Vec<Multiaddr>) -> AgentConfig {
+    AgentConfig {
+        bootstrap,
+        listen: vec![quic_addr()],
+        call_timeout: Duration::from_secs(40),
+        ..AgentConfig::default()
+    }
+}
+
+/// Крутить узлы, пока фоновая задача агента не вернёт результат. Агент шагает своё соединение
+/// сам (внутри `publish`/`find`/`open_session`); узлы обязаны шагать извне, иначе ack W=2 и
+/// handshake не сдвинутся.
+async fn pump_nodes_until<T>(
+    primary: &mut NetService,
+    replica: &mut NetService,
+    rx: &mut oneshot::Receiver<T>,
+) -> T {
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(50);
+    loop {
+        if let Ok(v) = rx.try_recv() {
+            return v;
+        }
+        assert!(
+            !rx.is_terminated(),
+            "задача агента завершилась без результата; ошибки P={:?} R={:?}",
+            primary.take_errors(),
+            replica.take_errors()
+        );
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "агент не получил результат за 50 с; ошибки P={:?} R={:?}",
+            primary.take_errors(),
+            replica.take_errors()
+        );
+        primary.step().await;
+        replica.step().await;
+        tokio::time::sleep(Duration::from_millis(2)).await;
+    }
+}
+
+/// §12 целиком на настоящем транспорте: агент публикует запись через DHT-провайдера, второй
+/// агент находит её, проверяет подписи и приём, затем открывает прямой аутентифицированный канал
+/// к владельцу записи.
+///
+/// Сессия здесь — именно канал, а не обмен текстами: `IntentTextRequest` в `ShardNode` v1 не
+/// обслуживается, и тест не изображает то, чего нет. Зато он проверяет то, что есть: приём
+/// выписан на настоящего владельца, подпись издателя сходится с handshake, а `PeerId` цели
+/// соответствует её Ed25519-ключу.
+#[test]
+fn an_agent_publishes_finds_and_opens_a_direct_session() {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    rt.block_on(async {
+        let local = LocalSet::new();
+        local
+            .run_until(async {
+                let d_primary = dir("agent-e2e-primary");
+                let d_replica = dir("agent-e2e-replica");
+                let primary_id = primary_seed();
+                let replica_id =
+                    *SEEDS.iter().find(|s| **s != primary_id).expect("второй тестовый сид");
+                let mut primary = index_service_with_pow(primary_id, &d_primary, quic_addr(), POW_ARTIFACT);
+                let mut replica = index_service_with_pow(replica_id, &d_replica, quic_addr(), POW_ARTIFACT);
+                let primary_addr = wait_listen(&mut primary).await;
+                let _ = wait_listen(&mut replica).await;
+                replica.dial(primary_addr.clone()).expect("dial primary репликой");
+
+                let publisher_id = testing::identity(77);
+                let finder_id = testing::identity(99);
+                let finder_owner = finder_id.pubkey();
+                let mut publisher = Agent::new(
+                    publisher_id.clone(),
+                    agent_network(),
+                    agent_cfg(vec![primary_addr.clone()]),
+                )
+                .expect("агент-издатель");
+                let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
+                while publisher.listen_addrs().is_empty() {
+                    assert!(
+                        tokio::time::Instant::now() < deadline,
+                        "listener агента не поднялся"
+                    );
+                    publisher.net_mut().step().await;
+                    primary.step().await;
+                }
+                let publisher_addr = publisher.listen_addrs()[0].clone();
+                let publisher_peer = publisher.peer_id();
+                let publish_req = PublishRequest::new(
+                    testing::vector(3),
+                    CLUSTER,
+                    225,
+                    testing::PREPROCESSING_VERSION,
+                );
+                let (tx, mut rx) = oneshot::channel();
+                // После publish тот же агент обязан остаться на связи: приём цели предъявляется
+                // уже открытому каналу, а входящий handshake принимает только шагающий
+                // `NetService`. Поэтому не `publish`, а `publish`, затем вечный `run`.
+                local.spawn_local(async move {
+                    let r = publisher.publish(&publish_req).await;
+                    let _ = tx.send(r);
+                    publisher.run().await;
+                });
+                let receipt = pump_nodes_until(&mut primary, &mut replica, &mut rx)
+                    .await
+                    .expect("публикация через агента");
+                assert_eq!(receipt.shard, SHARD);
+                assert_eq!(receipt.ttl_buckets, 225);
+                assert_eq!(receipt.expires_bucket, receipt.published_bucket + 225);
+                assert_eq!(receipt.intent_id, publish_req.intent_id);
+                assert_eq!(receipt.primary, primary.peer_id(), "аккаунт durable-записи — primary");
+                assert!(
+                    primary.node(SHARD).is_some_and(|n| n
+                        .store
+                        .index
+                        .owner_slot(&publisher_id.pubkey())
+                        .is_some()),
+                    "primary обязан держать запись автора, а не копию"
+                );
+
+                let mut finder = Agent::new(
+                    finder_id,
+                    agent_network(),
+                    agent_cfg(vec![primary_addr, publisher_addr]),
+                )
+                .expect("агент-искатель");
+
+                let query = FindQuery::new(testing::vector(3), vec![CLUSTER], 5);
+                let (tx, mut rx) = oneshot::channel();
+                local.spawn_local(async move {
+                    let r = finder.find(&query).await;
+                    let _ = tx.send((finder, r));
+                });
+                let (mut finder, outcome) =
+                    pump_nodes_until(&mut primary, &mut replica, &mut rx).await;
+                let outcome = outcome.expect("поиск через агента");
+                assert!(outcome.failures.is_empty(), "отказы шардов: {:?}", outcome.failures);
+                assert_eq!(outcome.matches.len(), 1, "опубликованный вектор обязан найтись");
+                let found = &outcome.matches[0];
+                assert_eq!(found.owner_ed25519, publisher_id.pubkey());
+                assert_eq!(found.slot, receipt.slot);
+                assert_eq!(found.shard, SHARD);
+                let grant = found.grant.clone().expect("приём на найденную запись");
+                assert_eq!(grant.accept.target, publisher_id.pubkey());
+                assert_eq!(grant.accept.seeker, finder_owner);
+                assert_eq!(grant.accept.slot, receipt.slot);
+                assert_eq!(grant.issuer, outcome.answers[0].owner);
+
+                let (tx, mut rx) = oneshot::channel();
+                let grant_for_session = grant.clone();
+                let grant_issuer = grant.issuer;
+                local.spawn_local(async move {
+                    let r = finder.open_session(&grant_for_session).await;
+                    let _ = tx.send((finder, r));
+                });
+                let (_finder, session) =
+                    pump_nodes_until(&mut primary, &mut replica, &mut rx).await;
+                let session = session.expect("прямая сессия к владельцу записи");
+                assert_eq!(session.peer, publisher_peer);
+                assert_eq!(session.owner, publisher_id.pubkey());
+                assert_eq!(session.issuer, grant_issuer);
+                assert_eq!(session.role, Role::Agent);
+                assert_eq!(session.shard, SHARD);
+                assert_eq!(session.slot, receipt.slot);
+                assert!(session.direct, "relay-путь в v1 не поднят, и это не должно скрываться");
+                assert!(
+                    session.expires_bucket >= session.issued_bucket,
+                    "граница жизни приёма считается тем же ceil, что у цели"
+                );
+
+                let _ = std::fs::remove_dir_all(&d_primary);
+                let _ = std::fs::remove_dir_all(&d_replica);
+            })
+            .await;
     });
 }

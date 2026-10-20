@@ -295,6 +295,15 @@ impl NetService {
         self.providers.get(&shard).map(|s| s.iter().copied().collect()).unwrap_or_default()
     }
 
+    /// Все пиры, прошедшие handshake. Агенту это нужно, чтобы отличить «провайдер найден, но
+    /// адреса его нет» от «соединение есть, а роли не сходятся»: `provider_peers` возвращает
+    /// и тех, до кого мы ещё не дозвонились.
+    pub fn authenticated_peers(&self) -> Vec<PeerId> {
+        let mut v: Vec<PeerId> = self.peers.keys().copied().collect();
+        v.sort();
+        v
+    }
+
     pub fn take_inbox(&mut self) -> Vec<(PeerId, Vec<u8>)> {
         std::mem::take(&mut self.inbox)
     }
@@ -313,6 +322,17 @@ impl NetService {
 
     pub fn dial(&mut self, addr: Multiaddr) -> Result<(), NetError> {
         self.swarm.dial(addr).map_err(|e| NetError::Dial(e.to_string()))
+    }
+
+    /// Дозвониться по `PeerId`, адрес которого знает Kademlia/identify. Отдельно от [`dial`]:
+    /// провайдер шарда известен именно как ключ (§7.4), а `Find` не несёт адресов вовсе.
+    ///
+    /// Ошибка «нет адресов» — не сбой транспорта, а состояние таблицы маршрутизации: агент
+    /// обязан честно сказать, что провайдер найден, но недостижим, а не изобретать адрес.
+    pub fn dial_peer(&mut self, peer: PeerId) -> Result<(), NetError> {
+        self.swarm
+            .dial(peer)
+            .map_err(|e| NetError::Dial(format!("{peer}: {e}")))
     }
 
     /// Отправить один кадр как запрос. Разрешено только аутентифицированному пиру: иначе
