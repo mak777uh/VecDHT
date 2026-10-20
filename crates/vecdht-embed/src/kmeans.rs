@@ -486,6 +486,13 @@ mod tests {
         assert_eq!(a.assignment, b.assignment);
         assert_eq!(a.counts, b.counts);
 
+        // Разбиение по индексам и фиксированный порядок суммирования — не косметика: если
+        // результат начнёт зависеть от планировщика, артефакт перестанет воспроизводиться.
+        let serial = train(&values, DIM, cfg, 1).unwrap();
+        assert_eq!(a.centroids, serial.centroids, "центроиды не должны зависеть от числа потоков");
+        assert_eq!(a.assignment, serial.assignment);
+        assert_eq!(a.counts, serial.counts);
+
         // Каждое облако должно целиком попасть в один кластер, и разные облака — в разные.
         for cloud in 0..4 {
             let assigned: Vec<u16> = truth
