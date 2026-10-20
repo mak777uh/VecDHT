@@ -136,6 +136,9 @@ pub struct ShardNode {
     /// именно этого шарда, и при переносе шарда на другой узел старые приёмы всё равно истекают
     /// по TTL, а не переезжают.
     pub rendezvous: Issuer,
+    /// Сколько `GcTick`-фреймов выпущено. Счётчик нужен не для протокола, а чтобы «GC пишется
+    /// по нужде, а не каждый бакет» было проверяемым утверждением, а не обещанием.
+    pub gc_ticks: u64,
 }
 
 impl ShardNode {
@@ -200,6 +203,7 @@ impl ShardNode {
             admission,
             evictor: Evictor::new(admission::EVICT_RESERVOIR),
             rendezvous: Issuer::new(rendezvous_ttl),
+            gc_ticks: 0,
         };
         node.membership = node.load_chain()?;
         Ok(node)
@@ -292,6 +296,7 @@ impl ShardNode {
                     out.extend(self.grant_lease(now_bucket));
                 }
                 out.extend(self.maybe_time_mark(now_bucket)?);
+                out.extend(self.maybe_gc(now_bucket)?);
             }
             // Отдельно от ветки выше: состав мог сузиться, пока primary жив и lease активен
             // (ушёл репликант). Ждать чистки чужого lease, чтобы убрать объявленного ушедшего,
@@ -904,6 +909,29 @@ impl ShardNode {
         self.store.commit()?;
         self.last_mark_applied = self.store.applied_seq;
         Ok(self.replicate(seq, OpKind::TimeMark, encode_mark(seq, now_bucket)))
+    }
+
+    /// `GcTick`, когда есть что истекать (§9.6). Фрейм пишется только primary с подтверждённой
+    /// эпизодой, а реплики применяют тот же `bucket` на том же `seq` — поэтому расхождение
+    /// локальных часов не меняет содержимое индекса.
+    ///
+    /// Проверка `next_deadline` стоит до `stage`: на TTL-плато живой счётчик не растёт, и
+    /// безусловный `GcTick` каждый бакет давал бы пустые фреймы, от которых WAL растёт от одного
+    /// времени, а барьер снапшота (§10.3) видит дельту, которой нет. Более поздний `GcTick`
+    /// другого primary безопасен: `expire` идемпотентен по бакету, а `time_mark_bucket` только
+    /// растёт; повторный фрейм в том же бакете — не ошибка, а лишняя работа.
+    fn maybe_gc(&mut self, now_bucket: u32) -> Result<Vec<Envelope>, NodeError> {
+        if self.serving_epoch_for_write().is_none() {
+            return Ok(Vec::new());
+        }
+        match self.store.index.next_deadline() {
+            Some(deadline) if deadline <= now_bucket => {}
+            _ => return Ok(Vec::new()),
+        }
+        let seq = self.store.stage_gc_tick(now_bucket)?;
+        self.store.commit()?;
+        self.gc_ticks += 1;
+        Ok(self.replicate(seq, OpKind::GcTick, encode_mark(seq, now_bucket)))
     }
 
     // --- чтение ----------------------------------------------------------------
