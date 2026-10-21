@@ -205,6 +205,20 @@ fn gate_ii_real_corpus_recall() {
         owner_cells == 0 || (coarse && owner_cells >= 2),
         "VEC_DHT_P0_OWNER_CELLS имеет смысл только вместе с VEC_DHT_P0_COARSE=1 и значением ≥2"
     );
+    // H-0017/E-0018: резка скана внутри шарда. Выбранных ячеек по-прежнему ≤16 (бюджет §7.5), но
+    // в каждой сканируется только t ближайших мелких кластеров из cps. Лестница в этом режиме идёт
+    // по t, а не по числу ячеек; точка t = cps обязана повторить `E-0012` — это контроль
+    // инертности, а не точка порога. Режим выключен (переключатель не задан) — полный скан шарда,
+    // как в протоколе.
+    let intra = matches!(std::env::var("VEC_DHT_P0_INTRA").as_deref(), Ok("1"));
+    assert!(
+        !intra || coarse,
+        "VEC_DHT_P0_INTRA имеет смысл только вместе с VEC_DHT_P0_COARSE=1"
+    );
+    assert!(
+        !intra || (owner_cells == 0 && !grouped),
+        "INTRA, OWNERS и GROUPED — три разные политики скана; вместе они не определяют скан"
+    );
     assert!(
         !(exact_shards && train_map),
         "VEC_DHT_P0_EXACT_SHARDS и VEC_DHT_P0_TRAIN_MAP задают разные карты одновременно"
@@ -482,6 +496,16 @@ fn gate_ii_real_corpus_recall() {
              кластеров; дополнительная проверка «до грубого центроида» в этом режиме не считается"
         );
     }
+    if intra {
+        probes = vec![1usize, 2, 4, 8, 12, cps];
+        probes.retain(|&t| t <= cps);
+        println!(
+            "режим INTRA: ячеек выбирается всегда ≤{MAX_OWNERS} (бюджет §7.5), в каждой сканируется \
+             t ближайших мелких кластеров из {cps}; лестница идёт по t, точка t={cps} — контроль \
+             инертности (обязана повторить `E-0012`); дополнительная проверка «до грубого \
+             центроида» в этом режиме не считается"
+        );
+    }
 
     let (points, recall_at_16) = run_curve(
         &rows,
@@ -496,14 +520,15 @@ fn gate_ii_real_corpus_recall() {
         gate_score,
         grouped,
         owners.as_deref(),
+        intra,
     );
-    print_curve("nprobe  recall@10   fan-out avg/max   candidates avg   время", &points);
+    print_curve("t/nprobe  recall@10   fan-out avg/max   candidates avg   время", &points);
 
     // Дополнительное измерение для решения ADR-0004 (клиентская политика выбора ячеек):
     // ячейка оценивается минимумом `l2_sq` по её 16 мелким центроидам вместо расстояния до
     // собственного центроида ячейки. Оно НЕ заменяет пред-регистрированное основное правило
     // и не влияет на гейт: если основное правило не проходит, это остаётся провалом опыта.
-    if coarse && !grouped && owner_cells == 0 {
+    if coarse && !grouped && owner_cells == 0 && !intra {
         // Дополнительное измерение — второе правило оценки ячейки на той же карте. Гейтом не
         // является: если основное правило не проходит, это остаётся провалом опыта.
         let (aux_map, aux_score, aux_label) = if coherent {
@@ -538,6 +563,7 @@ fn gate_ii_real_corpus_recall() {
             aux_score,
             false,
             None,
+            false,
         );
         print_curve(
             &format!("{aux_label}\nnprobe  recall@10   fan-out avg/max   candidates avg   время"),
@@ -549,7 +575,53 @@ fn gate_ii_real_corpus_recall() {
         );
     }
 
-    if grouped {
+    if intra {
+        // Порог `H-0017`: успех — существует t < cps с работой ≤ 0,5 × полного скана и
+        // recall@10 ≥ 0,95 при ≤16 владельцах. Контроль (t = cps) печатается отдельной строкой:
+        // не совпадёт с `E-0012` — прогон недействителен.
+        let control = points
+            .iter()
+            .find(|p| p.nprobe == cps)
+            .expect("лестница INTRA обязана содержать точку t = cps (контроль)");
+        let best = points
+            .iter()
+            .filter(|p| p.nprobe < cps && p.fanout_max <= MAX_OWNERS)
+            .filter(|p| p.candidates_avg <= 0.5 * control.candidates_avg)
+            .max_by(|a, b| a.recall.total_cmp(&b.recall));
+        println!(
+            "КОНТРОЛЬ INTRA (t={cps}): recall@10 = {:.4} при {:.1} кандидатах, владельцев \
+             {:.1}/{} — это тот же скан, что в `E-0012`",
+            control.recall, control.candidates_avg, control.fanout_avg, control.fanout_max
+        );
+        match best {
+            Some(p) => println!(
+                "INTRA (H-0017): лучшая точка при работе ≤ 0,5 × контроля: t={}, recall@10 = \
+                 {:.4}, кандидатов {:.1} против {:.1}; порог 0,95 — {}",
+                p.nprobe,
+                p.recall,
+                p.candidates_avg,
+                control.candidates_avg,
+                if p.recall >= 0.95 { "PASS" } else { "FAIL" }
+            ),
+            None => println!(
+                "INTRA (H-0017): ни одна точка лестницы не укладывается в 0,5 × работы контроля — \
+                 лестница обязана содержать t < cps/2, прогон недействителен"
+            ),
+        }
+        println!(
+            "ЦЕНА ОТБОРА: {MAX_OWNERS} ячеек × {cps} кластеров = {} целочисленных l2_sq до мелких \
+             центроидов на запрос сверх кандидатов; при полном скане эти сравнения не делаются",
+            MAX_OWNERS * cps
+        );
+        if !smoke {
+            assert!(
+                best.is_some_and(|p| p.recall >= 0.95),
+                "фальсификатор гейта (ii) по `H-0017`: при работе ≤ 0,5 × полного скана шарда нет \
+                 recall@10 ≥ 0,95 (контроль t={cps}: {:.4}). Кривая выше; пре-регистрация `H-0017`",
+                control.recall
+            );
+        }
+    } else if grouped {
         // Гейт групповой заявки (`H-0010`): существует K, при котором recall@10 ≥ 0.95,
         // владельцев ≤ 16 (§7.5) и заявка укладывается в K ≤ 64 кластера (≤ 6,3 % корпуса).
         let passing = points.iter().filter(|p| p.nprobe <= 64 && p.fanout_max <= MAX_OWNERS);
@@ -611,7 +683,7 @@ fn gate_ii_real_corpus_recall() {
             if recall_at_16 >= 0.95 { "PASS" } else { "FAIL" }
         );
     }
-    if !smoke && !grouped {
+    if !smoke && !grouped && !intra {
         let hint = if owner_cells != 0 {
             "OWNERS (H-0016): даже с co-hosting'ом 16 владельцев при карте c=8 не подняли recall \
              до 0.95 — выигрыш меньшей геометрии не переживает бюджет §7.5"
@@ -701,6 +773,7 @@ fn run_curve(
     score: CellScore,
     grouped: bool,
     owners: Option<&[u16]>,
+    intra: bool,
 ) -> (Vec<CurvePoint>, f64) {
     let mut points = Vec::with_capacity(probes.len());
     let mut recall_at_gate = 0.0;
@@ -718,6 +791,7 @@ fn run_curve(
                 score,
                 grouped,
                 owners,
+                intra,
             )
         });
         let per_query: Vec<f64> = runs
@@ -730,7 +804,10 @@ fn run_curve(
         let fanout_sum: usize = runs.iter().map(|r| r.fanout).sum();
         let fanout_max = runs.iter().map(|r| r.fanout).max().unwrap_or(0);
         let candidates: usize = runs.iter().map(|r| r.candidates).sum();
-        assert!(fanout_max <= nprobe, "fan-out {fanout_max} больше nprobe={nprobe}");
+        // В режиме INTRA лестница идёт по t (числу кластеров на шард), а ячейки зафиксированы
+        // бюджетом §7.5, поэтому проверять надо против него.
+        let budget = if intra { MAX_OWNERS } else { nprobe };
+        assert!(fanout_max <= budget, "fan-out {fanout_max} больше бюджета {budget}");
         if nprobe == NPROBE_GATE {
             recall_at_gate = recall;
         }
@@ -812,6 +889,7 @@ fn ann_search(
     score: CellScore,
     grouped: bool,
     owners: Option<&[u16]>,
+    intra: bool,
 ) -> AnnRun {
     // `(скан, владельцы, скан без потолка, владельцы без потолка, выпавшие кластеры)`.
     // Последние три — диагностика цены потолка §7.5: они показывают, сколько recall теряется
@@ -888,10 +966,11 @@ fn ann_search(
     } else if let Some(c) = cells {
         // Зонд единица — грубая ячейка. Выбранные ячейки — шарды; каждый сканирует свои
         // кластеры целиком (ёмкость карты — `cells.cps`), дублей нет.
+        let budget = if intra { MAX_OWNERS } else { nprobe };
         let chosen = match score {
             CellScore::Centroid => {
                 let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
-                top_clusters(query, &refs, nprobe)
+                top_clusters(query, &refs, budget)
             }
             CellScore::NearestFine => {
                 // Оценка ячейки — минимум расстояния до её 16 мелких центроидов: ячейка тем
@@ -911,13 +990,27 @@ fn ann_search(
                     })
                     .collect();
                 scored.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-                scored.truncate(nprobe.min(scored.len()));
+                scored.truncate(budget.min(scored.len()));
                 scored.into_iter().map(|(_, cell)| cell).collect()
             }
         };
+        // Резка скана внутри ячейки (`H-0017`): остаются t ближайших мелких кластеров, порядок —
+        // `(l2_sq, cluster_id)`, то есть те же целочисленные сравнения, что делает узел по
+        // квантованному вектору запроса (§5). При выключенном режиме и при t ≥ размера ячейки
+        // берётся весь список, и ветка совпадает с `E-0012` без единого лишнего сравнения.
         let mut scan: Vec<u16> = Vec::with_capacity(chosen.len() * c.cps);
         for cell in &chosen {
-            scan.extend_from_slice(&c.clusters_of_cell[*cell as usize]);
+            let clusters = &c.clusters_of_cell[*cell as usize];
+            if intra && nprobe < clusters.len() {
+                let mut ranked: Vec<(u32, u16)> = clusters
+                    .iter()
+                    .map(|&cl| (l2_sq(query, centroids[cl as usize]), cl))
+                    .collect();
+                ranked.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+                scan.extend(ranked.iter().take(nprobe).map(|(_, cl)| *cl));
+            } else {
+                scan.extend_from_slice(clusters);
+            }
         }
         let fanout = chosen.len();
         (scan, fanout, Vec::new(), fanout, 0)
