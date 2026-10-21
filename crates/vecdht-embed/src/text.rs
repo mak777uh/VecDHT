@@ -30,6 +30,32 @@ pub use vecdht_wire::messages::MAX_INTENT_TEXT_BYTES;
 pub const RECOMMENDED_MIN_CHARS: usize = 300;
 pub const RECOMMENDED_MAX_CHARS: usize = 700;
 
+/// Домен дайджеста эмбеддингов. Один на стенд (§18.1) и на издателя: если бы у них были разные
+/// домены, кеш одного не подошёл бы к другому, и «мы посчитали векторы дважды» выглядело бы как
+/// «мы посчитали векторы по-разному».
+const EMB_DIGEST_DOMAIN: &[u8] = b"vecdht/p0/real-corpus/emb/v1\0";
+
+/// Дайджест набора канонических текстов: `model_version`, `preprocessing_version` и сами тексты.
+///
+/// Тексты разделяются нулевым байтом, а не склеиваются: иначе наборы `["ab", "c"]` и `["a", "bc"]`
+/// дали бы один хеш, и кеш от одного корпуса подошёл бы к другому. Ноль в конце текста входит и в
+/// хеш последнего текста — иначе `["a"]` и `["a", ""]` совпали бы.
+///
+/// Вызывающий обязан передать **канонические** тексты ([`normalize_text`]): ключ кеша эмбеддингов —
+/// это ключ пайплайна, а не сырых байтов.
+pub fn emb_digest(model_version: &str, preprocessing_version: u16, texts: &[String]) -> [u8; 32] {
+    let mut h = blake3::Hasher::new();
+    h.update(EMB_DIGEST_DOMAIN);
+    h.update(model_version.as_bytes());
+    h.update(&[0]);
+    h.update(&preprocessing_version.to_le_bytes());
+    for text in texts {
+        h.update(text.as_bytes());
+        h.update(&[0]);
+    }
+    *h.finalize().as_bytes()
+}
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum TextError {
     #[error("intent_text: после нормализации текст пуст")]
@@ -254,5 +280,23 @@ mod tests {
     fn empty_input_errors_instead_of_empty_ok() {
         assert_eq!(normalize_text(""), Err(TextError::Empty));
         assert_eq!(normalize_text("   "), Err(TextError::Empty));
+    }
+
+    #[test]
+    fn emb_digest_separates_texts_and_versions() {
+        // Границы набора обязаны быть различимы: иначе кеш от одного корпуса подошёл бы к другому.
+        let a = emb_digest("m", 1, &["ab".into(), "c".into()]);
+        let b = emb_digest("m", 1, &["a".into(), "bc".into()]);
+        assert_ne!(a, b, "границы между текстами обязаны попадать в хеш");
+        assert_ne!(
+            emb_digest("m", 1, &["a".into()]),
+            emb_digest("m", 1, &["a".into(), "".into()]),
+            "пустой текст в конце набора обязан менять хеш"
+        );
+        // Смена модели или версии preprocessинга — тоже смена кеша.
+        assert_ne!(emb_digest("m", 1, &["a".into()]), emb_digest("m2", 1, &["a".into()]));
+        assert_ne!(emb_digest("m", 1, &["a".into()]), emb_digest("m", 2, &["a".into()]));
+        // Один и тот же набор — один и тот же хеш.
+        assert_eq!(a, emb_digest("m", 1, &["ab".into(), "c".into()]));
     }
 }

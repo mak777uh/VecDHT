@@ -4,7 +4,9 @@
 //! `vecdht-net::agent`, как только появился транспорт: кадры, PoW и проверки подписей не
 //! дублируются в CLI. Офлайн-работа оператора тоже на месте:
 //!
-//! * `artifact init|show|verify` — собрать, посмотреть и проверить артефакт сети (§15);
+//! * `artifact init|show|verify|publish|remap` — собрать, посмотреть, проверить и издать артефакт
+//!   сети (§15): `publish` обучает центроиды на корпусе и строит связную карту шардов (§7.4.1),
+//!   `remap` переприсваивает `cluster_id` записям под новую карту;
 //! * `encode` — прогнать текст через пайплайн §6.2 и увидеть `cluster_id`, шард и fan-out;
 //! * `agent publish|find|session|run` — §12 целиком: публикация, fan-out поиска, приём, прямой
 //!   канал и постоянный listener, без которого агент не принимает входящий handshake;
@@ -123,6 +125,20 @@ pub static COMMANDS: &[Command] = &[
         flags: artifact_cmd::FLAGS_VERIFY,
         help: artifact_cmd::HELP_VERIFY,
         run: artifact_cmd::exec_verify,
+    },
+    Command {
+        path: artifact_cmd::CMD_PUBLISH,
+        summary: "издать сеть: центроиды k-means на корпусе и связная карта шардов (§7.4.1)",
+        flags: artifact_cmd::FLAGS_PUBLISH,
+        help: artifact_cmd::HELP_PUBLISH,
+        run: artifact_cmd::exec_publish,
+    },
+    Command {
+        path: artifact_cmd::CMD_REMAP,
+        summary: "переприсвоить cluster_id записям под опубликованные центроиды (§7.2)",
+        flags: artifact_cmd::FLAGS_REMAP,
+        help: artifact_cmd::HELP_REMAP,
+        run: artifact_cmd::exec_remap,
     },
     Command {
         path: encode_cmd::CMD,

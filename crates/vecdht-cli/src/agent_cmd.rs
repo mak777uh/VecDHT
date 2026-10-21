@@ -197,7 +197,7 @@ fn runtime() -> Result<tokio::runtime::Runtime, CliError> {
         .map_err(|e| fail("tokio-рантайм", e))
 }
 
-fn describe_source(source: &Source<'_>, a: &Artifact, out: &mut String) {
+fn describe_source(source: &Source, a: &Artifact, out: &mut String) {
     out.push_str(&format!("артефакт {}\n", a.manifest.model_version));
     out.push_str(&format!("источник вектора: {}\n", source.label()));
     warn_surrogate(source, out);
@@ -209,7 +209,7 @@ pub fn exec_publish(p: &Parsed, out: &mut String) -> Result<(), CliError> {
     let text = p.required(CMD_PUBLISH, "text")?;
     let enc = vecdht_embed::Encoder::from_artifact(&a)
         .map_err(|e| fail("построение Encoder из артефакта", e))?;
-    let source = build_model(p, CMD_PUBLISH, &a, &enc)?;
+    let source = build_model(p, CMD_PUBLISH, enc.pipeline(), &a.manifest.model_version)?;
     let surrogate = HashModel::new();
     let model: &dyn vecdht_embed::EmbeddingModel = match &source {
         Source::Model(m) => m.as_ref(),
@@ -277,7 +277,7 @@ pub fn exec_find(p: &Parsed, out: &mut String) -> Result<(), CliError> {
     let text = p.required(CMD_FIND, "text")?;
     let enc = vecdht_embed::Encoder::from_artifact(&a)
         .map_err(|e| fail("построение Encoder из артефакта", e))?;
-    let source = build_model(p, CMD_FIND, &a, &enc)?;
+    let source = build_model(p, CMD_FIND, enc.pipeline(), &a.manifest.model_version)?;
     let surrogate = HashModel::new();
     let model: &dyn vecdht_embed::EmbeddingModel = match &source {
         Source::Model(m) => m.as_ref(),

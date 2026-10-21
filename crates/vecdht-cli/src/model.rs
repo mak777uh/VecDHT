@@ -10,8 +10,8 @@
 #[cfg(feature = "candle")]
 use std::path::Path;
 
-use vecdht_artifact::Artifact;
-use vecdht_embed::{EmbeddingModel, Encoder};
+use vecdht_embed::model::Pipeline;
+use vecdht_embed::EmbeddingModel;
 
 use crate::args::Parsed;
 use crate::CliError;
@@ -20,13 +20,13 @@ use crate::fail;
 
 /// Одна из двух реализаций `EmbeddingModel`. Перечисление, а не `Box<dyn …>`, потому что источник
 /// вектора обязан быть виден в выводе: числа суррогата и модели несопоставимы.
-pub enum Source<'a> {
+pub enum Source {
     #[cfg_attr(not(feature = "candle"), allow(dead_code))]
-    Model(Box<dyn EmbeddingModel + 'a>),
+    Model(Box<dyn EmbeddingModel + 'static>),
     Surrogate,
 }
 
-impl Source<'_> {
+impl Source {
     pub fn label(&self) -> &'static str {
         match self {
             Source::Model(_) => "candle/ModernBERT",
@@ -41,43 +41,82 @@ impl Source<'_> {
 
 /// Кто считает шаг 4. `cmd` нужен, чтобы сообщение об отсутствии источника называло именно ту
 /// команду, которую вызвал оператор.
-pub fn build_model<'a>(
+///
+/// `pipeline` и `model_version` передаются отдельно, а не берутся из артефакта: команда
+/// `artifact publish` строит артефакт, и артефакта у неё ещё нет — а пайплайн и имя модели нужны
+/// уже для первого вектора. `model_version` — это то, что уедет в `manifest.model_version` и что
+/// сверяется на handshake (§6.7), поэтому для суррогата оно равно имени самой суррогатной модели,
+/// а не выдуманному «granite-…».
+pub fn build_model(
     p: &Parsed,
     cmd: &str,
-    a: &'a Artifact,
-    enc: &Encoder<'a>,
-) -> Result<Source<'a>, CliError> {
+    pipeline: &Pipeline,
+    model_version: &str,
+) -> Result<Source, CliError> {
+    match origin(p, cmd)? {
+        Origin::ModelDir(dir) => Ok(Source::Model(load_model(&dir, pipeline, model_version)?)),
+        Origin::Surrogate => Ok(Source::Surrogate),
+    }
+}
+
+/// Объявленный источник вектора — без самой модели.
+///
+/// Отдельный тип от [`Source`] потому, что модель нужна не всегда: издатель, который читает
+/// готовые эмбеддинги, весов не грузит, но сказать, чьи это векторы, обязан. Имя модели при
+/// этом — часть подписанного манифеста (§6.7), то есть не «подпись к картинке», а проверяемое
+/// утверждение.
+#[derive(Debug, Clone)]
+pub enum Origin {
+    /// Каталог весов (`--model-dir`).
+    ModelDir(String),
+    /// Детерминированный суррогат из тестового оракула (`--allow-surrogate`).
+    Surrogate,
+}
+
+/// Откуда берётся вектор. Без явного объявления команда не угадывает: молчаливый суррогат дал бы
+/// «правдоподобные» векторы, а оператор решил бы, что считал настоящей моделью.
+pub fn origin(p: &Parsed, cmd: &str) -> Result<Origin, CliError> {
     if let Some(dir) = p.value(cmd, "model-dir")? {
-        #[cfg(feature = "candle")]
-        {
-            let m = vecdht_embed::candle_backend::ModernBertEmbedder::from_dir(
-                Path::new(&dir),
-                enc.pipeline(),
-                &a.manifest.model_version,
-            )
-            .map_err(|e| fail("загрузка модели", e))?;
-            return Ok(Source::Model(Box::new(m)));
-        }
-        #[cfg(not(feature = "candle"))]
-        {
-            let _ = (dir, a, enc);
-            return Err(CliError::Fail(
-                "--model-dir требует сборки с feature `candle`: \
-                 cargo run -p vecdht-cli --features candle".into(),
-            ));
-        }
+        return Ok(Origin::ModelDir(dir));
     }
-    if !p.bool_flag(cmd, "allow-surrogate")? {
-        return Err(CliError::Fail(
-            "нет источника вектора: нужен --model-dir DIR (feature `candle`) или сознательное \
-             --allow-surrogate; суррогат помечает вывод как немаршрутизируемый по смыслу".into(),
-        ));
+    if p.bool_flag(cmd, "allow-surrogate")? {
+        return Ok(Origin::Surrogate);
     }
-    Ok(Source::Surrogate)
+    Err(CliError::Fail(
+        "нет источника вектора: нужен --model-dir DIR (feature `candle`) или сознательное \
+         --allow-surrogate; суррогат помечает вывод как немаршрутизируемый по смыслу".into(),
+    ))
+}
+
+/// Загрузить веса каталога. Требует сборки с feature `candle`: без него `--model-dir` — это
+/// опечатка, а не «просто не грузить».
+pub fn load_model(
+    dir: &str,
+    pipeline: &Pipeline,
+    model_version: &str,
+) -> Result<Box<dyn EmbeddingModel + 'static>, CliError> {
+    #[cfg(feature = "candle")]
+    {
+        let m = vecdht_embed::candle_backend::ModernBertEmbedder::from_dir(
+            Path::new(dir),
+            pipeline,
+            model_version,
+        )
+        .map_err(|e| fail("загрузка модели", e))?;
+        Ok(Box::new(m))
+    }
+    #[cfg(not(feature = "candle"))]
+    {
+        let _ = (dir, pipeline, model_version);
+        Err(CliError::Fail(
+            "--model-dir требует сборки с feature `candle`: \
+             cargo run -p vecdht-cli --features candle".into(),
+        ))
+    }
 }
 
 /// Пометка о суррогате — часть результата, а не декор: по ней видно, можно ли верить порядку.
-pub fn warn_surrogate(source: &Source<'_>, out: &mut String) {
+pub fn warn_surrogate(source: &Source, out: &mut String) {
     if source.is_surrogate() {
         out.push_str(
             "ВНИМАНИЕ: вектор посчитан детерминированным суррогатом из тестового оракула, он НЕ \

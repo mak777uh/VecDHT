@@ -1325,17 +1325,13 @@ fn embed_cached(
     values
 }
 
+/// Дайджест набора текстов для кеша эмбеддингов.
+///
+/// Формула живёт в crate ([`vecdht_embed::text::emb_digest`]), а не здесь: кеш должен быть общим и
+/// для стенда, и для издателя (`artifact publish`). Две копии одной формулы разошлись бы при первой
+/// же правке, и кеш стенда перестал бы подходить к корпусу — молча, без единой строки в выводе.
 fn text_digest(model_version: &str, preprocessing_version: u16, texts: &[String]) -> [u8; 32] {
-    let mut h = blake3::Hasher::new();
-    h.update(b"vecdht/p0/real-corpus/emb/v1\0");
-    h.update(model_version.as_bytes());
-    h.update(&[0]);
-    h.update(&preprocessing_version.to_le_bytes());
-    for text in texts {
-        h.update(text.as_bytes());
-        h.update(&[0]);
-    }
-    *h.finalize().as_bytes()
+    vecdht_embed::text::emb_digest(model_version, preprocessing_version, texts)
 }
 
 fn read_cache(path: &Path, count: usize, digest: &[u8; 32]) -> Option<Vec<f32>> {

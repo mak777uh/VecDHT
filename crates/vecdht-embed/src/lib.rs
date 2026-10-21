@@ -29,6 +29,7 @@ pub mod kmeans;
 pub mod metrics;
 pub mod model;
 pub mod prefix;
+pub mod publish;
 pub mod rerank;
 pub mod shardmap;
 pub mod text;
@@ -52,7 +53,7 @@ pub use model::{
 };
 pub use prefix::{PrefixError, PrefixPolicy};
 pub use rerank::{order_by_scores, RankedDoc, RerankError, Reranker, rerank_order};
-pub use text::{is_canonical, normalize_text, TextError};
+pub use text::{emb_digest, is_canonical, normalize_text, TextError};
 pub use vecdht_wire::messages::MAX_INTENT_TEXT_BYTES;
 
 /// Версия пайплайна preprocessинга, которую реализует этот crate (§6.2). Она обязана совпасть с

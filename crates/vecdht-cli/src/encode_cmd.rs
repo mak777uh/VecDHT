@@ -56,7 +56,7 @@ pub fn exec(p: &Parsed, out: &mut String) -> Result<(), CliError> {
     let a = Artifact::load(Path::new(&dir)).map_err(|e| fail("чтение артефакта", e))?;
     let enc = Encoder::from_artifact(&a).map_err(|e| fail("построение Encoder из артефакта", e))?;
 
-    let source = build_model(p, CMD, &a, &enc)?;
+    let source = build_model(p, CMD, enc.pipeline(), &a.manifest.model_version)?;
     // Суррогат живёт до конца функции, а не создаётся в ветке match: `&HashModel::new()` внутри
     // match был бы ссылкой на временный объект.
     let surrogate = HashModel::new();
