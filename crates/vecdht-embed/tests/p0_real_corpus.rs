@@ -261,9 +261,9 @@ fn gate_ii_real_corpus_recall() {
         .unwrap_or(10);
     let facet_arm = std::env::var("VEC_DHT_P0_FACET_ARM").unwrap_or_else(|_| "text".to_string());
     assert!(
-        facet_buckets >= 2 && facet_buckets <= 100,
-        "VEC_DHT_P0_FACET_BUCKETS={facet_buckets}: за пределами осмысленного (селективность \
-         корзины должна быть измеримой, а id корзины — умещаться в u8)"
+        (2..=100).contains(&facet_buckets),
+        "VEC_DHT_P0_FACET_BUCKETS={facet_buckets}: за пределами осмысленного (доля корзины должна \
+         быть измеримой, а id корзины — умещаться в u8)"
     );
     assert!(
         facet_arm == "text" || facet_arm == "random",
