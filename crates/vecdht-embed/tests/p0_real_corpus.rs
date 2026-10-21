@@ -270,6 +270,15 @@ fn gate_ii_real_corpus_recall() {
         "VEC_DHT_P0_FACET_ARM={facet_arm}: допустимы только text (дециль длины пассажи) и \
          random (контрольная рука, геометрию не видит)"
     );
+    // H-0021/E-0022: facet-осознанный отбор ячеек. Отличается от `E-0020` ровно одним — какие
+    // ≤16 ячеек выбираются: не по грубому центроиду ячейки, а по целочисленному центроиду нужной
+    // корзины внутри ячейки. Предикат, скан, contract-сортировка и ground truth не меняются,
+    // поэтому числа двух прогонов сравнимы напрямую.
+    let facet_aware = matches!(std::env::var("VEC_DHT_P0_FACET_AWARE").as_deref(), Ok("1"));
+    assert!(
+        !facet_aware || facet,
+        "VEC_DHT_P0_FACET_AWARE без VEC_DHT_P0_FACET бессмыслен: корзины задаёт режим FACET"
+    );
     assert!(
         !facet || (coarse && coherent),
         "VEC_DHT_P0_FACET имеет смысл только на протокольной карте: VEC_DHT_P0_COARSE=1 \
@@ -319,10 +328,18 @@ fn gate_ii_real_corpus_recall() {
     if facet {
         println!(
             "режим FACET: поверх протокольного скана ≤{MAX_OWNERS} ячеек карта `E-0012` — фильтр \
-             по корзине (рука {facet_arm}, корзин {facet_buckets}, селективность {:.1} %); \
+             по корзине (рука {facet_arm}, корзин {facet_buckets}, доля корпуса {:.1} %); \
              корзина запроса = номер запроса mod корзин, ground truth — brute-force по корзине. \
              Немодифицированная кривая того же прогона остаётся гейтом и контролем инертности",
             100.0 / facet_buckets as f64
+        );
+    }
+    if facet_aware {
+        println!(
+            "режим FACET-AWARE (`H-0021`): отбор ≤{MAX_OWNERS} ячеек идёт по целочисленному \
+             центроиду **нужной корзины внутри ячейки**, а не по грубому центроиду ячейки; скан \
+             внутри выбранной ячейки, предикат и contract-сортировка не меняются — отличается \
+             только множество выбранных владельцев"
         );
     }
 
@@ -577,6 +594,23 @@ fn gate_ii_real_corpus_recall() {
         );
         t
     });
+
+    // H-0021/E-0022: центроид корзины внутри ячейки — то, по чему клиент выбирает ≤16 владельцев,
+    // когда запрос несёт фильтр. Строится по уже квантованным int8-векторам корпуса тем же
+    // целочисленным средним (`int_mean`), что и sub-центроиды `E-0021`: порядок сложения — по id
+    // записи, значит значение воспроизводится издателем детерминированно и две корректные
+    // реализации (§8.4) не разъедутся на ничьей. Пустая корзина в ячейке не имеет центроида и в
+    // отборе участвует с оценкой `u32::MAX` — она не вытесняет содержательные ячейки.
+    let cell_buckets: Option<CellBuckets> = if facet_aware {
+        let f = facets.as_ref().expect("FACET_AWARE требует FACET: корзины задаёт он");
+        let c = gate_map.expect("FACET_AWARE определён только на протокольной карте");
+        let started = Instant::now();
+        let built = build_cell_buckets(c, &members, &corpus_i8, f, threads);
+        print_cell_bucket_stats(&built, corpus_i8.len(), started.elapsed().as_secs_f64());
+        Some(built)
+    } else {
+        None
+    };
 
     // Точка гейта — nprobe=16. Остальные точки (включая полный скан nprobe=nlist) —
     // данные лестницы §8.6: они показывают, где recall упирается в потолок зондирования.
@@ -904,6 +938,7 @@ fn gate_ii_real_corpus_recall() {
             gate_map,
             gate_score,
             &points,
+            cell_buckets.as_ref(),
         );
         print_facet_curve(facets, &fp);
         let at_gate = fp
@@ -917,10 +952,11 @@ fn gate_ii_real_corpus_recall() {
             .fold(f64::INFINITY, f64::min);
         let protocol_point = at_gate.nprobe <= MAX_OWNERS;
         println!(
-            "FACET (H-0019): при nprobe={} ({} владельцев ≤ {MAX_OWNERS}, корректно по §7.5) \
+            "FACET ({}): при nprobe={} ({} владельцев ≤ {MAX_OWNERS}, корректно по §7.5) \
              средняя потеря = {:.2} п.п. (recall {:.4} против {:.4}), худшая корзина {:.4}, \
              оценено {:.1} расстояний при {:.1} прочитанных записях (фильтр до MAC снимает {:.1} % \
-             арифметики скана); порог 2,0 п.п. — {}",
+             арифметики скана); {} — {}",
+            if facet_aware { "H-0021, отбор по центроиду корзины" } else { "H-0019" },
             at_gate.nprobe,
             if protocol_point { "бюджет" } else { "вне бюджета" },
             at_gate.loss * 100.0,
@@ -930,7 +966,18 @@ fn gate_ii_real_corpus_recall() {
             at_gate.candidates_avg,
             at_gate.scanned_avg,
             100.0 * (1.0 - at_gate.candidates_avg / at_gate.scanned_avg.max(1.0)),
-            if at_gate.loss <= 0.02 { "PASS" } else { "FAIL" }
+            if facet_aware { "порог 0,95 recall@10 в бюджете" } else { "порог 2,0 п.п." },
+            if facet_aware {
+                if at_gate.recall >= 0.95 {
+                    "PASS"
+                } else {
+                    "FAIL"
+                }
+            } else if at_gate.loss <= 0.02 {
+                "PASS"
+            } else {
+                "FAIL"
+            }
         );
         let first_passing = fp.iter().find(|p| p.recall >= 0.95);
         match first_passing {
@@ -949,17 +996,33 @@ fn gate_ii_real_corpus_recall() {
             ),
         }
         if !smoke {
-            assert!(
-                at_gate.loss <= 0.02,
-                "фальсификатор `H-0019`: при 10 % селективности и протокольном скане ≤{MAX_OWNERS} \
-                 ячеек средняя потеря recall@10 из-за фильтра = {:.2} п.п. > 2,0 п.п. (recall \
-                 {:.4} против {:.4} без фильтра, худшая корзина {:.4}). Пре-регистрация `H-0019`, \
-                 кривая выше.",
-                at_gate.loss * 100.0,
-                at_gate.recall,
-                base.recall,
-                worst_bucket
-            );
+            if facet_aware {
+                let best_in_budget = fp
+                    .iter()
+                    .filter(|p| p.nprobe <= MAX_OWNERS)
+                    .fold(f64::NEG_INFINITY, |m, p| m.max(p.recall));
+                assert!(
+                    best_in_budget >= 0.95,
+                    "фальсификатор `H-0021`: facet-осознанный отбор ячеек не оплачивает поле — \
+                     лучший фильтрованный recall@10 при бюджете ≤{MAX_OWNERS} владельцев равен \
+                     {best_in_budget:.4} < 0,95 (контроль без фильтра — {:.4}). Условие (а) из \
+                     `ADR-0005` не выполнено, и facet остаётся только с отдельными списками. \
+                     Пре-регистрация `H-0021`, кривая выше.",
+                    base.recall
+                );
+            } else {
+                assert!(
+                    at_gate.loss <= 0.02,
+                    "фальсификатор `H-0019`: при 10 % селективности и протокольном скане ≤{MAX_OWNERS} \
+                     ячеек средняя потеря recall@10 из-за фильтра = {:.2} п.п. > 2,0 п.п. (recall \
+                     {:.4} против {:.4} без фильтра, худшая корзина {:.4}). Пре-регистрация `H-0019`, \
+                     кривая выше.",
+                    at_gate.loss * 100.0,
+                    at_gate.recall,
+                    base.recall,
+                    worst_bucket
+                );
+            }
         }
     }
 }
@@ -1052,6 +1115,7 @@ fn run_curve(
                 owners,
                 intra,
                 subs,
+                None,
                 None,
             )
         });
@@ -1185,6 +1249,7 @@ fn run_facet_curve(
     cells: Option<&Cells>,
     score: CellScore,
     base: &[CurvePoint],
+    buckets: Option<&CellBuckets>,
 ) -> Vec<FacetPoint> {
     let mut points = Vec::with_capacity(probes.len());
     for &nprobe in probes {
@@ -1204,6 +1269,7 @@ fn run_facet_curve(
                 false,
                 None,
                 Some((facets, facet_of(qi, facets.buckets))),
+                buckets,
             )
         });
         let per_query: Vec<f64> = runs
@@ -1292,6 +1358,9 @@ fn ann_search(
     // Facet-фильтр (`H-0019`): `(корзины корпуса, нужная корзина)`. `None` — скан без фильтра,
     // то есть ровно `E-0012`.
     filter: Option<(&Facets, u8)>,
+    // Центроиды корзин внутри ячеек (`H-0021`): меняют только **правило отбора** ячеек. `None` —
+    // отбор по грубому центроиду ячейки, как в `E-0012` и `E-0020`.
+    cell_buckets: Option<&CellBuckets>,
 ) -> AnnRun {
     // `(скан, владельцы, скан без потолка, владельцы без потолка, выпавшие кластеры)`.
     // Последние три — диагностика цены потолка §7.5: они показывают, сколько recall теряется
@@ -1373,8 +1442,29 @@ fn ann_search(
         let budget = if intra || subs.is_some() { MAX_OWNERS } else { nprobe };
         let chosen = match score {
             CellScore::Centroid => {
-                let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
-                top_clusters(query, &refs, budget)
+                // `H-0021`: если запрос несёт фильтр и известны центроиды корзин, ячейка оценивается
+                // по центроиду **нужной корзины внутри ячейки** — то есть по той части её объёма, из
+                // которой вообще может быть ответ. Пустая корзина получает `u32::MAX` и не вытесняет
+                // содержательные ячейки; tie-break — номер ячейки, как в `top_clusters`.
+                if let (Some(cbc), Some((_, want))) = (cell_buckets, filter) {
+                    let mut scored: Vec<(u32, u16)> = (0..c.rows.len())
+                        .map(|cell| {
+                            let idx = cell * cbc.buckets + usize::from(want);
+                            let d = if cbc.counts[idx] == 0 {
+                                u32::MAX
+                            } else {
+                                l2_sq(query, &cbc.rows[idx])
+                            };
+                            (d, cell as u16)
+                        })
+                        .collect();
+                    scored.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+                    scored.truncate(budget.min(scored.len()));
+                    scored.into_iter().map(|(_, cell)| cell).collect()
+                } else {
+                    let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
+                    top_clusters(query, &refs, budget)
+                }
             }
             CellScore::NearestFine => {
                 // Оценка ячейки — минимум расстояния до её 16 мелких центроидов: ячейка тем
@@ -2103,6 +2193,89 @@ fn print_facet_stats(facets: &Facets, n: usize, secs: f64) {
         8 * n,
         424 * n,
         800.0 / 42400.0,
+    );
+}
+
+/// Центроид корзины внутри ячейки (`H-0021`/`E-0022`) — поле артефакта, которого в протоколе нет.
+/// Это то, что позволяло бы клиенту выбирать ≤16 владельцев **под конкретный фильтр**: оценка
+/// ячейки для запроса с корзиной `b` берётся от записей этой ячейки с корзиной `b`, а не от всей
+/// ячейки. `rows[cell * buckets + bucket]`, `counts` — число записей пары (ячейка, корзина).
+struct CellBuckets {
+    rows: Vec<[i8; DIM]>,
+    counts: Vec<u32>,
+    buckets: usize,
+}
+
+/// Целочисленное среднее по записям пары (ячейка, корзина): те же `int_mean` и тот же порядок
+/// сложения (по id записи), что у sub-центроидов `E-0021`, поэтому издатель воспроизводит поле
+/// детерминированно. Пустая пара получает нулевой вектор и в отборе не участвует (`counts` = 0).
+fn build_cell_buckets(
+    cells: &Cells,
+    members: &[Vec<u32>],
+    corpus: &[[i8; DIM]],
+    facets: &Facets,
+    threads: usize,
+) -> CellBuckets {
+    let b = facets.buckets;
+    let per_cell = parallel_map(cells.clusters_of_cell.len(), threads, |cell| {
+        let mut ids_by_bucket: Vec<Vec<u32>> = vec![Vec::new(); b];
+        for &cl in &cells.clusters_of_cell[cell] {
+            for &id in &members[cl as usize] {
+                ids_by_bucket[usize::from(facets.slot[id as usize])].push(id);
+            }
+        }
+        // `members` упорядочены по id, обход кластеров ячейки детерминирован, поэтому список
+        // каждой корзины упорядочен по id и среднее не зависит от раскладки карты по потокам.
+        for ids in &mut ids_by_bucket {
+            ids.sort_unstable();
+        }
+        let counts: Vec<u32> = ids_by_bucket.iter().map(|v| v.len() as u32).collect();
+        let rows: Vec<[i8; DIM]> = ids_by_bucket
+            .iter()
+            .map(|ids| if ids.is_empty() { [0i8; DIM] } else { int_mean(ids, corpus) })
+            .collect();
+        (counts, rows)
+    });
+    let mut counts = Vec::with_capacity(per_cell.len() * b);
+    let mut rows = Vec::with_capacity(per_cell.len() * b);
+    let mut empty = 0usize;
+    for (c, r) in per_cell {
+        empty += c.iter().filter(|&&n| n == 0).count();
+        counts.extend(c);
+        rows.extend(r);
+    }
+    assert!(
+        empty * 100 / counts.len() < 50,
+        "половина пар (ячейка, корзина) пуста: отбор по центроиду корзины вырождается в «сколько \
+         ячеек вообще содержит корзину», и сравнение с `E-0020` теряет смысл"
+    );
+    if empty > 0 {
+        println!(
+            "FACET-AWARE: {empty} пустых пар (ячейка, корзина) из {} — они получают оценку \
+             `u32::MAX` и не входят в ≤{MAX_OWNERS} выбранных ячеек; fan-out запроса может стать \
+             меньше бюджета, и это ограничение данных, а не механики отбора",
+            counts.len()
+        );
+    }
+    CellBuckets { rows, counts, buckets: b }
+}
+
+/// Цена поля: байты доп. центроидов и счётчиков относительно объёма корпуса + распределение
+/// размеров корзин по ячейкам (это и есть то, что отбор начинает видеть).
+fn print_cell_bucket_stats(cb: &CellBuckets, n: usize, secs: f64) {
+    let bytes = cb.rows.len() * DIM + cb.counts.len() * 4;
+    let min = cb.counts.iter().copied().min().unwrap_or(0);
+    let max = cb.counts.iter().copied().max().unwrap_or(0);
+    let avg = cb.counts.iter().map(|&c| u64::from(c)).sum::<u64>() as f64 / cb.counts.len() as f64;
+    println!(
+        "FACET-AWARE: {} пар (ячейка, корзина) построено за {secs:.1} с; размер пары min {min} / \
+         max {max} при среднем {avg:.1} записи; цена поля — {bytes} Б ({:.3} % от {} Б int8-корпуса) \
+         сверх грубых центроидов карты: {} × {} × {DIM} int8 + счётчики",
+        cb.counts.len(),
+        100.0 * bytes as f64 / (n * DIM) as f64,
+        n * DIM,
+        cb.rows.len() / cb.buckets,
+        cb.buckets,
     );
 }
 
