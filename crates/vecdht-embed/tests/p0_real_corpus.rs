@@ -145,6 +145,30 @@ fn gate_ii_real_corpus_recall() {
         nlist > 0 && nlist <= NLIST as usize && nlist % 16 == 0,
         "nlist={nlist} должен делить шарды по 16 кластеров и не превышать NLIST={NLIST}"
     );
+    // H-0013/E-0013: размер шарда как параметр стенда. При значении по умолчанию (протокольные
+    // 16) прогон обязан совпасть числами с `E-0012`; любое другое значение даёт геометрию, которую
+    // текущий протокол выразить не может (`SHARDS = 64` — static_assert в `vecdht-wire`, а манифест
+    // сверяет `clusters_per_shard` с константой), поэтому она именуется гипотетической.
+    let cps: usize = match std::env::var("VEC_DHT_P0_CLUSTERS_PER_SHARD") {
+        Ok(raw) => raw
+            .parse()
+            .expect("VEC_DHT_P0_CLUSTERS_PER_SHARD — целое число кластеров на шард"),
+        Err(_) => CLUSTERS_PER_SHARD as usize,
+    };
+    assert!(
+        cps > 0 && nlist % cps == 0,
+        "nlist={nlist} не делится на размер шарда {cps}: ровная карта невозможна"
+    );
+    if cps != CLUSTERS_PER_SHARD as usize {
+        println!(
+            "ГЕОМЕТРИЯ ВНЕ ПРОТОКОЛА: {cps} кластеров на шард вместо {CLUSTERS_PER_SHARD} — при \
+             nlist={nlist} это {} шардов, а `vecdht-wire` объявляет SHARDS=64 и \
+             `shard_of_cluster(c) = c / {CLUSTERS_PER_SHARD}`. Числа относятся к гипотетической \
+             геометрии и становятся протокольными только со стадии 1 плана v9 (геометрия как данные \
+             манифеста).",
+            nlist / cps
+        );
+    }
     let ladder = nlist != NLIST as usize;
     // §8.6, вариант «точный скан всех кластеров шарда»: топ-nprobe кластеров выбирает шарды,
     // но каждый выбранный шард сканирует все 16 своих кластеров. Fan-out при этом не растёт.
@@ -228,7 +252,7 @@ fn gate_ii_real_corpus_recall() {
         println!(
             "режим COARSE: шард = грубая ячейка ({} ячеек над {nlist} кластерами); выбранный шард \
              сканирует все свои кластеры, fan-out считается по топ-{NPROBE_GATE} ячейкам",
-            nlist / CLUSTERS_PER_SHARD as usize
+            nlist / cps
         );
     }
     let started = Instant::now();
@@ -296,7 +320,7 @@ fn gate_ii_real_corpus_recall() {
     // замороженными центроидами. Обучается после int8-присваивания и не влияет на него.
     // Две карты: int8-argmin (как в `E-0007`) и назначение при обучении (ровные шарды).
     let cell_maps =
-        coarse.then(|| build_cells(&trained.centroids, &centroid_store, nlist, threads));
+        coarse.then(|| build_cells(&trained.centroids, &centroid_store, nlist, cps, threads));
     let cells = cell_maps.as_ref().map(|(argmin, _)| argmin);
     let train_cells = cell_maps.as_ref().map(|(_, train)| train);
     // Протокольный вид карты: жадная перебалансировка до ровно 16 кластеров на ячейку.
@@ -304,22 +328,22 @@ fn gate_ii_real_corpus_recall() {
     // Ровная карта, построенная делением, а не починкой (`H-0011`/`E-0011`): рекурсивное
     // деление центроидов по оси максимальной дисперсии до групп ровно по 16.
     let balanced_cells =
-        balanced.then(|| build_balanced_cells(&trained.centroids, nlist));
+        balanced.then(|| build_balanced_cells(&trained.centroids, nlist, cps));
     // Ровная И связная карта (`H-0012`/`E-0012`): транспортная задача — оптимальное
     // назначение мелких центроидов в ячейки при жёсткой ёмкости 16.
     let coherent_cells = (coarse && coherent)
-        .then(|| build_coherent_cells(&trained.centroids, &centroid_store, nlist, threads));
+        .then(|| build_coherent_cells(&trained.centroids, &centroid_store, nlist, cps, threads));
     if let Some(bc) = &balanced_cells {
         let sizes = &bc.counts;
         let min = sizes.iter().copied().min().unwrap_or(0);
         let max = sizes.iter().copied().max().unwrap_or(0);
         println!(
             "BALANCED (рекурсивное деление): {} ячеек над {nlist} кластерами; размер ячейки \
-             min {min} / max {max} (ровно {CLUSTERS_PER_SHARD} ожидалось)",
+             min {min} / max {max} (ровно {cps} ожидалось)",
             bc.rows.len()
         );
         assert!(
-            sizes.iter().all(|&n| n as usize == CLUSTERS_PER_SHARD as usize),
+            sizes.iter().all(|&n| n as usize == cps),
             "карта ровных шардов неровная: {sizes:?}"
         );
     }
@@ -330,13 +354,13 @@ fn gate_ii_real_corpus_recall() {
         let max = sizes.iter().copied().max().unwrap_or(0);
         println!(
             "COARSE (ровные шарды, жадная правка): размер ячейки min {min} / max {max} \
-             (ровно {CLUSTERS_PER_SHARD} ожидалось)"
+             (ровно {cps} ожидалось)"
         );
         if exact_shards {
             // Протокольная карта обязана быть ровной: иначе `shard_of_cluster(c) = c / 16`
             // не описывает шард, и измеренный recall относится не к той геометрии.
             assert!(
-                sizes.iter().all(|&n| n as usize == CLUSTERS_PER_SHARD as usize),
+                sizes.iter().all(|&n| n as usize == cps),
                 "карта ровных шардов неровная: {sizes:?}"
             );
         }
@@ -347,7 +371,7 @@ fn gate_ii_real_corpus_recall() {
         let max = sizes.iter().copied().max().unwrap_or(0);
         println!(
             "COARSE (карта обучения): размер ячейки min {min} / max {max} \
-             (ровно {CLUSTERS_PER_SHARD} ожидалось)"
+             (ровно {cps} ожидалось)"
         );
     }
     if let Some(cc) = &coherent_cells {
@@ -356,7 +380,7 @@ fn gate_ii_real_corpus_recall() {
         let max = sizes.iter().copied().max().unwrap_or(0);
         println!(
             "COHERENT (транспортная задача): {} ячеек над {nlist} кластерами; размер ячейки \
-             min {min} / max {max} (ровно {CLUSTERS_PER_SHARD} ожидалось), разброс внутри \
+             min {min} / max {max} (ровно {cps} ожидалось), разброс внутри \
              шарда {:.0} (int8 l2_sq до центроида шарда)",
             cc.rows.len(),
             cell_dispersion(cc)
@@ -393,20 +417,20 @@ fn gate_ii_real_corpus_recall() {
         let sizes = &c.counts;
         let min = sizes.iter().copied().min().unwrap_or(0);
         let max = sizes.iter().copied().max().unwrap_or(0);
-        let over = sizes.iter().filter(|&&n| n as usize > CLUSTERS_PER_SHARD as usize).count();
+        let over = sizes.iter().filter(|&&n| n as usize > cps).count();
         let empty = sizes.iter().filter(|&&n| n == 0).count();
         println!(
             "COARSE: {} ячеек над {nlist} кластерами, k-means top-level за {} итераций; \
              размер ячейки min {min} / max {max} (ровно {} ожидалось), over_cap={over}, пустых={empty}",
             c.rows.len(),
             c.iterations,
-            CLUSTERS_PER_SHARD
+            cps
         );
         println!(
-            "COARSE: fan-out при nprobe=16 ячеек ≤16 шардов, скан {} кластеров ({}% nlist) — \
-             против {CLUSTERS_PER_SHARD} кластеров у пересечения",
-            16 * CLUSTERS_PER_SHARD as usize,
-            16 * CLUSTERS_PER_SHARD as usize * 100 / nlist
+            "COARSE: fan-out при nprobe={NPROBE_GATE} ячейках ≤{MAX_OWNERS} шардов, скан {} \
+             кластеров ({}% nlist) — против {cps} кластеров у пересечения",
+            NPROBE_GATE * cps,
+            NPROBE_GATE * cps * 100 / nlist
         );
     }
 
@@ -792,7 +816,7 @@ fn ann_search(
         (scan, per.len(), scan_all, owners_uncapped, dropped)
     } else if let Some(c) = cells {
         // Зонд единица — грубая ячейка. Выбранные ячейки — шарды; каждый сканирует свои
-        // кластеры целиком (их ровно `CLUSTERS_PER_SHARD`), дублей нет.
+        // кластеры целиком (ёмкость карты — `cells.cps`), дублей нет.
         let chosen = match score {
             CellScore::Centroid => {
                 let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
@@ -820,7 +844,7 @@ fn ann_search(
                 scored.into_iter().map(|(_, cell)| cell).collect()
             }
         };
-        let mut scan: Vec<u16> = Vec::with_capacity(chosen.len() * CLUSTERS_PER_SHARD as usize);
+        let mut scan: Vec<u16> = Vec::with_capacity(chosen.len() * c.cps);
         for cell in &chosen {
             scan.extend_from_slice(&c.clusters_of_cell[*cell as usize]);
         }
@@ -871,10 +895,14 @@ fn ann_search(
     }
 }
 
-/// Верхний уровень карты шардов для режима COARSE: `k = nlist / CLUSTERS_PER_SHARD` грубых
-/// центроидов над замороженными, cap = `CLUSTERS_PER_SHARD`, чтобы шард держал ровно 16
-/// кластеров. Ячейка кластера — int8-argmin, тот же контракт, что у присваивания записи (§7.2).
+/// Верхний уровень карты шардов для режима COARSE: `k = nlist / cps` грубых центроидов над
+/// замороженными, `balance_cap = cps`, чтобы шард держал ровно `cps` кластеров (в протоколе 16,
+/// `H-0013` измеряет 8). Ячейка кластера — int8-argmin, тот же контракт, что у присваивания записи (§7.2).
 struct Cells {
+    /// Ёмкость ячейки, из которой карта построена: в протоколе `CLUSTERS_PER_SHARD` = 16, а
+    /// `H-0013` измеряет 8. Это поле, а не константа: иначе карта из 8 кластеров не отличалась бы
+    /// от карты из 16 ни в assert'е ровности, ни в скане, и неровность уехала бы молча в recall.
+    cps: usize,
     rows: Vec<[i8; DIM]>,
     clusters_of_cell: Vec<Vec<u16>>,
     counts: Vec<u32>,
@@ -889,12 +917,12 @@ fn build_cells(
     centroids_f32: &[f32],
     fine_i8: &[[i8; DIM]],
     nlist: usize,
+    cps: usize,
     threads: usize,
 ) -> (Cells, Cells) {
-    let k = nlist / CLUSTERS_PER_SHARD as usize;
-    assert!(k > 0, "nlist={nlist} меньше одного шарда из {CLUSTERS_PER_SHARD} кластеров");
-    let cfg =
-        KMeansConfig { k, max_iters: MAX_ITERS, seed: SEED ^ 0x0007, balance_cap: CLUSTERS_PER_SHARD as usize };
+    let k = nlist / cps;
+    assert!(k > 0, "nlist={nlist} меньше одного шарда из {cps} кластеров");
+    let cfg = KMeansConfig { k, max_iters: MAX_ITERS, seed: SEED ^ 0x0007, balance_cap: cps };
     let trained = kmeans::train(centroids_f32, DIM, cfg, threads).expect("верхний уровень k-means");
     let coarse_f64: Vec<f64> = trained.centroids.iter().map(|&x| f64::from(x)).collect();
     let rows: Vec<[i8; DIM]> = coarse_f64
@@ -926,6 +954,7 @@ fn build_cells(
         fine_i8.len()
     );
     let argmin_cells = Cells {
+        cps,
         rows: rows.clone(),
         clusters_of_cell,
         counts,
@@ -953,7 +982,7 @@ fn build_cells(
     // же факте неровности (факт зафиксирован в `E-0009`).
     let uneven = train_counts
         .iter()
-        .filter(|&&n| n as usize != CLUSTERS_PER_SHARD as usize)
+        .filter(|&&n| n as usize != cps)
         .count();
     if uneven > 0 {
         println!(
@@ -963,6 +992,7 @@ fn build_cells(
         );
     }
     let train_cells = Cells {
+        cps,
         rows,
         clusters_of_cell: train_clusters,
         counts: train_counts,
@@ -981,10 +1011,10 @@ fn build_cells(
 /// что ёмкость в обучении k-means тоже не выдерживается. Деление задаёт форму ячейки до того,
 /// как связность станет важной.
 ///
-/// Требования: `nlist` кратно 16, а частное — степень двойки (тогда каждое деление пополам
-/// остаётся целым до групп по 16). Порядок листьев — обход в глубину, детерминированный.
-fn build_balanced_cells(centroids_f32: &[f32], nlist: usize) -> Cells {
-    let target = CLUSTERS_PER_SHARD as usize;
+/// Требования: `nlist` кратно `cps`, а частное — степень двойки (тогда каждое деление пополам
+/// остаётся целым до групп по `cps`). Порядок листьев — обход в глубину, детерминированный.
+fn build_balanced_cells(centroids_f32: &[f32], nlist: usize, cps: usize) -> Cells {
+    let target = cps;
     assert!(
         nlist % target == 0,
         "nlist={nlist} не кратно {target} — ровная карта невозможна"
@@ -996,7 +1026,7 @@ fn build_balanced_cells(centroids_f32: &[f32], nlist: usize) -> Cells {
     );
     let mut leaves: Vec<Vec<u16>> = Vec::new();
     let all: Vec<usize> = (0..nlist).collect();
-    split_balanced(all, centroids_f32, &mut leaves);
+    split_balanced(all, centroids_f32, target, &mut leaves);
     assert_eq!(leaves.len(), groups, "получено {} ячеек вместо {groups}", leaves.len());
 
     let mut cell_of_cluster = vec![0u16; nlist];
@@ -1028,6 +1058,7 @@ fn build_balanced_cells(centroids_f32: &[f32], nlist: usize) -> Cells {
         }
     }
     Cells {
+        cps: target,
         rows,
         clusters_of_cell: leaves,
         counts,
@@ -1038,8 +1069,12 @@ fn build_balanced_cells(centroids_f32: &[f32], nlist: usize) -> Cells {
 }
 
 /// Рекурсивное деление группы пополам по оси максимальной дисперсии.
-fn split_balanced(mut members: Vec<usize>, centroids_f32: &[f32], leaves: &mut Vec<Vec<u16>>) {
-    let target = CLUSTERS_PER_SHARD as usize;
+fn split_balanced(
+    mut members: Vec<usize>,
+    centroids_f32: &[f32],
+    target: usize,
+    leaves: &mut Vec<Vec<u16>>,
+) {
     if members.len() <= target {
         assert_eq!(members.len(), target, "остаток деления не кратен {target}");
         leaves.push(members.iter().map(|&m| m as u16).collect());
@@ -1071,8 +1106,8 @@ fn split_balanced(mut members: Vec<usize>, centroids_f32: &[f32], leaves: &mut V
     });
     let mid = members.len() / 2;
     let right = members.split_off(mid);
-    split_balanced(members, centroids_f32, leaves);
-    split_balanced(right, centroids_f32, leaves);
+    split_balanced(members, centroids_f32, target, leaves);
+    split_balanced(right, centroids_f32, target, leaves);
 }
 
 /// Перебалансировка карты до **ровно** `CLUSTERS_PER_SHARD` кластеров в ячейке.
@@ -1086,7 +1121,7 @@ fn split_balanced(mut members: Vec<usize>, centroids_f32: &[f32], leaves: &mut V
 /// центроида кластер, дефицитной ячейке достаётся ближайший по центроиду; порядок обработки —
 /// по убыванию размера, затем по индексу ячейки.
 fn rebalance_exact(cells: &Cells) -> Cells {
-    let target = CLUSTERS_PER_SHARD as usize;
+    let target = cells.cps;
     let mut clusters_of_cell: Vec<Vec<u16>> = cells.clusters_of_cell.clone();
     loop {
         let over: Vec<usize> = (0..clusters_of_cell.len())
@@ -1124,6 +1159,7 @@ fn rebalance_exact(cells: &Cells) -> Cells {
         }
     }
     Cells {
+        cps: target,
         rows: cells.rows.clone(),
         clusters_of_cell,
         counts,
@@ -1162,9 +1198,10 @@ fn build_coherent_cells(
     centroids_f32: &[f32],
     fine_i8: &[[i8; DIM]],
     nlist: usize,
+    cps: usize,
     threads: usize,
 ) -> Cells {
-    let target = CLUSTERS_PER_SHARD as usize;
+    let target = cps;
     assert!(nlist % target == 0, "nlist={nlist} не кратно {target}");
     let k = nlist / target;
     let cfg = KMeansConfig {
@@ -1199,6 +1236,7 @@ fn build_coherent_cells(
     }
     let counts = clusters_of_cell.iter().map(|c| c.len() as u32).collect();
     Cells {
+        cps: target,
         rows: map.coarse,
         clusters_of_cell,
         counts,
