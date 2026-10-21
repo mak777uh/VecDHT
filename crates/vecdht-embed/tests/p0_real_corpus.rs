@@ -82,6 +82,10 @@ const PQ_R_FALSIFIER: usize = 1024;
 /// отличалась бы от int8-руки не только «числом байт на кандидата».
 const PQ_ERR_SAMPLE: usize = 1024;
 const PQ_ERR_QUERIES: usize = 200;
+/// Доля записей протокольного скана, доказуемо исключаемых точной нижней оценкой: порог успеха и
+/// фальсификатор `H-0023`. Оба числа взяты из пре-регистрации, не из данных прогона.
+const BOUND_SUCCESS: f64 = 0.50;
+const BOUND_FALSIFIER: f64 = 0.25;
 /// Контроль инертности `E-0012` при nprobe=16: `(размер корпуса, recall@10, кандидатов)`.
 /// Немодифицированная кривая этого же прогона обязана дать ровно эти числа: иначе PQ-рука
 /// измерялась бы поверх другой геометрии, чем та, что даёт гейт.
@@ -408,6 +412,33 @@ fn gate_ii_real_corpus_recall() {
              же прогона остаётся контролем инертности `E-0012`",
             DIM / pq_m,
             PQ_K,
+        );
+    }
+    // H-0023/E-0024: точная отсечка. Скан **не меняется физически**: отдельный проход считает,
+    // сколько записей протокольного скана можно было бы не читать, если бы узел держал в метаданных
+    // блока точную нижнюю оценку расстояний. Поэтому recall этого прогона побайтово равен гейту, а
+    // предмет измерения — доля работы, снимаемая **без риска для качества** (в отличие от `E-0018`
+    // и `E-0021`, где отсечка приближённая).
+    let bound_prune = matches!(std::env::var("VEC_DHT_P0_BOUND_PRUNE").as_deref(), Ok("1"));
+    assert!(
+        !bound_prune || (coarse && coherent),
+        "VEC_DHT_P0_BOUND_PRUNE имеет смысл только на протокольной карте: VEC_DHT_P0_COARSE=1 \
+         VEC_DHT_P0_COHERENT=1 (числа сверяются с `E-0012`)"
+    );
+    assert!(
+        !bound_prune || (owner_cells == 0 && !grouped && !intra && !sub && !facet && !pq),
+        "BOUND_PRUNE — отдельная рука цены; с OWNERS, GROUPED, INTRA, SUB, FACET и PQ она не \
+         определена пре-регистрацией `H-0023`"
+    );
+    if bound_prune {
+        println!(
+            "режим BOUND-PRUNE (`H-0023`): скан не изменён; для каждого блока (грубая ячейка и \
+             мелкий кластер) считается точная нижняя оценка l2_sq — (н1) по максимуму нормы блока, \
+             (н2) по померным min/max, порог отсечки — 10-е **точное** расстояние того же запроса \
+             из exact brute-force (идеализация порога); печатается доля записей, которые можно \
+             было не читать. Порог успеха ≥ {:.0} %, фальсификатор < {:.0} %.",
+            BOUND_SUCCESS * 100.0,
+            BOUND_FALSIFIER * 100.0
         );
     }
 
@@ -763,6 +794,46 @@ fn gate_ii_real_corpus_recall() {
         None,
     );
     print_curve("s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время", &points);
+
+    // H-0023/E-0024: точная отсечка. Сканы этого прогона не изменены ни на одну запись, поэтому
+    // измеряется только доля работы, которую **можно было не делать**: отдельный проход по тем же
+    // выбранным ячейкам сравнивает нижнюю оценку блока с 10-м точным расстоянием того же запроса.
+    // Контроль инертности печатается здесь же, потому что без совпадения с `E-0012` доля считается
+    // по другой геометрии, чем та, что даёт гейт.
+    if bound_prune {
+        print_control_inertness(&points, corpus_i8.len());
+        let c = gate_map.expect("режим BOUND_PRUNE требует карты ячеек (COARSE + COHERENT)");
+        let started = Instant::now();
+        let bb = build_block_bounds(&corpus_i8, &members, c, threads);
+        let build_secs = started.elapsed().as_secs_f64();
+        let shares = bound_shares(
+            &bb,
+            c,
+            &members,
+            &rows,
+            &corpus_i8,
+            &query_i8,
+            &truth,
+            gate_score,
+            threads,
+            false,
+        );
+        // Положительный контроль: тот же проход при пороге 0. Он ничего не измеряет про гипотезу,
+        // но отличает «оценка слабая» от «счётчик не работает».
+        let spike = bound_shares(
+            &bb,
+            c,
+            &members,
+            &rows,
+            &corpus_i8,
+            &query_i8,
+            &truth,
+            gate_score,
+            threads,
+            true,
+        );
+        print_bound_verdict(&bb, c, &shares, &spike, query_i8.len(), corpus_i8.len(), build_secs);
+    }
 
     if let Some(p) = pq_obj.as_ref() {
         print_control_inertness(&points, corpus_i8.len());
@@ -1614,6 +1685,407 @@ fn format_bucket_recalls(per_bucket: &[f64]) -> String {
 }
 
 #[allow(clippy::too_many_arguments)]
+/// Отбор грубых ячеек при бюджете `budget` — **одна** реализация правила. Она вынесена из
+/// `ann_search` не ради порядка кода: рука `E-0024` обязана считать долю пропусков по ровно тому
+/// множеству ячеек, которое сканирует узел, а вторая копия правила гарантировала бы расхождение
+/// (тот же дефект, что исправлен в `E-0022`, где ветка отбора стояла не над `match score`).
+/// Сортировка `(score, cell_id)` детерминирована, как в `top_clusters`, и зависит только от
+/// квантованного вектора запроса (§5, §8.4).
+fn select_cells(
+    query: &[i8; DIM],
+    cells: &Cells,
+    centroids: &[&[i8; DIM]],
+    budget: usize,
+    score: CellScore,
+) -> Vec<u16> {
+    match score {
+        CellScore::Centroid => {
+            let refs: Vec<&[i8; DIM]> = cells.rows.iter().collect();
+            top_clusters(query, &refs, budget)
+        }
+        CellScore::NearestFine => {
+            // Оценка ячейки — минимум расстояния до её мелких центроидов: ячейка тем ближе, чем
+            // ближе её лучший кластер.
+            let mut scored: Vec<(u32, u16)> = cells
+                .clusters_of_cell
+                .iter()
+                .enumerate()
+                .map(|(cell, clusters)| {
+                    let best = clusters
+                        .iter()
+                        .map(|&cl| l2_sq(query, centroids[cl as usize]))
+                        .min()
+                        .unwrap_or(u32::MAX);
+                    (best, cell as u16)
+                })
+                .collect();
+            scored.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+            scored.truncate(budget.min(scored.len()));
+            scored.into_iter().map(|(_, cell)| cell).collect()
+        }
+    }
+}
+
+/// Нижняя оценка `l2_sq(query, x)` по блоку записей, для которого известна граница норм.
+/// Обратное неравенство треугольника: `‖q − x‖ ≥ ‖q‖ − ‖x‖ ≥ ‖q‖ − max‖x‖`. Оба корня берутся в
+/// целых — `floor(‖q‖)` снизу и `ceil(max‖x‖)` сверху, — поэтому разность не превосходит настоящей,
+/// а её квадрат (при положительной разности) — законная нижняя граница целочисленного `l2_sq`.
+/// Поправка на квантование не нужна: оценка, порог и ground truth живут в одном int8-мире, где
+/// `l2_sq` точен; поправка потребовалась бы только при сравнении с расстоянием до эмбеддинга.
+fn bound_by_norm(q_norm_sq: u32, block_max_norm_sq: u32) -> u32 {
+    let lo = q_norm_sq.isqrt();
+    let hi = {
+        let r = block_max_norm_sq.isqrt();
+        if r * r == block_max_norm_sq { r } else { r + 1 }
+    };
+    if lo > hi {
+        (lo - hi) * (lo - hi)
+    } else {
+        0
+    }
+}
+
+/// Нижняя оценка `l2_sq(query, x)` по померной рамке блока (min/max по каждому измерению): в каждом
+/// измерении берётся точка интервала, ближайшая к запросу, — сумма квадратов отклонений и есть
+/// минимум по всей рамке, а значит и по лежащим в ней записям. Оценка сильнее нормовой (та
+/// эквивалентна шару), цена — `2 × {DIM}` int8 на блок вместо одного u32.
+fn bound_by_box(query: &[i8; DIM], minmax: &[(i8, i8)]) -> u32 {
+    let mut acc = 0u32;
+    for d in 0..DIM {
+        let (lo, hi) = minmax[d];
+        let q = i32::from(query[d]);
+        let gap = if q < i32::from(lo) {
+            i32::from(lo) - q
+        } else if q > i32::from(hi) {
+            q - i32::from(hi)
+        } else {
+            0
+        };
+        acc += (gap * gap) as u32;
+    }
+    acc
+}
+
+/// Метаданные блоков для точной отсечки (`H-0023`): максимум нормы и померная рамка — по мелким
+/// кластерам и по грубым ячейкам карты. Считаются **по записям корпуса**, а не по центроидам, и
+/// метаданные ячейки получаются слиянием дочерних кластеров (максимум норм — максимум по детям,
+/// рамка — объединение детских рамок), поэтому оценка остаётся честной нижней границей своего блока
+/// при любом его размере.
+struct BlockBounds {
+    /// Максимум ‖x‖² по записям блока (u32: 384 × 127² = 6 195 456 влезает с запасом).
+    cluster_max_norm: Vec<u32>,
+    cell_max_norm: Vec<u32>,
+    /// Плоские рамки: `[block * DIM + d] = (min, max)` по измерению `d` — 2 × DIM int8 на блок.
+    cluster_minmax: Vec<(i8, i8)>,
+    cell_minmax: Vec<(i8, i8)>,
+    /// Распределение ‖x‖² по записям корпуса (min / медиана / max) — объясняет результат: если
+    /// нормы лежат в узкой полосе, отсечка по норме вырождается по построению.
+    norm_min: u32,
+    norm_median: u32,
+    norm_max: u32,
+}
+
+/// Строит метаданные блоков. Цена offline (её платит издатель один раз на выпуск): проход по
+/// корпусу за нормами и померный min/max по каждому блоку; время и размер печатаются вызывающей
+/// стороной, потому что «дешёвая отсечка» без цены метаданных было бы неверным утверждением.
+fn build_block_bounds(
+    corpus: &[[i8; DIM]],
+    members: &[Vec<u32>],
+    cells: &Cells,
+    threads: usize,
+) -> BlockBounds {
+    let norms: Vec<u32> = parallel_map(corpus.len(), threads.max(1), |i| {
+        corpus[i].iter().map(|&v| (i64::from(v) * i64::from(v)) as u32).sum()
+    });
+    let mut sorted = norms.clone();
+    sorted.sort_unstable();
+    let per_cluster = parallel_map(members.len(), threads, |cl| {
+        let list = &members[cl];
+        let mut mx = 0u32;
+        for &id in list {
+            mx = mx.max(norms[id as usize]);
+        }
+        let mut minmax: Vec<(i8, i8)> = Vec::with_capacity(DIM);
+        for d in 0..DIM {
+            let mut lo = i8::MAX;
+            let mut hi = i8::MIN;
+            for &id in list {
+                let v = corpus[id as usize][d];
+                if v < lo {
+                    lo = v;
+                }
+                if v > hi {
+                    hi = v;
+                }
+            }
+            minmax.push((lo, hi));
+        }
+        (mx, minmax)
+    });
+    let cluster_max_norm: Vec<u32> = per_cluster.iter().map(|(mx, _)| *mx).collect();
+    let cluster_minmax: Vec<(i8, i8)> =
+        per_cluster.iter().flat_map(|(_, minmax)| minmax.iter().copied()).collect();
+    let cell_max_norm: Vec<u32> = cells
+        .clusters_of_cell
+        .iter()
+        .map(|list| list.iter().map(|&cl| cluster_max_norm[cl as usize]).max().unwrap_or(0))
+        .collect();
+    let mut cell_minmax: Vec<(i8, i8)> = Vec::with_capacity(cells.clusters_of_cell.len() * DIM);
+    for list in &cells.clusters_of_cell {
+        for d in 0..DIM {
+            let mut lo = i8::MAX;
+            let mut hi = i8::MIN;
+            for &cl in list {
+                let (a, b) = cluster_minmax[cl as usize * DIM + d];
+                if a < lo {
+                    lo = a;
+                }
+                if b > hi {
+                    hi = b;
+                }
+            }
+            cell_minmax.push((lo, hi));
+        }
+    }
+    BlockBounds {
+        cluster_max_norm,
+        cell_max_norm,
+        cluster_minmax,
+        cell_minmax,
+        norm_min: sorted.first().copied().unwrap_or(0),
+        norm_median: sorted[sorted.len() / 2],
+        norm_max: sorted.last().copied().unwrap_or(0),
+    }
+}
+
+/// Четыре измеренные отсечки — два уровня блока × два вида оценки, в этом порядке.
+const BOUND_NAMES: [&str; 4] = [
+    "кластер, оценка по норме (н1)",
+    "кластер, оценка по рамке (н2)",
+    "ячейка, оценка по норме (н1)",
+    "ячейка, оценка по рамке (н2)",
+];
+
+/// Одна свёрнутая по запросам доля. Решающая статистика — `mean`: пре-регистрация говорит «доля
+/// считается по каждому запросу и усредняется». Распределение печатается справочно, потому что
+/// вывод по среднему прячет худший запрос.
+struct BoundShare {
+    mean: f64,
+    min: f64,
+    median: f64,
+    max: f64,
+    excluded: u64,
+    scanned: u64,
+    /// Запросов, где не исключено ничего, и где исключено всё (то есть скан можно было не делать).
+    zero: usize,
+    all: usize,
+    /// Насколько близко лучшая оценка блока подошла к порогу: `mean` — среднее по запросам от
+    /// `max_block(lb / порог)`, `best` — максимум по запросам. Без этой пары чисел «0,00 %»
+    /// неотличимо от «оценка не посчитана»: она показывает, во сколько раз отсечка не дотянула.
+    ratio_mean: f64,
+    ratio_best: f64,
+}
+
+/// Доля записей протокольного скана, исключаемая точной оценкой при **идеальном** пороге (`H-0023`).
+/// Проход не трогает скан: он берёт то же множество ячеек, что даёт `select_cells` (та же функция,
+/// не вторая копия правила), и сравнивает нижнюю оценку блока с 10-м точным расстоянием того же
+/// запроса из exact brute-force. Блок исключается, только если оценка **строго больше** порога: при
+/// равенстве запись ещё может войти в топ-10 по tie-break `(l2_sq, id)`, и отбрасывать её было бы
+/// неверно.
+fn bound_shares(
+    bb: &BlockBounds,
+    cells: &Cells,
+    members: &[Vec<u32>],
+    centroids: &[&[i8; DIM]],
+    corpus: &[[i8; DIM]],
+    queries: &[[i8; DIM]],
+    truth: &[Vec<u32>],
+    score: CellScore,
+    threads: usize,
+    // Положительный контроль механизма: при `spike = true` порог подменён нулём, то есть
+    // исключается любой блок с **положительной** оценкой. Если и тогда доля остаётся нулевой,
+    // дело не в силе оценки, а в самом счёте — и этот контроль отличает одно от другого.
+    spike: bool,
+) -> [BoundShare; 4] {
+    let per_query: Vec<[(u64, u64, f64); 4]> =
+        parallel_map(queries.len(), threads.max(1), |qi| {
+            let q = &queries[qi];
+            let q_norm: u32 = q.iter().map(|&v| (i64::from(v) * i64::from(v)) as u32).sum();
+            // 10-е точное расстояние того же запроса: ground truth отсортирован контрактом
+            // `(l2_sq, id)`, значит его последний элемент — ровно порог топ-10 (при корпусе не
+            // короче K).
+            let tenth = truth[qi][truth[qi].len() - 1] as usize;
+            let threshold = if spike { 0 } else { l2_sq(q, &corpus[tenth]) };
+            // Отношение «лучшая оценка / порог» считается даже там, где исключать нечего: оно и
+            // есть объяснение нуля. При пороге 0 (запрос совпал с записью) отношение не определено
+            // и берётся 1 — блок тогда и не исключается.
+            let ratio = |lb: u32| -> f64 {
+                if threshold == 0 { 1.0 } else { lb as f64 / threshold as f64 }
+            };
+            let chosen = select_cells(q, cells, centroids, MAX_OWNERS, score);
+            let mut acc = [(0u64, 0u64, 0.0f64); 4];
+            for &cell in &chosen {
+                let clusters = &cells.clusters_of_cell[cell as usize];
+                for &cl in clusters {
+                    let n = members[cl as usize].len() as u64;
+                    let box_at = &bb.cluster_minmax[cl as usize * DIM..(cl as usize + 1) * DIM];
+                    let lb = bound_by_norm(q_norm, bb.cluster_max_norm[cl as usize]);
+                    if lb > threshold {
+                        acc[0].0 += n;
+                    }
+                    acc[0].1 += n;
+                    acc[0].2 = acc[0].2.max(ratio(lb));
+                    let lb = bound_by_box(q, box_at);
+                    if lb > threshold {
+                        acc[1].0 += n;
+                    }
+                    acc[1].1 += n;
+                    acc[1].2 = acc[1].2.max(ratio(lb));
+                }
+                let cell_size: u64 =
+                    clusters.iter().map(|&cl| members[cl as usize].len() as u64).sum();
+                let box_at = &bb.cell_minmax[cell as usize * DIM..(cell as usize + 1) * DIM];
+                let lb = bound_by_norm(q_norm, bb.cell_max_norm[cell as usize]);
+                if lb > threshold {
+                    acc[2].0 += cell_size;
+                }
+                acc[2].1 += cell_size;
+                acc[2].2 = acc[2].2.max(ratio(lb));
+                let lb = bound_by_box(q, box_at);
+                if lb > threshold {
+                    acc[3].0 += cell_size;
+                }
+                acc[3].1 += cell_size;
+                acc[3].2 = acc[3].2.max(ratio(lb));
+            }
+            acc
+        });
+    let mut out: [BoundShare; 4] = std::array::from_fn(|_| BoundShare {
+        mean: 0.0,
+        min: 0.0,
+        median: 0.0,
+        max: 0.0,
+        excluded: 0,
+        scanned: 0,
+        zero: 0,
+        all: 0,
+        ratio_mean: 0.0,
+        ratio_best: 0.0,
+    });
+    for slot in 0..4 {
+        let mut shares: Vec<f64> = Vec::with_capacity(per_query.len());
+        let mut ratios: Vec<f64> = Vec::with_capacity(per_query.len());
+        let (mut excluded, mut scanned) = (0u64, 0u64);
+        for r in &per_query {
+            shares.push(if r[slot].1 == 0 {
+                0.0
+            } else {
+                r[slot].0 as f64 / r[slot].1 as f64
+            });
+            ratios.push(r[slot].2);
+            excluded += r[slot].0;
+            scanned += r[slot].1;
+        }
+        shares.sort_unstable_by(|a, b| a.partial_cmp(b).expect("доля конечна"));
+        let ratio_sum: f64 = ratios.iter().sum();
+        out[slot] = BoundShare {
+            mean: excluded as f64 / scanned.max(1) as f64,
+            min: *shares.first().unwrap_or(&0.0),
+            median: shares[shares.len() / 2],
+            max: *shares.last().unwrap_or(&0.0),
+            excluded,
+            scanned,
+            zero: shares.iter().filter(|&&v| v == 0.0).count(),
+            all: shares.iter().filter(|&&v| v >= 1.0).count(),
+            ratio_mean: ratio_sum / ratios.len().max(1) as f64,
+            ratio_best: ratios.iter().copied().fold(0.0f64, f64::max),
+        };
+    }
+    out
+}
+
+/// Печать цены метаданных, распределения норм и четырёх долей с вердиктом по порогам `H-0023`.
+fn print_bound_verdict(
+    bb: &BlockBounds,
+    cells: &Cells,
+    shares: &[BoundShare; 4],
+    spikes: &[BoundShare; 4],
+    queries: usize,
+    corpus_len: usize,
+    build_secs: f64,
+) {
+    let blocks = bb.cluster_max_norm.len() + bb.cell_max_norm.len();
+    let norm_bytes = 4 * blocks;
+    let box_bytes = 2 * DIM * blocks;
+    println!(
+        "BOUND: метаданные построены за {build_secs:.1} с для {blocks} блоков ({} кластеров + {} \
+         ячеек): оценка по норме — {norm_bytes} Б (1 u32 на блок), по рамке — ещё {box_bytes} Б \
+         (2 × {DIM} int8 на блок); вместе {:.3} % int8-корпуса из {corpus_len} записей",
+        bb.cluster_max_norm.len(),
+        bb.cell_max_norm.len(),
+        100.0 * (norm_bytes + box_bytes) as f64 / (DIM as f64 * corpus_len as f64),
+    );
+    println!(
+        "BOUND: распределение ‖x‖² по записям корпуса — min {} / медиана {} / max {} (разброс в \
+         {:.2}×): при узкой полосе оценка по норме обязана вырождаться, и это ровно то, что \
+         проверяет гипотеза",
+        bb.norm_min,
+        bb.norm_median,
+        bb.norm_max,
+        bb.norm_max as f64 / bb.norm_min.max(1) as f64,
+    );
+    println!(
+        "BOUND: цена самой отсечки — {} оценок блока на запрос ({} ячеек + {} кластеров) против \
+         {:.1} оценок расстояния в скане, то есть {:.2} % работы скана",
+        MAX_OWNERS + MAX_OWNERS * cells.cps,
+        MAX_OWNERS,
+        MAX_OWNERS * cells.cps,
+        shares[0].scanned as f64 / queries.max(1) as f64,
+        100.0 * (MAX_OWNERS + MAX_OWNERS * cells.cps) as f64
+            / (shares[0].scanned as f64 / queries.max(1) as f64),
+    );
+    for (name, s) in BOUND_NAMES.iter().zip(shares) {
+        println!(
+            "BOUND {name}: средняя доля исключённых записей {:.2} % — порог ≥ {:.0} % {}, \
+             фальсификатор < {:.0} % {}; справочно: min {:.2} %, медиана {:.2} %, макс {:.2} %, \
+             исключено {}/{} записей, запросов с нулевой отсечкой {}, с полной — {}; лучшая оценка \
+             блока к порогу: в среднем {:.3}×, в лучшем запросе {:.3}× (×1,0 — это ровно порог, то \
+             есть отсечке не хватает этого множителя)",
+            s.mean * 100.0,
+            BOUND_SUCCESS * 100.0,
+            if s.mean >= BOUND_SUCCESS { "PASS" } else { "FAIL" },
+            BOUND_FALSIFIER * 100.0,
+            if s.mean < BOUND_FALSIFIER { "СРАБОТАЛ" } else { "нет" },
+            s.min * 100.0,
+            s.median * 100.0,
+            s.max * 100.0,
+            s.excluded,
+            s.scanned,
+            s.zero,
+            s.all,
+            s.ratio_mean,
+            s.ratio_best,
+        );
+    }
+    println!(
+        "BOUND: КОНТРОЛЬ МЕХАНИЗМА — тот же проход при пороге, подменённом нулём (исключается \
+         любой блок с ненулевой оценкой, счётчик обязан отвечать). Доли по четырём отсечкам: \
+         {}, {}, {}, {} — если они нулевые, молчит кодировка, а не отсечка; реальные доли выше \
+         означают только то, что механизм считает.",
+        fmt_spike(&spikes[0]),
+        fmt_spike(&spikes[1]),
+        fmt_spike(&spikes[2]),
+        fmt_spike(&spikes[3]),
+    );
+}
+
+/// Строка spike-контроля: доля плюс абсолютные числа, чтобы нулевой результат читался как
+/// «счётчик молчит», а не как «отсечка ничего не даёт».
+fn fmt_spike(s: &BoundShare) -> String {
+    format!("{:.2} % ({}/{} записей)", s.mean * 100.0, s.excluded, s.scanned)
+}
+
+
 fn ann_search(
     centroids: &[&[i8; DIM]],
     members: &[Vec<u32>],
@@ -1743,33 +2215,7 @@ fn ann_search(
             scored.truncate(budget.min(scored.len()));
             scored.into_iter().map(|(_, cell)| cell).collect()
         } else {
-            match score {
-                CellScore::Centroid => {
-                    let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
-                    top_clusters(query, &refs, budget)
-                }
-                CellScore::NearestFine => {
-                    // Оценка ячейки — минимум расстояния до её 16 мелких центроидов: ячейка тем
-                    // ближе, чем ближе её лучший кластер. Порядок сортировки `(score, cell)` —
-                    // детерминированный, как и в `top_clusters`.
-                    let mut scored: Vec<(u32, u16)> = c
-                        .clusters_of_cell
-                        .iter()
-                        .enumerate()
-                        .map(|(cell, clusters)| {
-                            let best = clusters
-                                .iter()
-                                .map(|&cl| l2_sq(query, centroids[cl as usize]))
-                                .min()
-                                .unwrap_or(u32::MAX);
-                            (best, cell as u16)
-                        })
-                        .collect();
-                    scored.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-                    scored.truncate(budget.min(scored.len()));
-                    scored.into_iter().map(|(_, cell)| cell).collect()
-                }
-            }
+            select_cells(query, c, centroids, budget, score)
         };
         // Резка скана внутри ячейки (`H-0017`): остаются t ближайших мелких кластеров, порядок —
         // `(l2_sq, cluster_id)`, то есть те же целочисленные сравнения, что делает узел по

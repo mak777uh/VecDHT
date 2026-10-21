@@ -11,12 +11,17 @@
 # Руки: m=24 (код 24 Б) при R ∈ {32, 100, 256, 1024} и лестница точности m=48 (код 48 Б) при
 # R=100. Кодобук кэшируется на диске (corpus-*.pq{m}), переобучение между руками не повторяется.
 #
+# Исполняемый файл собирается ОДИН раз до первой руки и дальше запускается напрямую: `cargo test`
+# на каждой руке пересобирает стенд, и правка исходников между руками породила бы цепочку, где
+# разные руки меряны разными бинарниками (это уже делало прогон 807k недействительным).
+#
 # Запуск: ./lab/e0023-run.sh 50k | 807k | all   (по умолчанию all)
 set -u
 export PATH="/c/Users/Admin/mingw64/bin:$PATH"
 cd /c/Users/Admin/Documents/Qoder/2026-10-18/72891a09/VecDHT || exit 1
 
 WHICH=${1:-all}
+TEST=gate_ii_real_corpus_recall
 # Лог прогона живёт в репозитории (`lab/logs/`), а не в /tmp: числа из записи `E-0023` должны
 # сверяться с тем же файлом, что коммится вместе с ней.
 LOG=${E0023_LOG:-lab/logs/e0023-$WHICH.log}
@@ -34,12 +39,16 @@ C50=C:/Users/Admin/models/p0-msmarco/corpus-50k.txt
 C807=C:/Users/Admin/models/p0-msmarco/corpus-807k-superset.txt
 Q1K=C:/Users/Admin/models/p0-msmarco/queries-1k.txt
 
+echo "########## BUILD (один бинарник на все руки) ##########" | tee -a "$LOG"
+cargo test --release -p vecdht-embed --features candle --no-run >>"$LOG" 2>&1 || exit 1
+EXE=$(ls -t target/release/deps/p0_real_corpus-*.exe 2>/dev/null | head -1)
+[ -n "$EXE" ] || { echo "не найден исполняемый файл теста" | tee -a "$LOG"; exit 1; }
+echo "########## EXE $EXE (md5 $(md5sum "$EXE" | cut -c1-12)) ##########" | tee -a "$LOG"
+
 run_step () {
   local name="$1"; shift
   echo "########## STEP ${name} ##########" | tee -a "$LOG"
-  env "${BASE_ENV[@]}" "$@" \
-    cargo test --release -p vecdht-embed --features candle gate_ii_real_corpus_recall -- \
-    --ignored --nocapture >>"$LOG" 2>&1
+  env "${BASE_ENV[@]}" "$@" "$EXE" "$TEST" --ignored --nocapture >>"$LOG" 2>&1
   local rc=$?
   echo "########## STEP ${name} DONE (exit $rc) ##########" | tee -a "$LOG"
 }
