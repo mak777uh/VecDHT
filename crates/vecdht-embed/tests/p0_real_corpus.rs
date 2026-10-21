@@ -24,7 +24,10 @@
 //! Режимы (переменные окружения, каждый — отдельная зарегистрированная гипотеза, порог один):
 //! `VEC_DHT_P0_NLIST` — лестница §8.6, nlist 1024→512 (`E-0004`); `VEC_DHT_P0_SHARD_COMPLETE=1` —
 //! полный скан выбранных шардов (`E-0005`); `VEC_DHT_P0_COARSE=1` — двухуровневая карта шардов
-//! `H-0007`/`E-0007`: шард = грубая ячейка из 16 пространственно близких кластеров.
+//! `H-0007`/`E-0007`: шард = грубая ячейка из 16 пространственно близких кластеров;
+//! `VEC_DHT_P0_INTRA=1` — резка скана внутри ячейки по `t` кластерам (`H-0017`/`E-0018`);
+//! `VEC_DHT_P0_SUB=1` — третий уровень IVF, скан по `s` подспискам кластера
+//! (`H-0020`/`E-0021`).
 
 #![cfg(feature = "candle")]
 
@@ -54,6 +57,10 @@ const NPROBE_GATE: usize = 16;
 /// заявка, не уместившаяся в 16 владельцев, отбрасывается.
 const MAX_OWNERS: usize = 16;
 const MAX_ITERS: usize = 12;
+/// Потолок итераций целочисленного Lloyd для третьего уровня (`H-0020`). Фиксирован до прогона:
+/// число подсписков `m` задаётся окружением, а вот это — нет, иначе «сходимость» можно было бы
+/// покупать итерациями.
+const SUB_MAX_ITERS: usize = 16;
 /// Фиксирован до прогона; смена seed — новая запись E, а не «подкрутить и повторить».
 const SEED: u64 = 0x5645_4344_4854_0002;
 const CACHE_TAG: &[u8; 8] = b"VDP0EMB1";
@@ -218,6 +225,28 @@ fn gate_ii_real_corpus_recall() {
     assert!(
         !intra || (owner_cells == 0 && !grouped),
         "INTRA, OWNERS и GROUPED — три разные политики скана; вместе они не определяют скан"
+    );
+    // H-0020/E-0021: третий уровень IVF — подсписки внутри мелкого кластера. Ячейки выбираются
+    // тем же гейтным правилом и в том же бюджете §7.5 (≤16 владельцев), карта остаётся
+    // протокольной, но единицей отбора становится не кластер, а его подсписок. Лестница идёт по
+    // s — числу ближайших подсписков на кластер; точка s = subm обязана повторить `E-0012`.
+    let sub = matches!(std::env::var("VEC_DHT_P0_SUB").as_deref(), Ok("1"));
+    let subm: usize = std::env::var("VEC_DHT_P0_SUBM")
+        .ok()
+        .map(|raw| raw.parse::<usize>().expect("VEC_DHT_P0_SUBM — целое число подсписков"))
+        .unwrap_or(8);
+    assert!(
+        !sub || (coarse && coherent),
+        "VEC_DHT_P0_SUB имеет смысл только на протокольной карте: VEC_DHT_P0_COARSE=1 \
+         VEC_DHT_P0_COHERENT=1 (числа сверяются с `E-0012`)"
+    );
+    assert!(
+        !sub || (owner_cells == 0 && !grouped && !intra),
+        "SUB, INTRA, OWNERS и GROUPED — разные политики скана; вместе они не определяют скан"
+    );
+    assert!(
+        subm >= 2,
+        "VEC_DHT_P0_SUBM={subm} бессмыслен: при одном подсписке резки нет"
     );
     assert!(
         !(exact_shards && train_map),
@@ -441,6 +470,16 @@ fn gate_ii_real_corpus_recall() {
     // измерялась бы политика поверх другой геометрии, чем та, что дала recall.
     let owners = (owner_cells != 0)
         .then(|| build_owners(gate_map.expect("режим владельцев требует карты ячеек"), owner_cells));
+    // H-0020/E-0021: третий уровень IVF. Строится над теми же int8-векторами корпуса и тем же
+    // присваиванием §7.2, что видит узел, — поэтому sub-центроиды зависят только от выпускаемой
+    // таблицы центроидов и корпуса, а не от запроса. Offline-цена (её платит издатель один раз)
+    // измеряется и печатается: без неё «бесплатный» третий уровень был бы неверным утверждением.
+    let subs = sub.then(|| {
+        let started = Instant::now();
+        let built = build_sublists(&members, &corpus_i8, subm, threads);
+        print_sublist_stats(&built, corpus_i8.len(), started.elapsed().as_secs_f64());
+        built
+    });
 
     if let Some(c) = &cells {
         let sizes = &c.counts;
@@ -507,6 +546,17 @@ fn gate_ii_real_corpus_recall() {
         );
     }
 
+    if sub {
+        probes = vec![1usize, 2, 3, 4, 6, subm];
+        probes.retain(|&s| s <= subm);
+        println!(
+            "режим SUB: ячеек выбирается всегда ≤{MAX_OWNERS} (бюджет §7.5), в каждом из {cps} \
+             кластеров ячейки сканируются s ближайших подсписков из {subm}; лестница идёт по s, \
+             точка s={subm} — контроль инертности (обязана повторить `E-0012`); дополнительная \
+             проверка «до грубого центроида» в этом режиме не считается"
+        );
+    }
+
     let (points, recall_at_16) = run_curve(
         &rows,
         &members,
@@ -521,14 +571,16 @@ fn gate_ii_real_corpus_recall() {
         grouped,
         owners.as_deref(),
         intra,
+        subs.as_ref(),
+        sub,
     );
-    print_curve("t/nprobe  recall@10   fan-out avg/max   candidates avg   время", &points);
+    print_curve("s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время", &points);
 
     // Дополнительное измерение для решения ADR-0004 (клиентская политика выбора ячеек):
     // ячейка оценивается минимумом `l2_sq` по её 16 мелким центроидам вместо расстояния до
     // собственного центроида ячейки. Оно НЕ заменяет пред-регистрированное основное правило
     // и не влияет на гейт: если основное правило не проходит, это остаётся провалом опыта.
-    if coarse && !grouped && owner_cells == 0 && !intra {
+    if coarse && !grouped && owner_cells == 0 && !intra && !sub {
         // Дополнительное измерение — второе правило оценки ячейки на той же карте. Гейтом не
         // является: если основное правило не проходит, это остаётся провалом опыта.
         let (aux_map, aux_score, aux_label) = if coherent {
@@ -564,6 +616,8 @@ fn gate_ii_real_corpus_recall() {
             false,
             None,
             false,
+            None,
+            false,
         );
         print_curve(
             &format!("{aux_label}\nnprobe  recall@10   fan-out avg/max   candidates avg   время"),
@@ -575,7 +629,54 @@ fn gate_ii_real_corpus_recall() {
         );
     }
 
-    if intra {
+    if sub {
+        // Порог `H-0020`: успех — существует s < subm с работой ≤ 0,5 × полного скана и
+        // recall@10 ≥ 0,95 при ≤16 владельцах. Контроль (s = subm) печатается отдельной строкой:
+        // не совпадёт с `E-0012` — прогон недействителен.
+        let control = points
+            .iter()
+            .find(|p| p.nprobe == subm)
+            .expect("лестница SUB обязана содержать точку s = subm (контроль)");
+        let best = points
+            .iter()
+            .filter(|p| p.nprobe < subm && p.fanout_max <= MAX_OWNERS)
+            .filter(|p| p.candidates_avg <= 0.5 * control.candidates_avg)
+            .max_by(|a, b| a.recall.total_cmp(&b.recall));
+        println!(
+            "КОНТРОЛЬ SUB (s={subm}): recall@10 = {:.4} при {:.1} кандидатах, владельцев \
+             {:.1}/{} — это тот же скан, что в `E-0012`",
+            control.recall, control.candidates_avg, control.fanout_avg, control.fanout_max
+        );
+        match best {
+            Some(p) => println!(
+                "SUB (H-0020): лучшая точка при работе ≤ 0,5 × контроля: s={}, recall@10 = \
+                 {:.4}, кандидатов {:.1} против {:.1}; порог 0,95 — {}",
+                p.nprobe,
+                p.recall,
+                p.candidates_avg,
+                control.candidates_avg,
+                if p.recall >= 0.95 { "PASS" } else { "FAIL" }
+            ),
+            None => println!(
+                "SUB (H-0020): ни одна точка лестницы не укладывается в 0,5 × работы контроля — \
+                 лестница обязана содержать s < subm/2, прогон недействителен"
+            ),
+        }
+        println!(
+            "ЦЕНА ОТБОРА: {MAX_OWNERS} ячеек × {cps} кластеров × {subm} подсписков = {} \
+             целочисленных l2_sq до sub-центроидов на запрос сверх кандидатов; при s ≥ subm эти \
+             сравнения не делаются",
+            MAX_OWNERS * cps * subm
+        );
+        if !smoke {
+            assert!(
+                best.is_some_and(|p| p.recall >= 0.95),
+                "фальсификатор гейта (ii) по `H-0020`: при работе ≤ 0,5 × полного скана шарда нет \
+                 recall@10 ≥ 0,95 (контроль s={subm}: {:.4}). Кривая выше; пре-регистрация `H-0020`",
+                control.recall
+            );
+        }
+    } else if intra {
         // Порог `H-0017`: успех — существует t < cps с работой ≤ 0,5 × полного скана и
         // recall@10 ≥ 0,95 при ≤16 владельцах. Контроль (t = cps) печатается отдельной строкой:
         // не совпадёт с `E-0012` — прогон недействителен.
@@ -683,7 +784,7 @@ fn gate_ii_real_corpus_recall() {
             if recall_at_16 >= 0.95 { "PASS" } else { "FAIL" }
         );
     }
-    if !smoke && !grouped && !intra {
+    if !smoke && !grouped && !intra && !sub {
         let hint = if owner_cells != 0 {
             "OWNERS (H-0016): даже с co-hosting'ом 16 владельцев при карте c=8 не подняли recall \
              до 0.95 — выигрыш меньшей геометрии не переживает бюджет §7.5"
@@ -774,6 +875,8 @@ fn run_curve(
     grouped: bool,
     owners: Option<&[u16]>,
     intra: bool,
+    subs: Option<&Sublists>,
+    sub: bool,
 ) -> (Vec<CurvePoint>, f64) {
     let mut points = Vec::with_capacity(probes.len());
     let mut recall_at_gate = 0.0;
@@ -792,6 +895,7 @@ fn run_curve(
                 grouped,
                 owners,
                 intra,
+                subs,
             )
         });
         let per_query: Vec<f64> = runs
@@ -804,9 +908,9 @@ fn run_curve(
         let fanout_sum: usize = runs.iter().map(|r| r.fanout).sum();
         let fanout_max = runs.iter().map(|r| r.fanout).max().unwrap_or(0);
         let candidates: usize = runs.iter().map(|r| r.candidates).sum();
-        // В режиме INTRA лестница идёт по t (числу кластеров на шард), а ячейки зафиксированы
-        // бюджетом §7.5, поэтому проверять надо против него.
-        let budget = if intra { MAX_OWNERS } else { nprobe };
+        // В режимах INTRA и SUB лестница идёт по числу кластеров/подсписков на шард, а ячейки
+        // зафиксированы бюджетом §7.5, поэтому проверять надо против него.
+        let budget = if intra || sub { MAX_OWNERS } else { nprobe };
         assert!(fanout_max <= budget, "fan-out {fanout_max} больше бюджета {budget}");
         if nprobe == NPROBE_GATE {
             recall_at_gate = recall;
@@ -890,6 +994,7 @@ fn ann_search(
     grouped: bool,
     owners: Option<&[u16]>,
     intra: bool,
+    subs: Option<&Sublists>,
 ) -> AnnRun {
     // `(скан, владельцы, скан без потолка, владельцы без потолка, выпавшие кластеры)`.
     // Последние три — диагностика цены потолка §7.5: они показывают, сколько recall теряется
@@ -966,7 +1071,9 @@ fn ann_search(
     } else if let Some(c) = cells {
         // Зонд единица — грубая ячейка. Выбранные ячейки — шарды; каждый сканирует свои
         // кластеры целиком (ёмкость карты — `cells.cps`), дублей нет.
-        let budget = if intra { MAX_OWNERS } else { nprobe };
+        // Бюджет §7.5 связывает число ячеек и в INTRA, и в SUB: там лестница идёт по
+        // числу кластеров/подсписков, а не по числу владельцев.
+        let budget = if intra || subs.is_some() { MAX_OWNERS } else { nprobe };
         let chosen = match score {
             CellScore::Centroid => {
                 let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
@@ -1032,10 +1139,15 @@ fn ann_search(
     };
     let mut top = TopK::new();
     let mut candidates = 0;
+    // Число подсписков на кластер: в режиме SUB лестница идёт по s, поэтому s — это nprobe;
+    // вне режима SUB — бесконечность, то есть кластер сканируется целиком (`E-0012`).
+    let s = if subs.is_some() { nprobe } else { usize::MAX };
     for cluster in scan_clusters {
-        for &id in &members[cluster as usize] {
-            top.push(l2_sq(query, &corpus[id as usize]), id);
-            candidates += 1;
+        for list in scan_lists(members, subs, cluster as usize, query, s) {
+            for &id in list {
+                top.push(l2_sq(query, &corpus[id as usize]), id);
+                candidates += 1;
+            }
         }
     }
     let ids_uncapped = if scan_uncapped.is_empty() {
@@ -1057,6 +1169,226 @@ fn ann_search(
         dropped_clusters: dropped,
         ids_uncapped,
     }
+}
+
+/// Третий уровень IVF (`H-0020`/`E-0021`): подсписки внутри мелкого кластера. Объект существует
+/// только в стенде; если гипотеза подтвердится, он становится полем артефакта (§15.1) и шагом
+/// построения (§7.6), а отбор подсписков — частью политики скана (§8.4).
+struct Sublists {
+    /// `lists[cluster][sub]` — id записей корпуса в подсписке.
+    lists: Vec<Vec<Vec<u32>>>,
+    /// `centroids[cluster][sub]` — целочисленный sub-центроид того же подсписка.
+    centroids: Vec<Vec<[i8; DIM]>>,
+    /// Заявленное `m`; кластер короче `m` получает `min(m, |cluster|)` подсписков.
+    m: usize,
+    /// Худшее число итераций Lloyd по всем кластерам.
+    max_iters_used: usize,
+    /// Суммарное число переприсваиваний «участник → подсписок» за всё обучение.
+    reassignments: usize,
+}
+
+fn build_sublists(
+    members: &[Vec<u32>],
+    corpus: &[[i8; DIM]],
+    m: usize,
+    threads: usize,
+) -> Sublists {
+    let per_cluster = parallel_map(members.len(), threads, |cluster| {
+        let built = sublist_cluster(&members[cluster], corpus, m);
+        // Инвариант: подсписки — разбиение кластера, без потерь и дублей. Если он нарушится,
+        // «экономия работы» считалась бы по неполному покрытию, и дефект построения выглядел
+        // бы как плохой механизм отбора.
+        let total: usize = built.0.iter().map(Vec::len).sum();
+        assert_eq!(
+            total,
+            members[cluster].len(),
+            "кластер {cluster}: подсписки покрыли {total} записей из {}",
+            members[cluster].len()
+        );
+        built
+    });
+    let mut subs = Sublists {
+        lists: Vec::with_capacity(per_cluster.len()),
+        centroids: Vec::with_capacity(per_cluster.len()),
+        m,
+        max_iters_used: 0,
+        reassignments: 0,
+    };
+    for (lists, centroids, iters, reassignments) in per_cluster {
+        subs.max_iters_used = subs.max_iters_used.max(iters);
+        subs.reassignments += reassignments;
+        subs.lists.push(lists);
+        subs.centroids.push(centroids);
+    }
+    subs
+}
+
+/// Один кластер → его подсписки и sub-центроиды. Всё целыми числами: инициализация
+/// farthest-first по `l2_sq`, затем Lloyd с целочисленным средним.
+fn sublist_cluster(
+    ids: &[u32],
+    corpus: &[[i8; DIM]],
+    m: usize,
+) -> (Vec<Vec<u32>>, Vec<[i8; DIM]>, usize, usize) {
+    if ids.is_empty() {
+        return (Vec::new(), Vec::new(), 0, 0);
+    }
+    let k = m.min(ids.len());
+    // Первый центр — участник с наименьшим id (`ids` упорядочены по id при построении карты),
+    // каждый следующий — максимально удалённый от уже взятых, при равенстве — наименьший id.
+    // Генератора нет, поэтому построение воспроизводимо без seed'а вообще.
+    let mut chosen: Vec<usize> = vec![0usize];
+    let mut nearest: Vec<u32> =
+        ids.iter().map(|&id| l2_sq(&corpus[ids[0] as usize], &corpus[id as usize])).collect();
+    while chosen.len() < k {
+        let mut best: Option<(u32, usize)> = None;
+        for (pos, &d) in nearest.iter().enumerate() {
+            if chosen.contains(&pos) {
+                continue;
+            }
+            match best {
+                None => best = Some((d, pos)),
+                Some((bd, _)) if d > bd => best = Some((d, pos)),
+                _ => {}
+            }
+        }
+        let Some((_, pos)) = best else { break };
+        chosen.push(pos);
+        for (p, d) in nearest.iter_mut().enumerate() {
+            let nd = l2_sq(&corpus[ids[pos] as usize], &corpus[ids[p] as usize]);
+            if nd < *d {
+                *d = nd;
+            }
+        }
+    }
+    let mut centroids: Vec<[i8; DIM]> =
+        chosen.iter().map(|&pos| corpus[ids[pos] as usize]).collect();
+    let mut assign = vec![0u8; ids.len()];
+    let mut iters = 0usize;
+    let mut reassignments = 0usize;
+    loop {
+        iters += 1;
+        let mut changed = 0usize;
+        for (pos, &id) in ids.iter().enumerate() {
+            let mut best_sub = 0usize;
+            let mut best_d = u32::MAX;
+            for (sub, c) in centroids.iter().enumerate() {
+                let d = l2_sq(&corpus[id as usize], c);
+                // Строгое сравнение: при равенстве остаётся меньший номер подсписка — тот же
+                // tie-break, что у `top_clusters`, и он же делает разбиение однозначным.
+                if d < best_d {
+                    best_d = d;
+                    best_sub = sub;
+                }
+            }
+            if assign[pos] as usize != best_sub {
+                changed += 1;
+                assign[pos] = best_sub as u8;
+            }
+        }
+        reassignments += changed;
+        if changed == 0 || iters >= SUB_MAX_ITERS {
+            break;
+        }
+        let mut next = Vec::with_capacity(centroids.len());
+        for sub in 0..centroids.len() {
+            let of_sub: Vec<u32> = ids
+                .iter()
+                .enumerate()
+                .filter(|(p, _)| assign[*p] as usize == sub)
+                .map(|(_, &id)| id)
+                .collect();
+            // Подсписок мог опустеть после переприсваивания: центр остаётся прежним, иначе
+            // среднее от пустого набора делило бы на ноль.
+            next.push(if of_sub.is_empty() { centroids[sub] } else { int_mean(&of_sub, corpus) });
+        }
+        centroids = next;
+    }
+    let mut lists: Vec<Vec<u32>> = vec![Vec::new(); centroids.len()];
+    for (pos, &sub) in assign.iter().enumerate() {
+        lists[sub as usize].push(ids[pos]);
+    }
+    (lists, centroids, iters, reassignments)
+}
+
+/// Целочисленное среднее строк int8 с округлением вверх при остатке ≥ половины делителя — без
+/// float, чтобы две корректные реализации (§8.4) не могли разъехаться на ничьей.
+fn int_mean(ids: &[u32], corpus: &[[i8; DIM]]) -> [i8; DIM] {
+    let cnt = i64::try_from(ids.len()).expect("размер кластера влезает в i64");
+    let mut out = [0i8; DIM];
+    for d in 0..DIM {
+        let mut sum = 0i64;
+        for &id in ids {
+            sum += i64::from(corpus[id as usize][d]);
+        }
+        let q = sum.div_euclid(cnt);
+        let r = sum.rem_euclid(cnt);
+        let v = if 2 * r >= cnt { q + 1 } else { q };
+        out[d] = i64::from(i8::MIN).max(v).min(i64::from(i8::MAX)) as i8;
+    }
+    out
+}
+
+/// Единицы скана внутри кластера: целый кластер (протокольный полный скан `E-0012` и контроль
+/// `s = m`) либо `s` ближайших подсписков (`H-0020`). Отбор — int8-argmin по sub-центроидам с
+/// разрывом равенства по номеру подсписка, то есть целочисленный и contract-определимый, как §7.2.
+fn scan_lists<'a>(
+    members: &'a [Vec<u32>],
+    subs: Option<&'a Sublists>,
+    cluster: usize,
+    query: &[i8; DIM],
+    s: usize,
+) -> Vec<&'a [u32]> {
+    let Some(subs) = subs else {
+        return vec![members[cluster].as_slice()];
+    };
+    let lists = &subs.lists[cluster];
+    if lists.is_empty() || s >= lists.len() {
+        return vec![members[cluster].as_slice()];
+    }
+    let mut ranked: Vec<(u32, u16)> = subs.centroids[cluster]
+        .iter()
+        .enumerate()
+        .map(|(sub, c)| (l2_sq(query, c), sub as u16))
+        .collect();
+    ranked.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+    ranked.iter().take(s).map(|(_, sub)| lists[*sub as usize].as_slice()).collect()
+}
+
+/// Цена третьего уровня, которую платит издатель: offline-время и лишние байты артефакта.
+fn print_sublist_stats(subs: &Sublists, corpus_len: usize, secs: f64) {
+    let mut min = usize::MAX;
+    let mut max = 0usize;
+    let mut total = 0usize;
+    let mut empty = 0usize;
+    let mut centroids = 0usize;
+    for lists in &subs.lists {
+        centroids += lists.len();
+        for list in lists {
+            total += list.len();
+            min = min.min(list.len());
+            max = max.max(list.len());
+            if list.is_empty() {
+                empty += 1;
+            }
+        }
+    }
+    let min = if subs.lists.is_empty() { 0 } else { min };
+    let overhead = centroids * DIM;
+    println!(
+        "SUB: третий уровень построен за {secs:.1} с — {} кластеров, {centroids} sub-центроидов \
+         при m={}, размер подсписка min {min} / max {max}, средний {:.1}, пустых {empty}; \
+         переприсваиваний {}, \
+         худшее число итераций {}; overhead артефакта {overhead} Б (m × {DIM} int8 на кластер) \
+         против {} Б записей корпуса (424 Б × {corpus_len}), то есть {:.2} %",
+        subs.lists.len(),
+        subs.m,
+        total as f64 / centroids.max(1) as f64,
+        subs.reassignments,
+        subs.max_iters_used,
+        corpus_len * 424,
+        overhead as f64 * 100.0 / (corpus_len as f64 * 424.0)
+    );
 }
 
 /// Верхний уровень карты шардов для режима COARSE: `k = nlist / cps` грубых центроидов над
