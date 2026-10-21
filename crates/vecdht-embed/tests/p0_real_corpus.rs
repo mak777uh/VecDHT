@@ -43,6 +43,7 @@ use vecdht_embed::candle_backend::ModernBertEmbedder;
 use vecdht_embed::kmeans::{self, KMeansConfig};
 use vecdht_embed::metrics::recall_at_k;
 use vecdht_embed::model::{quantize_pooled, Pipeline};
+use vecdht_embed::shardmap;
 use vecdht_embed::text::normalize_text;
 use vecdht_embed::EmbeddingModel;
 use vecdht_wire::{CLUSTERS_PER_SHARD, NLIST};
@@ -165,6 +166,10 @@ fn gate_ii_real_corpus_recall() {
     // H-0010/E-0010: политика «заявка по кластерам» — клиент запрашивает у владельца только
     // нужные ему кластеры, а не весь шард; потолок владельцев — 16 (§7.5).
     let grouped = matches!(std::env::var("VEC_DHT_P0_GROUPED").as_deref(), Ok("1"));
+    // H-0012/E-0012: ровная (ровно 16 кластеров на шард) И связная карта: транспортная задача
+    // вместо int8-argmin. Это «честная» ровная карта — в отличие от жадной починки `E-0008`
+    // и рекурсивного деления `E-0011`.
+    let coherent = matches!(std::env::var("VEC_DHT_P0_COHERENT").as_deref(), Ok("1"));
     assert!(
         !(exact_shards && train_map),
         "VEC_DHT_P0_EXACT_SHARDS и VEC_DHT_P0_TRAIN_MAP задают разные карты одновременно"
@@ -176,6 +181,14 @@ fn gate_ii_real_corpus_recall() {
     assert!(
         !balanced || coarse,
         "VEC_DHT_P0_BALANCED имеет смысл только вместе с VEC_DHT_P0_COARSE=1"
+    );
+    assert!(
+        !coherent || coarse,
+        "VEC_DHT_P0_COHERENT имеет смысл только вместе с VEC_DHT_P0_COARSE=1"
+    );
+    assert!(
+        !(coherent && (balanced || train_map || exact_shards)),
+        "VEC_DHT_P0_COHERENT задаёт карту, отличную от BALANCED/TRAIN_MAP/EXACT_SHARDS"
     );
     assert!(
         !grouped || coarse,
@@ -292,6 +305,10 @@ fn gate_ii_real_corpus_recall() {
     // деление центроидов по оси максимальной дисперсии до групп ровно по 16.
     let balanced_cells =
         balanced.then(|| build_balanced_cells(&trained.centroids, nlist));
+    // Ровная И связная карта (`H-0012`/`E-0012`): транспортная задача — оптимальное
+    // назначение мелких центроидов в ячейки при жёсткой ёмкости 16.
+    let coherent_cells = (coarse && coherent)
+        .then(|| build_coherent_cells(&trained.centroids, &centroid_store, nlist, threads));
     if let Some(bc) = &balanced_cells {
         let sizes = &bc.counts;
         let min = sizes.iter().copied().min().unwrap_or(0);
@@ -333,9 +350,30 @@ fn gate_ii_real_corpus_recall() {
              (ровно {CLUSTERS_PER_SHARD} ожидалось)"
         );
     }
+    if let Some(cc) = &coherent_cells {
+        let sizes = &cc.counts;
+        let min = sizes.iter().copied().min().unwrap_or(0);
+        let max = sizes.iter().copied().max().unwrap_or(0);
+        println!(
+            "COHERENT (транспортная задача): {} ячеек над {nlist} кластерами; размер ячейки \
+             min {min} / max {max} (ровно {CLUSTERS_PER_SHARD} ожидалось), разброс внутри \
+             шарда {:.0} (int8 l2_sq до центроида шарда)",
+            cc.rows.len(),
+            cell_dispersion(cc)
+        );
+        if let Some(ac) = &cells {
+            println!(
+                "COARSE (int8-argmin) для сравнения: разброс внутри ячейки {:.0}",
+                cell_dispersion(ac)
+            );
+        }
+    }
     // Карта, по которой считается гейт: int8-argmin (E-0007), жадная правка (E-0008),
-    // назначение при обучении (E-0009) или рекурсивное деление (E-0011).
-    let gate_map: Option<&Cells> = if balanced {
+    // назначение при обучении (E-0009), рекурсивное деление (E-0011) или транспортная
+    // задача (E-0012).
+    let gate_map: Option<&Cells> = if coherent {
+        coherent_cells.as_ref()
+    } else if balanced {
         balanced_cells.as_ref()
     } else if train_map {
         train_cells
@@ -344,11 +382,12 @@ fn gate_ii_real_corpus_recall() {
     } else {
         cells
     };
-    // Правило оценки ячейки для гейта: в режиме карты обучения — «ближайший кластер» (это
-    // внедряемая клиентская политика: блок из 16 строк оценивается минимумом по строкам),
-    // в остальных режимах — пред-регистрированное «до центроида ячейки».
+    // Правило оценки ячейки для гейта: в режиме карты обучения и в режиме транспортной
+    // задачи — «ближайший кластер» (это внедряемая клиентская политика: блок из 16 строк
+    // оценивается минимумом по строкам), в остальных — пред-регистрированное «до центроида
+    // ячейки».
     let gate_score =
-        if train_map { CellScore::NearestFine } else { CellScore::Centroid };
+        if train_map || coherent { CellScore::NearestFine } else { CellScore::Centroid };
 
     if let Some(c) = &cells {
         let sizes = &c.counts;
@@ -419,7 +458,13 @@ fn gate_ii_real_corpus_recall() {
     if coarse && !grouped {
         // Дополнительное измерение — второе правило оценки ячейки на той же карте. Гейтом не
         // является: если основное правило не проходит, это остаётся провалом опыта.
-        let (aux_map, aux_score, aux_label) = if train_map {
+        let (aux_map, aux_score, aux_label) = if coherent {
+            (
+                gate_map,
+                CellScore::Centroid,
+                "ДОПОЛНИТЕЛЬНОЕ ПРАВИЛО ОЦЕНКИ ШАРДА (не гейт): до грубого центроида ячейки",
+            )
+        } else if train_map {
             (
                 gate_map,
                 CellScore::Centroid,
@@ -483,7 +528,9 @@ fn gate_ii_real_corpus_recall() {
         println!(
             "COARSE{}: recall@10 = {recall_at_16:.4} при nprobe={NPROBE_GATE} ячеек, порог 0.95, \
              цель 0.98 — {}",
-            if balanced {
+            if coherent {
+                "-COHERENT (H-0012)"
+            } else if balanced {
                 "-BALANCED (H-0011)"
             } else if train_map {
                 "-TRAIN (H-0009)"
@@ -513,7 +560,11 @@ fn gate_ii_real_corpus_recall() {
         );
     }
     if !smoke && !grouped {
-        let hint = if coarse && train_map {
+        let hint = if coarse && coherent {
+            "COHERENT (H-0012): оптимальное ровное назначение (транспортная задача) не подняло \
+             recall до 0.95 — «ровно 16 на шард» и «пространственная связность» несовместимы \
+             при заданной верхней карте"
+        } else if coarse && train_map {
             "COARSE-TRAIN (H-0009): карта обучения (ровно 16 кластеров на шард) не подняла \
              recall до 0.95 — значит, внедряемый вид карты требует другого верхнего уровня"
         } else if coarse && exact_shards {
@@ -540,6 +591,15 @@ struct AnnRun {
     ids: Vec<u32>,
     fanout: usize,
     candidates: usize,
+    /// Число владельцев **без** потолка §7.5 (16). Равняется `fanout`, когда потолок не
+    /// связывает; в групповой заявке (`H-0010`) — реальное число разных шардов, которых
+    /// коснулись K запрошенных кластеров.
+    owners_uncapped: usize,
+    /// Сколько из K запрошенных кластеров выпало из скана из-за потолка владельцев.
+    dropped_clusters: usize,
+    /// Результат того же запроса **без** потолка владельцев: показывает цену самого
+    /// ограничения §7.5 отдельно от цены скана.
+    ids_uncapped: Vec<u32>,
 }
 
 /// Правило оценки грубой ячейки в режиме COARSE.
@@ -562,6 +622,12 @@ struct CurvePoint {
     fanout_max: usize,
     candidates_avg: f64,
     secs: f64,
+    /// Recall того же запроса **без** потолка §7.5 (16 владельцев). Ненулевой только в
+    /// групповой заявке: показывает, сколько даёт сам потолок, а сколько — геометрия скана.
+    recall_uncapped: f64,
+    /// Владельцев без потолка (в среднем по запросам) и выпавших из-за потолка кластеров.
+    owners_uncapped_avg: f64,
+    dropped_avg: f64,
 }
 
 /// Прогон кривой recall по заданным точкам зондирования. Один и тот же код обслуживает основной
@@ -611,6 +677,21 @@ fn run_curve(
         if nprobe == NPROBE_GATE {
             recall_at_gate = recall;
         }
+        // Цена потолка §7.5: тот же запрос без ограничения «не более 16 владельцев».
+        let recall_uncapped = if runs.iter().all(|r| r.ids_uncapped.is_empty()) {
+            0.0
+        } else {
+            let per_query_un: Vec<f64> = runs
+                .iter()
+                .zip(truth)
+                .map(|(r, t)| recall_at_k(t, &r.ids_uncapped, TOP_K))
+                .collect();
+            per_query_un.iter().sum::<f64>() / per_query_un.len() as f64
+        };
+        let owners_uncapped_avg =
+            runs.iter().map(|r| r.owners_uncapped).sum::<usize>() as f64 / runs.len() as f64;
+        let dropped_avg =
+            runs.iter().map(|r| r.dropped_clusters).sum::<usize>() as f64 / runs.len() as f64;
         points.push(CurvePoint {
             nprobe,
             recall,
@@ -619,24 +700,46 @@ fn run_curve(
             fanout_max,
             candidates_avg: candidates as f64 / runs.len() as f64,
             secs: started.elapsed().as_secs_f64(),
+            recall_uncapped,
+            owners_uncapped_avg,
+            dropped_avg,
         });
     }
     (points, recall_at_gate)
 }
 
+/// Печать кривой. В групповой заявке добавляются колонки цены потолка §7.5: recall без
+/// ограничения «16 владельцев», число владельцев без потолка и число выпавших кластеров.
 fn print_curve(header: &str, points: &[CurvePoint]) {
+    let grouped = points.iter().any(|p| p.recall_uncapped > 0.0);
     println!("{header}");
     for p in points {
-        println!(
-            "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с",
-            p.nprobe,
-            p.recall,
-            p.recall_min,
-            p.fanout_avg,
-            p.fanout_max,
-            p.candidates_avg,
-            p.secs
-        );
+        if grouped {
+            println!(
+                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с   без потолка {:.4}  владельцев без потолка {:>5.1}  выпало {:>4.1}",
+                p.nprobe,
+                p.recall,
+                p.recall_min,
+                p.fanout_avg,
+                p.fanout_max,
+                p.candidates_avg,
+                p.secs,
+                p.recall_uncapped,
+                p.owners_uncapped_avg,
+                p.dropped_avg
+            );
+        } else {
+            println!(
+                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с",
+                p.nprobe,
+                p.recall,
+                p.recall_min,
+                p.fanout_avg,
+                p.fanout_max,
+                p.candidates_avg,
+                p.secs
+            );
+        }
     }
 }
 
@@ -652,7 +755,10 @@ fn ann_search(
     score: CellScore,
     grouped: bool,
 ) -> AnnRun {
-    let (scan_clusters, fanout) = if grouped {
+    // `(скан, владельцы, скан без потолка, владельцы без потолка, выпавшие кластеры)`.
+    // Последние три — диагностика цены потолка §7.5: они показывают, сколько recall теряется
+    // именно из-за ограничения «не более 16 владельцев», а не из-за самого скана.
+    let (scan_clusters, fanout, scan_uncapped, owners_uncapped, dropped) = if grouped {
         // Политика «заявка по кластерам» (`H-0010`): клиент берёт K ближайших мелких
         // центроидов, раскладывает их по шардам карты и обращается не более чем к 16
         // владельцам; у каждого запрашиваются только его кластеры, а не весь шард.
@@ -668,6 +774,13 @@ fn ann_search(
             }
         }
         per.sort_unstable_by(|a, b| b.1.len().cmp(&a.1.len()).then(a.0.cmp(&b.0)));
+        let owners_uncapped = per.len();
+        let mut scan_all: Vec<u16> = Vec::with_capacity(nearest.len());
+        for (_, clusters) in &per {
+            scan_all.extend_from_slice(clusters);
+        }
+        scan_all.sort_unstable();
+        scan_all.dedup();
         per.truncate(MAX_OWNERS);
         let mut scan: Vec<u16> = Vec::with_capacity(nearest.len());
         for (_, clusters) in &per {
@@ -675,7 +788,8 @@ fn ann_search(
         }
         scan.sort_unstable();
         scan.dedup();
-        (scan, per.len())
+        let dropped = scan_all.len() - scan.len();
+        (scan, per.len(), scan_all, owners_uncapped, dropped)
     } else if let Some(c) = cells {
         // Зонд единица — грубая ячейка. Выбранные ячейки — шарды; каждый сканирует свои
         // кластеры целиком (их ровно `CLUSTERS_PER_SHARD`), дублей нет.
@@ -711,7 +825,7 @@ fn ann_search(
             scan.extend_from_slice(&c.clusters_of_cell[*cell as usize]);
         }
         let fanout = chosen.len();
-        (scan, fanout)
+        (scan, fanout, Vec::new(), fanout, 0)
     } else {
         let clusters = top_clusters(query, centroids, nprobe);
         let shards = group_by_shard(&clusters);
@@ -726,7 +840,7 @@ fn ann_search(
         } else {
             clusters
         };
-        (scan, fanout)
+        (scan, fanout, Vec::new(), fanout, 0)
     };
     let mut top = TopK::new();
     let mut candidates = 0;
@@ -736,7 +850,25 @@ fn ann_search(
             candidates += 1;
         }
     }
-    AnnRun { ids: top.ids(), fanout, candidates }
+    let ids_uncapped = if scan_uncapped.is_empty() {
+        Vec::new()
+    } else {
+        let mut top_un = TopK::new();
+        for cluster in scan_uncapped {
+            for &id in &members[cluster as usize] {
+                top_un.push(l2_sq(query, &corpus[id as usize]), id);
+            }
+        }
+        top_un.ids()
+    };
+    AnnRun {
+        ids: top.ids(),
+        fanout,
+        candidates,
+        owners_uncapped,
+        dropped_clusters: dropped,
+        ids_uncapped,
+    }
 }
 
 /// Верхний уровень карты шардов для режима COARSE: `k = nlist / CLUSTERS_PER_SHARD` грубых
@@ -1007,6 +1139,106 @@ fn brute_force(corpus: &[[i8; DIM]], query: &[i8; DIM]) -> Vec<u32> {
         top.push(l2_sq(query, point), id as u32);
     }
     top.ids()
+}
+
+/// Карта шардов с **ровно** `CLUSTERS_PER_SHARD` кластерами на шард и максимально возможной
+/// пространственной связностью (`H-0012`/`E-0012`): транспортная задача.
+///
+/// Строится **библиотечной** функцией `vecdht_embed::shardmap::build_shard_map` — тем же кодом,
+/// которым издатель строит порядок строк `centroid.bin` (§7.4.1, `ADR-0004`). Стенд не имеет
+/// собственной копии решателя: иначе измеренное число относилось бы к коду, которого в
+/// артефакте не будет.
+///
+/// Верхний уровень — k-means (k = nlist/16, cap = 16, seed `SEED ^ 0x0007`), а назначение
+/// мелких центроидов в ячейки решается не int8-argmin'ом и не жадной починкой, а оптимальным
+/// сбалансированным назначением: каждой из 64 ячеек ровно 16 кластеров при минимальной сумме
+/// расстояний до грубых центроидов.
+///
+/// Отличие от предыдущих попыток: `E-0008` вытесняла из переполненной ячейки самый дальний
+/// кластер (то есть выбрасывала «дальние» кластеры в чужие ячейки и рвала связность), а
+/// `E-0011` резала пространство плоскостями. Здесь кластеры **меняются местами**: избыток
+/// ячейки компенсируется обменом с дефицитной, и суммарная цена минимальна.
+fn build_coherent_cells(
+    centroids_f32: &[f32],
+    fine_i8: &[[i8; DIM]],
+    nlist: usize,
+    threads: usize,
+) -> Cells {
+    let target = CLUSTERS_PER_SHARD as usize;
+    assert!(nlist % target == 0, "nlist={nlist} не кратно {target}");
+    let k = nlist / target;
+    let cfg = KMeansConfig {
+        k,
+        max_iters: MAX_ITERS,
+        seed: SEED ^ 0x0007,
+        balance_cap: target,
+    };
+    let map = shardmap::build_shard_map(centroids_f32, fine_i8, target, cfg, threads)
+        .expect("карта шардов строится");
+
+    let mut clusters_of_cell: Vec<Vec<u16>> = vec![Vec::new(); k];
+    for (cluster, &cell) in map.cell_of_cluster.iter().enumerate() {
+        clusters_of_cell[cell as usize].push(cluster as u16);
+    }
+    for (cell, members) in clusters_of_cell.iter().enumerate() {
+        assert_eq!(
+            members.len(),
+            target,
+            "ячейка {cell} получила {} кластеров вместо {target} — ёмкость не выдержана",
+            members.len()
+        );
+    }
+    // Порядок публикации (то, что уедет в `centroid.bin`) обязан совпадать с картой: строка `p`
+    // публикуется как кластер `p`, её шард — `p / 16`.
+    for p in 0..map.order.len() {
+        assert_eq!(
+            map.cell_of_cluster[map.order[p] as usize] as usize,
+            p / target,
+            "опубликованный порядок нарушает контракт шарда в позиции {p}"
+        );
+    }
+    let counts = clusters_of_cell.iter().map(|c| c.len() as u32).collect();
+    Cells {
+        rows: map.coarse,
+        clusters_of_cell,
+        counts,
+        iterations: map.iterations,
+        fine: fine_i8.to_vec(),
+        cell_of_cluster: map.cell_of_cluster,
+    }
+}
+
+/// Связность карты одним числом: среднее по шардам расстояние от члена шарда до собственного
+/// центроида шарда (int8, квадрат евклидова). Чем меньше, тем шард компактнее. Считается по
+/// тем же данным, что и клиент, поэтому сравнимо между картами.
+fn cell_dispersion(cells: &Cells) -> f64 {
+    let mut sum = 0f64;
+    let mut count = 0f64;
+    for members in &cells.clusters_of_cell {
+        if members.is_empty() {
+            continue;
+        }
+        let mut mean = vec![0f64; DIM];
+        for &m in members {
+            let row = &cells.fine[m as usize];
+            for (d, acc) in mean.iter_mut().enumerate() {
+                *acc += f64::from(row[d]);
+            }
+        }
+        for v in mean.iter_mut() {
+            *v /= members.len() as f64;
+        }
+        let center: [i8; DIM] = quantize_slice(&mean).expect("центроид шарда квантуется");
+        for &m in members {
+            sum += f64::from(l2_sq(&cells.fine[m as usize], &center));
+            count += 1.0;
+        }
+    }
+    if count == 0.0 {
+        0.0
+    } else {
+        sum / count
+    }
 }
 
 #[derive(Clone)]
