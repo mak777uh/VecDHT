@@ -27,7 +27,8 @@
 //! `H-0007`/`E-0007`: шард = грубая ячейка из 16 пространственно близких кластеров;
 //! `VEC_DHT_P0_INTRA=1` — резка скана внутри ячейки по `t` кластерам (`H-0017`/`E-0018`);
 //! `VEC_DHT_P0_SUB=1` — третий уровень IVF, скан по `s` подспискам кластера
-//! (`H-0020`/`E-0021`).
+//! (`H-0020`/`E-0021`); `VEC_DHT_P0_FACET=1` — фильтрованный поиск по корзине facet-поля
+//! (`H-0019`/`E-0020`): гейт считается по немодифицированной кривой, фильтр измеряется поверх неё.
 
 #![cfg(feature = "candle")]
 
@@ -248,6 +249,36 @@ fn gate_ii_real_corpus_recall() {
         subm >= 2,
         "VEC_DHT_P0_SUBM={subm} бессмыслен: при одном подсписке резки нет"
     );
+    // H-0019/E-0020: facet-фильтр. Протокол поля ещё не содержит (ни TLV-тега, ни 8 Б в записи,
+    // ни `Find.filter`), поэтому режим измеряет **цену введения**, а не существующую механику:
+    // тот же протокольный скан ≤16 ячеек карты `E-0012`, но запись участвует в contract-сортировке
+    // только если её корзина совпала с фильтром запроса. Предикат не зависит от запроса, значит
+    // §8.4 (побайтовая сходимость двух реализаций) не затрагивается — это и есть аргумент стадии 3.
+    let facet = matches!(std::env::var("VEC_DHT_P0_FACET").as_deref(), Ok("1"));
+    let facet_buckets: usize = std::env::var("VEC_DHT_P0_FACET_BUCKETS")
+        .ok()
+        .map(|raw| raw.parse::<usize>().expect("VEC_DHT_P0_FACET_BUCKETS — целое число корзин"))
+        .unwrap_or(10);
+    let facet_arm = std::env::var("VEC_DHT_P0_FACET_ARM").unwrap_or_else(|_| "text".to_string());
+    assert!(
+        facet_buckets >= 2 && facet_buckets <= 100,
+        "VEC_DHT_P0_FACET_BUCKETS={facet_buckets}: за пределами осмысленного (селективность \
+         корзины должна быть измеримой, а id корзины — умещаться в u8)"
+    );
+    assert!(
+        facet_arm == "text" || facet_arm == "random",
+        "VEC_DHT_P0_FACET_ARM={facet_arm}: допустимы только text (дециль длины пассажи) и \
+         random (контрольная рука, геометрию не видит)"
+    );
+    assert!(
+        !facet || (coarse && coherent),
+        "VEC_DHT_P0_FACET имеет смысл только на протокольной карте: VEC_DHT_P0_COARSE=1 \
+         VEC_DHT_P0_COHERENT=1 (числа сверяются с `E-0012`)"
+    );
+    assert!(
+        !facet || (owner_cells == 0 && !grouped && !intra && !sub),
+        "FACET — отдельная политика скана; с OWNERS, GROUPED, INTRA и SUB она не определяет скан"
+    );
     assert!(
         !(exact_shards && train_map),
         "VEC_DHT_P0_EXACT_SHARDS и VEC_DHT_P0_TRAIN_MAP задают разные карты одновременно"
@@ -284,6 +315,15 @@ fn gate_ii_real_corpus_recall() {
     }
     if balanced {
         println!("режим BALANCED: карта шардов построена рекурсивным делением (ровно 16 на шард)");
+    }
+    if facet {
+        println!(
+            "режим FACET: поверх протокольного скана ≤{MAX_OWNERS} ячеек карта `E-0012` — фильтр \
+             по корзине (рука {facet_arm}, корзин {facet_buckets}, селективность {:.1} %); \
+             корзина запроса = номер запроса mod корзин, ground truth — brute-force по корзине. \
+             Немодифицированная кривая того же прогона остаётся гейтом и контролем инертности",
+            100.0 / facet_buckets as f64
+        );
     }
 
     if coarse && shard_complete {
@@ -512,6 +552,31 @@ fn gate_ii_real_corpus_recall() {
         query_i8.len(),
         truth_started.elapsed().as_secs_f64()
     );
+
+    // H-0019/E-0020: facet-корзины, фильтр запроса и **фильтрованный** ground truth. Правило
+    // назначения фильтра зафиксировано пре-регистрацией и не подлежит подбору: корзина запроса =
+    // `номер_запроса mod buckets`, так что все корзины проверяются равномерно и по одной на запрос.
+    let facets: Option<Facets> = facet.then(|| {
+        let arm = if facet_arm == "text" { FacetArm::TextLength } else { FacetArm::Random };
+        let started = Instant::now();
+        let built = build_facets(&corpus, corpus_i8.len(), arm, facet_buckets);
+        print_facet_stats(&built, corpus_i8.len(), started.elapsed().as_secs_f64());
+        built
+    });
+    let ftruth: Option<Vec<Vec<u32>>> = facets.as_ref().map(|f| {
+        let started = Instant::now();
+        let t = parallel_map(query_i8.len(), threads, |qi| {
+            brute_force_filtered(&corpus_i8, &query_i8[qi], f, facet_of(qi, f.buckets))
+        });
+        println!(
+            "фильтрованный ground truth: brute-force по корзине каждого запроса для {} запросов \
+             за {:.1} с (расстояние считается только для записей нужной корзины — предикат не \
+             зависит от запроса, поэтому пропуск не меняет правильного ответа)",
+            query_i8.len(),
+            started.elapsed().as_secs_f64()
+        );
+        t
+    });
 
     // Точка гейта — nprobe=16. Остальные точки (включая полный скан nprobe=nlist) —
     // данные лестницы §8.6: они показывают, где recall упирается в потолок зондирования.
@@ -813,12 +878,100 @@ fn gate_ii_real_corpus_recall() {
             "гейт (ii): nlist={nlist}, recall@10 = {recall_at_16:.4} < 0.95 при nprobe={NPROBE_GATE}. {hint}"
         );
     }
+
+    // H-0019/E-0020: фильтрованный поиск поверх той же протокольной кривой. Идётся **после**
+    // гейта, а не вместо него: немодифицированная кривая выше — это контроль инертности, её числа
+    // обязаны совпасть с `E-0012`, иначе фильтрованная часть прогона недействительна.
+    if let (Some(facets), Some(ftruth)) = (facets.as_ref(), ftruth.as_ref()) {
+        let base = points
+            .iter()
+            .find(|p| p.nprobe == NPROBE_GATE)
+            .expect("кривая без фильтра обязана содержать точку nprobe=16 (контроль `E-0012`)");
+        println!(
+            "КОНТРОЛЬ FACET: скан без фильтра при nprobe={NPROBE_GATE} даёт recall@10 = {:.4} при \
+             {:.1} кандидатах — это база, относительно которой считается потеря фильтра",
+            base.recall, base.candidates_avg
+        );
+        let fp = run_facet_curve(
+            &rows,
+            &members,
+            &corpus_i8,
+            &query_i8,
+            ftruth,
+            facets,
+            &probes,
+            threads,
+            gate_map,
+            gate_score,
+            &points,
+        );
+        print_facet_curve(facets, &fp);
+        let at_gate = fp
+            .iter()
+            .find(|p| p.nprobe == NPROBE_GATE)
+            .expect("фильтрованная кривая обязана содержать точку nprobe=16");
+        let worst_bucket = at_gate
+            .per_bucket
+            .iter()
+            .copied()
+            .fold(f64::INFINITY, f64::min);
+        let protocol_point = at_gate.nprobe <= MAX_OWNERS;
+        println!(
+            "FACET (H-0019): при nprobe={} ({} владельцев ≤ {MAX_OWNERS}, корректно по §7.5) \
+             средняя потеря = {:.2} п.п. (recall {:.4} против {:.4}), худшая корзина {:.4}, \
+             оценено {:.1} расстояний при {:.1} прочитанных записях (фильтр до MAC снимает {:.1} % \
+             арифметики скана); порог 2,0 п.п. — {}",
+            at_gate.nprobe,
+            if protocol_point { "бюджет" } else { "вне бюджета" },
+            at_gate.loss * 100.0,
+            at_gate.recall,
+            base.recall,
+            worst_bucket,
+            at_gate.candidates_avg,
+            at_gate.scanned_avg,
+            100.0 * (1.0 - at_gate.candidates_avg / at_gate.scanned_avg.max(1.0)),
+            if at_gate.loss <= 0.02 { "PASS" } else { "FAIL" }
+        );
+        let first_passing = fp.iter().find(|p| p.recall >= 0.95);
+        match first_passing {
+            Some(p) => println!(
+                "ЦЕНА ФИЛЬТРА В ЛЕСТНИЦЕ: первая точка с recall@10 ≥ 0,95 — nprobe={} (владельцев \
+                 {}); {} — это {} сверх протокольного бюджета §7.5",
+                p.nprobe,
+                p.fanout_max,
+                if p.nprobe > MAX_OWNERS { "точка" } else { "точка в бюджете" },
+                p.nprobe.saturating_sub(MAX_OWNERS),
+            ),
+            None => println!(
+                "ЦЕНА ФИЛЬТРА В ЛЕСТНИЦЕ: ни одна точка лестницы (вплоть до {} ячеек = весь \
+                 корпус) не даёт recall@10 ≥ 0,95 с фильтром",
+                probes.last().copied().unwrap_or(0)
+            ),
+        }
+        if !smoke {
+            assert!(
+                at_gate.loss <= 0.02,
+                "фальсификатор `H-0019`: при 10 % селективности и протокольном скане ≤{MAX_OWNERS} \
+                 ячеек средняя потеря recall@10 из-за фильтра = {:.2} п.п. > 2,0 п.п. (recall \
+                 {:.4} против {:.4} без фильтра, худшая корзина {:.4}). Пре-регистрация `H-0019`, \
+                 кривая выше.",
+                at_gate.loss * 100.0,
+                at_gate.recall,
+                base.recall,
+                worst_bucket
+            );
+        }
+    }
 }
 
 struct AnnRun {
     ids: Vec<u32>,
     fanout: usize,
     candidates: usize,
+    /// Сколько записей выбранного скана **прочитано** — то есть попало в цикл до фильтра.
+    /// Без фильтра (`E-0012`) совпадает с `candidates`; с фильтром (`H-0019`) показывает, какую
+    /// часть работы узла снимает предикат, поставленный до вычисления расстояния.
+    scanned: usize,
     /// Число владельцев **без** потолка §7.5 (16). Равняется `fanout`, когда потолок не
     /// связывает; в групповой заявке (`H-0010`) — реальное число разных шардов, которых
     /// коснулись K запрошенных кластеров.
@@ -849,6 +1002,9 @@ struct CurvePoint {
     fanout_avg: f64,
     fanout_max: usize,
     candidates_avg: f64,
+    /// Записей **прочитано** на запрос (до фильтра). Равно `candidates_avg` без фильтра;
+    /// в режиме FACET (`H-0019`) показывает, какую долю арифметики скана снимает предикат.
+    scanned_avg: f64,
     secs: f64,
     /// Recall того же запроса **без** потолка §7.5 (16 владельцев). Ненулевой только в
     /// групповой заявке: показывает, сколько даёт сам потолок, а сколько — геометрия скана.
@@ -896,6 +1052,7 @@ fn run_curve(
                 owners,
                 intra,
                 subs,
+                None,
             )
         });
         let per_query: Vec<f64> = runs
@@ -908,6 +1065,7 @@ fn run_curve(
         let fanout_sum: usize = runs.iter().map(|r| r.fanout).sum();
         let fanout_max = runs.iter().map(|r| r.fanout).max().unwrap_or(0);
         let candidates: usize = runs.iter().map(|r| r.candidates).sum();
+        let scanned: usize = runs.iter().map(|r| r.scanned).sum();
         // В режимах INTRA и SUB лестница идёт по числу кластеров/подсписков на шард, а ячейки
         // зафиксированы бюджетом §7.5, поэтому проверять надо против него.
         let budget = if intra || sub { MAX_OWNERS } else { nprobe };
@@ -937,6 +1095,7 @@ fn run_curve(
             fanout_avg: fanout_sum as f64 / runs.len() as f64,
             fanout_max,
             candidates_avg: candidates as f64 / runs.len() as f64,
+            scanned_avg: scanned as f64 / runs.len() as f64,
             secs: started.elapsed().as_secs_f64(),
             recall_uncapped,
             owners_uncapped_avg,
@@ -952,9 +1111,16 @@ fn print_curve(header: &str, points: &[CurvePoint]) {
     let grouped = points.iter().any(|p| p.recall_uncapped > 0.0);
     println!("{header}");
     for p in points {
+        // Колонка «прочитано» появляется только там, где фильтр снимает часть арифметики
+        // (режим FACET): без неё прочитанное равно оцененному и печатать нечего.
+        let read = if p.scanned_avg > p.candidates_avg {
+            format!("  прочитано {:>9.1}", p.scanned_avg)
+        } else {
+            String::new()
+        };
         if grouped {
             println!(
-                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с   без потолка {:.4}  владельцев без потолка {:>5.1}  выпало {:>4.1}",
+                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с{}   без потолка {:.4}  владельцев без потолка {:>5.1}  выпало {:>4.1}",
                 p.nprobe,
                 p.recall,
                 p.recall_min,
@@ -962,23 +1128,151 @@ fn print_curve(header: &str, points: &[CurvePoint]) {
                 p.fanout_max,
                 p.candidates_avg,
                 p.secs,
+                read,
                 p.recall_uncapped,
                 p.owners_uncapped_avg,
                 p.dropped_avg
             );
         } else {
             println!(
-                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с",
+                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с{}",
                 p.nprobe,
                 p.recall,
                 p.recall_min,
                 p.fanout_avg,
                 p.fanout_max,
                 p.candidates_avg,
-                p.secs
+                p.secs,
+                read
             );
         }
     }
+}
+
+/// Точка фильтрованной кривой (`H-0019`): те же метрики, что у `CurvePoint`, плюс цена фильтра
+/// (прочитано против оценено) и разрез по корзинам, потому что порог гипотезы — **средняя**
+/// потеря, а вывод по averages прятал бы худшую корзину.
+struct FacetPoint {
+    nprobe: usize,
+    recall: f64,
+    recall_min: f64,
+    /// Потеря против того же скана без фильтра (`E-0012`) при том же `nprobe`, в долях.
+    loss: f64,
+    /// Средняя recall@10 по запросам каждой корзины (`per_bucket[b]`).
+    per_bucket: Vec<f64>,
+    fanout_avg: f64,
+    fanout_max: usize,
+    /// Оценено расстояний на запрос.
+    candidates_avg: f64,
+    /// Прочитано записей на запрос (скан до фильтра).
+    scanned_avg: f64,
+    secs: f64,
+}
+
+/// Фильтрованная кривая: тот же протокольный скан, что в `E-0012`, но в contract-сортировку
+/// попадает только корзина, совпавшая с фильтром запроса, и ground truth — brute-force по этой
+/// же корзине (`ftruth`). Политика выбора ячеек не меняется: §7.5.1, бюджет `nprobe` ячеек.
+#[allow(clippy::too_many_arguments)]
+fn run_facet_curve(
+    rows: &[&[i8; DIM]],
+    members: &[Vec<u32>],
+    corpus: &[[i8; DIM]],
+    query_i8: &[[i8; DIM]],
+    ftruth: &[Vec<u32>],
+    facets: &Facets,
+    probes: &[usize],
+    threads: usize,
+    cells: Option<&Cells>,
+    score: CellScore,
+    base: &[CurvePoint],
+) -> Vec<FacetPoint> {
+    let mut points = Vec::with_capacity(probes.len());
+    for &nprobe in probes {
+        let started = Instant::now();
+        let runs: Vec<AnnRun> = parallel_map(query_i8.len(), threads, |qi| {
+            ann_search(
+                rows,
+                members,
+                corpus,
+                &query_i8[qi],
+                nprobe,
+                false,
+                cells,
+                score,
+                false,
+                None,
+                false,
+                None,
+                Some((facets, facet_of(qi, facets.buckets))),
+            )
+        });
+        let per_query: Vec<f64> = runs
+            .iter()
+            .zip(ftruth)
+            .map(|(r, t)| recall_at_k(t, &r.ids, TOP_K))
+            .collect();
+        let recall = per_query.iter().sum::<f64>() / per_query.len() as f64;
+        let recall_min = per_query.iter().copied().fold(f64::INFINITY, f64::min);
+        let mut per_bucket = vec![0.0f64; facets.buckets];
+        let mut bucket_n = vec![0usize; facets.buckets];
+        for (b, r) in per_query.iter().enumerate().map(|(i, v)| (usize::from(facet_of(i, facets.buckets)), v)) {
+            per_bucket[b] += r;
+            bucket_n[b] += 1;
+        }
+        for (avg, n) in per_bucket.iter_mut().zip(&bucket_n) {
+            *avg /= (*n).max(1) as f64;
+        }
+        let fanout_max = runs.iter().map(|r| r.fanout).max().unwrap_or(0);
+        assert!(fanout_max <= nprobe, "fan-out {fanout_max} больше бюджета {nprobe}");
+        let base_recall = base
+            .iter()
+            .find(|p| p.nprobe == nprobe)
+            .map(|p| p.recall)
+            .unwrap_or(f64::NAN);
+        points.push(FacetPoint {
+            nprobe,
+            recall,
+            recall_min,
+            loss: base_recall - recall,
+            per_bucket,
+            fanout_avg: runs.iter().map(|r| r.fanout).sum::<usize>() as f64 / runs.len() as f64,
+            fanout_max,
+            candidates_avg: runs.iter().map(|r| r.candidates).sum::<usize>() as f64 / runs.len() as f64,
+            scanned_avg: runs.iter().map(|r| r.scanned).sum::<usize>() as f64 / runs.len() as f64,
+            secs: started.elapsed().as_secs_f64(),
+        });
+    }
+    points
+}
+
+fn print_facet_curve(facets: &Facets, points: &[FacetPoint]) {
+    println!(
+        "FACET ({} корзин, рука {}): nprobe  recall@10 (min)  потеря п.п.  fan-out  оценено  \
+         прочитано  время",
+        facets.buckets,
+        match facets.arm {
+            FacetArm::TextLength => "дециль длины текста",
+            FacetArm::Random => "случайная — контроль корреляции",
+        }
+    );
+    for p in points {
+        print!("{:>6}  {:.4} (min {:.2})  {:>6.2}  {:>5.1}/{:<3}  {:>9.1}  {:>9.1}  {:.1} с", p.nprobe, p.recall, p.recall_min, p.loss * 100.0, p.fanout_avg, p.fanout_max, p.candidates_avg, p.scanned_avg, p.secs);
+        if p.nprobe == NPROBE_GATE {
+            print!("   по корзинам: {}", format_bucket_recalls(&p.per_bucket));
+        }
+        println!();
+    }
+}
+
+fn format_bucket_recalls(per_bucket: &[f64]) -> String {
+    let mut out = String::new();
+    for (b, r) in per_bucket.iter().enumerate() {
+        if b > 0 {
+            out.push(' ');
+        }
+        out.push_str(&format!("{b}:{r:.4}"));
+    }
+    out
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -995,6 +1289,9 @@ fn ann_search(
     owners: Option<&[u16]>,
     intra: bool,
     subs: Option<&Sublists>,
+    // Facet-фильтр (`H-0019`): `(корзины корпуса, нужная корзина)`. `None` — скан без фильтра,
+    // то есть ровно `E-0012`.
+    filter: Option<(&Facets, u8)>,
 ) -> AnnRun {
     // `(скан, владельцы, скан без потолка, владельцы без потолка, выпавшие кластеры)`.
     // Последние три — диагностика цены потолка §7.5: они показывают, сколько recall теряется
@@ -1139,12 +1436,23 @@ fn ann_search(
     };
     let mut top = TopK::new();
     let mut candidates = 0;
+    let mut scanned = 0usize;
     // Число подсписков на кластер: в режиме SUB лестница идёт по s, поэтому s — это nprobe;
     // вне режима SUB — бесконечность, то есть кластер сканируется целиком (`E-0012`).
     let s = if subs.is_some() { nprobe } else { usize::MAX };
     for cluster in scan_clusters {
         for list in scan_lists(members, subs, cluster as usize, query, s) {
             for &id in list {
+                scanned += 1;
+                // Фильтр стоит **до** вычисления расстояния: предикат зависит только от идентификатора
+                // записи, поэтому пропуск снимает у узла работу (целочисленное MAC-сравнение — самая
+                // дорогая часть скана), но не меняет множество записей, которые прошли бы фильтр и
+                // попали бы в contract-сортировку. §8.4 при этом не затрагивается.
+                if let Some((facets, want)) = filter {
+                    if facets.slot[id as usize] != want {
+                        continue;
+                    }
+                }
                 top.push(l2_sq(query, &corpus[id as usize]), id);
                 candidates += 1;
             }
@@ -1165,6 +1473,7 @@ fn ann_search(
         ids: top.ids(),
         fanout,
         candidates,
+        scanned,
         owners_uncapped,
         dropped_clusters: dropped,
         ids_uncapped,
@@ -1712,6 +2021,113 @@ fn build_owners(cells: &Cells, per_owner: usize) -> Vec<u16> {
 fn brute_force(corpus: &[[i8; DIM]], query: &[i8; DIM]) -> Vec<u32> {
     let mut top = TopK::new();
     for (id, point) in corpus.iter().enumerate() {
+        top.push(l2_sq(query, point), id as u32);
+    }
+    top.ids()
+}
+
+/// Facet-поле записи (`H-0019`/`E-0020`). В предполагаемом протоколе это 8 Б: четыре слота
+/// tag-hash u16 в каноническом порядке. В стенде — номер корзины на запись, потому что для
+/// вопроса «сколько стоит фильтр» важны только селективность и то, что предикат не зависит от
+/// запроса. Поля нет ни в `vecdht-wire`, ни в спеке: режим измеряет цену введения, а не
+/// существующую механику.
+struct Facets {
+    /// `slot[id]` — корзина записи корпуса (0..buckets).
+    slot: Vec<u8>,
+    buckets: usize,
+    arm: FacetArm,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum FacetArm {
+    /// Дециль длины канонического текста пассажи: метаданная реальная (видна в самом корпусе),
+    /// назначение по рангу `(len, id)` — детерминировано и не зависит от эмбеддинга.
+    TextLength,
+    /// Контрольная рука: геометрию не видит, изолирует вклад корреляции facet ↔ пространство.
+    Random,
+}
+
+/// Правило фильтра зафиксировано пре-регистрацией и не поддаётся подбору: корзина запроса =
+/// `номер_запроса mod buckets`. Все корзины проверяются равномерно и ровно по одному фильтру
+/// на запрос.
+fn facet_of(qi: usize, buckets: usize) -> u8 {
+    (qi % buckets) as u8
+}
+
+fn build_facets(texts: &[String], n: usize, arm: FacetArm, buckets: usize) -> Facets {
+    assert_eq!(texts.len(), n, "facet строится по корпусу текстов и по int8-корпусу сразу");
+    let slot = match arm {
+        FacetArm::TextLength => {
+            let mut order: Vec<(usize, u32)> = (0..n)
+                .map(|i| (texts[i].chars().count(), i as u32))
+                .collect();
+            // Сортировка по `(длина, id)`: порядок строгий и не зависит от перестановки входа,
+            // равные длины не образуют «скользящей» границы корзин.
+            order.sort_unstable();
+            let mut slot = vec![0u8; n];
+            for (rank, (_, id)) in order.iter().enumerate() {
+                slot[*id as usize] = (rank * buckets / n) as u8;
+            }
+            slot
+        }
+        FacetArm::Random => (0..n)
+            .map(|i| (splitmix64(SEED ^ (i as u64)) % buckets as u64) as u8)
+            .collect(),
+    };
+    let mut sizes = vec![0usize; buckets];
+    for &b in &slot {
+        sizes[usize::from(b)] += 1;
+    }
+    assert!(
+        sizes.iter().all(|&s| s >= TOP_K),
+        "есть корзина меньше TOP_K записей — фильтрованный ground truth был бы вырожден"
+    );
+    Facets { slot, buckets, arm }
+}
+
+fn print_facet_stats(facets: &Facets, n: usize, secs: f64) {
+    let mut sizes = vec![0usize; facets.buckets];
+    for &b in &facets.slot {
+        sizes[usize::from(b)] += 1;
+    }
+    let min = sizes.iter().copied().min().unwrap_or(0);
+    let max = sizes.iter().copied().max().unwrap_or(0);
+    println!(
+        "FACET: {} корзин построено за {secs:.1} с; размер корзины min {min} / max {max} при \
+         среднем {:.1} ({:.2} % корпуса); overhead артефакта — 8 Б на запись (4 слота tag-hash \
+         u16), то есть {} Б против {} Б записей корпуса (424 Б × {n}), {:.2} %; 1 Б корзины в \
+         стенде соответствует одному слоту протокольного поля",
+        facets.buckets,
+        n as f64 / facets.buckets as f64,
+        100.0 / facets.buckets as f64,
+        8 * n,
+        424 * n,
+        800.0 / 42400.0,
+    );
+}
+
+/// Детерминированный хеш для контрольной руки (`H-0019`): splitmix64, целые числа, без RNG-состояния.
+fn splitmix64(x: u64) -> u64 {
+    let mut z = x.wrapping_add(0x9E37_79B9_7F4A_7C15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+    z ^ (z >> 31)
+}
+
+/// Фильтрованный ground truth: brute-force по корзине. Расстояние считается только для записей
+/// нужной корзины — предикат не зависит от запроса, поэтому пропуск не меняет правильного ответа
+/// и стоит ≈1/`buckets` полного brute-force прохода.
+fn brute_force_filtered(
+    corpus: &[[i8; DIM]],
+    query: &[i8; DIM],
+    facets: &Facets,
+    want: u8,
+) -> Vec<u32> {
+    let mut top = TopK::new();
+    for (id, point) in corpus.iter().enumerate() {
+        if facets.slot[id] != want {
+            continue;
+        }
         top.push(l2_sq(query, point), id as u32);
     }
     top.ids()
