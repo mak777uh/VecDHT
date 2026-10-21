@@ -1440,52 +1440,59 @@ fn ann_search(
         // Бюджет §7.5 связывает число ячеек и в INTRA, и в SUB: там лестница идёт по
         // числу кластеров/подсписков, а не по числу владельцев.
         let budget = if intra || subs.is_some() { MAX_OWNERS } else { nprobe };
-        let chosen = match score {
-            CellScore::Centroid => {
-                // `H-0021`: если запрос несёт фильтр и известны центроиды корзин, ячейка оценивается
-                // по центроиду **нужной корзины внутри ячейки** — то есть по той части её объёма, из
-                // которой вообще может быть ответ. Пустая корзина получает `u32::MAX` и не вытесняет
-                // содержательные ячейки; tie-break — номер ячейки, как в `top_clusters`.
-                if let (Some(cbc), Some((_, want))) = (cell_buckets, filter) {
-                    let mut scored: Vec<(u32, u16)> = (0..c.rows.len())
-                        .map(|cell| {
-                            let idx = cell * cbc.buckets + usize::from(want);
-                            let d = if cbc.counts[idx] == 0 {
-                                u32::MAX
-                            } else {
-                                l2_sq(query, &cbc.rows[idx])
-                            };
-                            (d, cell as u16)
+        // `H-0021`: если запрос несёт фильтр и издатель выложил центроиды корзин, ячейка оценивается
+        // по центроиду **нужной корзины внутри ячейки** — то есть по той её части, из которой
+        // вообще может быть ответ. Это замена обоим гейтным правилам отбора (`Centroid` и
+        // `NearestFine`), а не одному: гейт `E-0012` проходит по `NearestFine`, и подмена одного
+        // `Centroid` оставила бы фильтрованную кривую побайтово равной `E-0020` — гипотеза
+        // проверяла бы сама себя. Пустая корзина даёт `u32::MAX` и не вытесняет содержательные
+        // ячейки; сортировка `(score, cell_id)` — детерминированная, как в `top_clusters`.
+        let aware: Option<(&CellBuckets, u8)> = match (cell_buckets, filter) {
+            (Some(cbc), Some((_, want))) => Some((cbc, want)),
+            (None, _) | (Some(_), None) => None,
+        };
+        let chosen: Vec<u16> = if let Some((cbc, want)) = aware {
+            let mut scored: Vec<(u32, u16)> = (0..c.rows.len())
+                .map(|cell| {
+                    let idx = cell * cbc.buckets + usize::from(want);
+                    let d = if cbc.counts[idx] == 0 {
+                        u32::MAX
+                    } else {
+                        l2_sq(query, &cbc.rows[idx])
+                    };
+                    (d, cell as u16)
+                })
+                .collect();
+            scored.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+            scored.truncate(budget.min(scored.len()));
+            scored.into_iter().map(|(_, cell)| cell).collect()
+        } else {
+            match score {
+                CellScore::Centroid => {
+                    let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
+                    top_clusters(query, &refs, budget)
+                }
+                CellScore::NearestFine => {
+                    // Оценка ячейки — минимум расстояния до её 16 мелких центроидов: ячейка тем
+                    // ближе, чем ближе её лучший кластер. Порядок сортировки `(score, cell)` —
+                    // детерминированный, как и в `top_clusters`.
+                    let mut scored: Vec<(u32, u16)> = c
+                        .clusters_of_cell
+                        .iter()
+                        .enumerate()
+                        .map(|(cell, clusters)| {
+                            let best = clusters
+                                .iter()
+                                .map(|&cl| l2_sq(query, centroids[cl as usize]))
+                                .min()
+                                .unwrap_or(u32::MAX);
+                            (best, cell as u16)
                         })
                         .collect();
                     scored.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
                     scored.truncate(budget.min(scored.len()));
                     scored.into_iter().map(|(_, cell)| cell).collect()
-                } else {
-                    let refs: Vec<&[i8; DIM]> = c.rows.iter().collect();
-                    top_clusters(query, &refs, budget)
                 }
-            }
-            CellScore::NearestFine => {
-                // Оценка ячейки — минимум расстояния до её 16 мелких центроидов: ячейка тем
-                // ближе, чем ближе её лучший кластер. Порядок сортировки `(score, cell)` —
-                // детерминированный, как и в `top_clusters`.
-                let mut scored: Vec<(u32, u16)> = c
-                    .clusters_of_cell
-                    .iter()
-                    .enumerate()
-                    .map(|(cell, clusters)| {
-                        let best = clusters
-                            .iter()
-                            .map(|&cl| l2_sq(query, centroids[cl as usize]))
-                            .min()
-                            .unwrap_or(u32::MAX);
-                        (best, cell as u16)
-                    })
-                    .collect();
-                scored.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-                scored.truncate(budget.min(scored.len()));
-                scored.into_iter().map(|(_, cell)| cell).collect()
             }
         };
         // Резка скана внутри ячейки (`H-0017`): остаются t ближайших мелких кластеров, порядок —
