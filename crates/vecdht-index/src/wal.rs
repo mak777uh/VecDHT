@@ -113,8 +113,10 @@ impl WalFrame {
         WalFrame { seq, kind, body }
     }
 
-    /// Байты, по которым считается crc32: `seq ‖ kind ‖ body_len ‖ body`.
-    fn payload(&self) -> Vec<u8> {
+    /// Байты, по которым считается crc32: `seq ‖ kind ‖ body_len ‖ body`. Видимость crate'а —
+    /// потому что корень (`root`) обязан хешировать ровно те же байты, что и crc32: «тот же оп»
+    /// должен означать «те же байты» и на диске, и в цепи, и в дереве.
+    pub(crate) fn payload(&self) -> Vec<u8> {
         let mut v = Vec::with_capacity(8 + 1 + 4 + self.body.len());
         v.extend_from_slice(&self.seq.to_le_bytes());
         v.push(self.kind as u8);

@@ -21,6 +21,7 @@
 //! wal        фрейм, сегменты, group commit, точки падений (§10.2)
 //! snapshot   стримящийся файл индекса без двойного пика RAM (§10.4)
 //! manifest   MANIFEST и durable max_epoch_served (§10.4, §9.2)
+//! root       две формы корня шарда: измерительный стенд `E-0019`, не часть протокола
 //! store      порядок операций, барьер, recovery (§10.1–§10.5)
 //! ```
 
@@ -33,6 +34,7 @@ pub mod entry;
 pub mod ivf;
 pub mod manifest;
 pub mod owner_table;
+pub mod root;
 pub mod snapshot;
 pub mod store;
 pub mod wal;
