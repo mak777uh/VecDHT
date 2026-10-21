@@ -477,6 +477,15 @@ fn egress_bytes_per_query() {
                 100.0 * dev,
                 if dev.abs() > 0.10 { " — СТРОКА СПЕКИ ТРЕБУЕТ ПЕРЕПИСИ" } else { "" },
             );
+            // Вторая строка той же таблицы: «RendezvousAccept 78 байт тело + 64 подпись».
+            let one = owner_answer(7, 1, 1, 0x0E00_2600, identity(200).pubkey());
+            println!(
+                "  сноска §5.4: `RendezvousAccept` измерено {} Б тела и {} Б кадра (8 заголовок + \
+                 тело + 1 флаг + 64 подпись) против «78 тело + 64 подпись» ⇒ {}",
+                one.acc_bodies[0],
+                one.acc_frames[0].len(),
+                if one.acc_bodies[0] == 78 { "совпало" } else { "СТРОКА ТРЕБУЕТ ПЕРЕПИСИ" },
+            );
         }
     }
 
