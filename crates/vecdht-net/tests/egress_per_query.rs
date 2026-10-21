@@ -545,7 +545,7 @@ fn egress_bytes_per_query() {
 
         for (arm, text) in &arms {
             for top_k in [TOP_K_DEFAULT, TOP_K_MAX] {
-                let p = measure_path(top_k, text, arm);
+                let p = measure_path(top_k, text, *arm);
                 print_path(&p, name);
                 report.push((name.to_string(), arm.to_string(), top_k, p.total()));
             }
@@ -574,7 +574,7 @@ fn egress_bytes_per_query() {
     let worst = |corpus: &str, top_k: usize| -> usize {
         report
             .iter()
-            .filter(|(c, _, k, _)| c == corpus && *k == top_k)
+            .filter(|(c, _, k, _)| c.as_str() == corpus && *k == top_k)
             .map(|(_, _, _, t)| *t)
             .max()
             .unwrap_or(0)
@@ -582,7 +582,7 @@ fn egress_bytes_per_query() {
     let median_arm = |corpus: &str, top_k: usize| -> usize {
         report
             .iter()
-            .find(|(c, a, k, _)| c == corpus && a == "медиана" && *k == top_k)
+            .find(|(c, a, k, _)| c.as_str() == corpus && a.as_str() == "медиана" && *k == top_k)
             .map(|(_, _, _, t)| *t)
             .unwrap_or(0)
     };
@@ -631,7 +631,7 @@ fn egress_bytes_per_query() {
         int8_100 >= 5 * c1,
     ];
     println!(
-        "\n  ИТОГ: (1) {} (2) {} (3a) {} (3b) {} (3c) {} — все пять: {}",
+        "\n  ИТОГ: (1) {} (2) {} (3a) {} (3b) {} (3c) {} — все пять пунктов выше: {}",
         pass(&verdict[0]),
         pass(&verdict[1]),
         pass(&verdict[2]),
@@ -641,7 +641,7 @@ fn egress_bytes_per_query() {
     );
 
     // Фальсификатор `H-0025` (а)/(б)/(в) — проверяется отдельно от условий успеха: именно он
-    // определяет вердикт, а не пять пунктов above.
+    // определяет вердикт, а не пять пунктов выше.
     println!("\nФАЛЬСИФИКАТОР H-0025 (807 596):");
     println!(
         "  (а) протокольный путь > 1 МБ ⇒ {}",
