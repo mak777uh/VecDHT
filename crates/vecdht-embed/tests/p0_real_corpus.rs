@@ -194,6 +194,17 @@ fn gate_ii_real_corpus_recall() {
     // вместо int8-argmin. Это «честная» ровная карта — в отличие от жадной починки `E-0008`
     // и рекурсивного деления `E-0011`.
     let coherent = matches!(std::env::var("VEC_DHT_P0_COHERENT").as_deref(), Ok("1"));
+    // H-0016/E-0017: модель co-hosting'а — сколько ячеек карты держит один владелец. Бюджет §7.5
+    // («не более 16 владельцев») при этом считается владельцами, а не шардами: два шарда могут
+    // лежать на одном узле, и `NodeCert.shards` — список. 0 — режим выключен.
+    let owner_cells: usize = std::env::var("VEC_DHT_P0_OWNER_CELLS")
+        .ok()
+        .map(|raw| raw.parse::<usize>().expect("VEC_DHT_P0_OWNER_CELLS — целое число"))
+        .unwrap_or(0);
+    assert!(
+        owner_cells == 0 || (coarse && owner_cells >= 2),
+        "VEC_DHT_P0_OWNER_CELLS имеет смысл только вместе с VEC_DHT_P0_COARSE=1 и значением ≥2"
+    );
     assert!(
         !(exact_shards && train_map),
         "VEC_DHT_P0_EXACT_SHARDS и VEC_DHT_P0_TRAIN_MAP задают разные карты одновременно"
@@ -412,6 +423,10 @@ fn gate_ii_real_corpus_recall() {
     // ячейки».
     let gate_score =
         if train_map || coherent { CellScore::NearestFine } else { CellScore::Centroid };
+    // H-0016/E-0017: размещение строится по той же карте, по которой считается гейт, — иначе
+    // измерялась бы политика поверх другой геометрии, чем та, что дала recall.
+    let owners = (owner_cells != 0)
+        .then(|| build_owners(gate_map.expect("режим владельцев требует карты ячеек"), owner_cells));
 
     if let Some(c) = &cells {
         let sizes = &c.counts;
@@ -459,6 +474,14 @@ fn gate_ii_real_corpus_recall() {
     if grouped {
         probes = vec![16usize, 24, 32, 48, 64, 96, 128, 256];
     }
+    if owner_cells != 0 {
+        probes = vec![1usize, 2, 4, 8, 12, MAX_OWNERS];
+        println!(
+            "режим OWNERS: владелец держит {owner_cells} ячеек карты; nprobe — бюджет владельцев \
+             (§7.5), сканируются только выбранные ячейки, работа ≤ nprobe × owner_cells × {cps} \
+             кластеров; дополнительная проверка «до грубого центроида» в этом режиме не считается"
+        );
+    }
 
     let (points, recall_at_16) = run_curve(
         &rows,
@@ -472,6 +495,7 @@ fn gate_ii_real_corpus_recall() {
         gate_map,
         gate_score,
         grouped,
+        owners.as_deref(),
     );
     print_curve("nprobe  recall@10   fan-out avg/max   candidates avg   время", &points);
 
@@ -479,7 +503,7 @@ fn gate_ii_real_corpus_recall() {
     // ячейка оценивается минимумом `l2_sq` по её 16 мелким центроидам вместо расстояния до
     // собственного центроида ячейки. Оно НЕ заменяет пред-регистрированное основное правило
     // и не влияет на гейт: если основное правило не проходит, это остаётся провалом опыта.
-    if coarse && !grouped {
+    if coarse && !grouped && owner_cells == 0 {
         // Дополнительное измерение — второе правило оценки ячейки на той же карте. Гейтом не
         // является: если основное правило не проходит, это остаётся провалом опыта.
         let (aux_map, aux_score, aux_label) = if coherent {
@@ -513,6 +537,7 @@ fn gate_ii_real_corpus_recall() {
             aux_map,
             aux_score,
             false,
+            None,
         );
         print_curve(
             &format!("{aux_label}\nnprobe  recall@10   fan-out avg/max   candidates avg   время"),
@@ -549,10 +574,13 @@ fn gate_ii_real_corpus_recall() {
     } else if smoke {
         println!("SMOKE: recall@10 = {recall_at_16:.4} при nprobe={NPROBE_GATE} — не гейт, размер корпуса ниже §18.1");
     } else if coarse {
+        let unit = if owner_cells != 0 { "владельцев" } else { "ячеек" };
         println!(
-            "COARSE{}: recall@10 = {recall_at_16:.4} при nprobe={NPROBE_GATE} ячеек, порог 0.95, \
+            "COARSE{}: recall@10 = {recall_at_16:.4} при nprobe={NPROBE_GATE} {unit}, порог 0.95, \
              цель 0.98 — {}",
-            if coherent {
+            if owner_cells != 0 {
+                "-OWNERS (H-0016)"
+            } else if coherent {
                 "-COHERENT (H-0012)"
             } else if balanced {
                 "-BALANCED (H-0011)"
@@ -584,7 +612,10 @@ fn gate_ii_real_corpus_recall() {
         );
     }
     if !smoke && !grouped {
-        let hint = if coarse && coherent {
+        let hint = if owner_cells != 0 {
+            "OWNERS (H-0016): даже с co-hosting'ом 16 владельцев при карте c=8 не подняли recall \
+             до 0.95 — выигрыш меньшей геометрии не переживает бюджет §7.5"
+        } else if coarse && coherent {
             "COHERENT (H-0012): оптимальное ровное назначение (транспортная задача) не подняло \
              recall до 0.95 — «ровно 16 на шард» и «пространственная связность» несовместимы \
              при заданной верхней карте"
@@ -669,6 +700,7 @@ fn run_curve(
     cells: Option<&Cells>,
     score: CellScore,
     grouped: bool,
+    owners: Option<&[u16]>,
 ) -> (Vec<CurvePoint>, f64) {
     let mut points = Vec::with_capacity(probes.len());
     let mut recall_at_gate = 0.0;
@@ -685,6 +717,7 @@ fn run_curve(
                 cells,
                 score,
                 grouped,
+                owners,
             )
         });
         let per_query: Vec<f64> = runs
@@ -778,11 +811,49 @@ fn ann_search(
     cells: Option<&Cells>,
     score: CellScore,
     grouped: bool,
+    owners: Option<&[u16]>,
 ) -> AnnRun {
     // `(скан, владельцы, скан без потолка, владельцы без потолка, выпавшие кластеры)`.
     // Последние три — диагностика цены потолка §7.5: они показывают, сколько recall теряется
     // именно из-за ограничения «не более 16 владельцев», а не из-за самого скана.
-    let (scan_clusters, fanout, scan_uncapped, owners_uncapped, dropped) = if grouped {
+    let (scan_clusters, fanout, scan_uncapped, owners_uncapped, dropped) = if let Some(own) = owners {
+        // Политика `H-0016`: выбор идёт между ячейками (гранулярность карты), а платёж —
+        // владельцами (бюджет §7.5). Обход ячеек по гейтной сортировке §7.5.1: ячейка
+        // берётся, если её владелец уже взят (вторая ячейка пары достаётся бесплатно) или
+        // если использовано ещё меньше `nprobe` владельцев. Сканируются только выбранные
+        // ячейки: `Find` несёт номер шарда, просто два шарда лежат на одном узле.
+        let c = cells.expect("режим владельцев требует карты ячеек");
+        let mut scored: Vec<(u32, u16)> = c
+            .clusters_of_cell
+            .iter()
+            .enumerate()
+            .map(|(cell, clusters)| {
+                let best = clusters
+                    .iter()
+                    .map(|&cl| l2_sq(query, centroids[cl as usize]))
+                    .min()
+                    .unwrap_or(u32::MAX);
+                (best, cell as u16)
+            })
+            .collect();
+        scored.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        let mut used: Vec<u16> = Vec::with_capacity(nprobe);
+        let mut chosen: Vec<u16> = Vec::with_capacity(nprobe * 2);
+        for (_, cell) in scored {
+            let owner = own[cell as usize];
+            if used.contains(&owner) {
+                chosen.push(cell);
+            } else if used.len() < nprobe {
+                used.push(owner);
+                chosen.push(cell);
+            }
+        }
+        let mut scan: Vec<u16> = Vec::with_capacity(chosen.len() * c.cps);
+        for cell in &chosen {
+            scan.extend_from_slice(&c.clusters_of_cell[*cell as usize]);
+        }
+        (scan, used.len(), Vec::new(), used.len(), 0)
+    } else if grouped {
         // Политика «заявка по кластерам» (`H-0010`): клиент берёт K ближайших мелких
         // центроидов, раскладывает их по шардам карты и обращается не более чем к 16
         // владельцам; у каждого запрашиваются только его кластеры, а не весь шард.
@@ -1167,6 +1238,50 @@ fn rebalance_exact(cells: &Cells) -> Cells {
         fine: cells.fine.clone(),
         cell_of_cluster,
     }
+}
+
+/// Размещение ячеек по владельцам для `H-0016`: жадная детерминированная сборка групп по
+/// `per_owner` ячеек. Первая несобранная ячейка по номеру берётся как затравка, к ней
+/// добавляются `per_owner-1` ближайших по грубым центроидам (tie-break — номер ячейки).
+///
+/// Это **модель** co-hosting'а, а не механизм сети: какие именно шарды отдавать одному узлу,
+/// решает §7.6 и балансировка, и у модели есть своя цена (потеря владельца уносит сразу два
+/// шарда). Здесь она нужна ровно для одного вопроса — сколько из выигрыша меньшей геометрии
+/// переживает бюджет «≤16 владельцев».
+fn build_owners(cells: &Cells, per_owner: usize) -> Vec<u16> {
+    let n = cells.rows.len();
+    let mut owner_of = vec![u16::MAX; n];
+    let mut next = 0u16;
+    for seed in 0..n {
+        if owner_of[seed] != u16::MAX {
+            continue;
+        }
+        owner_of[seed] = next;
+        let mut cand: Vec<(u32, usize)> = (0..n)
+            .filter(|&j| owner_of[j] == u16::MAX)
+            .map(|j| (l2_sq(&cells.rows[seed], &cells.rows[j]), j))
+            .collect();
+        cand.sort_unstable_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        let mut taken = 1usize;
+        for (_, j) in cand {
+            if taken == per_owner {
+                break;
+            }
+            owner_of[j] = next;
+            taken += 1;
+        }
+        next += 1;
+    }
+    let owners = next as usize;
+    assert!(
+        owners * per_owner >= n && (owners - 1) * per_owner < n,
+        "размещение {owners} владельцев по {per_owner} ячеек не покрывает {n} ячеек"
+    );
+    println!(
+        "OWNERS: {n} ячеек собраны в {owners} владельцев по ≤{per_owner} ячеек (жадно по грубым \
+         центроидам, детерминированно)"
+    );
+    owner_of
 }
 
 fn brute_force(corpus: &[[i8; DIM]], query: &[i8; DIM]) -> Vec<u32> {
