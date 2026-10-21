@@ -1,6 +1,6 @@
 ---
 id: H-0015
-status: confirmed
+status: supported
 claim: "Издательский конвейер, запущенный как команда оператора (`cli artifact publish`) на том же корпусе и том же кеше эмбеддингов, что и гейт (ii), воспроизводит измеренную в `E-0012` карту шардов: ровно 16 кластеров на шард, тот же разброс внутри шарда (4 494 664 на 50 000) и та же стоимость назначения, а собранный артефакт проходит `artifact verify` и `centroid.bin` бьётся в `artifact_hash == genesis_hash`. То есть сеть можно выпустить из кода, а не из тестового harness."
 falsifier: "Любое из: (а) `artifact verify` падает; (б) разброс внутри шарда отличается от 4 494 664 более чем на 0,5 %; (в) хотя бы один шард содержит не ровно 16 кластеров или сумма размеров не равна 1024; (г) `artifact_hash != genesis_hash`; (д) прогон требует форварда (кеш эмбеддингов `E-0004` не принят по дайджесту) — тогда утверждение «издатель воспроизводит точку гейта» неверно по построению, потому что сравнение идёт с другим векторным пространством."
 oracle: "crates/vecdht-cli::artifact_cmd::exec_publish через `cargo run --release -p vecdht-cli -- artifact publish --corpus <50k> --model-dir <granite> ...`, затем `artifact verify` и `artifact show`; метрики прогона печатает сам CLI (docs/kmeans_iterations/map_iterations/map_cost/empty_clusters/max_cluster/dispersion)."
