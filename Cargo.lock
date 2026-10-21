@@ -3922,6 +3922,7 @@ dependencies = [
 name = "vecdht-index"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "crc32fast",
  "thiserror 1.0.69",
  "vecdht-artifact",

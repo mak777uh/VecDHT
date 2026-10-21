@@ -28,7 +28,10 @@
 //! `VEC_DHT_P0_INTRA=1` — резка скана внутри ячейки по `t` кластерам (`H-0017`/`E-0018`);
 //! `VEC_DHT_P0_SUB=1` — третий уровень IVF, скан по `s` подспискам кластера
 //! (`H-0020`/`E-0021`); `VEC_DHT_P0_FACET=1` — фильтрованный поиск по корзине facet-поля
-//! (`H-0019`/`E-0020`): гейт считается по немодифицированной кривой, фильтр измеряется поверх неё.
+//! (`H-0019`/`E-0020`): гейт считается по немодифицированной кривой, фильтр измеряется поверх неё;
+//! `VEC_DHT_P0_PQ=1` — двухстадийный скан (`H-0022`/`E-0023`): множество кандидатов остаётся
+//! протокольным, но оценивается product quantization-кодом (`m` × 8 бит на подпространство), а
+//! точный int8 считается только для глобальных top-R.
 
 #![cfg(feature = "candle")]
 
@@ -62,6 +65,26 @@ const MAX_ITERS: usize = 12;
 /// число подсписков `m` задаётся окружением, а вот это — нет, иначе «сходимость» можно было бы
 /// покупать итерациями.
 const SUB_MAX_ITERS: usize = 16;
+/// Число центроидов в подпространстве PQ (`H-0022`): 8 бит на подпространство, значит код записи
+/// занимает ровно `m` байт. Фиксируется пре-регистрацией, а не подбирается по результату.
+const PQ_K: usize = 256;
+/// Потолок итераций целочисленного Lloyd для кодобука PQ — тот же, что у второго уровня IVF
+/// (`MAX_ITERS`), чтобы «точность кода» нельзя было купить лишними проходами.
+const PQ_MAX_ITERS: usize = MAX_ITERS;
+/// Минимальное `R`, при котором требуется recall ≥ 0,95, и максимальное, при котором срабатывает
+/// фальсификатор (а) `H-0022`. Оба числа — из пре-регистрации, не из данных прогона.
+const PQ_R_TARGET: usize = 100;
+const PQ_R_FALSIFIER: usize = 1024;
+/// Сколько записей каждого запроса оценивается **и** кодом, и точным int8 — для справочного
+/// распределения ADC-ошибки. Берётся голова скана в порядке обхода, а не по расстоянию, поэтому
+/// выборка не смещена в сторону близких записей (в отличие от top-R, где ошибка минимальна по
+/// построению).
+const PQ_ERR_SAMPLE: usize = 1024;
+/// Контроль инертности `E-0012` при nprobe=16: `(размер корпуса, recall@10, кандидатов)`.
+/// Немодифицированная кривая этого же прогона обязана дать ровно эти числа: иначе PQ-рука
+/// измерялась бы поверх другой геометрии, чем та, что даёт гейт.
+const E0012_CONTROL: &[(usize, f64, f64)] =
+    &[(50_000, 0.9645, 12_558.8), (807_596, 0.9790, 204_715.6)];
 /// Фиксирован до прогона; смена seed — новая запись E, а не «подкрутить и повторить».
 const SEED: u64 = 0x5645_4344_4854_0002;
 const CACHE_TAG: &[u8; 8] = b"VDP0EMB1";
@@ -342,6 +365,49 @@ fn gate_ii_real_corpus_recall() {
              только множество выбранных владельцев"
         );
     }
+    // H-0022/E-0023: двухстадийный скан. Все четыре закрытых рычага цены (`E-0013`, `E-0017`,
+    // `E-0018`, `E-0021`) и facet (`E-0020`, `E-0022`) меняли **сколько записей** попадает в скан;
+    // этот режим меняет **сколько байт читается на одну попавшую в скан запись**: правило отбора
+    // ячеек, fan-out и множество кандидатов остаются ровно картой `E-0012`.
+    let pq = matches!(std::env::var("VEC_DHT_P0_PQ").as_deref(), Ok("1"));
+    let pq_m: usize = std::env::var("VEC_DHT_P0_PQ_M")
+        .ok()
+        .map(|raw| raw.parse::<usize>().expect("VEC_DHT_P0_PQ_M — целое число подпространств"))
+        .unwrap_or(24);
+    let pq_r: usize = std::env::var("VEC_DHT_P0_PQ_R")
+        .ok()
+        .map(|raw| raw.parse::<usize>().expect("VEC_DHT_P0_PQ_R — целое число рефайнов"))
+        .unwrap_or(PQ_R_TARGET);
+    assert!(
+        DIM % pq_m == 0 && DIM / pq_m % 8 == 0 && (8..=64).contains(&(DIM / pq_m)),
+        "VEC_DHT_P0_PQ_M={pq_m}: подпространство должно делить {DIM} измерений и давать 8..64 \
+         измерений, кратных 8, иначе код считается не тем целочисленным суммированием, что §7.2"
+    );
+    assert!(
+        (1..=PQ_R_FALSIFIER).contains(&pq_r),
+        "VEC_DHT_P0_PQ_R={pq_r}: за пределами зарегистрированной лестницы R (1..={PQ_R_FALSIFIER})"
+    );
+    assert!(
+        !pq || (coarse && coherent),
+        "VEC_DHT_P0_PQ имеет смысл только на протокольной карте: VEC_DHT_P0_COARSE=1 \
+         VEC_DHT_P0_COHERENT=1 (числа сверяются с `E-0012`)"
+    );
+    assert!(
+        !pq || (owner_cells == 0 && !grouped && !intra && !sub && !facet),
+        "PQ — отдельная рука цены; с OWNERS, GROUPED, INTRA, SUB и FACET она не определена \
+         пре-регистрацией `H-0022`"
+    );
+    if pq {
+        println!(
+            "режим PQ (`H-0022`): {DIM} измерений делятся на {pq_m} подпространств по {} с {} \
+             центроидами (8 бит), код = {pq_m} Б на запись; кандидаты выбираются протокольной \
+             картой (полный скан ≤{MAX_OWNERS} ячеек), оценка — ADC по целочисленной LUT, \
+             рефайн — точный int8 глобальных top-R (R={pq_r}); немодифицированная кривая этого \
+             же прогона остаётся контролем инертности `E-0012`",
+            DIM / pq_m,
+            PQ_K,
+        );
+    }
 
     if coarse && shard_complete {
         println!("COARSE и SHARD-COMPLETE заданы вместе: считается только COARSE");
@@ -537,6 +603,17 @@ fn gate_ii_real_corpus_recall() {
         print_sublist_stats(&built, corpus_i8.len(), started.elapsed().as_secs_f64());
         built
     });
+    // H-0022/E-0023: кодобук PQ и коды корпуса. Строится по **тем же** int8-векторам, что видит
+    // узел, тем же целочисленным k-means, что и второй уровень (farthest-first по `l2_sq`,
+    // Lloyd с целочисленным средним, порядок сложения по id), — иначе «код» был бы другой
+    // геометрией, а не другим представлением той же. Offline-цена печатается: утверждение
+    // «PQ дешевле» без стоимости обучения кодобука было бы неверным.
+    let pq_obj = pq.then(|| {
+        let started = Instant::now();
+        let built = build_pq(&corpus_i8, pq_m, threads, &corpus_path);
+        print_pq_stats(&built, corpus_i8.len(), started.elapsed().as_secs_f64());
+        built
+    });
 
     if let Some(c) = &cells {
         let sizes = &c.counts;
@@ -656,13 +733,20 @@ fn gate_ii_real_corpus_recall() {
         );
     }
 
+    // В PQ-прогоне обе кривые идут до точки гейта: ни одно из трёх условий `H-0022` не проверяется
+    // на nprobe > 16, а полный скан 64 ячеек корпуса 807k стоил бы прогону больше, чем измеряет.
+    let ctl_probes: Vec<usize> = if pq {
+        probes.iter().copied().filter(|&n| n <= NPROBE_GATE).collect()
+    } else {
+        probes.clone()
+    };
     let (points, recall_at_16) = run_curve(
         &rows,
         &members,
         &corpus_i8,
         &query_i8,
         &truth,
-        &probes,
+        &ctl_probes,
         threads,
         shard_complete,
         gate_map,
@@ -672,14 +756,42 @@ fn gate_ii_real_corpus_recall() {
         intra,
         subs.as_ref(),
         sub,
+        // int8-кривая: она же гейт (ii), она же контроль инертности PQ-руки (`H-0022` требует
+        // совпадения с `E-0012` до последнего знака).
+        None,
     );
     print_curve("s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время", &points);
+
+    if let Some(p) = pq_obj.as_ref() {
+        print_control_inertness(&points, corpus_i8.len());
+        // Лестница PQ-руки — те же точки, что у int8-базы: сравнение по одному числу ячеек.
+        let (pq_points, _pq_recall) = run_curve(
+            &rows,
+            &members,
+            &corpus_i8,
+            &query_i8,
+            &truth,
+            &ctl_probes,
+            threads,
+            shard_complete,
+            gate_map,
+            gate_score,
+            grouped,
+            owners.as_deref(),
+            intra,
+            subs.as_ref(),
+            sub,
+            Some((p, pq_r)),
+        );
+        print_pq_curve(p.m, &pq_points);
+        print_pq_verdict(p.m, pq_r, &points, &pq_points);
+    }
 
     // Дополнительное измерение для решения ADR-0004 (клиентская политика выбора ячеек):
     // ячейка оценивается минимумом `l2_sq` по её 16 мелким центроидам вместо расстояния до
     // собственного центроида ячейки. Оно НЕ заменяет пред-регистрированное основное правило
     // и не влияет на гейт: если основное правило не проходит, это остаётся провалом опыта.
-    if coarse && !grouped && owner_cells == 0 && !intra && !sub {
+    if coarse && !grouped && owner_cells == 0 && !intra && !sub && !pq {
         // Дополнительное измерение — второе правило оценки ячейки на той же карте. Гейтом не
         // является: если основное правило не проходит, это остаётся провалом опыта.
         let (aux_map, aux_score, aux_label) = if coherent {
@@ -717,6 +829,7 @@ fn gate_ii_real_corpus_recall() {
             false,
             None,
             false,
+            None,
         );
         print_curve(
             &format!("{aux_label}\nnprobe  recall@10   fan-out avg/max   candidates avg   время"),
@@ -1044,6 +1157,16 @@ struct AnnRun {
     /// Результат того же запроса **без** потолка владельцев: показывает цену самого
     /// ограничения §7.5 отдельно от цены скана.
     ids_uncapped: Vec<u32>,
+    /// Сколько записей точно переоценено int8 на стадии рефайна (`H-0022`). В int8-руке — то же
+    /// число, что и `candidates`, потому что там рефайна нет: переоценивается всё.
+    refined: usize,
+    /// Секунды, проведённые в цикле скана (оценка кандидатов + рефайн), без загрузки корпуса,
+    /// без отбора ячеек и без распаралливания. Измеряется одинаково в обеих руках, поэтому
+    /// отношение чисел — это и есть цена «меньше байт на кандидата».
+    stage_secs: f64,
+    /// Относительная ADC-ошибка (`|adc − int8| / int8`) головы скана: первые `PQ_ERR_SAMPLE`
+    /// записей в порядке обхода, для которых посчитаны обе оценки. Пусто вне PQ-руки.
+    errors: Vec<f64>,
 }
 
 /// Правило оценки грубой ячейки в режиме COARSE.
@@ -1075,6 +1198,19 @@ struct CurvePoint {
     /// Владельцев без потолка (в среднем по запросам) и выпавших из-за потолка кластеров.
     owners_uncapped_avg: f64,
     dropped_avg: f64,
+    /// Среднее число записей, переоцененных точным int8 на запросе (`H-0022`). Вне PQ-руки равно
+    /// `candidates_avg` — там рефайна нет.
+    refined_avg: f64,
+    /// Среднее время стадии скана на запрос, в миллисекундах (сумма по потокам делится на число
+    /// запросов). Отношение int8/PQ при равном множестве кандидатов — условие (в) `H-0022`.
+    stage_ms_avg: f64,
+    /// Медиана и p95 относительной ADC-ошибки по голове скана; вне PQ-руки — нули.
+    err_median: f64,
+    err_p95: f64,
+    /// Рука PQ (`H-0022`): отличает строку, где кандидатов оценивает код, от int8-строки, где их
+    /// оценивает `l2_sq`. Поле, а не вывод из чисел: при `R ≥` числа кандидатов колонки
+    /// «рефайнов» и «int8» совпадают, и отличить руки по ним было бы нельзя.
+    pq_arm: bool,
 }
 
 /// Прогон кривой recall по заданным точкам зондирования. Один и тот же код обслуживает основной
@@ -1096,6 +1232,9 @@ fn run_curve(
     intra: bool,
     subs: Option<&Sublists>,
     sub: bool,
+    // Рука PQ (`H-0022`): `(кодобук и коды корпуса, R рефайна)`. `None` — int8-скан, то есть
+    // ровно `E-0012`; множество кандидатов от этого не зависит.
+    pq: Option<(&Pq, usize)>,
 ) -> (Vec<CurvePoint>, f64) {
     let mut points = Vec::with_capacity(probes.len());
     let mut recall_at_gate = 0.0;
@@ -1117,6 +1256,7 @@ fn run_curve(
                 subs,
                 None,
                 None,
+                pq,
             )
         });
         let per_query: Vec<f64> = runs
@@ -1152,6 +1292,22 @@ fn run_curve(
             runs.iter().map(|r| r.owners_uncapped).sum::<usize>() as f64 / runs.len() as f64;
         let dropped_avg =
             runs.iter().map(|r| r.dropped_clusters).sum::<usize>() as f64 / runs.len() as f64;
+        let refined_avg = runs.iter().map(|r| r.refined).sum::<usize>() as f64 / runs.len() as f64;
+        let stage_ms_avg =
+            runs.iter().map(|r| r.stage_secs).sum::<f64>() * 1000.0 / runs.len() as f64;
+        // ADC-ошибка пулится по всем запросам точки: у каждого запроса своя голова скана, и
+        // средняя по 1000 головам — это распределение ошибки по корпусу, а не по одному запросу.
+        let mut errors: Vec<f64> = runs.iter().flat_map(|r| r.errors.iter().copied()).collect();
+        let (err_median, err_p95) = if errors.is_empty() {
+            (0.0, 0.0)
+        } else {
+            errors.sort_by(|a, b| a.total_cmp(b));
+            let at = |q: f64| {
+                let i = ((errors.len() as f64 - 1.0) * q).round() as usize;
+                errors[i.min(errors.len() - 1)]
+            };
+            (at(0.5), at(0.95))
+        };
         points.push(CurvePoint {
             nprobe,
             recall,
@@ -1164,6 +1320,11 @@ fn run_curve(
             recall_uncapped,
             owners_uncapped_avg,
             dropped_avg,
+            refined_avg,
+            stage_ms_avg,
+            err_median,
+            err_p95,
+            pq_arm: pq.is_some(),
         });
     }
     (points, recall_at_gate)
@@ -1184,7 +1345,7 @@ fn print_curve(header: &str, points: &[CurvePoint]) {
         };
         if grouped {
             println!(
-                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с{}   без потолка {:.4}  владельцев без потолка {:>5.1}  выпало {:>4.1}",
+                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3} {:>8.1} {:.1} с{} без потолка {:.4}  владельцев без потолка {:>5.1}  выпало {:>4.1}",
                 p.nprobe,
                 p.recall,
                 p.recall_min,
@@ -1199,7 +1360,7 @@ fn print_curve(header: &str, points: &[CurvePoint]) {
             );
         } else {
             println!(
-                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}        {:>8.1}       {:.1} с{}",
+                "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3} {:>8.1} {:.1} с{}",
                 p.nprobe,
                 p.recall,
                 p.recall_min,
@@ -1211,6 +1372,128 @@ fn print_curve(header: &str, points: &[CurvePoint]) {
             );
         }
     }
+}
+
+/// Байтный расчёт условия (б) `H-0022`: на кандидата читается `m` Б кода, на рефайн — {DIM} Б
+/// int8-записи; база сравнения — {DIM} Б на того же кандидата, то есть цена int8-скана этого же
+/// протокольного множества. Числа арифметические и совпадают с пре-регистрацией: здесь нет ни
+/// заголовков, ни сетевых пакетов, ни стоимости LUT.
+fn pq_bytes(m: usize, candidates: f64, refined: f64) -> (f64, f64, f64) {
+    let pq = m as f64 * candidates + DIM as f64 * refined;
+    let int8 = DIM as f64 * candidates;
+    (pq, int8, 100.0 * pq / int8)
+}
+
+/// Кривая PQ-руки (`H-0022`): те же метрики скана, что у `print_curve`, плюс цена стадии — число
+/// рефайнов, байт на запрос и время цикла скана. Печатается отдельной функцией, потому что
+/// «кандидат» в двух руках стоит разными байтами, и сводить их в одну таблицю значило бы прятать
+/// условие (б) за общей колонкой.
+fn print_pq_curve(m: usize, points: &[CurvePoint]) {
+    println!(
+        "PQ (m={m}, код {m} Б на запись): nprobe  recall@10 (min)  fan-out  кандидатов  рефайнов  Б/запрос  доля от int8  мс/стадия  ADC med/p95  время"
+    );
+    for p in points.iter().filter(|p| p.pq_arm) {
+        let (bytes, _, share) = pq_bytes(m, p.candidates_avg, p.refined_avg);
+        println!(
+            "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}  {:>9.1}  {:>9.1}  {:>10.0}  {:>7.1} %  \
+             {:>8.2}  {:.4}/{:.4}  {:.1} с",
+            p.nprobe,
+            p.recall,
+            p.recall_min,
+            p.fanout_avg,
+            p.fanout_max,
+            p.candidates_avg,
+            p.refined_avg,
+            bytes,
+            share,
+            p.stage_ms_avg,
+            p.err_median,
+            p.err_p95,
+            p.secs
+        );
+    }
+}
+
+/// Контроль инертности (`E-0023`): немодифицированная кривая этого же прогона при nprobe=16 обязана
+/// повторить числа `E-0012`, иначе PQ-рука измерялась бы поверх другой геометрии, чем та, что даёт
+/// гейт. Печатается явно и отдельно от таблицы: расхождение делает прогон недействительным, а не
+/// «чуть хуже контроля».
+fn print_control_inertness(points: &[CurvePoint], corpus_len: usize) {
+    let Some(p) = points.iter().find(|x| x.nprobe == NPROBE_GATE) else {
+        println!(
+            "КОНТРОЛЬ ИНЕРТНОСТИ: кривая не содержит nprobe={NPROBE_GATE} — прогон недействителен"
+        );
+        return;
+    };
+    match E0012_CONTROL.iter().find(|(n, _, _)| *n == corpus_len) {
+        Some((_, recall, cand)) => {
+            let ok = (p.recall - recall).abs() <= 5e-5 && (p.candidates_avg - cand).abs() <= 0.1;
+            println!(
+                "КОНТРОЛЬ ИНЕРТНОСТИ `E-0012` (nprobe={NPROBE_GATE}): recall@10 = {:.4} при {:.1} кандидатах, ожидалось {recall:.4} при {cand:.1} — {}",
+                p.recall,
+                p.candidates_avg,
+                if ok { "СОВПАЛО" } else { "РАСХОЖДЕНИЕ, ПРОГОН НЕДЕЙСТВИТЕЛЕН" }
+            );
+        }
+        None => println!(
+            "КОНТРОЛЬ ИНЕРТНОСТИ: корпус {corpus_len} не зарегистрирован в `E-0012` (известны {}) — сверка невозможна, числа приведены выше",
+            E0012_CONTROL.iter().map(|(n, _, _)| n.to_string()).collect::<Vec<_>>().join("/")
+        ),
+    }
+}
+
+/// Вердикт `H-0022` по трём пре-регистрированным условиям. Ничего не assert'ится и прогон не
+/// прерывается: рука обязана отпечататься при каждом R из лестницы {32, 100, 256, 1024}, а вывод
+/// делается по собранной таблице, а не по первой упавшей точке.
+fn print_pq_verdict(m: usize, r: usize, control: &[CurvePoint], pq: &[CurvePoint]) {
+    let base = control.iter().find(|p| p.nprobe == NPROBE_GATE);
+    let gate = pq.iter().find(|p| p.nprobe == NPROBE_GATE);
+    let (Some(base), Some(gate)) = (base, gate) else {
+        println!(
+            "PQ (H-0022): nprobe={NPROBE_GATE} отсутствует в одной из кривых — прогон недействителен"
+        );
+        return;
+    };
+    let (bytes, int8, share) = pq_bytes(m, gate.candidates_avg, gate.refined_avg);
+    let speedup = if gate.stage_ms_avg > 0.0 { base.stage_ms_avg / gate.stage_ms_avg } else { 0.0 };
+    println!("PQ (H-0022/E-0023): m={m}, код {m} Б на запись, R={r}, nprobe={NPROBE_GATE}:");
+    println!(
+        "  (1) recall@10 = {:.4} против exact brute-force (int8-база того же прогона {:.4}); порог 0,95 при R ≤ {PQ_R_TARGET}: recall {}, зарегистрированный бюджет R {} — {}",
+        gate.recall,
+        base.recall,
+        if gate.recall >= 0.95 { "≥ 0,95" } else { "< 0,95" },
+        if r <= PQ_R_TARGET { "выдержан" } else { "ПРЕВЫШЕН" },
+        if gate.recall >= 0.95 && r <= PQ_R_TARGET { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "  (2) прочитано {:.0} Б на запрос ({} Б кода × {:.1} кандидатов + {DIM} Б × {:.1} рефайнов) против {:.0} Б int8-скана тех же кандидатов — доля {:.2} %, порог ≤ {:.2} % — {}",
+        bytes,
+        m,
+        gate.candidates_avg,
+        gate.refined_avg,
+        int8,
+        share,
+        100.0 / 6.0,
+        if share <= 100.0 / 6.0 { "PASS" } else { "FAIL" }
+    );
+    println!(
+        "  (3) стадия скана: int8 {:.2} мс/запрос, PQ {:.2} мс/запрос → {:.2}× (порог ≥ 2× — {}); wall-time точки гейта {:.1} с против {:.1} с → {:.2}×",
+        base.stage_ms_avg,
+        gate.stage_ms_avg,
+        speedup,
+        if speedup >= 2.0 { "PASS" } else { "FAIL" },
+        base.secs,
+        gate.secs,
+        if gate.secs > 0.0 { base.secs / gate.secs } else { 0.0 }
+    );
+    println!(
+        "  справочно: относительная ADC-ошибка головы скана med {:.4} / p95 {:.4} (выборка по {} записей на запрос в порядке обхода, не по top-R); фальсификатор (а) в намеренной формулировке звучит как «ни одна точка лестницы R ≤ {PQ_R_FALSIFIER} не даёт recall ≥ 0,95», поэтому по одной руке он не решается: эта рука при R={r} дает recall {:.4} — {}",
+        gate.err_median,
+        gate.err_p95,
+        PQ_ERR_SAMPLE,
+        gate.recall,
+        if gate.recall >= 0.95 { "эта точка ВЫШЕ 0,95, (а) опровергнут самой лестницей" } else { "эта точка ниже 0,95" }
+    );
 }
 
 /// Точка фильтрованной кривой (`H-0019`): те же метрики, что у `CurvePoint`, плюс цена фильтра
@@ -1270,6 +1553,7 @@ fn run_facet_curve(
                 None,
                 Some((facets, facet_of(qi, facets.buckets))),
                 buckets,
+                None,
             )
         });
         let per_query: Vec<f64> = runs
@@ -1361,6 +1645,10 @@ fn ann_search(
     // Центроиды корзин внутри ячеек (`H-0021`): меняют только **правило отбора** ячеек. `None` —
     // отбор по грубому центроиду ячейки, как в `E-0012` и `E-0020`.
     cell_buckets: Option<&CellBuckets>,
+    // Рука PQ (`H-0022`): `(кодобук с кодами корпуса, R рефайна)`. Меняет ровно две вещи — **чем**
+    // оценивается кандидат и **сколько** кандидатов доходит до contract-сортировки. Множество
+    // сканируемых записей, правило отбора ячеек, fan-out и ground truth остаются `E-0012`.
+    pq: Option<(&Pq, usize)>,
 ) -> AnnRun {
     // `(скан, владельцы, скан без потолка, владельцы без потолка, выпавшие кластеры)`.
     // Последние три — диагностика цены потолка §7.5: они показывают, сколько recall теряется
@@ -1534,27 +1822,85 @@ fn ann_search(
     let mut top = TopK::new();
     let mut candidates = 0;
     let mut scanned = 0usize;
+    let mut refined = 0usize;
+    let mut errors: Vec<f64> = Vec::new();
+    // Границы стадии «прочитать кандидатов и оценить их» одинаковы в обеих руках, поэтому их
+    // отношение — это и есть измеряемая цена условия (в) `H-0022`, а не разница whole-run времён.
+    let stage_started = Instant::now();
     // Число подсписков на кластер: в режиме SUB лестница идёт по s, поэтому s — это nprobe;
     // вне режима SUB — бесконечность, то есть кластер сканируется целиком (`E-0012`).
     let s = if subs.is_some() { nprobe } else { usize::MAX };
-    for cluster in scan_clusters {
-        for list in scan_lists(members, subs, cluster as usize, query, s) {
-            for &id in list {
-                scanned += 1;
-                // Фильтр стоит **до** вычисления расстояния: предикат зависит только от идентификатора
-                // записи, поэтому пропуск снимает у узла работу (целочисленное MAC-сравнение — самая
-                // дорогая часть скана), но не меняет множество записей, которые прошли бы фильтр и
-                // попали бы в contract-сортировку. §8.4 при этом не затрагивается.
-                if let Some((facets, want)) = filter {
-                    if facets.slot[id as usize] != want {
-                        continue;
+    match pq {
+        None => {
+            for cluster in scan_clusters {
+                for list in scan_lists(members, subs, cluster as usize, query, s) {
+                    for &id in list {
+                        scanned += 1;
+                        // Фильтр стоит **до** вычисления расстояния: предикат зависит только от идентификатора
+                        // записи, поэтому пропуск снимает у узла работу (целочисленное MAC-сравнение — самая
+                        // дорогая часть скана), но не меняет множество записей, которые прошли бы фильтр и
+                        // попали бы в contract-сортировку. §8.4 при этом не затрагивается.
+                        if let Some((facets, want)) = filter {
+                            if facets.slot[id as usize] != want {
+                                continue;
+                            }
+                        }
+                        top.push(l2_sq(query, &corpus[id as usize]), id);
+                        candidates += 1;
                     }
                 }
-                top.push(l2_sq(query, &corpus[id as usize]), id);
-                candidates += 1;
             }
+            // Вне PQ-руки рефайна нет: переоценивается всё, что попало в скан.
+            refined += candidates;
+        }
+        Some((pq, r)) => {
+            // Стадия 1: тот же протокольный скан, но кандидат стоит `m` байт кода и `m`
+            // целочисленных сложений по LUT вместо {DIM} байт и {DIM} MAC. Отсечки нет — ADC не
+            // даёт права ничего пропустить (`H-0023` про точную отсечку отдельно), поэтому
+            // множество кандидатов побитово равно int8-руке.
+            let lut = pq.lut(query);
+            let mut sel = TopR::new(r);
+            for cluster in scan_clusters {
+                for list in scan_lists(members, subs, cluster as usize, query, s) {
+                    for &id in list {
+                        scanned += 1;
+                        if let Some((facets, want)) = filter {
+                            if facets.slot[id as usize] != want {
+                                continue;
+                            }
+                        }
+                        let adc = pq.score(&lut, id as usize);
+                        sel.push(adc, id);
+                        candidates += 1;
+                        // Справочное распределение ADC-ошибки: первые `PQ_ERR_SAMPLE` записей в
+                        // порядке обхода, то есть выборка не смещена в сторону близких записей (в
+                        // отличие от top-R, где она минимальна по построению). Нулевое точное
+                        // расстояние — совпадение запроса с записью — в относительной мере не
+                        // определено и из выборки выпадало бы молча, поэтому считается и оно.
+                        if errors.len() < PQ_ERR_SAMPLE {
+                            let exact = l2_sq(query, &corpus[id as usize]);
+                            let rel = if exact == 0 && adc == 0 {
+                                0.0
+                            } else if exact == 0 {
+                                f64::MAX
+                            } else {
+                                (adc as f64 - exact as f64).abs() / exact as f64
+                            };
+                            errors.push(rel);
+                        }
+                    }
+                }
+            }
+            // Стадия 2: точный int8 только для глобальных top-R. Сортировка и `TopK` не меняются
+            // вовсе — контракт `(l2_sq, id)` остаётся контрактом §7.2, меняется только множество
+            // записей, до него допущенных.
+            for &id in sel.ids() {
+                top.push(l2_sq(query, &corpus[id as usize]), id);
+            }
+            refined += sel.len();
         }
     }
+    let stage_secs = stage_started.elapsed().as_secs_f64();
     let ids_uncapped = if scan_uncapped.is_empty() {
         Vec::new()
     } else {
@@ -1574,6 +1920,9 @@ fn ann_search(
         owners_uncapped,
         dropped_clusters: dropped,
         ids_uncapped,
+        refined,
+        stage_secs,
+        errors,
     }
 }
 
@@ -1794,6 +2143,448 @@ fn print_sublist_stats(subs: &Sublists, corpus_len: usize, secs: f64) {
         subs.max_iters_used,
         corpus_len * 424,
         overhead as f64 * 100.0 / (corpus_len as f64 * 424.0)
+    );
+}
+
+/// Product quantization (`H-0022`/`E-0023`): код записи — `m` байт, по одному индексу центроида
+/// в каждом из `m` подпространств по `DIM/m` измерений. Объект существует только в стенде: ни в
+/// `vecdht-wire`, ни в спеке поля кода нет, и данный прогон решает, входить ли ему вообще.
+struct Pq {
+    /// Число подпространств = число байт в коде записи.
+    m: usize,
+    /// Измерений в подпространстве: `DIM / m`, всегда кратно 8 (проверяется при разборе режима).
+    dsub: usize,
+    /// Центроидов на подпространство: `min(PQ_K, n)`, то есть 8 бит, но не больше записей корпуса.
+    k: usize,
+    /// `books[(j * k + c) * dsub ..]` — int8-центроиды `j`-го подпространства, плоский массив.
+    books: Vec<i8>,
+    /// `codes[id * m + j]` — байт-индекс записи `id` в подпространстве `j`.
+    codes: Vec<u8>,
+    /// Худшее число проходов Lloyd по подпространствам и суммарные переприсваивания — offline-цена,
+    /// которую печатает издатель (аргумент против «PQ бесплатен»).
+    max_iters_used: usize,
+    reassignments: usize,
+    /// Среднее по записям квадратичное смещение кода относительно int8-вектора и средний квадрат
+    /// нормы самого вектора — их отношение печатается как доля искажения геометрии.
+    mean_sq_error: f64,
+    mean_norm_sq: f64,
+    /// Кодобук и коды пришли с диска, а не из этого обучения: статистика обучения (итерации,
+    /// переприсваивания, смещение) в кеше не хранится, и печатать её нулями нельзя — рука,
+    /// построившая кеш, напечатала её первая.
+    from_cache: bool,
+}
+
+impl Pq {
+    /// LUT запроса: `lut[j * k + c] = l2_sq(query_j, centroid[j][c])` — целая, `m × k` int32
+    /// (6 144 числа при m = 24), строится один раз на запрос и не зависит от корпуса.
+    fn lut(&self, query: &[i8; DIM]) -> Vec<u32> {
+        let mut lut = vec![0u32; self.m * self.k];
+        for j in 0..self.m {
+            let q = &query[j * self.dsub..(j + 1) * self.dsub];
+            for c in 0..self.k {
+                let at = (j * self.k + c) * self.dsub;
+                lut[j * self.k + c] = l2_sq_sub(q, &self.books[at..at + self.dsub]);
+            }
+        }
+        lut
+    }
+
+    /// ADC-оценка записи: Σ_j LUT[j][code_j]. Это ровно сумма квадратов расстояний от подвекторов
+    /// запроса до выбранных центроидов, то есть оценка `l2_sq(query, reconstruction(code))`, и
+    /// считается она без единого умножения — только `m` сложений по `m` байтам кода.
+    fn score(&self, lut: &[u32], id: usize) -> u32 {
+        let mut acc = 0u32;
+        let base = id * self.m;
+        for j in 0..self.m {
+            acc += lut[j * self.k + usize::from(self.codes[base + j])];
+        }
+        acc
+    }
+}
+
+/// Кодобук и коды корпуса: `m` независимых целочисленных k-means по `DIM/m` измерений, тем же
+/// механизмом, что второй уровень IVF (`sublist_cluster`): farthest-first инициализация по `l2_sq`
+/// без генератора, Lloyd с целочисленным средним и округлением вверх при остатке ≥ половины
+/// делителя, порядок накопления сумм — по возрастанию id. Значит код воспроизводится издателем
+/// детерминированно (§8.4), а не «примерно тот же, что у соседа».
+fn build_pq(corpus: &[[i8; DIM]], m: usize, threads: usize, source: &Path) -> Pq {
+    let dsub = DIM / m;
+    let digest = pq_digest(corpus, m);
+    let path = source.with_extension(format!("pq{m}"));
+    if let Some(mut built) = read_pq_cache(&path, corpus.len(), m, dsub, &digest) {
+        println!(
+            "PQ: кодобук и коды взяты из кеша {} — offline-обучение не повторено, его цена \
+             напечатана в той руке, где кеш строился",
+            path.display()
+        );
+        built.from_cache = true;
+        return built;
+    }
+    let per_sub = parallel_map(m, threads, |j| pq_subspace(corpus, j * dsub, dsub));
+    let k = per_sub[0].0.len() / dsub;
+    let mut books = Vec::with_capacity(m * k * dsub);
+    let mut max_iters_used = 0usize;
+    let mut reassignments = 0usize;
+    for (centroids, iters, re) in &per_sub {
+        books.extend_from_slice(centroids);
+        max_iters_used = max_iters_used.max(*iters);
+        reassignments += re;
+    }
+    let (codes, sq_err, norm_sq) = pq_encode(corpus, &books, m, dsub, k, threads);
+    let n = corpus.len().max(1) as f64;
+    let built = Pq {
+        m,
+        dsub,
+        k,
+        books,
+        codes,
+        max_iters_used,
+        reassignments,
+        mean_sq_error: sq_err / n,
+        mean_norm_sq: norm_sq / n,
+        from_cache: false,
+    };
+    write_pq_cache(&path, &built, &digest);
+    built
+}
+
+/// Одно подпространство: `k` центроидов по `dsub` int8-координат, плоским массивом, плюс цена
+/// обучения. Центроидов ровно `min(PQ_K, n)`, поэтому `u8`-индекс кода всегда достаточен.
+fn pq_subspace(corpus: &[[i8; DIM]], off: usize, dsub: usize) -> (Vec<i8>, usize, usize) {
+    let n = corpus.len();
+    let k = PQ_K.min(n);
+    // Первый центр — запись с наименьшим id, каждый следующий — максимально удалённый от уже
+    // взятых (при равенстве — наименьшая позиция): генератора нет, построение воспроизводимо.
+    let mut chosen: Vec<usize> = Vec::with_capacity(k);
+    let mut nearest = vec![u32::MAX; n];
+    while chosen.len() < k {
+        let pick = if chosen.is_empty() {
+            0usize
+        } else {
+            let mut best: Option<(u32, usize)> = None;
+            for (pos, &d) in nearest.iter().enumerate() {
+                let better = match best {
+                    None => true,
+                    Some((bd, bp)) => d > bd || (d == bd && pos < bp),
+                };
+                if better {
+                    best = Some((d, pos));
+                }
+            }
+            let Some((_, pos)) = best else { break };
+            for (p, d) in nearest.iter_mut().enumerate() {
+                let nd = l2_sq_sub(&corpus[pos][off..off + dsub], &corpus[p][off..off + dsub]);
+                if nd < *d {
+                    *d = nd;
+                }
+            }
+            pos
+        };
+        chosen.push(pick);
+    }
+    let mut centroids: Vec<i8> = Vec::with_capacity(k * dsub);
+    for &pos in &chosen {
+        centroids.extend_from_slice(&corpus[pos][off..off + dsub]);
+    }
+    let mut assign = vec![0u8; n];
+    let mut iters = 0usize;
+    let mut reassignments = 0usize;
+    loop {
+        iters += 1;
+        let mut changed = 0usize;
+        for (id, row) in corpus.iter().enumerate() {
+            let v = &row[off..off + dsub];
+            let mut best_c = 0u8;
+            let mut best_d = u32::MAX;
+            for c in 0..k {
+                let at = c * dsub;
+                let d = l2_sq_sub(v, &centroids[at..at + dsub]);
+                // Строгое сравнение: при равенстве остаётся меньший номер центроида — тот же
+                // tie-break, что у `top_clusters` и `sublist_cluster`.
+                if d < best_d {
+                    best_d = d;
+                    best_c = c as u8;
+                }
+            }
+            if assign[id] != best_c {
+                changed += 1;
+                assign[id] = best_c;
+            }
+        }
+        reassignments += changed;
+        if changed == 0 || iters >= PQ_MAX_ITERS {
+            break;
+        }
+        // Суммы копятся в обходе по возрастанию id — тот же порядок сложения, что у `int_mean`,
+        // поэтому среднее не разъедётся с другой корректной реализацией.
+        let mut sums = vec![vec![0i64; dsub]; k];
+        let mut counts = vec![0i64; k];
+        for (id, &c) in assign.iter().enumerate() {
+            let v = &corpus[id][off..off + dsub];
+            let sum = &mut sums[c as usize];
+            counts[c as usize] += 1;
+            for (acc, &x) in sum.iter_mut().zip(v) {
+                *acc += i64::from(x);
+            }
+        }
+        centroids = int_means_sub(&sums, &counts, dsub, &centroids);
+    }
+    (centroids, iters, reassignments)
+}
+
+/// Целочисленное среднее по подпространству: `int_mean`, применённый к `dsub` координатам, с тем
+/// же округлением вверх при остатке ≥ половины делителя и тем же зажимом в диапазон i8. Пустой
+/// кластер оставляет прежний центроид — иначе среднее от пустого набора делило бы на ноль.
+fn int_means_sub(sums: &[Vec<i64>], counts: &[i64], dsub: usize, keep: &[i8]) -> Vec<i8> {
+    let mut out = Vec::with_capacity(sums.len() * dsub);
+    for (c, sum) in sums.iter().enumerate() {
+        let cnt = counts[c];
+        if cnt == 0 {
+            out.extend_from_slice(&keep[c * dsub..c * dsub + dsub]);
+            continue;
+        }
+        for &s in sum {
+            let q = s.div_euclid(cnt);
+            let r = s.rem_euclid(cnt);
+            let v = if 2 * r >= cnt { q + 1 } else { q };
+            out.push(i64::from(i8::MIN).max(v).min(i64::from(i8::MAX)) as i8);
+        }
+    }
+    out
+}
+
+/// Коды корпуса: argmin по центроидам каждого подпространства. Заодно считается справочная цена
+/// квантования — суммарное квадратичное смещение кода и суммарный квадрат нормы вектора.
+fn pq_encode(
+    corpus: &[[i8; DIM]],
+    books: &[i8],
+    m: usize,
+    dsub: usize,
+    k: usize,
+    threads: usize,
+) -> (Vec<u8>, f64, f64) {
+    const BLOCK: usize = 4096;
+    let blocks = corpus.len().div_ceil(BLOCK);
+    let per_block = parallel_map(blocks, threads, |b| {
+        let from = b * BLOCK;
+        let to = (from + BLOCK).min(corpus.len());
+        let mut codes = Vec::with_capacity((to - from) * m);
+        let mut sq_err = 0u64;
+        let mut norm_sq = 0u64;
+        for row in &corpus[from..to] {
+            for j in 0..m {
+                let v = &row[j * dsub..(j + 1) * dsub];
+                let mut best_c = 0u8;
+                let mut best_d = u32::MAX;
+                for c in 0..k {
+                    let at = (j * k + c) * dsub;
+                    let d = l2_sq_sub(v, &books[at..at + dsub]);
+                    if d < best_d {
+                        best_d = d;
+                        best_c = c as u8;
+                    }
+                }
+                codes.push(best_c);
+                sq_err += u64::from(best_d);
+                for &x in v {
+                    let q = i32::from(x);
+                    norm_sq += (q * q) as u64;
+                }
+            }
+        }
+        (codes, sq_err, norm_sq)
+    });
+    let mut codes = Vec::with_capacity(corpus.len() * m);
+    let mut sq_err = 0u64;
+    let mut norm_sq = 0u64;
+    for (c, e, n) in per_block {
+        codes.extend_from_slice(&c);
+        sq_err += e;
+        norm_sq += n;
+    }
+    (codes, sq_err as f64, norm_sq as f64)
+}
+
+/// `l2_sq` по произвольному числу измерений: те же 8 аккумуляторов и тот же порядок сложения, что
+/// у протокольного `vecdht_crypto::quant::l2_sq`, поэтому значение совпадает с контрактом §7.2 и
+/// для целого вектора, и для его подпространства. Длина обязана кратиться 8 — иначе аккумуляторы
+/// раскладываются уже не по тем координатам.
+fn l2_sq_sub(a: &[i8], b: &[i8]) -> u32 {
+    debug_assert!(a.len() == b.len() && a.len() % 8 == 0);
+    let mut acc = [0u32; 8];
+    for (ax, bx) in a.chunks_exact(8).zip(b.chunks_exact(8)) {
+        for ((av, bv), out) in ax.iter().zip(bx).zip(acc.iter_mut()) {
+            let d = *av as i32 - *bv as i32;
+            *out = out.wrapping_add((d * d) as u32);
+        }
+    }
+    let mut total = 0u32;
+    for x in acc {
+        total = total.wrapping_add(x);
+    }
+    total
+}
+
+/// Глобальные top-R по ADC-оценке с контрактом `(score ASC, id ASC)` — тот же tie-break, что у
+/// `TopK`, поэтому множество рефайна определено однозначно. Линейная вставка в отсортированный
+/// массив делается только для кандидата, прошедшего отсечение по худшему: на полном скане ячейки
+/// большинство кандидатов стоит одно сравнение.
+struct TopR {
+    cap: usize,
+    d2: Vec<u32>,
+    ids: Vec<u32>,
+}
+
+impl TopR {
+    fn new(cap: usize) -> Self {
+        Self { cap, d2: Vec::with_capacity(cap), ids: Vec::with_capacity(cap) }
+    }
+
+    fn push(&mut self, d2: u32, id: u32) {
+        let full = self.d2.len() == self.cap;
+        if full {
+            let last = self.d2.len() - 1;
+            let (wd, wi) = (self.d2[last], self.ids[last]);
+            if d2 > wd || (d2 == wd && id > wi) {
+                return;
+            }
+        }
+        let pos = self.pos(d2, id);
+        self.d2.insert(pos, d2);
+        self.ids.insert(pos, id);
+        if full {
+            self.d2.pop();
+            self.ids.pop();
+        }
+    }
+
+    /// Позиция вставки: первый элемент, строже которого пара `(d2, id)`. Бинарный поиск по тому же
+    /// сравнению, что и `push`, — иначе порядок массива перестал бы быть contract-сортировкой.
+    fn pos(&self, d2: u32, id: u32) -> usize {
+        let (mut lo, mut hi) = (0usize, self.d2.len());
+        while lo < hi {
+            let mid = (lo + hi) / 2;
+            if self.d2[mid] < d2 || (self.d2[mid] == d2 && self.ids[mid] < id) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        lo
+    }
+
+    fn len(&self) -> usize {
+        self.ids.len()
+    }
+
+    fn ids(&self) -> &[u32] {
+        &self.ids
+    }
+}
+
+/// Отпечаток корпуса для кеша кодобука: blake3 по int8-байтам всех записей плюс параметры. Кеш
+/// обязан «схлопнуться» при другом корпусе или другом `m`, иначе рука `m = 48` измерялась бы кодом,
+/// обученным при `m = 24`.
+fn pq_digest(corpus: &[[i8; DIM]], m: usize) -> [u8; 32] {
+    let mut h = blake3::Hasher::new();
+    h.update(b"vecdht-pq-cache-v1");
+    h.update(&(corpus.len() as u64).to_le_bytes());
+    h.update(&(m as u32).to_le_bytes());
+    let mut buf = [0u8; DIM];
+    for row in corpus {
+        for (d, &x) in row.iter().enumerate() {
+            buf[d] = x as u8;
+        }
+        h.update(&buf);
+    }
+    *h.finalize().as_bytes()
+}
+
+fn read_pq_cache(path: &Path, n: usize, m: usize, dsub: usize, digest: &[u8; 32]) -> Option<Pq> {
+    const TAG: &[u8; 8] = b"VDP0PQ01";
+    const HEAD: usize = 8 + 4 + 4 + 4 + 32;
+    let data = fs::read(path).ok()?;
+    let k = PQ_K.min(n);
+    let books_len = m * k * dsub;
+    if data.len() != HEAD + books_len + n * m || &data[..8] != TAG {
+        return None;
+    }
+    let c_m = u32::from_le_bytes(data[8..12].try_into().ok()?) as usize;
+    let c_k = u32::from_le_bytes(data[12..16].try_into().ok()?) as usize;
+    let c_n = u32::from_le_bytes(data[16..20].try_into().ok()?) as usize;
+    if (c_m, c_k, c_n) != (m, k, n) || &data[20..HEAD] != digest.as_slice() {
+        return None;
+    }
+    let books = data[HEAD..HEAD + books_len].iter().map(|&b| b as i8).collect();
+    let codes = data[HEAD + books_len..].to_vec();
+    Some(Pq {
+        m,
+        dsub,
+        k,
+        books,
+        codes,
+        // Цена обучения в кеше не хранится: её печатает рука, построившая кеш (`from_cache`).
+        max_iters_used: 0,
+        reassignments: 0,
+        mean_sq_error: 0.0,
+        mean_norm_sq: 0.0,
+        from_cache: false,
+    })
+}
+
+fn write_pq_cache(path: &Path, pq: &Pq, digest: &[u8; 32]) {
+    const HEAD: usize = 8 + 4 + 4 + 4 + 32;
+    let mut data = Vec::with_capacity(HEAD + pq.books.len() + pq.codes.len());
+    data.extend_from_slice(b"VDP0PQ01");
+    data.extend_from_slice(&(pq.m as u32).to_le_bytes());
+    data.extend_from_slice(&(pq.k as u32).to_le_bytes());
+    data.extend_from_slice(&((pq.codes.len() / pq.m) as u32).to_le_bytes());
+    data.extend_from_slice(digest);
+    data.extend(pq.books.iter().map(|&b| b as u8));
+    data.extend_from_slice(&pq.codes);
+    if let Err(e) = fs::write(path, &data) {
+        println!("PQ: кеш кодобука не записан ({e}) — на числа прогона это не влияет");
+    }
+}
+
+/// Цена и размер кода (`H-0022`): offline-время, размер кодобука, байт на запись и искажение
+/// геометрии. Без этих чисел утверждение «PQ дешевле» было бы неверным: при двухстадийном скане
+/// код **добавляется** к int8 (рефайн требует векторов), а не заменяет его.
+fn print_pq_stats(pq: &Pq, corpus_len: usize, secs: f64) {
+    let book_bytes = pq.books.len();
+    let code_bytes = pq.codes.len();
+    let share = if pq.mean_norm_sq > 0.0 {
+        100.0 * pq.mean_sq_error / pq.mean_norm_sq
+    } else {
+        0.0
+    };
+    let (m, k, dsub) = (pq.m, pq.k, pq.dsub);
+    let (iters, re) = (pq.max_iters_used, pq.reassignments);
+    let (mse, norm) = (pq.mean_sq_error, pq.mean_norm_sq);
+    let over = 100.0 * m as f64 / DIM as f64;
+    if pq.from_cache {
+        // Нулями статистику обучения печатать нельзя: ноль читался бы как «Lloyd сошёлся за ноль
+        // проходов» и «код не искажает геометрию».
+        println!(
+            "PQ: кодобук {m} × {k} центроидов по {dsub} измерений — {book_bytes} Б кодобука и \
+             {code_bytes} Б кода ({m} Б на запись, корпус {corpus_len} записей); offline-статистика \
+             (время, итерации Lloyd, переприсваивания, смещение кода) относится к руке, построившей \
+             кеш. RAM узла: код добавляется к int8, то есть +{m} Б/запись = +{over:.2} % к {DIM} Б \
+             вектора",
+        );
+    } else {
+        println!(
+            "PQ: кодобук {m} × {k} центроидов по {dsub} измерений построен за {secs:.1} с — \
+             {book_bytes} Б кодобука и {code_bytes} Б кода ({m} Б на запись, корпус {corpus_len} \
+             записей), Lloyd: худшее число итераций {iters}, переприсваиваний {re}; смещение кода \
+             {mse:.0} против нормы² {norm:.0} = {share:.2} %; RAM узла: код добавляется к int8, то \
+             есть +{m} Б/запись = +{over:.2} % к {DIM} Б вектора",
+        );
+    }
+    println!(
+        "PQ: {m} Б кода против {DIM} Б int8-записи — {:.1}× меньше читаемых байт на кандидата до \
+         стадии рефайна",
+        DIM as f64 / m as f64,
     );
 }
 
