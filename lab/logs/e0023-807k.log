@@ -1,0 +1,26 @@
+########## STEP 1-807k-m24-R32 ##########
+    Finished `release` profile [optimized] target(s) in 0.42s
+     Running unittests src\lib.rs (target\release\deps\vecdht_embed-c839ecd91f0682e1.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 71 filtered out; finished in 0.00s
+
+     Running tests\p0_harness.rs (target\release\deps\p0_harness-f0eccb61ac7965fc.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests\p0_real_corpus.rs (target\release\deps\p0_real_corpus-9190d43365bf20d4.exe)
+
+running 1 test
+P0(ii): корпус 807596 текстов (blake3 c1b559149b0965d294b160415481dc708ccbc609b876f8e6aff8b82a8251a738), запросы 1000 (blake3 d681413a12c6a02e646ddc815c76eee92bea706bfbec517d5c17faeaeb9eb392); потоков расчёта 8
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/corpus-807k-superset.p0emb (807596 строк)
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/queries-1k.p0emb (1000 строк)
+корпус: токенов min 4 / медиана 9 / p95 14 / max 100
+запросы: токенов min 4 / медиана 9 / p95 15 / max 31
+режим PQ (`H-0022`): 384 измерений делятся на 24 подпространств по 16 с 256 центроидами (8 бит), код = 24 Б на запись; кандидаты выбираются протокольной картой (полный скан ≤16 ячеек), оценка — ADC по целочисленной LUT, рефайн — точный int8 глобальных top-R (R=32); немодифицированная кривая этого же прогона остаётся контролем инертности `E-0012`
+k-means: k=1024, cap=1578 (2×N/nlist), max_iters=12, seed=0x5645434448540002
+режим COARSE: шард = грубая ячейка (64 ячеек над 1024 кластерами); выбранный шард сканирует все свои кластеры, fan-out считается по топ-16 ячейкам
+test gate_ii_real_corpus_recall has been running for over 60 seconds

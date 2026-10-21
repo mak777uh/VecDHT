@@ -75,11 +75,13 @@ const PQ_MAX_ITERS: usize = MAX_ITERS;
 /// фальсификатор (а) `H-0022`. Оба числа — из пре-регистрации, не из данных прогона.
 const PQ_R_TARGET: usize = 100;
 const PQ_R_FALSIFIER: usize = 1024;
-/// Сколько записей каждого запроса оценивается **и** кодом, и точным int8 — для справочного
-/// распределения ADC-ошибки. Берётся голова скана в порядке обхода, а не по расстоянию, поэтому
-/// выборка не смещена в сторону близких записей (в отличие от top-R, где ошибка минимальна по
-/// построению).
+/// Размер справочной выборки ADC-ошибки: `PQ_ERR_QUERIES` запросов × `PQ_ERR_SAMPLE` записей
+/// корпуса (первые id по порядку файла — это произвольный, не зависящий от запроса срез). Выборка
+/// считается **отдельным проходом, вне измеряемой стадии**: иначе стенд читал бы int8-байты,
+/// которые не учтены ни в байтовой модели условия (2), ни в тайминге условия (3), и PQ-рука
+/// отличалась бы от int8-руки не только «числом байт на кандидата».
 const PQ_ERR_SAMPLE: usize = 1024;
+const PQ_ERR_QUERIES: usize = 200;
 /// Контроль инертности `E-0012` при nprobe=16: `(размер корпуса, recall@10, кандидатов)`.
 /// Немодифицированная кривая этого же прогона обязана дать ровно эти числа: иначе PQ-рука
 /// измерялась бы поверх другой геометрии, чем та, что даёт гейт.
@@ -757,13 +759,16 @@ fn gate_ii_real_corpus_recall() {
         subs.as_ref(),
         sub,
         // int8-кривая: она же гейт (ii), она же контроль инертности PQ-руки (`H-0022` требует
-        // совпадения с `E-0012` до последнего знака).
+        // совпадения с `E-0012` в пределах допуска, который печатается явно).
         None,
     );
     print_curve("s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время", &points);
 
     if let Some(p) = pq_obj.as_ref() {
         print_control_inertness(&points, corpus_i8.len());
+        // Справочная точность кода — отдельный проход вне обеих измеряемых кривых, поэтому он не
+        // влияет на байтовый учёт условия (2) и на тайминг условия (3).
+        let err = pq_error_sample(p, &corpus_i8, &query_i8, threads);
         // Лестница PQ-руки — те же точки, что у int8-базы: сравнение по одному числу ячеек.
         let (pq_points, _pq_recall) = run_curve(
             &rows,
@@ -784,7 +789,7 @@ fn gate_ii_real_corpus_recall() {
             Some((p, pq_r)),
         );
         print_pq_curve(p.m, &pq_points);
-        print_pq_verdict(p.m, pq_r, &points, &pq_points);
+        print_pq_verdict(p.m, pq_r, &points, &pq_points, err);
     }
 
     // Дополнительное измерение для решения ADR-0004 (клиентская политика выбора ячеек):
@@ -1164,9 +1169,6 @@ struct AnnRun {
     /// без отбора ячеек и без распаралливания. Измеряется одинаково в обеих руках, поэтому
     /// отношение чисел — это и есть цена «меньше байт на кандидата».
     stage_secs: f64,
-    /// Относительная ADC-ошибка (`|adc − int8| / int8`) головы скана: первые `PQ_ERR_SAMPLE`
-    /// записей в порядке обхода, для которых посчитаны обе оценки. Пусто вне PQ-руки.
-    errors: Vec<f64>,
 }
 
 /// Правило оценки грубой ячейки в режиме COARSE.
@@ -1204,9 +1206,6 @@ struct CurvePoint {
     /// Среднее время стадии скана на запрос, в миллисекундах (сумма по потокам делится на число
     /// запросов). Отношение int8/PQ при равном множестве кандидатов — условие (в) `H-0022`.
     stage_ms_avg: f64,
-    /// Медиана и p95 относительной ADC-ошибки по голове скана; вне PQ-руки — нули.
-    err_median: f64,
-    err_p95: f64,
     /// Рука PQ (`H-0022`): отличает строку, где кандидатов оценивает код, от int8-строки, где их
     /// оценивает `l2_sq`. Поле, а не вывод из чисел: при `R ≥` числа кандидатов колонки
     /// «рефайнов» и «int8» совпадают, и отличить руки по ним было бы нельзя.
@@ -1295,19 +1294,6 @@ fn run_curve(
         let refined_avg = runs.iter().map(|r| r.refined).sum::<usize>() as f64 / runs.len() as f64;
         let stage_ms_avg =
             runs.iter().map(|r| r.stage_secs).sum::<f64>() * 1000.0 / runs.len() as f64;
-        // ADC-ошибка пулится по всем запросам точки: у каждого запроса своя голова скана, и
-        // средняя по 1000 головам — это распределение ошибки по корпусу, а не по одному запросу.
-        let mut errors: Vec<f64> = runs.iter().flat_map(|r| r.errors.iter().copied()).collect();
-        let (err_median, err_p95) = if errors.is_empty() {
-            (0.0, 0.0)
-        } else {
-            errors.sort_by(|a, b| a.total_cmp(b));
-            let at = |q: f64| {
-                let i = ((errors.len() as f64 - 1.0) * q).round() as usize;
-                errors[i.min(errors.len() - 1)]
-            };
-            (at(0.5), at(0.95))
-        };
         points.push(CurvePoint {
             nprobe,
             recall,
@@ -1322,8 +1308,6 @@ fn run_curve(
             dropped_avg,
             refined_avg,
             stage_ms_avg,
-            err_median,
-            err_p95,
             pq_arm: pq.is_some(),
         });
     }
@@ -1390,13 +1374,13 @@ fn pq_bytes(m: usize, candidates: f64, refined: f64) -> (f64, f64, f64) {
 /// условие (б) за общей колонкой.
 fn print_pq_curve(m: usize, points: &[CurvePoint]) {
     println!(
-        "PQ (m={m}, код {m} Б на запись): nprobe  recall@10 (min)  fan-out  кандидатов  рефайнов  Б/запрос  доля от int8  мс/стадия  ADC med/p95  время"
+        "PQ (m={m}, код {m} Б на запись): nprobe  recall@10 (min)  fan-out  кандидатов  рефайнов  Б/запрос  доля от int8  мс/стадия  время"
     );
     for p in points.iter().filter(|p| p.pq_arm) {
         let (bytes, _, share) = pq_bytes(m, p.candidates_avg, p.refined_avg);
         println!(
             "{:>6}  {:.4} (min {:.2})  {:>5.1}/{:<3}  {:>9.1}  {:>9.1}  {:>10.0}  {:>7.1} %  \
-             {:>8.2}  {:.4}/{:.4}  {:.1} с",
+             {:>8.2}  {:.1} с",
             p.nprobe,
             p.recall,
             p.recall_min,
@@ -1407,8 +1391,6 @@ fn print_pq_curve(m: usize, points: &[CurvePoint]) {
             bytes,
             share,
             p.stage_ms_avg,
-            p.err_median,
-            p.err_p95,
             p.secs
         );
     }
@@ -1445,7 +1427,13 @@ fn print_control_inertness(points: &[CurvePoint], corpus_len: usize) {
 /// Вердикт `H-0022` по трём пре-регистрированным условиям. Ничего не assert'ится и прогон не
 /// прерывается: рука обязана отпечататься при каждом R из лестницы {32, 100, 256, 1024}, а вывод
 /// делается по собранной таблице, а не по первой упавшей точке.
-fn print_pq_verdict(m: usize, r: usize, control: &[CurvePoint], pq: &[CurvePoint]) {
+fn print_pq_verdict(
+    m: usize,
+    r: usize,
+    control: &[CurvePoint],
+    pq: &[CurvePoint],
+    err: (f64, f64, usize, usize),
+) {
     let base = control.iter().find(|p| p.nprobe == NPROBE_GATE);
     let gate = pq.iter().find(|p| p.nprobe == NPROBE_GATE);
     let (Some(base), Some(gate)) = (base, gate) else {
@@ -1455,6 +1443,7 @@ fn print_pq_verdict(m: usize, r: usize, control: &[CurvePoint], pq: &[CurvePoint
         return;
     };
     let (bytes, int8, share) = pq_bytes(m, gate.candidates_avg, gate.refined_avg);
+    let (err_med, err_p95, err_n, err_skip) = err;
     let speedup = if gate.stage_ms_avg > 0.0 { base.stage_ms_avg / gate.stage_ms_avg } else { 0.0 };
     println!("PQ (H-0022/E-0023): m={m}, код {m} Б на запись, R={r}, nprobe={NPROBE_GATE}:");
     println!(
@@ -1487,10 +1476,9 @@ fn print_pq_verdict(m: usize, r: usize, control: &[CurvePoint], pq: &[CurvePoint
         if gate.secs > 0.0 { base.secs / gate.secs } else { 0.0 }
     );
     println!(
-        "  справочно: относительная ADC-ошибка головы скана med {:.4} / p95 {:.4} (выборка по {} записей на запрос в порядке обхода, не по top-R); фальсификатор (а) в намеренной формулировке звучит как «ни одна точка лестницы R ≤ {PQ_R_FALSIFIER} не даёт recall ≥ 0,95», поэтому по одной руке он не решается: эта рука при R={r} дает recall {:.4} — {}",
-        gate.err_median,
-        gate.err_p95,
-        PQ_ERR_SAMPLE,
+        "  справочно: относительная ADC-ошибка med {:.4} / p95 {:.4} по {err_n} парам «запрос × запись» (срез: {PQ_ERR_QUERIES} запросов × первые {PQ_ERR_SAMPLE} записей, {err_skip} пар с нулевым точным расстоянием отброшено); считается отдельным проходом вне измеряемой стадии и потому не входит ни в байты условия (2), ни в время условия (3). Фальсификатор (а) в намеренной формулировке звучит как «ни одна точка лестницы R ≤ {PQ_R_FALSIFIER} не даёт recall ≥ 0,95», поэтому по одной руке он не решается: эта рука при R={r} дает recall {:.4} — {}",
+        err_med,
+        err_p95,
         gate.recall,
         if gate.recall >= 0.95 { "эта точка ВЫШЕ 0,95, (а) опровергнут самой лестницей" } else { "эта точка ниже 0,95" }
     );
@@ -1823,7 +1811,6 @@ fn ann_search(
     let mut candidates = 0;
     let mut scanned = 0usize;
     let mut refined = 0usize;
-    let mut errors: Vec<f64> = Vec::new();
     // Границы стадии «прочитать кандидатов и оценить их» одинаковы в обеих руках, поэтому их
     // отношение — это и есть измеряемая цена условия (в) `H-0022`, а не разница whole-run времён.
     let stage_started = Instant::now();
@@ -1872,22 +1859,6 @@ fn ann_search(
                         let adc = pq.score(&lut, id as usize);
                         sel.push(adc, id);
                         candidates += 1;
-                        // Справочное распределение ADC-ошибки: первые `PQ_ERR_SAMPLE` записей в
-                        // порядке обхода, то есть выборка не смещена в сторону близких записей (в
-                        // отличие от top-R, где она минимальна по построению). Нулевое точное
-                        // расстояние — совпадение запроса с записью — в относительной мере не
-                        // определено и из выборки выпадало бы молча, поэтому считается и оно.
-                        if errors.len() < PQ_ERR_SAMPLE {
-                            let exact = l2_sq(query, &corpus[id as usize]);
-                            let rel = if exact == 0 && adc == 0 {
-                                0.0
-                            } else if exact == 0 {
-                                f64::MAX
-                            } else {
-                                (adc as f64 - exact as f64).abs() / exact as f64
-                            };
-                            errors.push(rel);
-                        }
                     }
                 }
             }
@@ -1922,7 +1893,6 @@ fn ann_search(
         ids_uncapped,
         refined,
         stage_secs,
-        errors,
     }
 }
 
@@ -2255,6 +2225,9 @@ fn pq_subspace(corpus: &[[i8; DIM]], off: usize, dsub: usize) -> (Vec<i8>, usize
     let k = PQ_K.min(n);
     // Первый центр — запись с наименьшим id, каждый следующий — максимально удалённый от уже
     // взятых (при равенстве — наименьшая позиция): генератора нет, построение воспроизводимо.
+    // `nearest` обновляется СРАЗУ после каждого выбора, включая первый: иначе вторая точка
+    // выбирается из массива, где всюду `u32::MAX`, снова получает id 0 и кодобук содержит
+    // дублированный центроид (то есть k−1 полезных центров вместо k).
     let mut chosen: Vec<usize> = Vec::with_capacity(k);
     let mut nearest = vec![u32::MAX; n];
     while chosen.len() < k {
@@ -2272,14 +2245,14 @@ fn pq_subspace(corpus: &[[i8; DIM]], off: usize, dsub: usize) -> (Vec<i8>, usize
                 }
             }
             let Some((_, pos)) = best else { break };
-            for (p, d) in nearest.iter_mut().enumerate() {
-                let nd = l2_sq_sub(&corpus[pos][off..off + dsub], &corpus[p][off..off + dsub]);
-                if nd < *d {
-                    *d = nd;
-                }
-            }
             pos
         };
+        for (p, d) in nearest.iter_mut().enumerate() {
+            let nd = l2_sq_sub(&corpus[pick][off..off + dsub], &corpus[p][off..off + dsub]);
+            if nd < *d {
+                *d = nd;
+            }
+        }
         chosen.push(pick);
     }
     let mut centroids: Vec<i8> = Vec::with_capacity(k * dsub);
@@ -2437,7 +2410,10 @@ struct TopR {
 
 impl TopR {
     fn new(cap: usize) -> Self {
-        Self { cap, d2: Vec::with_capacity(cap), ids: Vec::with_capacity(cap) }
+        // `push` вычисляет `len() - 1` и `pos` в предположении непустого предела; R разбирается
+        // из окружения с assert'ом ниже по тесту, но стенд не должен падать по арифметике.
+        debug_assert!(cap > 0, "TopR требует ненулевой предел");
+        Self { cap: cap.max(1), d2: Vec::with_capacity(cap), ids: Vec::with_capacity(cap) }
     }
 
     fn push(&mut self, d2: u32, id: u32) {
@@ -2487,7 +2463,7 @@ impl TopR {
 /// обученным при `m = 24`.
 fn pq_digest(corpus: &[[i8; DIM]], m: usize) -> [u8; 32] {
     let mut h = blake3::Hasher::new();
-    h.update(b"vecdht-pq-cache-v1");
+    h.update(b"vecdht-pq-cache-v2");
     h.update(&(corpus.len() as u64).to_le_bytes());
     h.update(&(m as u32).to_le_bytes());
     let mut buf = [0u8; DIM];
@@ -2501,7 +2477,10 @@ fn pq_digest(corpus: &[[i8; DIM]], m: usize) -> [u8; 32] {
 }
 
 fn read_pq_cache(path: &Path, n: usize, m: usize, dsub: usize, digest: &[u8; 32]) -> Option<Pq> {
-    const TAG: &[u8; 8] = b"VDP0PQ01";
+    // v2: farthest-first инициализация обновляет `nearest` после каждого центра (до этого второй
+    // центр совпадал с первым, и кодобук имел k−1 полезных центров); кеш, построенный прежним
+    // построителем, обязан быть отвергнут, а не подтянут в новую руку.
+    const TAG: &[u8; 8] = b"VDP0PQ02";
     const HEAD: usize = 8 + 4 + 4 + 4 + 32;
     let data = fs::read(path).ok()?;
     let k = PQ_K.min(n);
@@ -2535,7 +2514,7 @@ fn read_pq_cache(path: &Path, n: usize, m: usize, dsub: usize, digest: &[u8; 32]
 fn write_pq_cache(path: &Path, pq: &Pq, digest: &[u8; 32]) {
     const HEAD: usize = 8 + 4 + 4 + 4 + 32;
     let mut data = Vec::with_capacity(HEAD + pq.books.len() + pq.codes.len());
-    data.extend_from_slice(b"VDP0PQ01");
+    data.extend_from_slice(b"VDP0PQ02");
     data.extend_from_slice(&(pq.m as u32).to_le_bytes());
     data.extend_from_slice(&(pq.k as u32).to_le_bytes());
     data.extend_from_slice(&((pq.codes.len() / pq.m) as u32).to_le_bytes());
@@ -2545,6 +2524,50 @@ fn write_pq_cache(path: &Path, pq: &Pq, digest: &[u8; 32]) {
     if let Err(e) = fs::write(path, &data) {
         println!("PQ: кеш кодобука не записан ({e}) — на числа прогона это не влияет");
     }
+}
+
+/// Справочная точность кода (`E-0023`; порогом не является): медиана и p95 относительной ошибки
+/// ADC на срезе, не зависящем от запроса, — `PQ_ERR_QUERIES` запросов × первые `PQ_ERR_SAMPLE`
+/// записей корпуса. Ошибка определена как `|adc − l2_sq| / l2_sq`; пары с нулевым точным
+/// расстоянием (запрос совпал с записью) отброшены и печатаются отдельным числом, потому что
+/// иначе отношение обращается в inf. Проход идёт **вне** измеряемой стадии скана: если считать
+/// ошибку внутри неё, стенд читал бы int8-байты, которые не учтены ни в модели условия (2), ни в
+/// тайминге условия (3), и PQ-рука отличалась бы от int8-руки уже не «числом байт на кандидата».
+fn pq_error_sample(
+    pq: &Pq,
+    corpus: &[[i8; DIM]],
+    queries: &[[i8; DIM]],
+    threads: usize,
+) -> (f64, f64, usize, usize) {
+    let recs = PQ_ERR_SAMPLE.min(corpus.len());
+    let qs = PQ_ERR_QUERIES.min(queries.len());
+    let per_query: Vec<(Vec<f64>, usize)> = parallel_map(qs, threads.max(1), |qi| {
+        let lut = pq.lut(&queries[qi]);
+        let mut v: Vec<f64> = Vec::with_capacity(recs);
+        let mut skipped = 0usize;
+        for (id, row) in corpus[..recs].iter().enumerate() {
+            let exact = f64::from(l2_sq(&queries[qi], row));
+            if exact == 0.0 {
+                skipped += 1;
+                continue;
+            }
+            v.push((f64::from(pq.score(&lut, id)) - exact).abs() / exact);
+        }
+        (v, skipped)
+    });
+    let mut all: Vec<f64> = Vec::with_capacity(recs * qs);
+    let mut skipped_total = 0usize;
+    for (v, s) in per_query {
+        all.extend(v);
+        skipped_total += s;
+    }
+    let n = all.len();
+    if n == 0 {
+        return (0.0, 0.0, 0, skipped_total);
+    }
+    all.sort_unstable_by(|a, b| a.partial_cmp(b).expect("ошибка ADC конечна"));
+    let quantile = |p: f64| all[((n - 1) as f64 * p).round() as usize];
+    (quantile(0.5), quantile(0.95), n, skipped_total)
 }
 
 /// Цена и размер кода (`H-0022`): offline-время, размер кодобука, байт на запись и искажение
