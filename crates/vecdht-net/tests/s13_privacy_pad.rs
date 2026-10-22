@@ -107,6 +107,9 @@ struct Sniffer {
     caught: Vec<(Instant, Vec<u8>)>,
     /// `d2`, который index-node объявляет в ответе. 0 — «идеальное совпадение».
     d2: u32,
+    /// Фактические адреса слушателя: порт 0 выбирает ОС, и адрес известен только из
+    /// `SwarmEvent::NewListenAddr`.
+    addrs: Vec<Multiaddr>,
 }
 
 impl Sniffer {
@@ -123,7 +126,7 @@ impl Sniffer {
             tlv: Vec::new(),
         }
         .encode_unsigned();
-        let swarm = SwarmBuilder::with_existing_identity(keys::keypair(&id))
+        let mut swarm = SwarmBuilder::with_existing_identity(keys::keypair(&id))
             .with_tokio()
             .with_quic()
             .with_behaviour(|_key| {
@@ -142,7 +145,8 @@ impl Sniffer {
             .expect("собрать поведение сниффера")
             .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
             .build();
-        Self { swarm, id, greeting, caught: Vec::new(), d2 }
+        swarm.listen_on(quic_addr()).expect("сниффер слушает QUIC");
+        Self { swarm, id, greeting, caught: Vec::new(), d2, addrs: Vec::new() }
     }
 
     async fn step(&mut self) {
@@ -153,6 +157,10 @@ impl Sniffer {
     }
 
     fn on_event(&mut self, ev: SwarmEvent<SnifferBehaviourEvent>) {
+        if let SwarmEvent::NewListenAddr { address, .. } = &ev {
+            self.addrs.push(address.clone());
+            return;
+        }
         let SwarmEvent::Behaviour(SnifferBehaviourEvent::Frames(ev)) = ev else { return };
         let request_response::Event::Message { message, .. } = ev else { return };
         let request_response::Message::Request { request, channel, .. } = message else { return };
@@ -209,7 +217,7 @@ const FIND_OVERHEAD: usize = 503;
 async fn wait_listen(s: &mut Sniffer) -> Multiaddr {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
     loop {
-        if let Some(a) = s.swarm.listeners().next().cloned() {
+        if let Some(a) = s.addrs.first().cloned() {
             return a;
         }
         assert!(tokio::time::Instant::now() < deadline, "listener сниффера не поднялся за 10 с");
@@ -258,7 +266,12 @@ async fn pump_until_outcome(
 
 /// Дожаться конца потока: сниффер мог получить последний `Find` уже после возврата агента.
 async fn drain(sniffer: &mut Sniffer) {
-    let deadline = tokio::time::Instant::now() + Duration::from_millis(500);
+    drain_for(sniffer, Duration::from_millis(500)).await;
+}
+
+/// Дожаться конца потока за указанное окно.
+async fn drain_for(sniffer: &mut Sniffer, window: Duration) {
+    let deadline = tokio::time::Instant::now() + window;
     while tokio::time::Instant::now() < deadline {
         sniffer.step().await;
         tokio::time::sleep(Duration::from_millis(2)).await;
@@ -455,6 +468,9 @@ fn the_second_shard_waits_for_the_first() {
                     .await
                     .expect("поиск завершился отказом");
                 drain(&mut sniffer).await;
+                eprintln!("ДИАГНОЗ: отказы = {:?}", outcome.failures);
+                eprintln!("ДИАГНОЗ: ответов = {:?}", outcome.answers.len());
+                eprintln!("ДИАГНОЗ: поймано кадров = {}", sniffer.caught.len());
 
                 assert!(
                     outcome.failures.iter().any(|f| f.shard == 3),
@@ -474,6 +490,108 @@ fn the_second_shard_waits_for_the_first() {
                 assert!(
                     delay >= Duration::from_millis(1600),
                     "`Find` второй группы ушёл через {delay:?} — ожидалось ≥1,6 с (последовательно)"
+                );
+            })
+            .await;
+    });
+}
+
+// --- (5′) --------------------------------------------------------------------
+
+/// (5′a) Пропадание, а не задержка: `Find` следующей группы не доходит до провода вовсе.
+/// (5′b) Контроль: с владельцем у обеих групп оба `Find` доходят до провода.
+#[test]
+fn a_missing_owner_drops_the_next_groups_find_off_the_wire() {
+    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+    rt.block_on(async {
+        let local = LocalSet::new();
+        local
+            .run_until(async {
+                // --- (5′a): владельца у шарда 3 нет ---
+                let mut sniffer = Sniffer::new(SNIFFER_SEED, vec![SHARD], 4321);
+                let addr = wait_listen(&mut sniffer).await;
+                let call_timeout = Duration::from_secs(2);
+                let mut agent = Agent::new(
+                    testing::identity(AGENT_SEED),
+                    agent_network(),
+                    agent_cfg(vec![addr], call_timeout),
+                )
+                .expect("агент");
+                pump_handshake(&mut agent, &mut sniffer).await;
+
+                let query = FindQuery::new(testing::vector(3), vec![48, 112], 10);
+                let (tx, mut rx) = oneshot::channel();
+                local.spawn_local(async move {
+                    let r = agent.find(&query).await;
+                    let _ = tx.send(r);
+                });
+                let outcome = pump_until_outcome(&mut sniffer, &mut rx)
+                    .await
+                    .expect("поиск завершился отказом");
+                // Окно втрое больше прежнего: «не пойман» должно означать «не ушёл», а не
+                // «не успел дойти».
+                drain_for(&mut sniffer, Duration::from_secs(3)).await;
+
+                let caught_seven = sniffer
+                    .caught
+                    .iter()
+                    .filter(|(_, bytes)| {
+                        let q = Find::decode(bytes).expect("Find разбирается");
+                        shard_of(q.clusters[0]) == SHARD
+                    })
+                    .count();
+                // (п) фальсификатор: кадр дошёл бы — (5′a) падает.
+                assert_eq!(
+                    caught_seven, 0,
+                    "`Find` по шарду 7 дошёл до провода — пропадания нет"
+                );
+                let reason_three = outcome
+                    .failures
+                    .iter()
+                    .find(|f| f.shard == 3)
+                    .map(|f| f.reason.clone())
+                    .unwrap_or_else(|| "<нет отказа>".to_string());
+                assert_eq!(reason_three, "нет доступного держателя", "отказ по шарду 3");
+                let reason_seven = outcome
+                    .failures
+                    .iter()
+                    .find(|f| f.shard == 7)
+                    .map(|f| f.reason.clone())
+                    .unwrap_or_else(|| "<нет отказа>".to_string());
+                // (р) фальсификатор: «не отправлен» означало бы, что запрос не поставлен в
+                // очередь, и механика была бы другой.
+                assert_eq!(
+                    reason_seven, "ответ не пришёл за 2s",
+                    "отказ по шарду 7: агент считает кадр отправленным"
+                );
+
+                // --- (5′b) контроль: владелец есть у обеих групп ---
+                let mut sniffer2 = Sniffer::new(SNIFFER_SEED + 1, vec![3, SHARD], 4321);
+                let addr2 = wait_listen(&mut sniffer2).await;
+                let mut agent2 = Agent::new(
+                    testing::identity(AGENT_SEED + 1),
+                    agent_network(),
+                    agent_cfg(vec![addr2], call_timeout),
+                )
+                .expect("агент");
+                pump_handshake(&mut agent2, &mut sniffer2).await;
+                let query2 = FindQuery::new(testing::vector(3), vec![48, 112], 10);
+                let (tx2, mut rx2) = oneshot::channel();
+                local.spawn_local(async move {
+                    let r = agent2.find(&query2).await;
+                    let _ = tx2.send(r);
+                });
+                let outcome2 = pump_until_outcome(&mut sniffer2, &mut rx2)
+                    .await
+                    .expect("поиск завершился отказом");
+                drain_for(&mut sniffer2, Duration::from_secs(3)).await;
+                assert!(outcome2.failures.is_empty(), "отказы шардов: {:?}", outcome2.failures);
+                // (с) фальсификатор: на провод вышло не 2 кадра — (5′b) падает.
+                assert_eq!(
+                    sniffer2.caught.len(),
+                    2,
+                    "поймано кадров при владельцах у обеих групп: {:?}",
+                    sniffer2.caught.len()
                 );
             })
             .await;
