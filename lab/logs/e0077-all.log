@@ -568,3 +568,291 @@ test result: FAILED. 4 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; 
 
 error: test failed, to rerun pass `-p vecdht-net --test s13_privacy_pad`
 EXIT=101
+=== E-0077 прогон 2026-10-23T02:20:53+03:00 ===
+1a8d8e9
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+### BUILD --no-run ### 2026-10-23T02:20:53+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.66s
+  Executable tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+EXIT=0
+### RUN --nocapture ### 2026-10-23T02:20:54+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+
+running 6 tests
+test a_node_accepts_a_find_with_a_pad_tail ... ok
+test a_find_frame_has_a_fixed_overhead_and_carries_no_pad ... ok
+test a_lying_node_can_fabricate_a_distance_and_nobody_checks_it ... ok
+test a_full_scan_is_sixteen_frames_not_one_long_one ... ok
+ДИАГНОЗ: отказы = [ShardFailure { shard: 3, reason: "нет доступного держателя" }, ShardFailure { shard: 7, reason: "ответ не пришёл за 2s" }]
+ДИАГНОЗ: ответов = 0
+ДИАГНОЗ: поймано кадров = 0
+
+thread 'the_second_shard_waits_for_the_first' (33412) panicked at crates\vecdht-net\tests\s13_privacy_pad.rs:488:17:
+assertion `left == right` failed: поймано `Find` по шарду 7: 0
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test the_second_shard_waits_for_the_first ... FAILED
+test a_missing_owner_drops_the_next_groups_find_off_the_wire ... ok
+
+failures:
+
+failures:
+    the_second_shard_waits_for_the_first
+
+test result: FAILED. 5 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.61s
+
+error: test failed, to rerun pass `-p vecdht-net --test s13_privacy_pad`
+EXIT=101
+### ИНВЕНТАРЬ ###
+-- в агенте нет ни функции расстояния, ни репутации, ни штрафа:
+(совпадений нет)
+-- то же по всему дереву пакетов:
+(совпадений нет)
+-- int8-вектор несут только три сообщения wire:
+224:    pub vec_q: [i8; DIM],
+246:        w.vec_q(&self.vec_q);
+266:        let vec_q = r.vec_q()?;
+278:            vec_q,
+363:        w.vec_q(&self.query_vector);
+373:        let query_vector = r.vec_q()?;
+829:    pub vec_q: [i8; DIM],
+838:        w.vec_q(&self.vec_q);
+846:        let vec_q = r.vec_q()?;
+851:        Ok(InsertOp { owner_ed25519, vec_q, cluster_id, published_bucket, ttl_buckets })
+1206:            vec_q: v,
+1313:                vec_q: [-2i8; DIM],
+-- агент строит Find с пустым TLV — носителя pad нет:
+503:                    tlv: Vec::new(),
+657:                tlv: Vec::new(),
+1167:            tlv: Vec::new(),
+-- поля pad-цели в конфигах нет:
+(слова pad нет)
+-- один Find на шард, разрешение кандидатов ждёт предыдущий кадр:
+634:        for (shard, clusters) in groups {
+635-            let candidates = match self.candidates(shard, deadline).await {
+636-                Ok(c) => c,
+637-                Err(AgentError::NoBootstrap) => return Err(AgentError::NoBootstrap),
+638-                Err(e) => {
+639-                    first_error.get_or_insert(e);
+640-                    failures.push(ShardFailure { shard, reason: "нет доступного держателя".into() });
+1369:fn group_clusters(clusters: &[u16]) -> Vec<(u16, Vec<u16>)> {
+1370-    let mut out: BTreeMap<u16, Vec<u16>> = BTreeMap::new();
+1371-    for c in clusters {
+1372-        let list = out.entry(shard_of(*c)).or_default();
+1373-        if !list.contains(c) {
+1374-            list.push(*c);
+1375-        }
+1376-    }
+1377-    out.into_iter().collect()
+1378-}
+1379-
+1380-/// Протокольный бакет текущего времени. Единственное место, где агент смотрит на системные
+1381-/// часы до отправки: `published_bucket` и expiry — из §9.6, а не из `TimeMark` узла; узел
+1382-/// сверит их со своей политикой приёма.
+1383-struct Clock;
+1384-
+1385-impl Clock {
+-- длина тела Find и подпись кадра:
+343:pub struct Find {
+344-    pub preprocessing_version: u16,
+345-    pub query_vector: [i8; DIM],
+346-    /// Кластеры этого узла, входящие в nprobe-множество запроса (§7.5).
+347-    pub clusters: Vec<u16>,
+348-    pub top_k: u16,
+349-    /// Anti-replay: идентификатор запроса, живёт в теле (§14.3).
+350-    pub query_id: u64,
+351-    pub requester_ed25519: [u8; 32],
+352-    pub tlv: Tlv,
+353-}
+354-
+355-pub const TLV_BATCH_HINT: u16 = 0x0001;
+356-
+357-impl Codec for Find {
+358-    const KIND: Kind = Kind::Find;
+359-    const DOMAIN: &'static [u8] = domain::FIND;
+165:pub fn encode_frame(kind: Kind, body: &[u8], signature: Option<&[u8]>) -> Vec<u8> {
+166-    let mut w = Writer::new();
+167-    w.u8(kind as u8);
+168-    w.u8(PROTOCOL_VERSION);
+169-    w.u16(if signature.is_some() { FLAG_SIGNED } else { 0 });
+170-    w.u32(body.len() as u32);
+171-    w.extend_raw(body);
+172-    if let Some(sig) = signature {
+173-        assert_eq!(sig.len(), ED25519_SIG_LEN, "v8 знает только Ed25519: подпись ровно 64 байта");
+174-        w.u8(sig.len() as u8);
+175-        w.extend_raw(sig);
+176-    }
+177-    w.into_vec()
+178-}
+179-
+180-/// `body` — канонические байты тела, по которым считается `sig_input` (§5.2).
+181-pub fn sig_input(domain: &[u8], kind: Kind, flags: u16, body: &[u8]) -> Vec<u8> {
+182-    let mut w = Writer::new();
+183-    w.extend_raw(domain);
+184-    w.u8(kind as u8);
+185-    w.u8(PROTOCOL_VERSION);
+-- проверка ответа: d2 не сверяется, пересчёта нет:
+1215:    fn verify_match_result(
+1216-        &self,
+1217-        from: PeerId,
+1218-        shard: u16,
+1219-        frame: &Frame<'_>,
+1220-        res: &MatchResult,
+1221-    ) -> Result<(), AgentError> {
+1222-        if frame.header.kind != Kind::MatchResult {
+1223-            return Err(AgentError::BadAnswer("кадр не MatchResult".into()));
+1224-        }
+1225-        if res.shard != shard {
+1226-            return Err(AgentError::BadAnswer(format!(
+1227-                "MatchResult по шарду {}, а запрос — по {shard}",
+1228-                res.shard
+1229-            )));
+1230-        }
+1231-        let who = self
+1232-            .net
+1233-            .peer_identity(&from)
+1234-            .ok_or_else(|| AgentError::BadAnswer(format!("{from}: нет handshake")))?;
+1235-        if who.role != Role::IndexNode {
+1236-            return Err(AgentError::BadAnswer(format!(
+1237-                "{from}: ответ подписан ролью {:?}",
+1238-                who.role
+1239-            )));
+1240-        }
+1241-        if !who.covers_shard(shard) {
+1242-            return Err(AgentError::BadAnswer(format!(
+1243-                "{from}: кредашиал не покрывает шард {shard}"
+1244-            )));
+1245-        }
+1246-        if who.owner != res.responder_ed25519 {
+1247-            return Err(AgentError::BadAnswer(format!(
+1248-                "{from}: responder_ed25519 не совпал с транспортом"
+1249-            )));
+1250-        }
+1251-        let sig: [u8; 64] = frame
+1252-            .signature
+1253-            .ok_or_else(|| AgentError::BadAnswer("MatchResult без подписи".into()))?
+1254-            .try_into()
+1255-            .map_err(|_| AgentError::BadAnswer("подпись MatchResult не 64 байта".into()))?;
+1256-        if !verify_body(&who.owner, domain::MATCH, Kind::MatchResult, frame.body, &sig)
+1257-            .unwrap_or(false)
+1258-        {
+1259-            return Err(AgentError::BadAnswer(format!("{from}: подпись MatchResult не сходится")));
+1260-        }
+-- §13.3 обещает джиттер 0–150 мс, pad до 512 и 1024:
+1351:Заметнее риска инверсии: из набора `cluster_id`, которые агент зондирует, наблюдатель пути (upstream, ISP, оператор relay) выводит грубый семантический профиль запроса — 16 из 1024 кластеров ≈ 6 бит информации на запрос, и это повторяющийся сигнал. Митигация в v1: соединение с владельцами шардов не коррелирует по времени (параллельный fan-out с джиттером 0–150 мс), pad до фиксированного `Find`-размера (384+2·nprobe+~40 ≈ круглое 512 байт), и никаких общих соединений с агрегатором, которого в v8 нет. Полное решение (mix-запросы, cover traffic) — §20.2, строка 7.
+1351:Заметнее риска инверсии: из набора `cluster_id`, которые агент зондирует, наблюдатель пути (upstream, ISP, оператор relay) выводит грубый семантический профиль запроса — 16 из 1024 кластеров ≈ 6 бит информации на запрос, и это повторяющийся сигнал. Митигация в v1: соединение с владельцами шардов не коррелирует по времени (параллельный fan-out с джиттером 0–150 мс), pad до фиксированного `Find`-размера (384+2·nprobe+~40 ≈ круглое 512 байт), и никаких общих соединений с агрегатором, которого в v8 нет. Полное решение (mix-запросы, cover traffic) — §20.2, строка 7.
+1354:перечисляет все 16 кластеров каждого из 16 шардов, то есть кадр несёт 256 `u16` — 512 байт
+-- §14.2 обещает re-computation, reputation и штраф:
+1382:- **verifiable re-computation:** `MatchResult` содержит `slot` и `l2_sq`; агент, скачав запись (или доверяя ей как gossip), может пересчитать `l2_sq(q, v)` сам по int8-байтам и сравнить — это константная проверка на одном векторе, а не эвристика;
+1702:- врущий index-node: добавленный/подменённый кандидат ⇒ не проходит `IntentTextResponse.sig` или verifiable re-computation (§14.2) ⇒ owner в penalty table;
+1721:одного кластера (агент опрашивает по одному узлу на шард) и verifiable re-computation `l2_sq`
+1383:- запись в ответе обязана подтверждаться подписью автора (`IntentTextResponse.sig`), иначе owner попадает в локальный reputation table и исключается из display;
+1719:Чего в v1 нет и что поэтому **не** объявлено проверенным: penalty/reputation table (§14.2 —
+1384:- узел, возвращающий кандидатов, недоступных для dial'а, штрафуется (как и предусматривал v7.5).
+-- §19.3 перечисляет, чего в v1 нет:
+1719:Чего в v1 нет и что поэтому **не** объявлено проверенным: penalty/reputation table (§14.2 —
+1720-клиентская политика показа; репутационный слой исключён §20.5), сигнал расхождения владельцев
+1721-одного кластера (агент опрашивает по одному узлу на шард) и verifiable re-computation `l2_sq`
+1722-агентом (в v1 агент не скачивает байты записи). Это работа P6/P7. Криптографический барьер —
+1723-подпись владельца и привязка PoW — уже делает ложь бесполезной, но он не заменяет перечисленные
+1718-
+1719-Чего в v1 нет и что поэтому **не** объявлено проверенным: penalty/reputation table (§14.2 —
+1720-клиентская политика показа; репутационный слой исключён §20.5), сигнал расхождения владельцев
+1721:одного кластера (агент опрашивает по одному узлу на шард) и verifiable re-computation `l2_sq`
+-- wire и спека не тронуты этим циклом:
+-- оракул E-0077:
+298:#[test]
+299-fn a_find_frame_has_a_fixed_overhead_and_carries_no_pad() {
+--
+388:#[test]
+389-fn a_full_scan_is_sixteen_frames_not_one_long_one() {
+--
+438:#[test]
+439-fn the_second_shard_waits_for_the_first() {
+--
+503:#[test]
+504-fn a_missing_owner_drops_the_next_groups_find_off_the_wire() {
+--
+606:#[test]
+607-fn a_lying_node_can_fabricate_a_distance_and_nobody_checks_it() {
+--
+692:#[test]
+693-fn a_node_accepts_a_find_with_a_pad_tail() {
+### КОНТРОЛЬ vecdht-net ### 2026-10-23T02:21:04+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.85s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-502162b5780742df.exe)
+
+running 22 tests
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-5cee7e68d1cbde1d.exe)
+
+running 1 test
+test egress_bytes_per_query has been running for over 60 seconds
+test egress_bytes_per_query ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 123.43s
+
+     Running tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+
+running 6 tests
+test a_node_accepts_a_find_with_a_pad_tail ... ok
+test a_find_frame_has_a_fixed_overhead_and_carries_no_pad ... FAILED
+test a_lying_node_can_fabricate_a_distance_and_nobody_checks_it ... ok
+test a_full_scan_is_sixteen_frames_not_one_long_one ... ok
+test the_second_shard_waits_for_the_first ... FAILED
+test a_missing_owner_drops_the_next_groups_find_off_the_wire ... ok
+
+failures:
+
+---- a_find_frame_has_a_fixed_overhead_and_carries_no_pad stdout ----
+
+thread 'a_find_frame_has_a_fixed_overhead_and_carries_no_pad' (22268) panicked at crates\vecdht-net\tests\s13_privacy_pad.rs:376:17:
+разброс прихода `Find` = 22.1174ms — джиттер есть
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- the_second_shard_waits_for_the_first stdout ----
+ДИАГНОЗ: отказы = [ShardFailure { shard: 3, reason: "нет доступного держателя" }, ShardFailure { shard: 7, reason: "ответ не пришёл за 2s" }]
+ДИАГНОЗ: ответов = 0
+ДИАГНОЗ: поймано кадров = 0
+
+thread 'the_second_shard_waits_for_the_first' (15812) panicked at crates\vecdht-net\tests\s13_privacy_pad.rs:488:17:
+assertion `left == right` failed: поймано `Find` по шарду 7: 0
+  left: 0
+ right: 1
+
+
+failures:
+    a_find_frame_has_a_fixed_overhead_and_carries_no_pad
+    the_second_shard_waits_for_the_first
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.70s
+
+error: test failed, to rerun pass `-p vecdht-net --test s13_privacy_pad`
+EXIT=101

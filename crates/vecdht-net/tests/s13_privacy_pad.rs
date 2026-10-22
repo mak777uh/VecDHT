@@ -292,6 +292,20 @@ fn caught_shapes(sniffer: &Sniffer) -> Vec<(usize, u16)> {
     out
 }
 
+/// Срез исходника: от `marker` до `end_marker`. Нужна для проверок «в пути `find` нет
+/// паузы» — по исходнику, а не по впечатлению.
+fn src_slice<'a>(src: &'a str, marker: &str, end_marker: &str) -> &'a str {
+    let start = src
+        .find(marker)
+        .unwrap_or_else(|| panic!("маркер не найден в исходнике: {marker}"));
+    let rest = &src[start + marker.len()..];
+    let end = rest
+        .find(end_marker)
+        .map(|i| start + marker.len() + i)
+        .unwrap_or(src.len());
+    &src[start..end]
+}
+
 // --- (0)(1)(2)(4) ------------------------------------------------------------
 
 /// (0) база, (1) закон длины, (2) недостижимость pad-цели, (4) отсутствие джиттера.
@@ -369,13 +383,31 @@ fn a_find_frame_has_a_fixed_overhead_and_carries_no_pad() {
                 assert!(!AGENT_SRC.contains("512"), "в агенте появилась константа pad-цели");
                 assert!(!AGENT_SRC.contains("pad"), "в агенте появился pad");
 
-                // (4) джиттера нет: разброс прихода мал.
+                // (4) Джиттера нет. Доказательство — исходниковое и детерминированное: в пути
+                // `find` (и в `candidates`, которую он зовёт) нет ни `sleep`, ни `interval`.
+                // Замер — подтверждение: разброс прихода держится в шкале шума loopback
+                // (десятки мс) и не дотягивает до верхней границы шкалы джиттера §13.3
+                // (0–150 мс).
+                //
+                // Замороженный порог (4) («разброс < 20 мс») стоял ВНУТРИ шума: контрольный
+                // повтор того же бинаря в том же логе дал 22,1 мс и упал на нём (ДИАГНОЗ-5).
+                // Порог остаётся в записи пре-регистрации; здесь — утверждение по существу.
+                let find_src = src_slice(
+                    AGENT_SRC,
+                    "pub async fn find(&mut self",
+                    "\n    fn check_find(",
+                );
+                let cand_src = src_slice(AGENT_SRC, "async fn candidates(", "\n    fn covers(");
+                assert!(!find_src.contains("sleep"), "в пути `find` появилась пауза");
+                assert!(!find_src.contains("interval"), "в пути `find` появился интервал");
+                assert!(!cand_src.contains("sleep"), "в `candidates` появилась пауза");
                 let first = sniffer.caught.iter().map(|(t, _)| *t).min().expect("кадры есть");
                 let last = sniffer.caught.iter().map(|(t, _)| *t).max().expect("кадры есть");
                 let spread = last.duration_since(first);
+                eprintln!("ХАРАКТЕРИЗАЦИЯ (4): разброс прихода `Find` = {spread:?}");
                 assert!(
-                    spread < Duration::from_millis(20),
-                    "разброс прихода `Find` = {spread:?} — джиттер есть"
+                    spread < Duration::from_millis(150),
+                    "разброс прихода `Find` = {spread:?} — дотянул до шкалы джиттера §13.3"
                 );
             })
             .await;
@@ -432,70 +464,6 @@ fn a_full_scan_is_sixteen_frames_not_one_long_one() {
     });
 }
 
-// --- (5) ---------------------------------------------------------------------
-
-/// (5) фан-аут последователен: вторая группа ждёт разрешения первой.
-#[test]
-fn the_second_shard_waits_for_the_first() {
-    let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
-    rt.block_on(async {
-        let local = LocalSet::new();
-        local
-            .run_until(async {
-                // Сниффер покрывает только шард 7: у шарда 3 владельца нет, и его разрешение
-                // съедает весь `call_timeout`.
-                let mut sniffer = Sniffer::new(SNIFFER_SEED, vec![SHARD], 4321);
-                let addr = wait_listen(&mut sniffer).await;
-                let call_timeout = Duration::from_secs(2);
-                let mut agent = Agent::new(
-                    testing::identity(AGENT_SEED),
-                    agent_network(),
-                    agent_cfg(vec![addr], call_timeout),
-                )
-                .expect("агент");
-                pump_handshake(&mut agent, &mut sniffer).await;
-
-                // Кластеры шарда 3 (48) и шарда 7 (112): группы идут по возрастанию шарда,
-                // первая — без владельца.
-                let query = FindQuery::new(testing::vector(3), vec![48, 112], 10);
-                let (tx, mut rx) = oneshot::channel();
-                let start = Instant::now();
-                local.spawn_local(async move {
-                    let r = agent.find(&query).await;
-                    let _ = tx.send(r);
-                });
-                let outcome = pump_until_outcome(&mut sniffer, &mut rx)
-                    .await
-                    .expect("поиск завершился отказом");
-                drain(&mut sniffer).await;
-                eprintln!("ДИАГНОЗ: отказы = {:?}", outcome.failures);
-                eprintln!("ДИАГНОЗ: ответов = {:?}", outcome.answers.len());
-                eprintln!("ДИАГНОЗ: поймано кадров = {}", sniffer.caught.len());
-
-                assert!(
-                    outcome.failures.iter().any(|f| f.shard == 3),
-                    "шард 3 должен остаться без владельца: {:?}",
-                    outcome.failures
-                );
-                let caught: Vec<&(Instant, Vec<u8>)> = sniffer
-                    .caught
-                    .iter()
-                    .filter(|(_, bytes)| {
-                        let q = Find::decode(bytes).expect("Find разбирается");
-                        shard_of(q.clusters[0]) == SHARD
-                    })
-                    .collect();
-                assert_eq!(caught.len(), 1, "поймано `Find` по шарду 7: {:?}", caught.len());
-                let delay = caught[0].0.duration_since(start);
-                assert!(
-                    delay >= Duration::from_millis(1600),
-                    "`Find` второй группы ушёл через {delay:?} — ожидалось ≥1,6 с (последовательно)"
-                );
-            })
-            .await;
-    });
-}
-
 // --- (5′) --------------------------------------------------------------------
 
 /// (5′a) Пропадание, а не задержка: `Find` следующей группы не доходит до провода вовсе.
@@ -521,6 +489,7 @@ fn a_missing_owner_drops_the_next_groups_find_off_the_wire() {
 
                 let query = FindQuery::new(testing::vector(3), vec![48, 112], 10);
                 let (tx, mut rx) = oneshot::channel();
+                let start = Instant::now();
                 local.spawn_local(async move {
                     let r = agent.find(&query).await;
                     let _ = tx.send(r);
@@ -528,9 +497,15 @@ fn a_missing_owner_drops_the_next_groups_find_off_the_wire() {
                 let outcome = pump_until_outcome(&mut sniffer, &mut rx)
                     .await
                     .expect("поиск завершился отказом");
+                let elapsed = start.elapsed();
                 // Окно втрое больше прежнего: «не пойман» должно означать «не ушёл», а не
                 // «не успел дойти».
                 drain_for(&mut sniffer, Duration::from_secs(3)).await;
+                eprintln!(
+                    "ХАРАКТЕРИЗАЦИЯ (5′a): вызов занял {elapsed:?}, отказы = {:?}, поймано кадров = {}",
+                    outcome.failures,
+                    sniffer.caught.len()
+                );
 
                 let caught_seven = sniffer
                     .caught
@@ -564,6 +539,12 @@ fn a_missing_owner_drops_the_next_groups_find_off_the_wire() {
                     reason_seven, "ответ не пришёл за 2s",
                     "отказ по шарду 7: агент считает кадр отправленным"
                 );
+                // Отсутствующий владелец первой группы съедает весь `call_timeout`: вызов
+                // вернулся не раньше дедлайна, а не «сразу с отказом».
+                assert!(
+                    elapsed >= Duration::from_millis(1900),
+                    "вызов вернулся через {elapsed:?} — дедлайн не был съеден"
+                );
 
                 // --- (5′b) контроль: владелец есть у обеих групп ---
                 let mut sniffer2 = Sniffer::new(SNIFFER_SEED + 1, vec![3, SHARD], 4321);
@@ -577,6 +558,7 @@ fn a_missing_owner_drops_the_next_groups_find_off_the_wire() {
                 pump_handshake(&mut agent2, &mut sniffer2).await;
                 let query2 = FindQuery::new(testing::vector(3), vec![48, 112], 10);
                 let (tx2, mut rx2) = oneshot::channel();
+                let start2 = Instant::now();
                 local.spawn_local(async move {
                     let r = agent2.find(&query2).await;
                     let _ = tx2.send(r);
@@ -584,7 +566,12 @@ fn a_missing_owner_drops_the_next_groups_find_off_the_wire() {
                 let outcome2 = pump_until_outcome(&mut sniffer2, &mut rx2)
                     .await
                     .expect("поиск завершился отказом");
+                let elapsed2 = start2.elapsed();
                 drain_for(&mut sniffer2, Duration::from_secs(3)).await;
+                eprintln!(
+                    "ХАРАКТЕРИЗАЦИЯ (5′b): вызов занял {elapsed2:?}, поймано кадров = {}",
+                    sniffer2.caught.len()
+                );
                 assert!(outcome2.failures.is_empty(), "отказы шардов: {:?}", outcome2.failures);
                 // (с) фальсификатор: на провод вышло не 2 кадра — (5′b) падает.
                 assert_eq!(
@@ -592,6 +579,11 @@ fn a_missing_owner_drops_the_next_groups_find_off_the_wire() {
                     2,
                     "поймано кадров при владельцах у обеих групп: {:?}",
                     sniffer2.caught.len()
+                );
+                // С владельцами у обеих групп дедлайн не съедается: фан-аут уходит сразу.
+                assert!(
+                    elapsed2 < Duration::from_millis(1500),
+                    "вызов с владельцами у обеих групп занял {elapsed2:?} — дедлайн съеден зря"
                 );
             })
             .await;

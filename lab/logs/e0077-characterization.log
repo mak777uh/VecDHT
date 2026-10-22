@@ -1,0 +1,117 @@
+=== E-0077 характеристика 2026-10-23T02:27:15+03:00 ===
+1a8d8e9
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+### BUILD --no-run ### 2026-10-23T02:27:16+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+  Executable tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+EXIT=0
+### RUN --nocapture ### 2026-10-23T02:27:17+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.73s
+     Running tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+
+running 5 tests
+test a_node_accepts_a_find_with_a_pad_tail ... ok
+ХАРАКТЕРИЗАЦИЯ (4): разброс прихода `Find` = 20.6063ms
+test a_find_frame_has_a_fixed_overhead_and_carries_no_pad ... ok
+test a_lying_node_can_fabricate_a_distance_and_nobody_checks_it ... ok
+test a_full_scan_is_sixteen_frames_not_one_long_one ... ok
+ХАРАКТЕРИЗАЦИЯ (5′a): вызов занял 2.0151347s, отказы = [ShardFailure { shard: 3, reason: "нет доступного держателя" }, ShardFailure { shard: 7, reason: "ответ не пришёл за 2s" }], поймано кадров = 0
+ХАРАКТЕРИЗАЦИЯ (5′b): вызов занял 35.2574ms, поймано кадров = 2
+test a_missing_owner_drops_the_next_groups_find_off_the_wire ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.66s
+
+EXIT=0
+### КОНТРОЛЬ vecdht-net ### 2026-10-23T02:27:27+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.71s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-502162b5780742df.exe)
+
+running 22 tests
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-5cee7e68d1cbde1d.exe)
+
+running 1 test
+test egress_bytes_per_query has been running for over 60 seconds
+test egress_bytes_per_query ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 125.81s
+
+     Running tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+
+running 5 tests
+test a_node_accepts_a_find_with_a_pad_tail ... ok
+test a_lying_node_can_fabricate_a_distance_and_nobody_checks_it ... ok
+test a_find_frame_has_a_fixed_overhead_and_carries_no_pad ... ok
+test a_full_scan_is_sixteen_frames_not_one_long_one ... ok
+test a_missing_owner_drops_the_next_groups_find_off_the_wire ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.66s
+
+     Running tests\s5_handshake_seam.rs (target\debug\deps\s5_handshake_seam-544b85b042daa41e.exe)
+
+running 5 tests
+test a_foreign_network_is_refused_and_the_reason_never_reaches_the_peer ... ok
+test a_normal_handshake_binds_both_sides ... ok
+test the_refusal_speaks_cert_invalid_and_keeps_the_old_identity ... ok
+test the_gossip_door_is_open_to_a_peer_the_handshake_refused ... ok
+test the_authentication_cache_outlives_valid_until ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.51s
+
+     Running tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-f40c74591c2c28ad.exe)
+
+running 3 tests
+test rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics ... ok
+test the_two_implementations_agree_on_every_cluster_at_protocol_geometry ... ok
+test a_manifest_with_other_geometry_is_refused_today ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\transport.rs (target\debug\deps\transport-0c7fb6bb4a5d446d.exe)
+
+running 10 tests
+test quic_handshake_binds_the_cert_to_the_transport_key ... ok
+test an_agent_discovers_the_shard_provider_through_kademlia ... ok
+test gossip_delivers_a_signed_publish_to_the_primary ... ok
+test a_closed_connection_reaches_peer_lost_in_the_shard ... ok
+test a_valid_revoke_on_a_shard_topic_is_refused ... ok
+test publish_and_find_travel_over_the_real_transport ... ok
+test a_revoke_below_threshold_is_rejected_before_it_can_revoke ... ok
+test an_agent_publishes_finds_and_opens_a_direct_session ... ok
+test a_threshold_revoke_drops_connections_and_blocks_reconnect ... ok
+test a_cert_whose_owner_is_not_the_transport_key_is_rejected ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.32s
+
+   Doc-tests vecdht_net
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
