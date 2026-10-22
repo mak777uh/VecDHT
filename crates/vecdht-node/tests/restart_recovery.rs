@@ -273,9 +273,19 @@ fn find(
         .node_mut(at)
         .on_frame(agent.pubkey(), &frame, testing::clock(bucket))
         .expect("Find");
-    assert_eq!(out.len(), 1, "Find обязан ответить ровно одним кадром: {out:?}");
-    assert_eq!(kind_of(&out[0]), Kind::MatchResult, "Find отвечает MatchResult");
-    MatchResult::decode(&out[0].frame).expect("MatchResult обязан разбираться")
+    // §12.3: на каждое попадание `handle_find` добавляет отдельную квитанцию
+    // `RendezvousAccept`; лабораторный контракт Find — ровно один `MatchResult`
+    // и ни одного кадра догона/репликации.
+    let results: Vec<&Envelope> = out.iter().filter(|e| kind_of(e) == Kind::MatchResult).collect();
+    assert_eq!(results.len(), 1, "Find обязан ответить ровно одним MatchResult: {out:?}");
+    for e in &out {
+        let kind = kind_of(e);
+        assert!(
+            matches!(kind, Kind::MatchResult | Kind::RendezvousAccept),
+            "Find не порождает {kind:?}: {out:?}"
+        );
+    }
+    MatchResult::decode(&results[0].frame).expect("MatchResult обязан разбираться")
 }
 
 fn slot_of(t: &Trio, at: Addr, owner_seed: u8) -> u32 {
