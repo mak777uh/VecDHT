@@ -194,9 +194,9 @@ fn genesis_accepts_a_signature_under_a_foreign_index() {
         sig.0 = [2u8, 3, 4][i];
     }
 
-    for i in 0..3 {
+    for (i, key) in keys.iter().enumerate().take(3) {
         assert!(
-            verify_domain(&keys[i], domain::MEMBER, &payload, &relabeled.sigs[i].1),
+            verify_domain(key, domain::MEMBER, &payload, &relabeled.sigs[i].1),
             "(2) подпись {i} принадлежит ключу {i}"
         );
     }
