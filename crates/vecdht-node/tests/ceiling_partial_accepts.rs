@@ -59,11 +59,11 @@ fn match_result(replies: &[vecdht_node::Envelope]) -> Option<MatchResult> {
         .and_then(|e| MatchResult::decode(&e.frame).ok())
 }
 
-fn accepts(replies: &[vecdht_node::Envelope]) -> Vec<RendezvousAccept> {
+fn accepts(replies: &[vecdht_node::Envelope]) -> Vec<(Vec<u8>, RendezvousAccept)> {
     replies
         .iter()
         .filter(|e| decode_frame(&e.frame).map(|f| f.header.kind) == Ok(Kind::RendezvousAccept))
-        .map(|e| RendezvousAccept::decode(&e.frame).expect("accept"))
+        .map(|e| (e.frame.clone(), RendezvousAccept::decode(&e.frame).expect("accept")))
         .collect()
 }
 
@@ -107,7 +107,7 @@ fn ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result() {
     assert_eq!(m.matches.len(), 3, "порог (1): отказ в приёме не тронул находки");
     let acc = accepts(&r);
     assert_eq!(acc.len(), 2, "порог (1): свободных слотов ровно 2");
-    for (i, x) in acc.iter().enumerate() {
+    for (i, (_, x)) in acc.iter().enumerate() {
         assert_eq!(
             (x.target, x.slot),
             (m.matches[i].owner_ed25519, m.matches[i].slot),
@@ -119,11 +119,24 @@ fn ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result() {
     assert_eq!(refused_after_first, 1, "фальсификатор (в): ровно третий match не получил приём");
     assert_eq!(n.rendezvous.live(), rendezvous::MAX_ACCEPTS, "фальсификатор (г)");
 
-    // Повтор: строки третьего match в таблице нет — это новый отказ, не идемпотентный Some.
+    // Повтор (Раскрытие H-0048, см. лог 09:26): идемпотность работает через seen ДО
+    // потолка — две строки таблицы выдают те же приёмы побайтово; отказа удостаивает
+    // только третий match, строки которого в таблице нет. Порог (3) в этой редакции —
+    // скоуп, записанный в Гипотезе; «приёмы 0» был дефектом формулировки оракула.
     let r2 = n.on_frame(me_a, &find_frame(&a), testing::clock(0)).expect("find 2");
-    assert_eq!(match_result(&r2).expect("MatchResult цел").matches.len(), 3);
-    assert!(accepts(&r2).is_empty(), "таблица полна — приёмов ноль");
-    assert_eq!(n.rendezvous.refused_full, 2, "фальсификатор (в): повтор не засчитан как отказ");
+    let m2 = match_result(&r2).expect("MatchResult цел");
+    assert_eq!(m2.matches.len(), 3);
+    let a2 = accepts(&r2);
+    assert_eq!(a2.len(), 2, "две строки таблицы обязаны отдать идемпотентные приёмы");
+    for i in 0..2 {
+        assert_eq!(a2[i].0, acc[i].0, "приём №{i} повторного Find обязан быть побайтово тем же");
+    }
+    let tail = &m2.matches[2];
+    assert!(
+        a2.iter().all(|(_, x)| (x.target, x.slot) != (tail.owner_ed25519, tail.slot)),
+        "фальсификатор (б)-повтор: хвостовой match получил приём при полной таблице"
+    );
+    assert_eq!(n.rendezvous.refused_full, 2, "фальсификатор (в): повтор третьего match не засчитан");
     assert_eq!(n.rendezvous.live(), rendezvous::MAX_ACCEPTS, "фальсификатор (г)");
 
     eprintln!(
