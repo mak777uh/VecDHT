@@ -28,6 +28,7 @@ fn an_out_of_range_shard_number_becomes_someone_elses_cluster_list() {
     let mut masked: Vec<String> = Vec::new();
     let mut panicked: Vec<u16> = Vec::new();
     let mut unexpected: Vec<String> = Vec::new();
+    let mut empties: Vec<String> = Vec::new();
 
     for s in probes {
         match try_clusters(s) {
@@ -41,7 +42,11 @@ fn an_out_of_range_shard_number_becomes_someone_elses_cluster_list() {
                 }
                 let same_as = s % SHARDS;
                 let reference = clusters_of_shard(same_as);
-                if list == reference {
+                if list.is_empty() {
+                    // Отдельный класс исхода: в debug его здесь нет вовсе (верхнее множество
+                    // паникует), в release это замыкание `base + 16` в 0 — см. E-0036.
+                    empties.push(format!("{s}→пусто"));
+                } else if list == reference {
                     masked.push(format!("{s}→{same_as}"));
                     // Отдельно проверяем заявленные в пороге (3) пары.
                     if s == 64 {
@@ -76,6 +81,7 @@ fn an_out_of_range_shard_number_becomes_someone_elses_cluster_list() {
         u16::MAX,
         CLUSTERS_PER_SHARD
     );
+    eprintln!("## пустых списков (только release): {} ##", empties.len());
     if !unexpected.is_empty() {
         eprintln!("## непредвиденное: {:?} ##", unexpected);
     }
@@ -97,18 +103,52 @@ fn an_out_of_range_shard_number_becomes_someone_elses_cluster_list() {
     );
 
     // Порог (4): граница паники — 4095 (base + 16 = 65_536 не умещается в u16), 4094 ещё жив.
-    assert!(
-        try_clusters(4094).is_ok(),
-        "при shard = 4094 паники быть не должно — фальсификатор (г)"
-    );
-    assert!(
-        try_clusters(4095).is_err(),
-        "при shard = 4095 ожидалась паника переполнения u16 — фальсификатор (г)"
-    );
-    assert!(
-        panicked.contains(&4095) && panicked.contains(&65535),
-        "снимок паник не тот: {panicked:?}"
-    );
+    // Условие профиль-зависимое: паника — это debug-семантика переполнения `u16`. В `release`
+    // арифметика кольцевая, и те же номера дают не аварию, а тихий результат; поведение release
+    // измерено отдельно в `E-0036` (`shard_number_release.rs`), поэтому здесь в release-профиле
+    // проверяется именно его следствие, а не debug-утверждение.
+    if cfg!(debug_assertions) {
+        assert!(
+            try_clusters(4094).is_ok(),
+            "при shard = 4094 паники быть не должно — фальсификатор (г)"
+        );
+        assert!(
+            try_clusters(4095).is_err(),
+            "при shard = 4095 ожидалась паника переполнения u16 — фальсификатор (г)"
+        );
+        assert!(
+            panicked.contains(&4095) && panicked.contains(&65535),
+            "снимок паник не тот: {panicked:?}"
+        );
+        assert!(empties.is_empty(), "в debug пустых списков быть не должно: {empties:?}");
+    } else {
+        // Release-ожидание по E-0036: 4095 и 65 535 (= 4095 + 4096·15) замыкают `base + 16` в 0
+        // и дают пустой список вместо паники; 4094 остаётся законным списком.
+        assert!(
+            try_clusters(4094).is_ok(),
+            "в release при shard = 4094 список обязан строиться"
+        );
+        assert_eq!(
+            try_clusters(4095),
+            Ok(Vec::new()),
+            "в release при shard = 4095 ожидался пустой список (E-0036)"
+        );
+        assert_eq!(
+            try_clusters(65535),
+            Ok(Vec::new()),
+            "в release при shard = 65 535 ожидался пустой список (E-0036)"
+        );
+        assert!(
+            panicked.is_empty(),
+            "в release паник быть не должно, а снят снимок: {panicked:?}"
+        );
+        assert_eq!(
+            empties.len(),
+            2,
+            "в release из десяти probe-номеров пустых списков должно быть два (4095, 65 535): {empties:?}"
+        );
+        eprintln!("## release-профиль: порог (4) снят в формулировке E-0036 (пустой список вместо паники) ##");
+    }
 
     // Справочно: длина списка всегда 16, NLIST/SHARDS согласованы.
     assert_eq!(clusters_of_shard(0).len(), usize::from(CLUSTERS_PER_SHARD));

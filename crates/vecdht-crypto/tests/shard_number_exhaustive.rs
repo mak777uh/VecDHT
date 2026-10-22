@@ -52,10 +52,17 @@ fn every_u16_shard_number_is_either_a_masked_legal_list_or_a_panic() {
 
     // (2) верхнее множество: 4095..=65535 — обязано паниковать (переполнение u16 в debug).
     let mut no_panic: Vec<u16> = Vec::new();
+    let mut upper_empty: Vec<u16> = Vec::new();
     for s in 4095u32..=u32::from(u16::MAX) {
         let s = s as u16;
         match list_of(s) {
-            Some(_) => no_panic.push(s),
+            Some(list) => {
+                no_panic.push(s);
+                last_ok = Some(s);
+                if list.is_empty() {
+                    upper_empty.push(s);
+                }
+            }
             None => {
                 if first_panic.is_none() {
                     first_panic = Some(s);
@@ -88,15 +95,41 @@ fn every_u16_shard_number_is_either_a_masked_legal_list_or_a_panic() {
     // Порог (1).
     assert!(unexpected_panic.is_empty(), "паника внутри 0..=4094: {unexpected_panic:?}");
     assert!(mismatches.is_empty(), "маска s % SHARDS не совпала: {mismatches:?}");
-    // Порог (2).
-    assert!(
-        no_panic.is_empty(),
-        "номера ≥ 4095 вернули список вместо паники: {:?} (всего {})",
-        no_panic.iter().copied().take(8).collect::<Vec<_>>(),
-        no_panic.len()
-    );
-    assert_eq!(first_panic, Some(4095), "первая паника не на 4095");
-    assert_eq!(last_ok, Some(4094), "последний живой номер не 4094");
+    // Порог (2). Формулировка зависит от профиля, и это признано в пре-регистрации («перебор
+    // снимает поведение debug-сборки»): в debug верхнее множество — авария, в release — тихий
+    // результат (пустой список на `s ≡ 4095 (mod 4096)` и замаскированный список везде
+    // остальном, измерено в `E-0036`).
+    if cfg!(debug_assertions) {
+        assert!(
+            no_panic.is_empty(),
+            "номера ≥ 4095 вернули список вместо паники: {:?} (всего {})",
+            no_panic.iter().copied().take(8).collect::<Vec<_>>(),
+            no_panic.len()
+        );
+        assert_eq!(first_panic, Some(4095), "первая паника не на 4095");
+        assert_eq!(last_ok, Some(4094), "последний живой номер не 4094");
+        assert!(
+            upper_empty.is_empty(),
+            "в debug верхнее множество паникует, пустых списков быть не должно: {upper_empty:?}"
+        );
+    } else {
+        assert!(
+            first_panic.is_none(),
+            "в release верхнее множество не паникует, а снята первая паника: {first_panic:?}"
+        );
+        assert_eq!(
+            no_panic.len(),
+            usize::from(u16::MAX) - 4095 + 1,
+            "в release верхнее множество (61 441 номер) должно быть живым целиком"
+        );
+        assert_eq!(last_ok, Some(65535), "в release последний живой номер не 65 535");
+        let expected_empty: Vec<u16> = (0..16u32).map(|k| (4095 + 4096 * k) as u16).collect();
+        assert_eq!(
+            upper_empty, expected_empty,
+            "в release пустые списки не на множестве s ≡ 4095 (mod 4096) — см. E-0036"
+        );
+        eprintln!("## release-профиль: порог (2) снят в формулировке E-0036 (пустой список вместо паники) ##");
+    }
     // Порог (3): множество выходов ровно 64 — ничего, кроме законных списков, не производится.
     assert_eq!(
         outputs.len(),

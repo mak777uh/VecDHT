@@ -1,0 +1,69 @@
+########## E-0036 · clusters_of_shard в release · 2026-10-22T06:24:14+03:00 ##########
+8265051
+72:[profile.release]
+73-lto = "thin"
+74-codegen-units = 1
+########## BUILD (release, --no-run) ##########
+   Compiling rand_chacha v0.3.1
+   Compiling hex v0.4.3
+   Compiling rand v0.8.8
+   Compiling vecdht-crypto v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-crypto)
+    Finished `release` profile [optimized] target(s) in 25.81s
+  Executable tests\shard_number_release.rs (target\release\deps\shard_number_release-e065b924adb11981.exe)
+########## RUN shard_number_release (release) ##########
+    Finished `release` profile [optimized] target(s) in 0.22s
+     Running tests\shard_number_release.rs (target\release\deps\shard_number_release-e065b924adb11981.exe)
+
+running 1 test
+## release: паник 0, пустых списков 16 (первые [4095, 8191, 12287, 16383]), несоответствий маски 0 ##
+## release: различных выходов 65, ожидалось 65 (64 законных списка + пустой) ##
+## время перебора 0.0 с ##
+test release_arithmetic_replaces_the_panic_with_an_empty_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+########## EXIT=0 ##########
+########## КОНТРОЛЬ 1: тесты crypto в release не сломаны ##########
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+error: test failed, to rerun pass `-p vecdht-crypto --test shard_number_admission`
+########## КОНТРОЛЬ 2: debug-ветка теста честно пропускает ##########
+## пропуск: этот оракул измеряет только release-профиль, в debug поведение снято E-0035 ##
+test release_arithmetic_replaces_the_panic_with_an_empty_list ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+########## СПРАВОЧНО: кольцевая арифметика (расчёт, не замер) ##########
+  позиций с замыканием base+16: 16 первые: [4095, 8191, 12287, 16383] последняя: 65535
+  ожидалось: 4095 + 4096k, k=0..15 -> [4095, 8191, 12287, 16383] … 65535
+  различных выходов (расчёт): 65
+
+########## ДОПОЛНЕНИЕ ПОСЛЕ ПРОГОНА (append-only): КОНТРОЛЬ 1 нашёл красный release, правка и повтор ##########
+# КОНТРОЛЬ 1 (cargo test --release -p vecdht-crypto) упал на shard_number_admission:
+# тест E-0034 утверждал debug-панику без cfg, поэтому в release он красный. То же в E-0035
+# (shard_number_exhaustive: first_panic == 4095, last_ok == 4094). Debug-профиль этого не ловил,
+# потому что workspace-прогон гоняется в debug.
+# правка: профиль-зависимые ветки порогов (4) и (2) с release-ожиданием из E-0036; debug-утверждения не смягчены.
+2026-10-22T06:30:11+03:00
+--- cargo test -j 2 -p vecdht-crypto (debug) ---
+DEBUG_TEST_EXIT=0
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.92s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+--- cargo test -j 2 --release -p vecdht-crypto ---
+RELEASE_TEST_EXIT=0
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+--- clippy debug / release ---
+CLIPPY_DEBUG_EXIT=0
+CLIPPY_RELEASE_EXIT=0
+2026-10-22T06:30:17+03:00
