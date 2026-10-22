@@ -351,7 +351,11 @@ fn heal_one_step() {
         let n = t.node(p);
         assert_eq!(n.epoch(), Some(2), "(2) цепочка принята на бакете 4");
         assert_eq!(n.store.serving_epoch(), Some(2), "(2) durable-маркер эпохи 2");
-        assert_eq!(n.serving_epoch(4), None, "(2) P больше не пишет");
+        assert_eq!(
+            n.serving_epoch(4),
+            Some(2),
+            "(2) принятие подтверждено lease и маркером; право писать — отдельный гейт"
+        );
         assert!(!n.is_member(), "(2) P исключён из состава");
         assert!(!n.is_primary(), "(2) P больше не primary");
         assert_eq!(
@@ -420,7 +424,15 @@ fn heal_one_step() {
         assert!(out.is_empty(), "(4) включающая цепочка отвергнута на {bucket}: {out:?}");
         let n = t.node(p);
         assert_eq!(n.epoch(), Some(1), "(4) цепочка не принята на {bucket}");
-        assert_eq!(n.serving_epoch(4), Some(1), "(4) гейт не ослаблен на {bucket}");
+        if bucket == 4 {
+            assert_eq!(n.serving_epoch(4), Some(1), "(4) на 4 P ещё обслуживает эпоху 1");
+        } else {
+            assert_eq!(
+                n.serving_epoch(6),
+                None,
+                "(4) на 6 lease истёк, но включающая цепочка всё равно не принята"
+            );
+        }
         assert_eq!(
             n.lease.as_ref().map(|l| (l.epoch, l.primary, l.expires_at_bucket)),
             Some((1, p, 6)),
