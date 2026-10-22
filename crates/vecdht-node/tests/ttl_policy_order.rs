@@ -110,22 +110,26 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     assert_eq!(accs.len(), 3, "фальсификатор (д): голова бакета 0 не выдана");
     let (f0, a0) = &accs[0];
     assert_eq!((a0.issued_bucket, a0.ttl_sec), (0, 300), "фальсификатор (д): карта не бакета 0/ttl=300");
-    let me = n.me();
-    // Издатель — сам узел: кадр подписан `n.id` (node.rs:1019), а `target` — только заявка,
-    // сверяемая с `me` цели (adversarial.rs передаёт consume `&n.me()`). ДИАГНОЗ 14:45/14:58:
-    // привязка к владельцу записи была догадкой харнеса, пороги не менялись.
-    let iss = me;
+    let iss = n.me();
+    // ДИАГНОЗ-3: подпись приёмки — ключом узла (iss=n.me()), а `target` карты — владелец
+    // записи, и именно он обязан приходить третьим аргументом (`me` цели): ровно так
+    // сделано в adversarial.rs/E-0058 (`consume(&frame, &n.me(), &owner.pubkey(), ..)`).
+    let tgt = a0.target;
+    assert!(
+        OWNER_SEEDS.iter().any(|s| testing::identity(*s).pubkey() == tgt),
+        "харнес: адресат карты — не владелец записи"
+    );
 
     // Порог (0): базовая грань окна 300.
     let mut spend = Spend::new(300);
-    let g = spend.consume(f0, &iss, &me, EDGE_300).expect("порог (0): грань 19 отказала");
+    let g = spend.consume(f0, &iss, &tgt, EDGE_300).expect("порог (0): грань 19 отказала");
     assert_eq!((g.seeker, g.issued_bucket), (a.pubkey(), 0), "фальсификатор (ж): grant не связан");
     assert_eq!(spend.spent(), 1, "фальсификатор (ж): spent после Ok");
 
     // Порог (1): ttl=0 — политика; память расхода НЕ тронута (гейт до вставки).
     let f0z = reforge(*a0, 0, &pid);
     assert_eq!(
-        spend.consume(&f0z, &iss, &me, EDGE_300),
+        spend.consume(&f0z, &iss, &tgt, EDGE_300),
         Err(rendezvous::AcceptError::TtlOutOfPolicy(0)),
         "фальсификатор (а): ttl=0 принят"
     );
@@ -134,7 +138,7 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     // Порог (2): ttl=301 при политике 300 — отказ.
     let f301 = reforge(*a0, 301, &pid);
     assert_eq!(
-        spend.consume(&f301, &iss, &me, EDGE_300),
+        spend.consume(&f301, &iss, &tgt, EDGE_300),
         Err(rendezvous::AcceptError::TtlOutOfPolicy(301)),
         "фальсификатор (а): ttl=301 принят политикой 300"
     );
@@ -143,13 +147,14 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     // Порог (3): та же карта у цели с политикой 315 — Ok (окно из карты: грань 20).
     let mut spend315 = Spend::new(315);
     let g3 = spend315
-        .consume(&f301, &iss, &me, EDGE_300)
+        .consume(&f301, &iss, &tgt, EDGE_300)
         .expect("фальсификатор (г): ttl=301 отвергнут политикой 315");
     assert_eq!((g3.seeker, g3.issued_bucket), (a.pubkey(), 0), "фальсификатор (ж): grant (3)");
     assert_eq!(spend315.spent(), 1, "порог (3): память второй цели");
 
     // Порог (4): wrong-target + ttl=0 → адресат ДО политики.
     let other = testing::identity(56);
+    assert_ne!(other.pubkey(), tgt, "харнес: «чужой» совпал с адресатом карты");
     assert_eq!(
         spend.consume(&f0z, &iss, &other.pubkey(), EDGE_300),
         Err(rendezvous::AcceptError::WrongTarget),
@@ -167,15 +172,15 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     let f1 = reforge(*a0, 1, &pid);
     let mut spend6 = Spend::new(300);
     spend6
-        .consume(&f1, &iss, &me, 1)
+        .consume(&f1, &iss, &tgt, 1)
         .expect("фальсификатор (д): грань buckets(1)=1 отказала");
     assert_eq!(
-        spend6.consume(&f1, &iss, &me, 1),
+        spend6.consume(&f1, &iss, &tgt, 1),
         Err(rendezvous::AcceptError::AlreadySpent),
         "фальсификатор (б): повтор ttl=1 обслужен"
     );
     assert_eq!(
-        spend6.consume(&f1, &iss, &me, 2),
+        spend6.consume(&f1, &iss, &tgt, 2),
         Err(rendezvous::AcceptError::Expired),
         "фальсификатор (д): ttl=1 пережил грань buckets(1)"
     );
@@ -188,13 +193,13 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
         u.encode_unsigned()
     };
     assert_eq!(
-        spend.consume(&unsigned, &iss, &me, EDGE_300),
+        spend.consume(&unsigned, &iss, &tgt, EDGE_300),
         Err(rendezvous::AcceptError::Unsigned),
         "фальсификатор (е): без-подписной кадр дошёл до тела"
     );
     let foreign_sig = reforge(*a0, 0, &testing::identity(88));
     assert_eq!(
-        spend.consume(&foreign_sig, &iss, &me, EDGE_300),
+        spend.consume(&foreign_sig, &iss, &tgt, EDGE_300),
         Err(rendezvous::AcceptError::BadSignature),
         "фальсификатор (е): чужая подпись дошла до политики"
     );
@@ -202,7 +207,7 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
 
     // Порог (8): базовый кадр на 20 — Expired; память базовой цели не просорилась.
     assert_eq!(
-        spend.consume(f0, &iss, &me, DEAD_300),
+        spend.consume(f0, &iss, &tgt, DEAD_300),
         Err(rendezvous::AcceptError::Expired),
         "фальсификатор (з): f0 пережил собственное окно"
     );
