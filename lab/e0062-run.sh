@@ -24,8 +24,8 @@ run_cargo "RUN --nocapture" cargo test -j 2 -p vecdht-node --test response_verif
   grep -n "present.is_empty\|TextError::NoAccept\|saw_bad_signature\|for issuer in issuers\|Err(AcceptError::BadSignature)\|TextError::Spend" crates/vecdht-node/src/session.rs
   echo "-- parse_request: разбор раньше адресата, адресат раньше предъявления:"
   grep -n "fn parse_request\|decode_frame(frame).map_err\|WrongKind\|WrongTarget" crates/vecdht-node/src/session.rs
-  echo "-- цитата спеки §12.4:"
-  grep -n "Ответ принимается только после проверки" docs/VecDHT-SPEC-v8.md
+  echo "-- цитата спеки §12.4 (в спеке переносит строку — короткий якорь):"
+  grep -n "Ответ принимается только после" docs/VecDHT-SPEC-v8.md
   echo "-- цитата спеки §12.3 (порядок входа цели):"
   grep -n "перебор кандидатов только по" docs/VecDHT-SPEC-v8.md
   echo "-- покрытие веток TextError в тестах (до этого оракула):"
