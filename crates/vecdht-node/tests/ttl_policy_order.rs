@@ -9,17 +9,18 @@
 //! истечением при двойно-ложных полях, (iii) что окно считается ИЗ КАРТКИ `acc.ttl_sec`,
 //! а политика `Spend::new` — только отказ.
 //!
-//! Пороги (ttl живой карты = 300, buckets(300)=19, buckets(1)=1, buckets(315)=20;
-//! приём A бакета 0, издатель — сам primary (подпись n.id, iss = n.me())):
+//! Пороги (по поправке заморозки H-0060; ttl живой карты = 300, buckets(300)=19,
+//! buckets(1)=1, buckets(315)=20; приём A бакета 0, издатель — сам primary):
 //! (0) consume f0@19 → Ok, spent==1;
-//! (1) ttl=0 подделка @19 → TtlOutOfPolicy(0), spent не изменился;
-//! (2) ttl=301 @19 в Spend::new(300) → TtlOutOfPolicy(301);
-//! (3) ttl=301 @19 в Spend::new(315) → Ok (грань 20 не достигнута) — окно из карты;
-//! (4) wrong-target + ttl=0 → WrongTarget (адресат до политики);
-//! (5) wrong-target + now=301 → WrongTarget (адресат до истечения);
-//! (6) ttl=1: @1 Ok, @1 повтор AlreadySpent, @2 Expired, spent==0 (память = окно);
-//! (7) Unsigned-кадр → Unsigned; подпись чужая при верном target → BadSignature;
-//! (8) f0@20 → Expired, spent базовой цели == 1 (подделки не просорили память).
+//! (1) ttl=0 → TtlOutOfPolicy(0), spent цел;
+//! (2) ttl=301 при max=300 → TtlOutOfPolicy(301), spent цел;
+//! (3) ttl=301 при max=315 → Ok (окно из карты) — политика только отказ;
+//! (4) wrong-target+ttl=0 @19 → WrongTarget (адресат до политики);
+//! (6) ttl=1: Ok@1, AlreadySpent@1, Expired@2, spent==0;
+//! (7) Unsigned/BadSignature на живом now=19 → spent==1 (ветки без побочных эффектов);
+//! (8) f0@20 → Expired И spent==0 (память уходит ровно на expires=issued+ttl+1);
+//! (9) свежая цель f0@20 → Expired, spent==0 (состояние не зависит от веток);
+//! (5) wrong-target@301 → WrongTarget, spent==0 (отказ по адресату ничего не множит).
 
 use vecdht_crypto::Identity;
 use vecdht_index::testing::{dir, remove};
@@ -161,13 +162,6 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
         "фальсификатор (в): политика опередила адресата"
     );
 
-    // Порог (5): wrong-target + now=301 (истекает) → адресат ДО истечения.
-    assert_eq!(
-        spend.consume(f0, &iss, &other.pubkey(), 301),
-        Err(rendezvous::AcceptError::WrongTarget),
-        "фальсификатор (в): истечение опередило адресата"
-    );
-
     // Порог (6): ttl=1 — окно = buckets(1)=1 из карты; память = окно.
     let f1 = reforge(*a0, 1, &pid);
     let mut spend6 = Spend::new(300);
@@ -186,7 +180,9 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     );
     assert_eq!(spend6.spent(), 0, "фальсификатор (д): память расхода ttl=1 не равна окну");
 
-    // Порог (7): Unsigned → подпись раньше всех; чужая подпись при верном target → BadSignature.
+    // Порог (7): Unsigned → подпись раньше всех; чужая подпись при верном target →
+    // BadSignature. Мерится на ЖИВОМ времени 19 (поправка: до движения часов), память —
+    // untouched.
     let unsigned = {
         let mut u = *a0;
         u.ttl_sec = 0;
@@ -197,29 +193,44 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
         Err(rendezvous::AcceptError::Unsigned),
         "фальсификатор (е): без-подписной кадр дошёл до тела"
     );
+    assert_eq!(spend.spent(), 1, "фальсификатор (б): Unsigned тронул spent");
     let foreign_sig = reforge(*a0, 0, &testing::identity(88));
     assert_eq!(
         spend.consume(&foreign_sig, &iss, &tgt, EDGE_300),
         Err(rendezvous::AcceptError::BadSignature),
         "фальсификатор (е): чужая подпись дошла до политики"
     );
-    assert_eq!(spend.spent(), 1, "фальсификатор (б): ветки (7) тронули spent");
+    assert_eq!(spend.spent(), 1, "фальсификатор (б): BadSignature тронул spent");
 
-    // Порог (8): базовый кадр на 20 — Expired; память базовой цели не просорилась.
+    // Порог (8): f0@20 → Expired И spent == 0. Различающий против перестановок:
+    // `Expired` до `prune` дал бы spent == 1, spent-проверка до истечения — AlreadySpent.
     assert_eq!(
         spend.consume(f0, &iss, &tgt, DEAD_300),
         Err(rendezvous::AcceptError::Expired),
-        "фальсификатор (з): f0 пережил собственное окно"
+        "фальсификатор (й): f0@20 принят",
     );
-    assert_eq!(spend.spent(), 1, "фальсификатор (з): spent базовой цели после всех веток");
+    assert_eq!(spend.spent(), 0, "фальсификатор (и): память расхода пережила expires=20");
+
+    // Порог (9): свежая цель — тот же кадр то же время; состояние не зависит от веток.
+    let mut fresh = Spend::new(300);
+    assert_eq!(
+        fresh.consume(f0, &iss, &tgt, DEAD_300),
+        Err(rendezvous::AcceptError::Expired),
+        "фальсификатор (й): чистая цель приняла f0@20"
+    );
+    assert_eq!(fresh.spent(), 0, "порог (9): чистая цель осталась чистой");
+
+    // Порог (5): wrong-target при now=301 (память уже пуста) → адресат ДО истечения,
+    // отказ не множит состояние.
+    assert_eq!(
+        spend.consume(f0, &iss, &other.pubkey(), 301),
+        Err(rendezvous::AcceptError::WrongTarget),
+        "фальсификатор (в): истечение опередило адресата"
+    );
+    assert_eq!(spend.spent(), 0, "фальсификатор (к): отказ по адресату тронул память");
 
     eprintln!(
-        "## пороги (0)…(8): порядок consume = подпись → адресат → политика → истечение → \
-         расход: ttl=0 и ttl=301 → TtlOutOfPolicy без следа в spent; ttl=301 у цели с \
-         политикой 315 → Ok (окно из карты: 0+buckets(315)=20); wrong-target при \
-         заведомо ложных ttl/истечении → WrongTarget; ttl=1: Ok@1, AlreadySpent@1, \
-         Expired@2, spent==0 (память=окно); Unsigned/BadSignature раньше политики; f0@20 \
-         Expired, spent==1 ##"
+        "## пороги (0)…(9) по поправке H-0060: ttl=0 и ttl=301 при max=300 →          TtlOutOfPolicy без следа в spent (1 на всём живом времени 19); ttl=301 у цели с          политикой 315 → Ok (окно из карты: 0+buckets(315)=20); Unsigned/BadSignature на          now=19 → spent цел; ttl=1 → Ok@1/AlreadySpent@1/Expired@2/spent==0; f0@20 →          Expired И spent==0 (память уходит ровно на expires=20); чистая цель — то же;          wrong-target@301 → WrongTarget, spent==0 ##"
     );
     remove(&d);
 }
