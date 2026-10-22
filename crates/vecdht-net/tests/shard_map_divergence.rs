@@ -7,7 +7,7 @@
 
 use vecdht_artifact::reference_artifact;
 use vecdht_net::agent::NetworkParams;
-use vecdht_wire::constants::{shard_of, CLUSTERS_PER_SHARD, NLIST};
+use vecdht_wire::constants::{shard_of, CLUSTERS_PER_SHARD, NLIST, SHARDS};
 
 fn params() -> NetworkParams {
     NetworkParams::from_artifact(&reference_artifact()).expect("эталонный артефакт v8")
@@ -62,7 +62,7 @@ fn rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics() {
     assert_eq!(diverged, NLIST as usize - new_cps as usize, "число расходящихся кластеров");
     // Тихость ошибки: обе реализации возвращают корректный номер (None только вне nlist),
     // то есть ни паники, ни отказа декодера — неверный шард просто используется.
-    assert!(p.shard_of_cluster(new_cps as u16).is_some() && shard_of(new_cps as u16) < 64);
+    assert!(p.shard_of_cluster(new_cps).is_some() && shard_of(new_cps) < SHARDS);
 }
 
 // ------------------------------------------------------------------ (3)

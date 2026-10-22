@@ -1,0 +1,115 @@
+########## E-0031 · стена геометрии в манифесте · 2026-10-22T05:18:04+03:00 ##########
+dd352df
+########## BUILD ##########
+   Compiling vecdht-artifact v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-artifact)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.77s
+  Executable tests\geometry_wall.rs (target\debug\deps\geometry_wall-995549903d606841.exe)
+########## RUN geometry_wall ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\geometry_wall.rs (target\debug\deps\geometry_wall-995549903d606841.exe)
+
+running 3 tests
+## пункт (3): shard=64 отвергнут: BadEnum { value: 64, what: `shard` } ##
+## (3в) пустой список: covers_shard(SHARDS) = true, covers_shard(60000) = true ##
+test credential_shard_numbers_are_bounded_by_the_compiled_constant ... ok
+## пункт (2): MAX_CERT_SHARDS = 64, SHARDS = 64 ##
+  cps=1 shards=128 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 128)
+  cps=1 shards=256 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 256)
+  cps=2 shards=128 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 256)
+  cps=2 shards=256 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 512)
+  cps=4 shards=128 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 512)
+  cps=4 shards=256 (больше потолка) → равенство-константе `routing.clusters_per_shard` (кодек: 16, манифест: 4)
+  cps=8 shards=128 (больше потолка) → равенство-константе `routing.clusters_per_shard` (кодек: 16, манифест: 8)
+  cps=8 shards=256 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 2048)
+  cps=16 shards=128 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 2048)
+  cps=16 shards=256 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 4096)
+  cps=32 shards=128 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 4096)
+  cps=32 shards=256 (больше потолка) → равенство-константе `routing.nlist` (кодек: 1024, манифест: 8192)
+## (2а) прошедших манифестов с shards > потолка: 0 ##
+## (2в) различающий случай nlist=1024 cps=8 shards=128 → равенство-константе `routing.clusters_per_shard` (кодек: 16, манифест: 8) ##
+test the_shards_ceiling_branch_cannot_be_reached_while_the_equality_lives ... ok
+## пункт (1): пройдёт 1/36 троек; прошли: ["nlist=1024 cps=16 shards=64"] ##
+  nlist=8 cps=1 shards=8 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 8)
+  nlist=16 cps=1 shards=16 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 16)
+  nlist=32 cps=1 shards=32 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 32)
+  nlist=64 cps=1 shards=64 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 64)
+  nlist=128 cps=1 shards=128 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 128)
+  nlist=256 cps=1 shards=256 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 256)
+  nlist=16 cps=2 shards=8 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 16)
+  nlist=32 cps=2 shards=16 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 32)
+  nlist=64 cps=2 shards=32 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 64)
+  nlist=128 cps=2 shards=64 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 128)
+  nlist=256 cps=2 shards=128 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 256)
+  nlist=512 cps=2 shards=256 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 512)
+  nlist=32 cps=4 shards=8 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 32)
+  nlist=64 cps=4 shards=16 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 64)
+  nlist=128 cps=4 shards=32 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 128)
+  nlist=256 cps=4 shards=64 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 256)
+  nlist=512 cps=4 shards=128 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 512)
+  nlist=1024 cps=4 shards=256 → равенство-константе `routing.clusters_per_shard` (кодек: 16, манифест: 4)
+  nlist=64 cps=8 shards=8 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 64)
+  nlist=128 cps=8 shards=16 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 128)
+  nlist=256 cps=8 shards=32 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 256)
+  nlist=512 cps=8 shards=64 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 512)
+  nlist=1024 cps=8 shards=128 → равенство-константе `routing.clusters_per_shard` (кодек: 16, манифест: 8)
+  nlist=2048 cps=8 shards=256 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 2048)
+  nlist=128 cps=16 shards=8 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 128)
+  nlist=256 cps=16 shards=16 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 256)
+  nlist=512 cps=16 shards=32 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 512)
+  nlist=2048 cps=16 shards=128 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 2048)
+  nlist=4096 cps=16 shards=256 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 4096)
+  nlist=256 cps=32 shards=8 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 256)
+  nlist=512 cps=32 shards=16 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 512)
+  nlist=1024 cps=32 shards=32 → равенство-константе `routing.clusters_per_shard` (кодек: 16, манифест: 32)
+  nlist=2048 cps=32 shards=64 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 2048)
+  nlist=4096 cps=32 shards=128 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 4096)
+  nlist=8192 cps=32 shards=256 → равенство-константе `routing.nlist` (кодек: 1024, манифест: 8192)
+
+## (1а) распределение отвергнувших полей ##
+  routing.clusters_per_shard: 3
+  routing.nlist: 32
+test only_the_reference_geometry_triple_passes_manifest_check ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+########## EXIT=0 ##########
+########## КОНТРОЛЬ: тесты artifact не сломаны ##########
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.14s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+########## ИНВЕНТАРЬ (справочно): геометрические константы в нетестовом коде ##########
+CLUSTERS_PER_SHARD: 38
+SHARDS: 53
+MAX_CERT_SHARDS: 8
+NLIST: 66
+########## сайты проверок геометрии в manifest.rs ##########
+8://! 2. параметры сверяются с константами кодека (`DIM`, `NLIST`, `SHARDS`, `MAX_D2`,
+15:use vecdht_wire::cert::MAX_CERT_SHARDS;
+17:use vecdht_wire::constants::{CLUSTERS_PER_SHARD, MAX_D2, NLIST, SHARDS, TIME_BUCKET_SEC};
+725:        if self.routing.nlist != NLIST {
+726:            return mismatch("routing.nlist", NLIST as u64, self.routing.nlist as u64);
+728:        if self.routing.clusters_per_shard != CLUSTERS_PER_SHARD {
+730:                "routing.clusters_per_shard",
+731:                CLUSTERS_PER_SHARD as u64,
+732:                self.routing.clusters_per_shard as u64,
+735:        if self.routing.shards != SHARDS {
+736:            return mismatch("routing.shards", SHARDS as u64, self.routing.shards as u64);
+738:        if u64::from(self.routing.nlist)
+739:            != u64::from(self.routing.clusters_per_shard) * u64::from(self.routing.shards)
+757:        if u64::from(self.routing.nprobe_default) > u64::from(self.routing.nlist) {
+858:        if self.routing.shards as usize > MAX_CERT_SHARDS {
+860:                "routing.shards",
+861:                MAX_CERT_SHARDS as u64,
+862:                self.routing.shards as u64,
+964:        m.routing.shards = 32;
+########## где граница номера шарда в кредашиале ##########
+14:pub const MAX_CERT_SHARDS: usize = 64;
+86:        if n > MAX_CERT_SHARDS {
+92:            if s >= crate::constants::SHARDS {
+128:    pub fn covers_shard(&self, shard: u16) -> bool {
+178:        for s in 0..crate::constants::SHARDS {
+179:            assert!(c.covers_shard(s));
+182:        assert!(c.covers_shard(7));
+183:        assert!(!c.covers_shard(8));
