@@ -1,0 +1,67 @@
+########## E-0034 · admission номера шарда · 2026-10-22T05:57:35+03:00 ##########
+68cb4e5
+########## BUILD ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+  Executable tests\shard_number_admission.rs (target\debug\deps\shard_number_admission-3751090a83e51179.exe)
+########## RUN shard_number_admission ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running tests\shard_number_admission.rs (target\debug\deps\shard_number_admission-3751090a83e51179.exe)
+
+running 1 test
+## probes [0, 1, 63, 64, 80, 128, 1024, 4094, 4095, 65535]: замаскировано в чужой законный список 5 (64→0, 80→16, 128→0, 1024→0, 4094→62) ##
+## panic по переполнению u16: [4095, 65535]; граница: base_max = 65535, шаг = 16 ##
+test an_out_of_range_shard_number_becomes_someone_elses_cluster_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+########## EXIT=0 ##########
+########## КОНТРОЛЬ: тесты crypto не сломаны ##########
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.33s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+########## ПОРОГ (1): вызовы clusters_of_shard в нетестовом коде ##########
+crates/vecdht-cli/src/index_cmd.rs:286:        let full = o.store.search(&q, &clusters_of_shard(o.shard), top_k);
+crates/vecdht-cli/src/index_cmd.rs:307:    let mut sizes: Vec<(usize, u16)> = clusters_of_shard(o.shard)
+crates/vecdht-cli/src/index_cmd.rs:498:    Ok((clusters_of_shard(o.shard), "полный список кластеров шарда"))
+crates/vecdht-crypto/src/quant.rs:163:pub fn clusters_of_shard(shard: u16) -> Vec<u16> {
+crates/vecdht-crypto/src/quant.rs:407:            let c = clusters_of_shard(s);
+-- сайтов вызова в нетестовом коде: 4
+########## ПОРОГ (2): кто зовёт is_valid_shard ##########
+crates/vecdht-crypto/src/quant.rs:174:pub fn is_valid_shard(shard: u16) -> bool {
+crates/vecdht-crypto/src/quant.rs:420:        assert!(is_valid_shard(0));
+crates/vecdht-crypto/src/quant.rs:421:        assert!(is_valid_shard(63));
+crates/vecdht-crypto/src/quant.rs:422:        assert!(!is_valid_shard(64));
+crates/vecdht-crypto/tests/shard_number_admission.rs:36:                if is_valid_shard(s) {
+-- сайтов вне vecdht-crypto (нетестовый код): 0
+########## ПОРОГ (3): поля shard в wire-сообщениях против проверок ##########
+-- struct'ов с 'pub shard: u16': 13
+-- диапазонных проверок при декоде: 3
+-- какие сообщения имеют поле и где стоит проверка:
+   ProtocolError        поле
+   PublishAck           поле
+   MatchResult          поле
+   WalPullRequest       поле
+   WalPullResponse      поле
+   ReplicateOp          поле
+   LeaseGrant           поле
+   LeaseGrant           ПРОВЕРКА
+   SnapshotOffer        поле
+   SnapshotOffer        ПРОВЕРКА
+   ReplicateAck         поле
+   ReplicateAck         ПРОВЕРКА
+   DeleteOp             поле
+   MembershipUpdate     поле
+   LeaveNotice          поле
+   RendezvousAccept     поле
+########## СПРАВОЧНО: где приёмка сверяет номер со своим ##########
+466:        if incoming.shard != self.shard {
+673:        if shard_of_cluster(msg.cluster_id) != self.shard {
+877:        if ack.shard != self.shard
+981:        if q.clusters.iter().any(|c| shard_of_cluster(*c) != self.shard) {
+1053:        if req.shard != self.shard {
+1158:        if offer.shard != self.shard {
+1245:        if resp.shard != self.shard || resp.primary_epoch == 0 {
+1303:        if notice.shard != self.shard
+-- сайтов сверки '.shard != self.shard' в node.rs: 8
