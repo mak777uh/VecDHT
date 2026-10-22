@@ -31,11 +31,8 @@ fn queries(n: usize) -> Vec<[i8; DIM]> {
 }
 
 /// Правило собранного клиента: топ-`nprobe` кластеров, шарды — производные.
-fn cluster_rule_shards(artifact_clusters: &[u16]) -> Vec<u16> {
-    let mut set: Vec<u16> = artifact_clusters
-        .iter()
-        .map(|c| c / CLUSTERS_PER_SHARD)
-        .collect();
+fn cluster_rule_shards(clusters: &[u16]) -> Vec<u16> {
+    let mut set: Vec<u16> = clusters.iter().map(|c| c / CLUSTERS_PER_SHARD).collect();
     set.sort_unstable();
     set.dedup();
     set
@@ -75,6 +72,10 @@ fn mean(v: &[usize]) -> f64 {
     v.iter().map(|x| *x as f64).sum::<f64>() / v.len() as f64
 }
 
+fn mean_f(v: &[f64]) -> f64 {
+    v.iter().sum::<f64>() / v.len() as f64
+}
+
 fn median(mut v: Vec<usize>) -> f64 {
     v.sort_unstable();
     let n = v.len();
@@ -85,13 +86,32 @@ fn median(mut v: Vec<usize>) -> f64 {
     }
 }
 
+/// Одна строка отчёта на одно значение `nprobe`.
+struct Row {
+    nprobe: usize,
+    mean_cluster: f64,
+    median_cluster: f64,
+    share_equal: f64,
+    mean_shard: f64,
+    jaccard: f64,
+    list_len: usize,
+    all_shard_equal: bool,
+    differing: usize,
+}
+
 #[test]
 fn the_shipped_cluster_rule_fans_out_less_than_nprobe() {
     let a = reference_artifact();
     let rows = a.centroids.rows();
     let qs = queries(256);
 
-    for &nprobe in [4usize, 16, 32] {
+    // Снимка: сначала измеряем и печатаем все три значения `nprobe`, порог проверяем после.
+    // Порог (3) — «строго меньше nprobe для 4, 16 и 32», фальсификатор (в) — «fan-out == nprobe для
+    // ВСЕХ трёх». Assert внутри цикла оставлял бы (в) непроверяемым (первая же точка обрывала
+    // прогон), поэтому проверка вынесена в конец; сам порог не изменён.
+    let mut table: Vec<Row> = Vec::new();
+
+    for nprobe in [4usize, 16, 32] {
         let mut by_cluster: Vec<usize> = Vec::new();
         let mut by_shard: Vec<usize> = Vec::new();
         let mut jac: Vec<f64> = Vec::new();
@@ -111,36 +131,49 @@ fn the_shipped_cluster_rule_fans_out_less_than_nprobe() {
             }
         }
 
-        eprintln!(
-            "## nprobe={nprobe}: кластерное правило — средний fan-out {:.2}, медиана {:.1}, ровно nprobe в {:.1} % запросов ##",
-            mean(&by_cluster),
-            median(by_cluster.clone()),
-            100.0 * equal_to_nprobe as f64 / qs.len() as f64
-        );
-        eprintln!(
-            "## nprobe={nprobe}: шардовое правило (§7.5.1) — средний fan-out {:.2}; список кластеров в Find: {cluster_list_len} (полный скан потребовал бы {}); средний Jaccard двух множеств шардов {:.3} ##",
-            mean(&by_shard),
-            nprobe * usize::from(CLUSTERS_PER_SHARD),
-            mean(&jac)
-        );
+        table.push(Row {
+            nprobe,
+            mean_cluster: mean(&by_cluster),
+            median_cluster: median(by_cluster.clone()),
+            share_equal: 100.0 * equal_to_nprobe as f64 / qs.len() as f64,
+            mean_shard: mean(&by_shard),
+            jaccard: mean_f(&jac),
+            list_len: cluster_list_len,
+            all_shard_equal: by_shard.iter().all(|&x| x == nprobe),
+            differing: jac.iter().filter(|&&j| j < 1.0).count(),
+        });
+    }
 
-        // Порог (3): кластерное правило строго меньше nprobe, шардовое — ровно nprobe.
-        assert!(
-            mean(&by_cluster) < nprobe as f64,
-            "кластерное правило даёт fan-out == nprobe: различие двух правил несущественно (фальсификатор в)"
+    for r in &table {
+        eprintln!(
+            "## nprobe={}: кластерное правило — средний fan-out {:.2}, медиана {:.1}, ровно nprobe в {:.1} % запросов; шардовое (§7.5.1) — {:.2}; список кластеров в Find {} (полный скан потребовал бы {}); Jaccard {:.3}; запросов с разными множествами шардов {} из 256 ##",
+            r.nprobe,
+            r.mean_cluster,
+            r.median_cluster,
+            r.share_equal,
+            r.mean_shard,
+            r.list_len,
+            r.nprobe * usize::from(CLUSTERS_PER_SHARD),
+            r.jaccard,
+            r.differing
         );
+    }
+
+    for r in &table {
         assert!(
-            by_shard.iter().all(|&x| x == nprobe),
-            "шардовое правило не отдаёт ровно nprobe шардов"
+            r.mean_cluster < r.nprobe as f64,
+            "nprobe={}: кластерное правило даёт средний fan-out == nprobe — различие двух правил \
+             несущественно по ширине (фальсификатор в)",
+            r.nprobe
         );
-        // Порог (4): на половине запросов множества шардов различаются (средний Jaccard < 1).
-        let differing = jac.iter().filter(|&&j| j < 1.0).count();
+        assert!(r.all_shard_equal, "шардовое правило не отдаёт ровно nprobe шардов");
         assert!(
-            differing * 2 >= qs.len(),
-            "правила выбирают одно и то же множество шардов почти всегда: {differing} из {}",
+            r.differing * 2 >= qs.len(),
+            "nprobe={}: правила выбирают одно и то же множество шардов почти всегда ({} из {})",
+            r.nprobe,
+            r.differing,
             qs.len()
         );
-        // Пункт (2) о выразимости: клиент шлёт список длины nprobe, а не nprobe * 16.
-        assert_eq!(cluster_list_len, nprobe, "длина списка кластеров в Find поехала");
+        assert_eq!(r.list_len, r.nprobe, "длина списка кластеров в Find поехала");
     }
 }
