@@ -10,7 +10,7 @@
 //! адресат, политика) на входе цели; предъявление чужого Валидного приёма под другим
 //! `req.slot` не мерилось никогда. `present_serving_gate.rs` (`ADR-0013`) мерил пустой
 //! `present` и перебор держателей. Здесь — ровно то, на что ссылается §12.4: расход
-//! проходит, а расхождение `req.slot` против `grant.slot` остаётся на discretion
+//! проходит, а расхождение `req.slot` против `grant.slot` остаётся на усмотрение
 //! приложения цели, и `NO_SUCH_SLOT` на этом пути не порождается.
 //!
 //! Пороги (S0/S1 — слоты двух живых записей из `MatchResult` по порядку списка; F0 —
@@ -29,13 +29,18 @@
 //! (5) повтор (2) на том же инстансе → `Spend(AlreadySpent)` — одноразовость держится на
 //!     приёме, а не на паре (приём, slot);
 //! (6) свежий `Spend`, `req.slot = S1` с приёмом S0 → `Ok` — провалы (2)/(3) были не
-//!     double-spend'ом, а отсутствием сверки.
+//!     double-spend'ом, а отсутствием сверки;
+//! (7) сильная форма поправки заморозки: тот же приём (target = O) на входе ВТОРОГО
+//!     владельца (seed 92, чужая запись S1) → `Spend(WrongTarget)` — адресат привязан
+//!     подписанным телом приёма, фикция ровно в `slot`, не в мишени; spent на инстансе B == 0.
 //!
 //! Фальсификаторы: (а) (2)/(3)/(6) дали `Err` — механизм привязки в коде есть, фикции нет;
 //! (б) `grant.slot == req.slot` в (2)/(3) — привязка всё же происходит из `req`;
 //! (в) spent != 2 в (4) — расхождение слотов тронуло память расхода; (г) (5) дал `Ok` —
 //!     одноразовость привязана к запросу; (д) (0) пере-подпись unchanged != F0 — не тот ключ;
-//! (е) 0xFFFF_FFFF занят живой записью — фикстура (3) некорректна.
+//! (е) фикстура некорректна: находка < 2, владельцы находок одинаковы (индекс сливает
+//!     `(owner, shard)` в один слот — `ivf.rs:313`, урок первого замера), `DEAD_SLOT` занят;
+//! (ж) (7) дал `Ok` или иной отказ — привязки адресата нет вовсе, дыра шире заявленной.
 
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, rendezvous, session, testing, ShardNode, Spend};
@@ -97,11 +102,15 @@ fn request_slot_is_never_reconciled_with_the_spent_accept() {
     let seeker = testing::identity(SEEKER);
     let t = owner.pubkey();
 
-    // Две живые записи одного владельца — два разных слота в одном MatchResult.
+    // Две живые записи ДВУХ владельцев — два разных слота в одном MatchResult (индекс
+    // хранит одну запись на (owner, shard): перепубликация заменяет на месте, ivf.rs:313
+    // — поправка заморозки после первого замера, где фикстура «2 записи одного владельца»
+    // дала одну находку).
+    let other = testing::identity(92);
     n.on_frame(owner.pubkey(), &publish_frame(&owner, 1), testing::clock(0))
-        .expect("publish 1");
-    n.on_frame(owner.pubkey(), &publish_frame(&owner, 2), testing::clock(0))
-        .expect("publish 2");
+        .expect("publish O");
+    n.on_frame(other.pubkey(), &publish_frame(&other, 2), testing::clock(0))
+        .expect("publish B");
 
     let replies = n
         .on_frame(
@@ -115,9 +124,10 @@ fn request_slot_is_never_reconciled_with_the_spent_accept() {
         .find(|en| decode_frame(&en.frame).map(|f| f.header.kind) == Ok(Kind::MatchResult))
         .and_then(|en| MatchResult::decode(&en.frame).ok())
         .expect("фальсификатор (е): MatchResult отсутствует");
-    assert_eq!(mr.matches.len(), 2, "фальсификатор (е): двух записей в находке не видно");
+    assert_eq!(mr.matches.len(), 2, "фальсификатор (е): двух записей разных владельцев в находке не видно");
     let s0 = mr.matches[0].slot;
     let s1 = mr.matches[1].slot;
+    assert_ne!(mr.matches[0].owner_ed25519, mr.matches[1].owner_ed25519, "фальсификатор (е): две записи одного владельца — индекс их бы слил");
     assert!(s0 != s1 && s0 != DEAD_SLOT && s1 != DEAD_SLOT, "фальсификатор (е): слоты неразличимы или задели мёртвый");
 
     let f0 = replies
@@ -173,11 +183,22 @@ fn request_slot_is_never_reconciled_with_the_spent_accept() {
         .expect("фальсификатор (а): провал воспроизвёлся на свежем инстансе");
     assert_eq!(g6.slot, s0, "фальсификатор (б): grant(6).slot != S0");
 
+    // (7) сильная форма поправки: адресат при этом ПРИВЯЗАН — тот же приём F0 (target=O) на
+    // входе второго владельца даёт Spend(WrongTarget); фикция ровно в slot, не в адресате.
+    let mut spend_b = Spend::new(300);
+    assert_eq!(
+        session::serve_request(&req_at(s1, &reissued), &other.pubkey(), &issuers, 0, &mut spend_b),
+        Err(session::TextError::Spend(rendezvous::AcceptError::WrongTarget)),
+        "фальсификатор (ж): приём обслуживается вне своего адресата — привязки target нет вовсе"
+    );
+    assert_eq!(spend_b.spent(), 0, "фальсификатор (ж): WrongTarget оставил след в памяти расхода B");
+
     eprintln!(
-        "## пороги (0)…(6): serve_request обслуживает ЛЮБОЙ req.slot с валидным приёмом \
-         (S1 и {DEAD_SLOT} — Ok), Grant несёт slot приёма S0 и расхождение видно только через \
-         него; NO_SUCH_SLOT не порождается (константа не конструируется нигде); spent 1→2 \
-         (по одной на приём), повтор — AlreadySpent, свежий инстанс — Ok ##"
+        "## пороги (0)…(7): serve_request обслуживает ЛЮБОЙ req.slot с валидным приёмом \
+         (S1 чужого владельца и {DEAD_SLOT} — Ok), Grant несёт slot приёма S0 и расхождение \
+         видно только через него; NO_SUCH_SLOT не порождается (константа не конструируется \
+         нигде); spent 1→2 (по одной на приём), повтор — AlreadySpent, свежий инстанс — Ok; \
+         адресат же привязан: F0(target=O) на входе B → Spend(WrongTarget) ##"
     );
     remove(&d);
 }
