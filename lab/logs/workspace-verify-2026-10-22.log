@@ -1510,3 +1510,12 @@ EXIT=0
     Checking vecdht-node v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-node)
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.15s
 CLIPPY_REAL_EXIT=0
+
+########## E-0049 · workspace-verify · 2026-10-22T09:48:08+03:00 ##########
+     Running tests\find_cluster_list.rs (target\debug\deps\find_cluster_list-fb9c9972e9203741.exe)
+     Running tests\fuzz_decode.rs (target\debug\deps\fuzz_decode-3a564a8b470f4d63.exe)
+     Running tests\golden_vectors.rs (target\debug\deps\golden_vectors-035474248071c0ee.exe)
+TEST_EXIT=0
+TOTAL_PASSED=556
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.85s
+CLIPPY_REAL_EXIT=0
