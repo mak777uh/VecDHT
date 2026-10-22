@@ -200,12 +200,20 @@ fn errors(envs: &[Envelope]) -> Vec<ProtocolError> {
         .collect()
 }
 
+/// Кластер записи: свой для каждого вектора внутри шарда 7 (112..=119).
+///
+/// Изоляция нужна порогам «Find D → 0»: `Find` возвращает top-k *живых* записей кластера,
+/// и общий кластер на все записи дал бы соседа вместо честного нуля у отсутствующей.
+fn cluster_of(vec_seed: u8) -> u16 {
+    CLUSTER + (vec_seed as u16 % 8)
+}
+
 fn publish_frame(agent_seed: u8, vec_seed: u8, epoch: u64, bucket: u32, ttl: u16) -> Vec<u8> {
     let agent = testing::identity(agent_seed);
     testing::PublishSpec {
         agent: &agent,
         vec_q: &testing::vector(vec_seed),
-        cluster_id: CLUSTER,
+        cluster_id: cluster_of(vec_seed),
         shard: SHARD,
         epoch,
         published_bucket: bucket,
@@ -268,7 +276,8 @@ fn find(
     query_id: u64,
 ) -> MatchResult {
     let agent = testing::identity(agent_seed);
-    let frame = testing::find_frame(&agent, &testing::vector(vec_seed), &[CLUSTER], 10, query_id);
+    let frame =
+        testing::find_frame(&agent, &testing::vector(vec_seed), &[cluster_of(vec_seed)], 1, query_id);
     let out = t
         .node_mut(at)
         .on_frame(agent.pubkey(), &frame, testing::clock(bucket))
