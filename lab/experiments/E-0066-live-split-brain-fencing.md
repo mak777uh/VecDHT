@@ -1,15 +1,15 @@
 ---
 id: E-0066
 hypothesis: H-0066
-status: planned
-base_commit: ""
-started: ""
-finished: ""
-environment: ""
+status: completed
+base_commit: "28703da"
+started: "2026-10-22T19:21:25+03:00"
+finished: "2026-10-22T19:23:38+03:00"
+environment: "Windows; MinGW gcc 16.2.0; rustc 1.99.1 (58cf8f9c3 2026-10-13); debug; RAYON_NUM_THREADS=2; один прогон, один процесс"
 command: "bash lab/e0066-run.sh"
 threshold: "H-0066 (0)…(7): база W=2 даёт OK; смещённый P не получает OK и не навязывает опс; реплики молчат; новая эпоха пишет; lease прошлой эпохи → EPOCH_STALE; ack чужой эпохи не закрывает Awaiting"
-result: ""
-verdict: pending
+result: "1 passed; 0 failed; 0.46 s; пороги (0)…(7) совпали, фальсификаторы (а)…(з) молчат; КОНТРОЛЬ -p vecdht-node 128 ok, EXIT=0; аномалий и отброшенных прогонов нет"
+verdict: supports
 ---
 
 ## Pre-registration (до прогона)
@@ -20,7 +20,8 @@ verdict: pending
 Оракул: `crates/vecdht-node/tests/live_split_brain_fencing.rs` — три независимых
 `ShardNode` с ручной доставкой конвертов; разделение — `peer_lost(P)` только на Q и R;
 переход эпохи 2 собирается `candidates::expected_update` и подписывается Q и R по индексам
-эпохи 1. Пороги (0)…(7) и фальсификаторы (а)…(з) заморожены в `H-0066` этим коммитом.
+эпохи 1. Пороги (0)…(7) и фальсификаторы (а)…(з) заморожены в `H-0066` коммитом `28703da`
+до первого замера; этот же коммит запушен в `main` до запуска.
 
 Порог успеха: все восемь порогов совпали, фальсификаторы молчат. Провал: любой порог не
 совпал или любой `on_frame` вернул `Err` (тогда сценарий недействителен, а не «протокол
@@ -30,18 +31,47 @@ verdict: pending
 lease 6 бакетов / renew 2, W=2, R=3. Агенты: A=seed 60 (база), B=seed 61 (запись старого
 primary), C=seed 88 (запись новой эпохи). Время — `testing::clock`, без `sleep`.
 
-Что **не** проверяется: воссоединение (heal) и догон эпохи старым primary, грант будущей
-эпохи, реальный транспорт, 24 бита PoW, R=3 при живом третьем. См. «Границы» в `H-0066`.
-
 ## Прогон
 
-Окружение и сырой вывод — в `lab/logs/e0066-all.log` (append-only): BUILD `--no-run` →
-RUN `--nocapture` → ИНВЕНТАРЬ → КОНТРОЛЬ `-p vecdht-node`.
+`bash lab/e0066-run.sh`, лог `lab/logs/e0066-all.log` (append-only):
+
+* BUILD `--no-run` — EXIT=0;
+* RUN `--nocapture` — `1 passed; 0 failed; 0 ignored` за 0.46 с, EXIT=0;
+* ИНВЕНТАРЬ — grep по `handle_replicate` (фильтр `m.epoch() == op.epoch`), `handle_replicate_ack`
+  (`m.epoch() == ack.epoch && m.is_member`), `handle_lease_grant` (`EPOCH_STALE`),
+  `serving_epoch`/`durable_epoch`; список уже покрытых тестов `gates_p4.rs`;
+* КОНТРОЛЬ `-p vecdht-node` — 128 ok, 0 failed, EXIT=0 (127 в блоке `E-0065` + 1 новый оракул).
+
+Один прогон, без повторов и отброшенных запусков; промахов заморозки не было.
 
 ## Результат
 
-Заполняется после прогона.
+| Порог | Что наблюдалось |
+|---|---|
+| (0) | P принял `Publish` A (эпоха 1, бакет 1), вернул ровно два `ReplicateOp` и ни одного `PublishAck`; после доставки опсов Q и R и их ack'ов обратно — ровно один `PublishAck{OK, epoch=1, seq=1}`; `applied_seq` P/Q/R = 1/1/1 |
+| (1) | После `peer_lost(P)` и перехода эпохи 2 (подписи Q и R по индексам эпохи 1): Q и R `epoch()=2`, `store.serving_epoch()=2`, `serving_epoch(2)=2`, primary — `members[0]`; P `epoch()=1`, `serving_epoch(2)=1` |
+| (2) | Смещённый P принял `Publish` B (бакет 2): ровно два `ReplicateOp`, ни `PublishAck`, ни `ProtocolError`; `applied_seq` 1 → 2 (WAL-first) |
+| (3) | Доставка этих опсов (epoch=1) Q и R дала пустой ответ у обоих; `applied_seq` Q и R остались 1 |
+| (4) | `owner_slot(B)`: `None` у Q, `None` у R, `Some` у P; выдача `search` Q по вектору B не содержит владельца B |
+| (5) | Primary эпохи 2 принял `Publish` C (бакет 3), его единственный `ReplicateOp` (epoch=2) применён второй репликой, ack вернулся — агенту пришёл ровно один `PublishAck{OK, epoch=2, seq=2}`; `applied_seq` Q и R = 2; `owner_slot(C)` = `Some` у обоих |
+| (6) | `P.tick(5)` отдал два `LeaseGrant` эпохи 1; Q и R ответили ровно по одному `Error{code=EPOCH_STALE}`; epoch P остался 1, `serving_epoch(5)=1` |
+| (7) | Подлинный `ReplicateAck{epoch=2, seq=2, ok=true}`, подписанный Q, доставленный P с открытым `Awaiting` seq=2, не породил ни одного кадра — в частности, `PublishAck` |
+
+Фальсификаторы (а)…(з) не сработали: база дала `OK`; смещённый primary не подтвердил и не
+навязал запись; реплики не ответили на чужую эпоху; новая эпоха осталась пишущей; старый
+грант отвергнут; чужой ack не закрыл `Awaiting`; ни один `on_frame` не вернул `Err`.
 
 ## Вердикт
 
-`pending` до прогона.
+`supports`: на первом же замере все восемь замороженных порогов совпали. Fencing живого
+смещённого primary стоит на принимающей стороне и на durable-маркере — отброшенный
+`ReplicateOp`, непроведённый ack и `EPOCH_STALE` на старый lease, — а не на локальной
+проверке самого старого primary: он честно пишет свой WAL и не может ни подтвердить
+запись агенту, ни навязать её репликам.
+
+## Что это не доказывает
+
+Границы стенда: модельная сеть из трёх узлов в одном процессе, разделение — событие
+`peer_lost`, а не реальный обрыв; воссоединение (heal) и догон эпохи старым primary не
+мерялись; грант будущей эпохи от произвольного ключа не проверялся (кандидат в следующий
+цикл); PoW 8 бит, не 24; один шард, R=3 при двух живых. Подробнее — «Границы» в `H-0066`.
