@@ -2,9 +2,12 @@
 //!
 //! `LeaseGrant` подписывается primary и продлевается раз в `renew_buckets`; `expires_at_bucket` —
 //! абсолютный бакет (§9.6), а не дельта, иначе часы реплики решали бы, когда lease истёк.
-//! Отдельного протокола выборов нет: каждый WAL-фрейм несёт `epoch`, а реплика с
-//! `epoch < max_epoch_served` фрейм отбрасывает, поэтому воскресший старый primary демотируется
-//! сам.
+//! Грант действует только на **принятую** эпоху и только от primary принятого состава
+//! (ADR-0016): подпись доказывает владение ключом, а право быть primary — только цепочка
+//! `ShardMembership`. Эпоху двигает принятие цепочки (`adopt`), а не lease: старый primary
+//! демотируется, когда принимает цепочку с большей эпохой, а до этого его фреймы не проходят
+//! fencing на репликах. Отдельного протокола выборов нет: каждый WAL-фрейм несёт `epoch`, а
+//! реплика с `epoch < max_epoch_served` фрейм отбрасывает.
 
 use thiserror::Error;
 use vecdht_crypto::Identity;
@@ -27,6 +30,8 @@ pub enum LeaseError {
     Expired { now: u32, expires: u32 },
     #[error("lease из прошлого: epoch={got} < принятой {have}")]
     Stale { got: u64, have: u64 },
+    #[error("lease из будущего: epoch={got} > принятой {have} — эпоху двигает членство, а не грант (ADR-0016)")]
+    Future { got: u64, have: u64 },
 }
 
 /// Действующий lease, как его видит узел: либо «я primary», либо «primary вот этот».
@@ -83,7 +88,9 @@ impl Lease {
     }
 
     /// Принять грант: подпись обязана сходиться с ключом, который заявлен в самом теле —
-    /// иначе любой наблюдатель объявляет себя primary.
+    /// иначе любой наблюдатель объявляет себя primary. Эпоха — ровно принятая: прошлый грант
+    /// это воскресший primary, будущий — попытка сдвинуть эпоху в обход цепочки членства
+    /// (ADR-0016); ни тот, ни другой lease не меняют.
     pub fn verify(
         bytes: &[u8],
         shard: u16,
@@ -111,6 +118,9 @@ impl Lease {
         if let Some(have) = have_epoch {
             if g.epoch < have {
                 return Err(LeaseError::Stale { got: g.epoch, have });
+            }
+            if g.epoch > have {
+                return Err(LeaseError::Future { got: g.epoch, have });
             }
         }
         if now_bucket >= g.expires_at_bucket {
@@ -201,6 +211,19 @@ mod tests {
             Lease::verify(&bytes, 3, None, 1_000),
             Err(LeaseError::ForeignShard { want: 3, found: 0 })
         );
+    }
+
+    #[test]
+    fn a_lease_from_the_future_is_not_adopted() {
+        let a = id(24);
+        let bytes = grant(&a, 6, 2_000);
+        assert_eq!(
+            Lease::verify(&bytes, 0, Some(5), 1_000),
+            Err(LeaseError::Future { got: 6, have: 5 }),
+            "эпоху двигает принятая цепочка членства, а не грант (ADR-0016)"
+        );
+        // Равенство эпох — по-прежнему легитимное продление, а не «приблизительно та же эпоха».
+        assert!(Lease::verify(&bytes, 0, Some(6), 1_000).is_ok());
     }
 
     #[test]

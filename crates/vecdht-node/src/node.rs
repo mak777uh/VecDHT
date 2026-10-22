@@ -613,8 +613,15 @@ impl ShardNode {
             Ok((lease, grant)) => {
                 // Грант обязан прийти от того же ключа, который он объявляет primary (§4.3):
                 // иначе любой наблюдатель пересылает чужой lease и становится «primary» в глазах
-                // реплики.
-                if grant.primary_ed25519 != from || lease.primary != from {
+                // реплики. И этот ключ обязан быть primary ПРИНЯТОГО состава (ADR-0016): подпись
+                // доказывает владение ключом, но не право выдавать lease этой эпохи. Чужую эпоху
+                // отвергает `Lease::verify` (Stale/Future), члена-не-primary — эта сверка, молча,
+                // как чужой `from`.
+                let mine = self.membership.as_ref().and_then(|m| m.primary());
+                if grant.primary_ed25519 != from
+                    || lease.primary != from
+                    || mine != Some(lease.primary)
+                {
                     return Ok(Vec::new());
                 }
                 self.lease = Some(lease);
