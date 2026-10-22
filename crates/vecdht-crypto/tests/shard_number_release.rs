@@ -81,7 +81,7 @@ fn release_arithmetic_replaces_the_panic_with_an_empty_list() {
         SHARDS
     );
     if !mismatches.is_empty() {
-        eprintln!("## первые несоответствия: {:?} ##", mismatches[..mismatches.len().min(6)]);
+        eprintln!("## первые несоответствия: {:?} ##", &mismatches[..mismatches.len().min(6)]);
     }
     eprintln!("## время перебора {:.1} с ##", t0.elapsed().as_secs_f64());
 

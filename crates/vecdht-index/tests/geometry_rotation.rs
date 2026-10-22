@@ -167,10 +167,10 @@ fn layout_invariance_frame_length_does_not_depend_on_geometry_value() {
         // Подстановка `(v % 63) + 1` даёт 16, 4, 28, 16, 4 для GEOM; значение 3 (основание)
         // достигается только при v=511 — там различие обязано быть нулевым.
         let a = cert_with(vec![0, 1, 3]).encode();
-        let b = cert_with(vec![0, 1, (v % (SHARDS as u16 - 1)) + 1]).encode();
+        let b = cert_with(vec![0, 1, (v % (SHARDS - 1)) + 1]).encode();
         let (la, lb, pos) = diff(&a, &b);
         assert_eq!(la, lb, "NodeCert: длина зависит от значения shard={v}");
-        let s2 = (v % (SHARDS as u16 - 1)) + 1;
+        let s2 = (v % (SHARDS - 1)) + 1;
         let expect = {
             let b3 = 3u16.to_le_bytes();
             let o = s2.to_le_bytes();
@@ -345,7 +345,7 @@ fn cert_with(shards: Vec<u16>) -> NodeCert {
 #[test]
 fn cert_shard_cap_forces_wildcard_and_wildcard_disables_filtering() {
     // (4-а) явный список из MAX_CERT_SHARDS+1 шардов — отказ (класс E).
-    let over = cert_with((0..=MAX_CERT_SHARDS as u16).map(|i| i % SHARDS as u16).collect());
+    let over = cert_with((0..=MAX_CERT_SHARDS as u16).map(|i| i % SHARDS).collect());
     let res = NodeCert::decode(&over.encode());
     eprintln!("## (4-а) {} шардов: {:?}", over.shards.len(), res.as_ref().err().map(|e| e.to_string()));
     assert!(res.is_err(), "decode принял {}+1 шардов", MAX_CERT_SHARDS);
@@ -359,7 +359,7 @@ fn cert_shard_cap_forces_wildcard_and_wildcard_disables_filtering() {
     assert!(wild.covers_shard(255) && wild.covers_shard(511), "wildcard не покрывает будущие шарды");
 
     // (4-в) явный список валидируется `s < SHARDS`: при shards > 64 явная форма невыразима.
-    assert!(NodeCert::decode(&cert_with(vec![SHARDS as u16]).encode()).is_err());
+    assert!(NodeCert::decode(&cert_with(vec![SHARDS]).encode()).is_err());
 }
 
 // ------------------------------------------------------------------ пункт (5)

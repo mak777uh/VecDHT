@@ -1,3 +1,225 @@
 ########## ПОЛНАЯ ВЕРИФИКАЦИЯ main (E-0027 завершена, ядра свободны) ##########
 Thu Oct 22 06:09:03 RTZ 2026
 --- cargo test -j 2 --workspace ---
+     Running unittests src\lib.rs (target\debug\deps\vecdht_artifact-ee6b85f95a800dc8.exe)
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running tests\fanout_rule.rs (target\debug\deps\fanout_rule-a54e146663b2e43f.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.14s
+     Running tests\fuzz_decode.rs (target\debug\deps\fuzz_decode-ad5ab54dcba73888.exe)
+test known_non_canonical_shapes_are_rejected ... ok
+test manifest_decode_accepts_only_its_own_rendition ... ok
+test centroid_input_and_assignment_are_total ... ok
+test json_parse_never_panics_and_accepts_only_canonical_bytes ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.96s
+     Running tests\geometry_wall.rs (target\debug\deps\geometry_wall-57e37c08bec52350.exe)
+test credential_shard_numbers_are_bounded_by_the_compiled_constant ... ok
+test the_shards_ceiling_branch_cannot_be_reached_while_the_equality_lives ... ok
+test only_the_reference_geometry_triple_passes_manifest_check ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests\golden_artifact.rs (target\debug\deps\golden_artifact-e2ea4dbcb5921e0c.exe)
+test fixture_pins_the_signed_bytes_not_their_hash ... ok
+test golden_artifact_matches_checked_in_fixture ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests\stand_grid_degeneracy.rs (target\debug\deps\stand_grid_degeneracy-8b7fea15d69e0b3a.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.02s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_benches-a608cd5044a9750b.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_cli-edb45b3288f1cf9b.exe)
+test result: ok. 61 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.35s
+     Running unittests src\main.rs (target\debug\deps\vecdht_cli-312ae3b73a91ab33.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\cli.rs (target\debug\deps\cli-1ce9f0f1c0e66103.exe)
+test help_and_unknown_flags_stay_code_usage ... ok
+test wire_kinds_prints_the_frame_table ... ok
+test wire_decode_rebuilds_a_publish_frame_it_was_given ... ok
+test a_shard_number_outside_the_protocol_is_refused ... ok
+test index_add_rejects_a_partial_record ... ok
+test index_create_without_epoch_refuses_to_publish ... ok
+test a_gc_tick_in_the_same_command_removes_every_record ... ok
+test an_unreachable_signature_threshold_is_refused_before_writing ... ok
+test index_commands_drive_one_shard_on_disk ... ok
+test a_real_process_returns_the_same_codes_as_run ... ok
+test encode_refuses_a_silent_surrogate_and_labels_it_when_allowed ... ok
+test overwriting_an_artifact_needs_an_explicit_force ... ok
+test artifact_init_then_show_then_verify_agree_on_the_hash ... ok
+test the_same_label_rebuilds_a_byte_identical_artifact ... ok
+test demo_runs_offline_and_calls_itself_a_surrogate ... ok
+test agent_run_raises_a_listener_and_stops_on_the_registered_budget ... ok
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_crypto-07dfc49c2150bad3.exe)
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+     Running tests\fuzz_verify.rs (target\debug\deps\fuzz_verify-0de1e5d88f12945d.exe)
+test pow_threshold_is_monotone_in_bits ... ok
+test cert_verification_rejects_every_malformed_shape_without_panicking ... ok
+test quantization_and_distances_keep_their_invariants ... ok
+test signature_verification_never_panics_and_never_fabricates ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.91s
+     Running tests\golden_vectors.rs (target\debug\deps\golden_vectors-6d73d7b7eaa33712.exe)
+test quantized_form_is_always_in_grid ... ok
+test pow_nonce_in_fixture_satisfies_the_threshold ... ok
+test golden_vectors_match_checked_in_fixture ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\shard_number_admission.rs (target\debug\deps\shard_number_admission-551fb07de41db2b2.exe)
+test an_out_of_range_shard_number_becomes_someone_elses_cluster_list ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\shard_number_exhaustive.rs (target\debug\deps\shard_number_exhaustive-e2b534e4e1360a57.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_embed-16ba2765fe956820.exe)
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.64s
+     Running tests\p0_harness.rs (target\debug\deps\p0_harness-3b70c99847e122c7.exe)
+test gate_iv_grid_perturbation_is_one_coordinate_not_fifty_percent ... ok
+test gate_i_quantize_and_assign_cost ... ok
+test gate_iv_no_hidden_state_between_calls ... ok
+test gate_iv_pipeline_outputs_are_identical_across_thread_counts ... ok
+test gate_iv_cluster_assignment_is_stable_under_perturbation ... ok
+test gate_iii_rerank_contract_and_metric_machinery ... ok
+test gate_ii_ann_machinery_matches_brute_force_at_full_probe ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 62.11s
+     Running tests\p0_real_corpus.rs (target\debug\deps\p0_real_corpus-09534893fd368e13.exe)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-64a03609bc6992b0.exe)
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s
+     Running tests\crash_matrix.rs (target\debug\deps\crash_matrix-49ee25f09cbc2128.exe)
+test property_recover_disk_equals_replay_all_ops ... ok
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.37s
+     Running tests\determinism.rs (target\debug\deps\determinism-ebb247ce175964b0.exe)
+test stream_helpers_are_deterministic ... ok
+test republish_of_the_same_owner_replaces_in_place_through_the_wal ... ok
+test two_independent_runs_produce_identical_canonical_match_bodies ... ok
+test compaction_does_not_renumber_slots_nor_change_entry_keys ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+     Running tests\geometry_rotation.rs (target\debug\deps\geometry_rotation-bd85026af508c13f.exe)
+test artifact_announce_already_carries_geometry_as_data ... ok
+test cert_shard_cap_forces_wildcard_and_wildcard_disables_filtering ... ok
+test validity_not_layout_refusals_come_from_validators ... ok
+test layout_invariance_frame_length_does_not_depend_on_geometry_value ... ok
+test snapshot_cross_geometry_rejected_but_header_has_no_geometry_field ... ok
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-f65015da1f47564d.exe)
+test one_million_entries_fit_the_budget ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.93s
+     Running tests\root_cost.rs (target\debug\deps\root_cost-93a17881825f3e8a.exe)
+test root_cost_measured_on_real_store ... ignored, E-0019: замер на реальном диске, RAYON_NUM_THREADS=1
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\search_latency.rs (target\debug\deps\search_latency-cf72a65cb4ccb6f6.exe)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.96s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-502162b5780742df.exe)
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-5cee7e68d1cbde1d.exe)
+test egress_bytes_per_query ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 117.40s
+     Running tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-f40c74591c2c28ad.exe)
+test a_manifest_with_other_geometry_is_refused_today ... ok
+test rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics ... ok
+test the_two_implementations_agree_on_every_cluster_at_protocol_geometry ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests\transport.rs (target\debug\deps\transport-0c7fb6bb4a5d446d.exe)
+test quic_handshake_binds_the_cert_to_the_transport_key ... ok
+test an_agent_discovers_the_shard_provider_through_kademlia ... ok
+test gossip_delivers_a_signed_publish_to_the_primary ... ok
+test a_valid_revoke_on_a_shard_topic_is_refused ... ok
+test a_closed_connection_reaches_peer_lost_in_the_shard ... ok
+test publish_and_find_travel_over_the_real_transport ... ok
+test a_revoke_below_threshold_is_rejected_before_it_can_revoke ... ok
+test an_agent_publishes_finds_and_opens_a_direct_session ... ok
+test a_threshold_revoke_drops_connections_and_blocks_reconnect ... ok
+test a_cert_whose_owner_is_not_the_transport_key_is_rejected ... ok
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.30s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-b4229cc6dbb75a49.exe)
+test result: ok. 72 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+     Running tests\admission.rs (target\debug\deps\admission-72e3978f6d439743.exe)
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+     Running tests\adversarial.rs (target\debug\deps\adversarial-715297e4012b836a.exe)
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.91s
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-ed967e3cb6bd0020.exe)
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+     Running tests\gc.rs (target\debug\deps\gc-997679f7266fc12e.exe)
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-1362051a3c49a948.exe)
+test a_find_without_matches_issues_no_accept ... ok
+test an_accept_stops_working_after_its_ttl ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_wire-f16856eefb5d4dc9.exe)
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests\fuzz_decode.rs (target\debug\deps\fuzz_decode-3a564a8b470f4d63.exe)
+test corpus_covers_every_kind ... ok
+test header_declared_lengths_are_bounded_by_the_buffer ... ok
+test fuzz_decode_never_panics_and_accepts_only_canonical_bytes ... ok
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.23s
+     Running tests\golden_vectors.rs (target\debug\deps\golden_vectors-035474248071c0ee.exe)
+test wire_rules_that_golden_pins_down_are_still_enforced ... ok
+test every_kind_is_covered_by_a_golden_frame ... ok
+test golden_frames_are_self_consistent ... ok
+test golden_vectors_match_checked_in_fixture ... ok
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests vecdht_artifact
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests vecdht_benches
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests vecdht_cli
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests vecdht_crypto
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests vecdht_embed
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests vecdht_index
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests vecdht_net
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests vecdht_node
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+   Doc-tests vecdht_wire
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+TEST_EXIT=0
+--- cargo clippy -j 2 --workspace --all-targets -- -D warnings ---
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#unnecessary_cast
+
+error: could not compile `vecdht-index` (test "geometry_rotation") due to 4 previous errors
+warning: build failed, waiting for other jobs to finish...
+CLIPPY_EXIT=0
+Thu Oct 22 06:14:51 RTZ 2026
+
+########## ДОПОЛНЕНИЕ (append-only): честный захват exit-кодов ##########
+# в первом разделе TEST_EXIT/CLIPPY_EXIT снимались с pipeline (grep/tail), а не с cargo —
+# поэтому они ничего не утверждали. Ниже — настоящие коды, без пайпа: вывод в файл, затем grep.
+2026-10-22T06:15:40+03:00
+--- cargo test -j 2 --workspace ---
+REAL_TEST_EXIT=101
+--- cargo clippy -j 2 --workspace --all-targets -- -D warnings ---
+REAL_CLIPPY_EXIT=101
+0
+error[E0277]: the size for values of type `[std::string::String]` cannot be known at compilation time
+error: could not compile `vecdht-crypto` (test "shard_number_release") due to 1 previous error
+2026-10-22T06:15:44+03:00
+
+########## ВЕРИФИКАЦИЯ ПОСЛЕ ПРАВОК (правка 4 кастов + компайл-ошибка нового файла E-0036) ##########
+2026-10-22T06:16:47+03:00
+964a844
+--- cargo test -j 2 --workspace ---
+REAL_TEST_EXIT=0
+0
+--- cargo clippy -j 2 --workspace --all-targets -- -D warnings ---
+REAL_CLIPPY_EXIT=0
+2026-10-22T06:21:35+03:00
