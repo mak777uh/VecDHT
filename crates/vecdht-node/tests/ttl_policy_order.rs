@@ -106,11 +106,18 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
         .expect("find");
     let accs = accepts(&replies);
     assert_eq!(accs.len(), 3, "фальсификатор (д): голова бакета 0 не выдана");
-    let owner = testing::identity(77);
     let (f0, a0) = &accs[0];
     assert_eq!((a0.issued_bucket, a0.ttl_sec), (0, 300), "фальсификатор (д): карта не бакета 0/ttl=300");
     let me = n.me();
-    let iss = owner.pubkey();
+    // Издатель приёмки — primary; под его подписью живёт ТОТ владелец, на которого выписан
+    // кадр (node.rs: target = m.owner_ed25519). ДИАГНОЗ 14:45: сид 77 был догадкой харнеса.
+    let owner = testing::identity(
+        *OWNER_SEEDS
+            .iter()
+            .find(|s| testing::identity(**s).pubkey() == a0.target)
+            .expect("издатель карты — один из владельцев"),
+    );
+    let iss = a0.target;
 
     // Порог (0): базовая грань окна 300.
     let mut spend = Spend::new(300);
