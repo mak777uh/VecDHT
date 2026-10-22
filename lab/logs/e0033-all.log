@@ -1,0 +1,35 @@
+########## E-0033 · пригодность стенда: сетка эталона против случайных центроидов · 2026-10-22T05:49:37+03:00 ##########
+fa79673
+########## BUILD ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+  Executable tests\stand_grid_degeneracy.rs (target\debug\deps\stand_grid_degeneracy-93b0465fdaa3cf1a.exe)
+########## RUN stand_grid_degeneracy ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running tests\stand_grid_degeneracy.rs (target\debug\deps\stand_grid_degeneracy-93b0465fdaa3cf1a.exe)
+
+running 1 test
+## сетка эталона: nprobe=4 — запросов со столкновением 0 из 256, средний fan-out кластерного правила 4.00, шардового 4.00, средний Jaccard 1.000, шардовое правило всегда ровно nprobe: true ##
+## случайные строки: nprobe=4 — запросов со столкновением 18 из 256, средний fan-out кластерного правила 3.93, шардового 4.00, средний Jaccard 0.982, шардовое правило всегда ровно nprobe: true ##
+## сетка эталона: nprobe=16 — запросов со столкновением 227 из 256, средний fan-out кластерного правила 13.30, шардового 16.00, средний Jaccard 0.832, шардовое правило всегда ровно nprobe: true ##
+## случайные строки: nprobe=16 — запросов со столкновением 226 из 256, средний fan-out кластерного правила 14.35, шардового 16.00, средний Jaccard 0.897, шардовое правило всегда ровно nprobe: true ##
+## сетка эталона: nprobe=32 — запросов со столкновением 256 из 256, средний fan-out кластерного правила 17.91, шардового 32.00, средний Jaccard 0.560, шардовое правило всегда ровно nprobe: true ##
+## случайные строки: nprobe=32 — запросов со столкновением 256 из 256, средний fan-out кластерного правила 25.86, шардового 32.00, средний Jaccard 0.808, шардовое правило всегда ровно nprobe: true ##
+test the_grid_stands_in_the_way_of_the_nprobe_4_measurement ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.10s
+
+########## EXIT=0 ##########
+########## КОНТРОЛЬ: тесты artifact не сломаны ##########
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.81s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.66s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 33.96s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+########## ОРИЕНТИР (расчёт по равномерной модели, не замер) ##########
+доля запросов с хотя бы одним столкновением при выборке k кластеров из 1024 по 16 в шарде,
+если бы кластеры выбирались наугад (без учёта близости к запросу):
+  k=4   8.57 %  (из 256 запросов ~ 21.9)
+  k=16  85.49 %  (из 256 запросов ~ 218.8)
+  k=32  99.99 %  (из 256 запросов ~ 256.0)
