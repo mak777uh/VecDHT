@@ -1,0 +1,97 @@
+########## E-0029 · мёртвые поля shard · 2026-10-22T04:54:55+03:00 ##########
+af6b8d1
+########## (1) чтения .shard вне тестов и комментариев ##########
+crates/vecdht-net/src/agent.rs:720:            let key = (m.shard, m.slot, m.owner_ed25519);
+crates/vecdht-net/src/agent.rs:725:        answers.sort_by_key(|a| a.shard);
+crates/vecdht-net/src/agent.rs:726:        failures.sort_by_key(|a| a.shard);
+crates/vecdht-net/src/agent.rs:855:                    let Some(entry) = sent.get(&acc.shard) else { continue };
+crates/vecdht-net/src/agent.rs:859:                    let Some(&target) = slots.get(&(acc.shard, acc.slot)) else {
+crates/vecdht-net/src/agent.rs:867:                    match self.verify_accept_frame(&bytes, acc.shard, from, &frame, &acc) {
+crates/vecdht-net/src/agent.rs:869:                            grants.entry((acc.shard, acc.slot, acc.target)).or_insert(g);
+crates/vecdht-net/src/agent.rs:879:                    if err.shard == 0 {
+crates/vecdht-net/src/agent.rs:893:                    if let Some(entry) = sent.get(&err.shard) {
+crates/vecdht-net/src/agent.rs:932:        if acc.shard != shard || shard >= SHARDS {
+crates/vecdht-net/src/agent.rs:935:                acc.shard
+crates/vecdht-net/src/agent.rs:1201:                        if err.shard == shard || err.shard == 0 {
+crates/vecdht-net/src/agent.rs:1225:        if res.shard != shard {
+crates/vecdht-net/src/agent.rs:1228:                res.shard
+crates/vecdht-net/src/agent.rs:1283:                        if ack.shard != shard {
+crates/vecdht-net/src/agent.rs:1299:                        if err.shard == shard || err.shard == 0 {
+crates/vecdht-net/src/agent.rs:1343:    if acc.shard >= SHARDS {
+crates/vecdht-net/src/agent.rs:1344:        return Err(AgentError::Session(format!("шард {} вне 0..{SHARDS}", acc.shard)));
+crates/vecdht-net/src/agent.rs:1359:    all.sort_by_key(|m| (m.d2, m.slot, m.shard, m.owner_ed25519));
+crates/vecdht-net/src/service.rs:176:                if !c.covers_shard(n.shard) {
+crates/vecdht-net/src/service.rs:177:                    return Err(NetError::CertDoesNotCover(n.shard));
+crates/vecdht-net/src/service.rs:244:        for shard in nodes.iter().map(|n| n.shard) {
+crates/vecdht-net/src/service.rs:270:            nodes: nodes.into_iter().map(|n| (n.shard, n)).collect(),
+crates/vecdht-net/src/service.rs:1039:            Some(MembershipUpdate::decode(frame).map_err(|e| e.to_string())?.shard)
+crates/vecdht-node/src/lease.rs:98:        if g.shard != shard {
+crates/vecdht-node/src/membership.rs:58:        self.update.shard
+crates/vecdht-node/src/membership.rs:516:        g.shard = 8;
+crates/vecdht-node/src/rendezvous.rs:295:        assert_eq!((a.seeker, a.target, a.shard, a.slot, a.issued_bucket, a.ttl_sec), (addr(1), addr(2), 7, 41, 100, 300));
+crates/vecdht-node/src/rendezvous.rs:349:        assert_eq!((g.issuer, g.seeker, g.shard, g.slot), (issuer.pubkey(), addr(1), 7, 41));
+crates/vecdht-node/src/snapshot.rs:227:    if meta.shard != mf.shard {
+crates/vecdht-node/src/snapshot.rs:311:        assert_eq!(header(&other).unwrap().0.shard, 6, "чужой шард читается из заголовка");
+crates/vecdht-index/src/snapshot.rs:157:    if index.shard != meta.shard {
+crates/vecdht-index/src/snapshot.rs:168:    out.extend_from_slice(&meta.shard.to_le_bytes());
+crates/vecdht-index/src/snapshot.rs:572:        assert_eq!(back.shard, 3);
+crates/vecdht-index/src/store.rs:113:            if m.shard != shard {
+########## (1а) отдельно: res\.shard / mr\.shard / answer\.shard / r#do\.shard ##########
+crates/vecdht-net/src/agent.rs:1225:        if res.shard != shard {
+crates/vecdht-net/src/agent.rs:1228:                res.shard
+########## (1б) СЧЕТЧИК (1а): 2 ##########
+########## (2) приёмники Kind::RendezvousAccept в node (кроме производителя) ##########
+crates/vecdht-node/src/node.rs:1019:            let sig = self.id.sign_body(domain::RENDEZVOUS, Kind::RendezvousAccept, &body);
+crates/vecdht-node/src/rendezvous.rs:24:use vecdht_wire::messages::{domain, Codec, RendezvousAccept};
+crates/vecdht-node/src/rendezvous.rs:44:    fn accept(&self, ttl_sec: u16) -> RendezvousAccept {
+crates/vecdht-node/src/rendezvous.rs:45:        RendezvousAccept {
+crates/vecdht-node/src/rendezvous.rs:110:    ) -> Option<RendezvousAccept> {
+crates/vecdht-node/src/rendezvous.rs:166:    #[error("кадр не разобран как RendezvousAccept")]
+crates/vecdht-node/src/rendezvous.rs:168:    #[error("кадр не RendezvousAccept")]
+crates/vecdht-node/src/rendezvous.rs:170:    #[error("RendezvousAccept обязан быть подписан (§5.3)")]
+crates/vecdht-node/src/rendezvous.rs:216:        if f.header.kind != Kind::RendezvousAccept {
+crates/vecdht-node/src/rendezvous.rs:223:        let acc = RendezvousAccept::decode(frame).map_err(|_| AcceptError::Malformed)?;
+crates/vecdht-node/src/rendezvous.rs:224:        if !verify_body(issuer, domain::RENDEZVOUS, Kind::RendezvousAccept, f.body, &sig)
+crates/vecdht-node/src/rendezvous.rs:285:    fn signed(issuer: &Identity, acc: RendezvousAccept) -> Vec<u8> {
+crates/vecdht-node/src/rendezvous.rs:287:        let sig = issuer.sign_body(domain::RENDEZVOUS, Kind::RendezvousAccept, &body);
+crates/vecdht-net/src/agent.rs:43:    RendezvousAccept, Role,
+crates/vecdht-net/src/agent.rs:261:    pub accept: RendezvousAccept,
+crates/vecdht-net/src/agent.rs:853:                Kind::RendezvousAccept => {
+crates/vecdht-net/src/agent.rs:854:                    let Ok(acc) = RendezvousAccept::decode(&bytes) else { continue };
+crates/vecdht-net/src/agent.rs:920:        acc: &RendezvousAccept,
+crates/vecdht-net/src/agent.rs:940:            .ok_or_else(|| AgentError::Session("RendezvousAccept без подписи".into()))?
+crates/vecdht-net/src/agent.rs:943:        if !verify_body(&who.owner, domain::RENDEZVOUS, Kind::RendezvousAccept, parsed.body, &sig)
+crates/vecdht-net/src/agent.rs:1048:        if parsed.header.kind != Kind::RendezvousAccept {
+crates/vecdht-net/src/agent.rs:1049:            return Err(AgentError::Session("кадр не RendezvousAccept".into()));
+crates/vecdht-net/src/agent.rs:1051:        let acc = RendezvousAccept::decode(frame)
+crates/vecdht-net/src/agent.rs:1055:            .ok_or_else(|| AgentError::Session("RendezvousAccept без подписи".into()))?
+crates/vecdht-net/src/agent.rs:1058:        if !verify_body(&issuer, domain::RENDEZVOUS, Kind::RendezvousAccept, parsed.body, &sig)
+crates/vecdht-net/src/agent.rs:1327:    acc: &RendezvousAccept,
+crates/vecdht-net/src/agent.rs:1473:        let ok = RendezvousAccept {
+crates/vecdht-net/src/agent.rs:1495:        let zero = RendezvousAccept { ttl_sec: 0, ..ok };
+crates/vecdht-net/src/agent.rs:1503:            accept: RendezvousAccept {
+########## (2а) СЧЕТЧИК (2): 29 ##########
+########## (3) откуда берётся аргумент shard в verify_match_result ##########
+crates/vecdht-net/src/agent.rs:787:                    match self.verify_match_result(from, entry.shard, &frame, &res) {
+crates/vecdht-net/src/agent.rs:1192:                        self.verify_match_result(from, shard, &frame, &res)?;
+crates/vecdht-net/src/agent.rs:1215:    fn verify_match_result(
+########## (3а) подпись сверяется по байтам кадра или по пересборке? ##########
+1215:    fn verify_match_result(
+1216-        &self,
+1217-        from: PeerId,
+1218-        shard: u16,
+1219-        frame: &Frame<'_>,
+1220-        res: &MatchResult,
+1221-    ) -> Result<(), AgentError> {
+1222-        if frame.header.kind != Kind::MatchResult {
+1223-            return Err(AgentError::BadAnswer("кадр не MatchResult".into()));
+1224-        }
+1225-        if res.shard != shard {
+1226-            return Err(AgentError::BadAnswer(format!(
+1227-                "MatchResult по шарду {}, а запрос — по {shard}",
+1228-                res.shard
+1229-            )));
+########## (4) норматив спеки: требование отвергать вне диапазона ##########
+477:pub const SHARDS: u16 = NLIST / CLUSTERS_PER_SHARD;      // 64
+1867:| `NLIST` / `CLUSTERS_PER_SHARD` / `SHARDS` | 1024 / 16 / 64 | §7.4 |
+0

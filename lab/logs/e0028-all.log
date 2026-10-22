@@ -1,0 +1,66 @@
+########## E-0028 · геометрия как данные · 2026-10-22T04:50:00+03:00 ##########
+1d359ee
+########## BUILD ##########
+   Compiling vecdht-index v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-index)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.14s
+  Executable tests\geometry_rotation.rs (target\debug\deps\geometry_rotation-74cac14b9940b150.exe)
+########## RUN geometry_rotation ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.42s
+     Running tests\geometry_rotation.rs (target\debug\deps\geometry_rotation-74cac14b9940b150.exe)
+
+running 5 tests
+## (4-а) 65 шардов: Some("field too long: 65")
+test artifact_announce_already_carries_geometry_as_data ... ok
+test cert_shard_cap_forces_wildcard_and_wildcard_disables_filtering ... ok
+## пункт (2): кто отвергает значение геометрии ##
+v=   15  Find:"accept"  MatchResult:"accept"  RendAccept:"accept"  SnapOffer:"accept"  Match(тело 42 байт):тот же каркас
+v=  511  Find:"accept"  MatchResult:"accept"  RendAccept:"accept"  SnapOffer:"BadEnum { value: 511, what: \"shard\", offset: 0 }"  Match(тело 42 байт):тот же каркас
+v= 1023  Find:"accept"  MatchResult:"accept"  RendAccept:"accept"  SnapOffer:"BadEnum { value: 1023, what: \"shard\", offset: 0 }"  Match(тело 42 байт):тот же каркас
+v= 4095  Find:"accept"  MatchResult:"accept"  RendAccept:"accept"  SnapOffer:"BadEnum { value: 4095, what: \"shard\", offset: 0 }"  Match(тело 42 байт):тот же каркас
+v= 8191  Find:"accept"  MatchResult:"accept"  RendAccept:"accept"  SnapOffer:"BadEnum { value: 8191, what: \"shard\", offset: 0 }"  Match(тело 42 байт):тот же каркас
+
+## (2-а) скалярные валидаторы shard ##
+v= 4095  MatchResult.shard:ПРИНЯТ (валидатора нет)  RendAccept.shard:ПРИНЯТ (валидатора нет)  SnapOffer.shard:отказ BadEnum { value: 4095, what: "shard", offset: 0 }
+v= 8191  MatchResult.shard:ПРИНЯТ (валидатора нет)  RendAccept.shard:ПРИНЯТ (валидатора нет)  SnapOffer.shard:отказ BadEnum { value: 8191, what: "shard", offset: 0 }
+
+## пункт (1): сравнено test validity_not_layout_refusals_come_from_validators ... ok
+30 пар кодировок, все длины совпали ##
+test layout_invariance_frame_length_does_not_depend_on_geometry_value ... ok
+## (3-а) SNAP_HEADER_LEN=48, u16==NLIST в заголовке: []
+## (3-б) лишняя секция в начале: Some("slot 0 в списке кластера 1, а у записи cluster_id 0")
+## (3-в) лишняя секция в конце: Some("файл короче заголовка: не хватает 4 байт")
+## (3-г) характер отказа в (3-б): slot 0 в списке кластера 1, а у записи cluster_id 0
+test snapshot_cross_geometry_rejected_but_header_has_no_geometry_field ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+########## EXIT=0 ##########
+########## КОНТРОЛЬ: существующие тесты индекса не сломаны ##########
+running 1 test
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.63s
+
+     Running tests\root_cost.rs (target\debug\deps\root_cost-0914fa600f350fd4.exe)
+
+running 1 test
+test root_cost_measured_on_real_store ... ignored, E-0019: замер на реальном диске, RAYON_NUM_THREADS=1
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\search_latency.rs (target\debug\deps\search_latency-6678254e936f761d.exe)
+
+running 1 test
+test search_is_under_300_microseconds_at_1104_entries ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.60s
+
+   Doc-tests vecdht_index
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+########## EXIT=0 ##########
+########## ПУНКТ (5): читатели Kind::ArtifactAnnounce в нетестовом коде node/net ##########
+########## ЧИТАТЕЛЕЙ (строк с упоминанием вне комментариев): 0 ##########
