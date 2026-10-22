@@ -10,9 +10,10 @@
 //!
 //! Раскладка (`MAX_ACCEPTS = 100 000`, `ttl_buckets = buckets(300) = 19`): 3 строки A в
 //! бакете 0 + 99 997 чужих строк бакета 0 (потолок достигнут ровно), затем шаги `Find`
-//! при now = 19 (бакет 0 ещё жив), 20 (cutoff 1 — уходит бакет 0), 21 (cutoff 2 — уходит
-//! бакет 20; бакет 1 при now=20 ещё жив, 1 < 20−19 = 1 ложно… проверим живым поведением),
-//! 22 (cutoff 3 — бакет 20 жив, повтор идемпотентен).
+//! при now = 0 (побайтовый повтор внутри бакета), 19 (бакет 0 жив — НОВЫЙ ключ бакета 19
+//! отказан: refused_full 3), 20 (cutoff 1 — уходит весь бакет 0, A получает новые строки
+//! бакета 20), 21 (cutoff 2 — повтор бакета 20 побайтовый; второй seeker B получает 3
+//! строки из вернувшейся дыры); refused_full замирает на 3.
 
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, rendezvous, testing, ShardNode};
@@ -135,16 +136,27 @@ fn the_ceiling_returns_bucket_by_bucket_when_rows_live_in_different_buckets() {
     }
     assert_eq!(n.rendezvous.live(), rendezvous::MAX_ACCEPTS, "фальсификатор (а): дыра осталась");
 
-    // Порог (1): now = 19 — бакет 0 ещё жив (cutoff = 0 при checked_sub не срабатывает
-    // на now=19: 19−19=0, условие bucket < 0 ложно), повтор A идемпотентен, новых строк нет.
-    let r19 = find(&mut n, &a, TTL_BUCKETS, 602);
-    let acc19 = accepts(&r19);
-    assert_eq!(acc19.len(), 3, "фальсификатор (б): строки бакета 0 выброшены раньше cutoff");
+    // Порог (1a): now = 0, таблица полная — повтор в ТОМ ЖЕ бакете идемпотентен побайтово
+    // (поправка H-0057 после первого падения: `Key` включает issued_bucket, поэтому
+    // «довоенный повтор» имеет смысл только внутри бакета).
+    let ra0 = find(&mut n, &a, 0, 602);
+    let acc_a0 = accepts(&ra0);
+    assert_eq!(acc_a0.len(), 3, "фальсификатор (б): повтор того же бакета не отдаёт голову");
     for i in 0..3 {
-        assert_eq!(acc19[i].0, head[i].0, "фальсификатор (б): повтор бакета 0 не побайтовый");
+        assert_eq!(acc_a0[i].0, head[i].0, "фальсификатор (б): повтор бакета 0 не побайтовый");
     }
-    assert_eq!(n.rendezvous.live(), rendezvous::MAX_ACCEPTS, "фальсификатор (б)");
-    assert_eq!(n.rendezvous.refused_full, 0, "порог (1): идемпотентный повтор не отказывает");
+    assert_eq!(n.rendezvous.live(), rendezvous::MAX_ACCEPTS, "фальсификатор (а)");
+    assert_eq!(n.rendezvous.refused_full, 0, "порог (1a): идемпотентный повтор не отказывает");
+
+    // Порог (1b): now = 19 — бакет 0 ещё жив (19−19=0, `bucket < 0` ложно); ключ (A, …, 19)
+    // НОВЫЙ (бакет входит в Key), таблица полна → ровно 3 отказа. Различающий: ранний prune
+    // оставил бы дыру → выдача вместо отказа (фальсификатор (в)).
+    let r19 = find(&mut n, &a, TTL_BUCKETS, 603);
+    assert_eq!(accepts(&r19).len(), 0, "порог (1b): полная таблица отказывает, дыры быть не должно");
+    assert_eq!(match_result(&r19).matches.len(), 3, "фальсификатор (д)");
+    assert_eq!(n.rendezvous.live(), rendezvous::MAX_ACCEPTS, "фальсификатор (в): бакет 0 выброшен раньше cutoff");
+    assert_eq!(n.rendezvous.refused_full, 3, "порог (1b): ровно 3 отказа");
+    assert!(!has_error(&r19, a.pubkey()), "фальсификатор (ж): отказ на потолке стал ошибкой");
 
     // Порог (2): now = 20 — cutoff 1, уходит ВЕСЬ бакет 0 (строки A + 99 997 чужих).
     // A при этом получает 3 НОВЫХ строки бакета 20: ключ с issued_bucket=0 больше не в
@@ -160,33 +172,39 @@ fn the_ceiling_returns_bucket_by_bucket_when_rows_live_in_different_buckets() {
         );
     }
     assert_eq!(n.rendezvous.live(), 3, "фальсификатор (в): после prune остались лишние строки");
-    assert_eq!(n.rendezvous.refused_full, 0, "порог (2): новых отказов нет");
+    assert_eq!(n.rendezvous.refused_full, 3, "порог (2): новых отказов нет (замер 1b застыл на 3)");
 
-    // Порог (3): now = 21 — cutoff 2, бакет 20 жив (20 ≥ 2): повтор A побайтовый, live 3.
-    let r21 = find(&mut n, &a, TTL_BUCKETS + 2, 604);
-    let acc21 = accepts(&r21);
-    assert_eq!(acc21.len(), 3, "фальсификатор (г): строки бакета 20 выброшены раньше cutoff");
+    // Порог (3): now = 20 ещё раз (повтор A ВНУТРИ бакета 20, cutoff 2 бакет 20 не трогает) —
+    // побайтово строкам acc20; идемпотентность по поправке живёт строго внутри бакета.
+    let r20b = find(&mut n, &a, TTL_BUCKETS + 1, 604);
+    let acc20b = accepts(&r20b);
+    assert_eq!(acc20b.len(), 3, "фальсификатор (г): повтор бакета 20 не отдаёт свои строки");
     for i in 0..3 {
-        assert_eq!(acc21[i].0, acc20[i].0, "фальсификатор (г): повтор бакета 20 не побайтовый");
+        assert_eq!(acc20b[i].0, acc20[i].0, "фальсификатор (г): повтор бакета 20 не побайтовый");
     }
-    assert_eq!(n.rendezvous.live(), 3, "фальсификатор (г)");
-    assert_eq!(n.rendezvous.refused_full, 0, "порог (3)");
+    assert_eq!(n.rendezvous.live(), 3, "фальсификатор (г): повтор удваивает таблицу");
+    assert_eq!(n.rendezvous.refused_full, 3, "порог (3): новых отказов нет");
 
-    // Порог (4): теперь дыру съедает второй seeker — таблица из 3 строк, выдача без отказа.
+    // Порог (4): now = 21 — второй seeker B получает 3 строки бакета 21 из дыры,
+    // returned prune'ом на шаге (2); A при этом не вытесняется.
     let b = testing::identity(89);
     let rb = find(&mut n, &b, TTL_BUCKETS + 2, 605);
     assert_eq!(accepts(&rb).len(), 3, "фальсификатор (д): B не получил дыру, которую вернул prune");
     assert_eq!(match_result(&rb).matches.len(), 3, "фальсификатор (д)");
-    assert_eq!(n.rendezvous.live(), 6, "порог (4): 3 строки A + 3 строки B бакета 21");
-    assert_eq!(n.rendezvous.refused_full, 0, "фальсификатор (б): отказ там, где дыра есть");
+    for (_, x) in accepts(&rb) {
+        assert_eq!(x.issued_bucket, TTL_BUCKETS + 2, "фальсификатор (д): строки B не бакета 21");
+    }
+    assert_eq!(n.rendezvous.live(), 6, "порог (4): 3 строки A бакета 20 + 3 строки B бакета 21");
+    assert_eq!(n.rendezvous.refused_full, 3, "фальсификатор (б): отказ там, где дыра есть");
     assert!(!has_error(&rb, b.pubkey()), "фальсификатор (ж): пустая выдача стала ошибкой");
 
     eprintln!(
-        "## пороги (1)…(4): потолок из строк бакета 0 (100 000) держит выдачу на now=19 \
-         (повтор A — 3 побайтовых, live 100 000); на now=20 уходит весь бакет 0 → A \
-         получает 3 НОВЫХ строки бакета 20 (live 3, байты ≠ голова); на now=21 повтор \
-         бакета 20 побайтовый; тот же prune-возврат кормит второго seeker'а B (3 строки, \
-         live 6); refused_full 0 на всех шагах, кадров Error нет ##"
+        "## пороги (1a)…(4) по поправке H-0057: повтор в бакете 0 при полной таблице — \
+         3 побайтовых, refused 0; now=19 — 0 приёмов, refused 3, live 100 000 (бакет 0 жив, \
+         новый ключ бакета 19 отказан); now=20 — prune снимает бакет 0, A получает 3 НОВЫХ \
+         строки бакета 20 (байты ≠ довоенные), live 3; повтор now=20 — те же 3 побайтовых; \
+         B при now=21 — 3 новых строки бакета 21, live 6; refused_full замирает на 3, \
+         кадров Error нет ##"
     );
     remove(&d);
 }
