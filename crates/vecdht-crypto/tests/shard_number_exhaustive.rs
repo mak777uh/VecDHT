@@ -76,7 +76,7 @@ fn every_u16_shard_number_is_either_a_masked_legal_list_or_a_panic() {
         "## перебор 4095..=65535: паник нет у {} значений (первые {:?}); первая паника зафиксирована \
          на {:?}; последний законный список — на {:?} ##",
         no_panic.len(),
-        &no_panic.iter().copied().take(4).collect::<Vec<_>>(),
+        no_panic.iter().copied().take(4).collect::<Vec<_>>(),
         first_panic,
         last_ok
     );
@@ -92,7 +92,7 @@ fn every_u16_shard_number_is_either_a_masked_legal_list_or_a_panic() {
     assert!(
         no_panic.is_empty(),
         "номера ≥ 4095 вернули список вместо паники: {:?} (всего {})",
-        &no_panic.iter().copied().take(8).collect::<Vec<_>>(),
+        no_panic.iter().copied().take(8).collect::<Vec<_>>(),
         no_panic.len()
     );
     assert_eq!(first_panic, Some(4095), "первая паника не на 4095");

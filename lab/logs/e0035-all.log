@@ -1,0 +1,52 @@
+########## E-0035 · clusters_of_shard: перебор всего u16 · 2026-10-22T06:03:45+03:00 ##########
+a4fb1d3
+########## BUILD ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+  Executable tests\shard_number_exhaustive.rs (target\debug\deps\shard_number_exhaustive-df76b9bd9fe6eaa1.exe)
+########## RUN shard_number_exhaustive ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running tests\shard_number_exhaustive.rs (target\debug\deps\shard_number_exhaustive-df76b9bd9fe6eaa1.exe)
+
+running 1 test
+## перебор 0..=4094: без паники 4095, несоответствий маски 0, неожиданных паник 0, различных выходов 64 ##
+## перебор 4095..=65535: паник нет у 0 значений (первые []); первая паника зафиксирована на Some(4095); последний законный список — на Some(4094) ##
+## время перебора 0.3 с ##
+test every_u16_shard_number_is_either_a_masked_legal_list_or_a_panic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+########## EXIT=0 ##########
+########## КОНТРОЛЬ: тесты crypto не сломаны ##########
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.23s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+########## СПРАВОЧНО: арифметика границы (расчёт, не замер) ##########
+  base + 16 умещается при s <= 4094
+  base умещается при s <= 4095
+  всего значений без паники: 4095 из 65536
+########## ДОПОЛНЕНИЕ ПОСЛЕ ПРОГОНА (append-only): правка lint + повторный замер ##########
+# причина: первая сборка упала на E0277 (usize::from(4095) вывелся в i32), затем clippy -D warnings
+# нашёл 2 × useless_borrows_in_formatting (строки 79 и 95). Замеров до правки не было ни одного.
+
+--- clippy -j 2 -p vecdht-crypto --all-targets -D warnings ---
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.29s
+CLIPPY_EXIT=0
+
+--- повторный оракул --nocapture (debug) ---
+## перебор 0..=4094: без паники 4095, несоответствий маски 0, неожиданных паник 0, различных выходов 64 ##
+## перебор 4095..=65535: паник нет у 0 значений (первые []); первая паника зафиксирована на Some(4095); последний законный список — на Some(4094) ##
+## время перебора 0.2 с ##
+test every_u16_shard_number_is_either_a_masked_legal_list_or_a_panic ... ok
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+RERUN_EXIT=0
+
+--- контроль -p vecdht-crypto ---
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.84s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
