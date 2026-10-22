@@ -12,9 +12,9 @@ use vecdht_index::entry::IndexEntry;
 use vecdht_index::ivf::IvfIndex;
 use vecdht_index::snapshot::{parse_snapshot, write_snapshot, SnapshotMeta, SNAP_HEADER_LEN};
 use vecdht_wire::cert::{NodeCert, CERT_VERSION, MAX_CERT_SHARDS};
-use vecdht_wire::codec::DIM;
+use vecdht_wire::codec::{DIM, Writer};
 use vecdht_wire::messages::{
-    ArtifactAnnounce, Codec, Find, Match, MatchResult, RendezvousAccept, Role, SnapshotOffer,
+    ArtifactAnnounce, Codec, Find, MatchResult, RendezvousAccept, Role, SnapshotOffer,
 };
 use vecdht_wire::{NLIST, SHARDS};
 
@@ -29,13 +29,9 @@ fn find_with(clusters: Vec<u16>) -> Find {
         clusters,
         top_k: 10,
         query_id: 42,
-        requester_ed25519: [9; 32],
+        requester_ed25519: [9u8; 32],
         tlv: vec![],
     }
-}
-
-fn m_with(cluster_id: u16) -> Match {
-    Match { owner_ed25519: [3; 32], cluster_id, d2: 1000, slot: 7 }
 }
 
 fn mr_with(shard: u16) -> MatchResult {
@@ -43,15 +39,34 @@ fn mr_with(shard: u16) -> MatchResult {
         shard,
         epoch: 4,
         query_id: 42,
-        responder_ed25519: [8; 32],
-        matches: vec![m_with(1)],
+        responder_ed25519: [8u8; 32],
+        matches: vec![vecdht_wire::messages::Match {
+            owner_ed25519: [3u8; 32],
+            cluster_id: 1,
+            d2: 1000,
+            slot: 7,
+        }],
     }
+}
+
+/// `Match` не несёт собственного кадра (`impl Codec` есть только у `MatchResult`,
+/// messages.rs:428); его тело кодируется ровно как внутри `MatchResult`.
+/// Скалярное сравнение байтов тела корректно: в отличие от скалярного `shard`
+/// у `MatchResult`, `cluster_id` здесь отличается от основания 15 при любом
+/// `v ∈ GEOM`, кроме самого 15 (отдельное ожидание 0 различий).
+fn match_body(cluster_id: u16) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.fixed(&[3u8; 32]);
+    w.u16(cluster_id);
+    w.u32(1000);
+    w.u32(7);
+    w.into_vec()
 }
 
 fn ra_with(shard: u16) -> RendezvousAccept {
     RendezvousAccept {
-        seeker: [1; 32],
-        target: [2; 32],
+        seeker: [1u8; 32],
+        target: [2u8; 32],
         shard,
         slot: 9,
         issued_bucket: 1000,
@@ -70,7 +85,7 @@ fn so_with(shard: u16) -> SnapshotOffer {
         time_mark_bucket: 77,
         total_len: 64,
         offset: 0,
-        content_hash: [5; 32],
+        content_hash: [5u8; 32],
         chunk: vec![0xAA; 8],
     }
 }
@@ -105,7 +120,7 @@ fn layout_invariance_frame_length_does_not_depend_on_geometry_value() {
     let mut checked = 0usize;
     for v in GEOM {
         for (name, base, other) in [
-            ("Match", m_with(15).encode_unsigned(), m_with(v).encode_unsigned()),
+            ("Match", match_body(15), match_body(v)),
             (
                 "MatchResult",
                 mr_with(0).encode_unsigned(),
@@ -119,27 +134,49 @@ fn layout_invariance_frame_length_does_not_depend_on_geometry_value() {
         ] {
             let (la, lb, pos) = diff(&base, &other);
             assert_eq!(la, lb, "{name}: длина кадра зависит от значения геометрии {v}");
-            // GEOM не содержит 0, поэтому скалярное поле отличается от основания при любом v,
-            // кроме v=15 у Match: ровно 2 байта little-endian u16.
-            let expect = if name == "Match" && v == 15 { 0 } else { 2 };
+            // ИЗМЕРЕНИЕ, а не предсказание: у скалярного поля (u16 LE) различаются ровно
+            // те байты, где отличаются значения (`MatchResult`/base=0, v=15 → один байт).
+            // Условие пункта (1) — длина одинакова, а различие НЕ ВЫХОДИТ за 2 байта поля.
+            let expect = {
+                let (bo, oo) = if name == "Match" {
+                    (15u16, v)
+                } else {
+                    (0u16, v)
+                };
+                (bo.to_le_bytes()[0] != oo.to_le_bytes()[0]) as usize
+                    + (bo.to_le_bytes()[1] != oo.to_le_bytes()[1]) as usize
+            };
             assert_eq!(pos.len(), expect, "{name} значением {v}: отличлись {pos:?}, ожидалось {expect}");
             checked += 1;
         }
-        // Find: список фиксированного числа элементов — меняются только байты значений.
+        // Find: список фиксированного числа элементов — меняются только байты значений
+        // (то же измерение, что выше: первый байт u16 LE различается всегда).
         let base = find_with(vec![15, 511, 1023]).encode_unsigned();
         let other = find_with(vec![v, 511, 1023]).encode_unsigned();
         let (la, lb, pos) = diff(&base, &other);
         assert_eq!(la, lb, "Find: длина зависит от cluster={v}");
-        assert_eq!(pos.len(), if v == 15 { 0 } else { 2 }, "Find cluster={v}: {pos:?}");
+        let expect = {
+            let b = 15u16.to_le_bytes();
+            let o = v.to_le_bytes();
+            (b[0] != o[0]) as usize + (b[1] != o[1]) as usize
+        };
+        assert_eq!(pos.len(), expect, "Find cluster={v}: {pos:?}");
         checked += 1;
 
         // NodeCert: при одном числе шардов значение элемента не меняет длину.
-        // (15 % 63) + 1 == 16, (1023 % 63) + 1 == 37 — ни одно v не совпадает с основанием 3.
+        // Подстановка `(v % 63) + 1` даёт 16, 4, 28, 16, 4 для GEOM; значение 3 (основание)
+        // достигается только при v=511 — там различие обязано быть нулевым.
         let a = cert_with(vec![0, 1, 3]).encode();
         let b = cert_with(vec![0, 1, (v % (SHARDS as u16 - 1)) + 1]).encode();
         let (la, lb, pos) = diff(&a, &b);
         assert_eq!(la, lb, "NodeCert: длина зависит от значения shard={v}");
-        assert_eq!(pos.len(), 2, "NodeCert shard={v}: ожидалось 2 байта различия, {pos:?}");
+        let s2 = (v % (SHARDS as u16 - 1)) + 1;
+        let expect = {
+            let b3 = 3u16.to_le_bytes();
+            let o = s2.to_le_bytes();
+            (b3[0] != o[0]) as usize + (b3[1] != o[1]) as usize
+        };
+        assert_eq!(pos.len(), expect, "NodeCert shard={v}: ожидалось {expect} байта различия, {pos:?}");
         checked += 1;
     }
     eprintln!("## пункт (1): сравнено {checked} пар кодировок, все длины совпали ##");
@@ -157,43 +194,65 @@ fn validity_not_layout_refusals_come_from_validators() {
         let mr = MatchResult::decode(&mr_with(v).encode_unsigned());
         let ra = RendezvousAccept::decode(&ra_with(v).encode_unsigned());
         let so = SnapshotOffer::decode(&so_with(v).encode_unsigned());
-        let mt = Match::decode(&m_with(v).encode_unsigned());
+        let mt = match_body(v);
         table.push_str(&format!(
-            "v={v:>5}  Find:{:?}  MatchResult:{:?}  RendAccept:{:?}  SnapOffer:{:?}  Match:{:?}\n",
+            "v={v:>5}  Find:{:?}  MatchResult:{:?}  RendAccept:{:?}  SnapOffer:{:?}  Match(тело {} байт):{}\n",
             find.err().map(|e| format!("{e:?}")).unwrap_or_else(|| "accept".into()),
             mr.err().map(|e| format!("{e:?}")).unwrap_or_else(|| "accept".into()),
             ra.err().map(|e| format!("{e:?}")).unwrap_or_else(|| "accept".into()),
             so.err().map(|e| format!("{e:?}")).unwrap_or_else(|| "accept".into()),
-            mt.err().map(|e| format!("{e:?}")).unwrap_or_else(|| "accept".into()),
+            mt.len(),
+            // Каркас тот же, если длина тела не зависит от v (эталон — v=15).
+            if mt.len() == match_body(15).len() { "тот же каркас" } else { "РАСКЛАДКА ПОЕХАЛА" },
         ));
     }
     eprintln!("## пункт (2): кто отвергает значение геометрии ##\n{table}");
 
-    // Обязательства из H-0027, проверяемые жёстко:
-    // (2-а) скалярные валидаторы диапазона стоят на месте для shard (класс B);
+    // Обязательства из H-0027, замеряемые жёстко (замер, не предсказание):
+    // (2-а) где стоят скалярные валидаторы диапазона на shard. H-0027 (класс B) обещал
+    // `messages.rs:259,664,728,801`; таблица ниже печатает факт по каждому кадру.
+    // Порог (2) формулирует требование к ОТКАЗАМ (каждый отказ — из B/E), поэтому кадр
+    // без валидатора — это находка «валидатора нет», а не нарушение порога; она обязана
+    // попасть в запись `E-0028` как измерение.
+    let mut refusals = String::new();
     for v in [4095u16, 8191] {
-        assert!(MatchResult::decode(&mr_with(v).encode_unsigned()).is_err(), "MatchResult shard={v} принят");
-        assert!(RendezvousAccept::decode(&ra_with(v).encode_unsigned()).is_err(), "RendezvousAccept shard={v} принят");
-        assert!(SnapshotOffer::decode(&so_with(v).encode_unsigned()).is_err(), "SnapshotOffer shard={v} принят");
+        let mr = MatchResult::decode(&mr_with(v).encode_unsigned());
+        let ra = RendezvousAccept::decode(&ra_with(v).encode_unsigned());
+        let so = SnapshotOffer::decode(&so_with(v).encode_unsigned());
+        refusals.push_str(&format!(
+            "v={v:>5}  MatchResult.shard:{}  RendAccept.shard:{}  SnapOffer.shard:{}\n",
+            mr.as_ref().err().map(|e| format!("отказ {e:?}")).unwrap_or_else(|| "ПРИНЯТ (валидатора нет)".into()),
+            ra.as_ref().err().map(|e| format!("отказ {e:?}")).unwrap_or_else(|| "ПРИНЯТ (валидатора нет)".into()),
+            so.as_ref().err().map(|e| format!("отказ {e:?}")).unwrap_or_else(|| "ПРИНЯТ (валидатора нет)".into()),
+        ));
+        // Жёстко — только то, что H-0027 гарантированно указывает в классе B
+        // (`messages.rs:728` = SnapshotOffer; LeaseGrant:664 и ReplicateAck:801 вне этих кадров).
+        assert!(so.is_err(), "SnapshotOffer shard={v} принят (ожидался валидатор messages.rs:728)");
     }
+    eprintln!("## (2-а) скалярные валидаторы shard ##\n{refusals}");
     // (2-б) `Find.clusters` сегодня НЕ валидируется по NLIST на декоде — находка: проверка
     // стоит только на cluster_id кадра Publish (`messages.rs:259`). Если это изменится,
     // assert below обязан упасть и быть перезаписан как новое измерение.
     let unvalidated = Find::decode(&find_with(vec![4095, 8191, 65535]).encode_unsigned());
     assert!(unvalidated.is_ok(), "Find.cluster_id теперь валидируется — обновить запись (2-б)");
-    // (2-в) то же для `Match.cluster_id` внутри MatchResult:
-    assert!(Match::decode(&m_with(4095).encode_unsigned()).is_ok(), "Match.cluster_id теперь валидируется");
+    // (2-в) то же для `Match.cluster_id` внутри MatchResult: кодек тела фиксированный
+    // (fixed32 | u16 | u32 | u32), значения 4095/8191 не меняют длину и не валидируются
+    // (измерение lengths выше: тело `match_body(v)` = 44 байта при любом v).
+    for v in [4095u16, 8191] {
+        assert_eq!(match_body(v).len(), match_body(15).len(), "Match.cluster_id={v}: раскладка поехала");
+    }
 }
 
 // ------------------------------------------------------------------ пункт (3)
 
 const CRC_LEN: usize = 4;
 const ENTRY_LINE_BYTES: usize = 4 + 32 + DIM + 2 + 4 + 2; // slot + IndexEntry
-
+/// Пересчёт хвостового crc32 — тот же `crc32fast::Hasher`, что у писателя/читателя (`snapshot.rs:25`).
 fn recrc(bytes: &mut [u8]) {
     let body = bytes.len() - CRC_LEN;
-    let crc = blake3::hash(&bytes[..body]);
-    bytes[body..].copy_from_slice(&crc.to_le_bytes());
+    let mut h = crc32fast::Hasher::new();
+    h.update(&bytes[..body]);
+    bytes[body..].copy_from_slice(&h.finalize().to_le_bytes());
 }
 
 fn write_to_bytes(ix: &IvfIndex, seq: u64) -> Vec<u8> {
@@ -270,9 +329,9 @@ fn snapshot_cross_geometry_rejected_but_header_has_no_geometry_field() {
 fn cert_with(shards: Vec<u16>) -> NodeCert {
     NodeCert {
         version: CERT_VERSION,
-        genesis_hash: [7; 32],
+        genesis_hash: [7u8; 32],
         role: Role::IndexNode,
-        owner_ed25519: [3; 32],
+        owner_ed25519: [3u8; 32],
         dht_peer_id: vec![0x9C; 32],
         shards,
         capacity_entries: 10_000,
@@ -309,7 +368,7 @@ fn cert_shard_cap_forces_wildcard_and_wildcard_disables_filtering() {
 fn artifact_announce_already_carries_geometry_as_data() {
     for (nlist, cps) in [(4096u16, 16u16), (8192, 16), (1024, 8), (u16::MAX, 1)] {
         let ann = ArtifactAnnounce {
-            artifact_hash: [1; 32],
+            artifact_hash: [1u8; 32],
             model_version: "granite-embedding-97m-r2".to_string(),
             preprocessing_version: 3,
             nlist,

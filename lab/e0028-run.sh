@@ -11,12 +11,12 @@ LOG="lab/logs/e0028-all.log"
   echo "########## E-0028 · геометрия как данные · $(date -Is) ##########"
   git rev-parse --short HEAD
   echo "########## BUILD ##########"
-  cargo test --debug -p vecdht-index --test geometry_rotation --no-run 2>&1
+  cargo test -p vecdht-index --test geometry_rotation --no-run 2>&1
   echo "########## RUN geometry_rotation ##########"
-  cargo test --debug -p vecdht-index --test geometry_rotation -- --nocapture 2>&1
+  cargo test -p vecdht-index --test geometry_rotation -- --nocapture 2>&1
   echo "########## EXIT=$? ##########"
   echo "########## КОНТРОЛЬ: существующие тесты индекса не сломаны ##########"
-  cargo test --debug -p vecdht-index 2>&1 | tail -25
+  cargo test -p vecdht-index 2>&1 | tail -25
   echo "########## EXIT=$? ##########"
   echo "########## ПУНКТ (5): читатели Kind::ArtifactAnnounce в нетестовом коде node/net ##########"
   # Ожидание H-0027: ноль (кадр доходит до `_ => Ok(Vec::new())` в node.rs:1397).

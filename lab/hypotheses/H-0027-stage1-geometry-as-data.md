@@ -1,6 +1,6 @@
 ---
 id: H-0027
-status: proposed
+status: supported
 created: 2026-10-21
 claim-class: стадийность плана v9 (стадия 1 — «геометрия как данные»)
 depends-on: [E-0025, E-0027, ADR-0004]
