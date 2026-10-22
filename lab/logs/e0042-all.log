@@ -1,0 +1,1146 @@
+########## E-0042 · denylist: путь «внести» и перезагрузка · 2026-10-22T08:01:52+03:00 ##########
+c39fdd6
+########## BUILD (--no-run) ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+  Executable tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-b905c5b6c122c1e4.exe)
+########## EXIT=0 ##########
+########## ИНВЕНТАРЬ (4а): все вызовы deny/undeny в crates (классификация руками) ##########
+crates/vecdht-node/src/admission.rs:2://! и denylist ключа (§11.4, пункт ii).
+crates/vecdht-node/src/admission.rs:19://! отказ. Порядок в `handle_publish`: denylist (поиск по множеству) → бакет ключа → verify PoW
+crates/vecdht-node/src/admission.rs:71:    /// Ключ в denylist'е (§11.4, ii).
+crates/vecdht-node/src/admission.rs:119:    pub denied_by_denylist: u64,
+crates/vecdht-node/src/admission.rs:221:    denylist: BTreeSet<Addr>,
+crates/vecdht-node/src/admission.rs:242:            denylist: BTreeSet::new(),
+crates/vecdht-node/src/admission.rs:256:    pub fn denylist_len(&self) -> usize {
+crates/vecdht-node/src/admission.rs:257:        self.denylist.len()
+crates/vecdht-node/src/admission.rs:263:        self.denylist.insert(key)
+crates/vecdht-node/src/admission.rs:267:        self.denylist.remove(key)
+crates/vecdht-node/src/admission.rs:272:        self.denylist.contains(key)
+crates/vecdht-node/src/admission.rs:275:    /// Квота publish (§11.3.1) вместе с denylist'ом (§11.4, ii).
+crates/vecdht-node/src/admission.rs:291:        if self.denylist.contains(from) || self.denylist.contains(owner) {
+crates/vecdht-node/src/admission.rs:292:            self.stats.denied_by_denylist += 1;
+crates/vecdht-node/src/admission.rs:313:        if self.denylist.contains(from) {
+crates/vecdht-node/src/admission.rs:314:            self.stats.denied_by_denylist += 1;
+crates/vecdht-node/src/admission.rs:668:    fn denylist_survives_the_epoch_and_blocks_both_roles() {
+crates/vecdht-node/src/admission.rs:671:        assert!(a.deny(bad));
+crates/vecdht-node/src/admission.rs:672:        assert!(!a.deny(bad), "повторный deny идемпотентен");
+crates/vecdht-node/src/admission.rs:676:        assert_eq!(a.denylist_len(), 1);
+crates/vecdht-node/src/admission.rs:677:        assert!(a.undeny(&bad));
+crates/vecdht-node/src/config.rs:39:    /// Секунды реального времени: только для token bucket'ов (§11.3) и denylist'а (§11.4).
+crates/vecdht-node/tests/admission.rs:245:    assert!(n.admission.borrow_mut().deny(bad.pubkey()));
+crates/vecdht-node/tests/admission.rs:247:    let err = error_to(&replies, bad.pubkey()).expect("denylist обязан ответить");
+crates/vecdht-node/tests/admission.rs:254:    assert_eq!(a.stats.denied_by_denylist, 1);
+crates/vecdht-node/tests/denylist_reachability.rs:1://! Оракул H-0042/E-0042: подотчётность через denylist (§11.4 (ii)) на живом узле.
+crates/vecdht-node/tests/denylist_reachability.rs:5://! но список пуст и счётчик отказа обнулён — denylist живёт только в RAM. Порог (3) сознательно
+crates/vecdht-node/tests/denylist_reachability.rs:64:fn denylist_is_unreachable_in_and_vanishes_on_restart() {
+crates/vecdht-node/tests/denylist_reachability.rs:70:    assert!(n.admission.borrow_mut().deny(me), "первый deny того же ключа");
+crates/vecdht-node/tests/denylist_reachability.rs:73:        (a.denylist_len(), a.is_denied(&me), a.stats.denied_by_denylist)
+crates/vecdht-node/tests/denylist_reachability.rs:83:        (a.denylist_len(), a.is_denied(&me), a.stats.denied_by_denylist)
+crates/vecdht-node/tests/denylist_reachability.rs:85:    assert_eq!(after_hit, (1, true, 1), "отказ учтён в denied_by_denylist");
+crates/vecdht-node/tests/denylist_reachability.rs:87:    // Порог (2): «после» открытия того же каталога — цепочка с диска, denylist из воздуха.
+crates/vecdht-node/tests/denylist_reachability.rs:99:    assert_eq!(a2.denylist_len(), 0, "фальсификатор (б): запрет пережил перезагрузку");
+crates/vecdht-node/tests/denylist_reachability.rs:101:    assert_eq!(a2.stats.denied_by_denylist, 0);
+--- продуктовые вызовы: строки вне src/admission.rs и вне tests/ ---
+(продуктовых вызовов нет)
+########## ИНВЕНТАРЬ (4б): «deny» вне admission.rs в узле/снапшоте/индексе и в wire ##########
+(в node.rs/snapshot.rs вхождений нет)
+(в vecdht-index вхождений нет)
+(в wire-протоколе denylist'а нет)
+########## ИНВЕНТАРЬ (4в): операции над полем denylist в admission.rs ##########
+2://! и denylist ключа (§11.4, пункт ii).
+19://! отказ. Порядок в `handle_publish`: denylist (поиск по множеству) → бакет ключа → verify PoW
+71:    /// Ключ в denylist'е (§11.4, ii).
+119:    pub denied_by_denylist: u64,
+221:    denylist: BTreeSet<Addr>,
+242:            denylist: BTreeSet::new(),
+256:    pub fn denylist_len(&self) -> usize {
+257:        self.denylist.len()
+263:        self.denylist.insert(key)
+267:        self.denylist.remove(key)
+272:        self.denylist.contains(key)
+275:    /// Квота publish (§11.3.1) вместе с denylist'ом (§11.4, ii).
+291:        if self.denylist.contains(from) || self.denylist.contains(owner) {
+292:            self.stats.denied_by_denylist += 1;
+313:        if self.denylist.contains(from) {
+314:            self.stats.denied_by_denylist += 1;
+668:    fn denylist_survives_the_epoch_and_blocks_both_roles() {
+676:        assert_eq!(a.denylist_len(), 1);
+--- clear/retain/время над списком ---
+(чистки и времени у denylist нет)
+########## RUN (1)…(3): denylist_reachability ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-b905c5b6c122c1e4.exe)
+
+running 1 test
+## порог (3): код после перезагрузки = EPOCH_STALE (ожидание по порядку проверок: NOT_OWNER) ##
+test denylist_is_unreachable_in_and_vanishes_on_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+########## EXIT=0 ##########
+########## КОНТРОЛЬ: тесты vecdht-node зелёные ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-b5c4bef439652d93.exe)
+
+running 73 tests
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+
+test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s
+
+     Running tests\admission.rs (target\debug\deps\admission-b3cf28692351ccf7.exe)
+
+running 7 tests
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests\admission_table_over_limit.rs (target\debug\deps\admission_table_over_limit-dec1769ea7ef0ce2.exe)
+
+running 2 tests
+test the_peer_table_holds_active_keys_over_the_limit_and_forgets_nothing ... ok
+test idle_surge_forgets_exactly_over_rows_and_the_forgotten_key_returns_fresh ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\adversarial.rs (target\debug\deps\adversarial-430892ab291c3c1c.exe)
+
+running 8 tests
+test p5_gate_sixteen_core_sybil_for_ten_minutes ... ignored, гейт P5: 16 ядер × 10 минут × 2^20; запускать в release с --ignored
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-b905c5b6c122c1e4.exe)
+
+running 1 test
+test denylist_is_unreachable_in_and_vanishes_on_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests\find_admission_price.rs (target\debug\deps\find_admission_price-90428aec9ecac5b2.exe)
+
+running 1 test
+test find_quota_price_ignores_cluster_list_length ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_empty_cluster_list.rs (target\debug\deps\find_empty_cluster_list-df04b442ab063819.exe)
+
+running 1 test
+test empty_cluster_list_is_served_as_signed_empty_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_no_queue.rs (target\debug\deps\find_no_queue-2a2f31c468b64aac.exe)
+
+running 2 tests
+test an_expensive_find_is_fixed_in_one_answer_and_repeats_byte_identically ... ok
+test the_sybil_surge_leaves_no_frame_without_an_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\find_node_budget.rs (target\debug\deps\find_node_budget-e796383c0ced7544.exe)
+
+running 1 test
+test sybil_find_surge_passes_node_budget_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-9806abdb3d00e478.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+
+     Running tests\gc.rs (target\debug\deps\gc-9948c6b278ccd4a0.exe)
+
+running 2 tests
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-7ed8e13c4b151eba.exe)
+
+running 3 tests
+test a_find_without_matches_issues_no_accept ... ok
+test an_accept_stops_working_after_its_ttl ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+   Doc-tests vecdht_node
+
+running 1 test
+test crates\vecdht-node\src\lib.rs - (line 21) ... FAILED
+
+failures:
+
+---- crates\vecdht-node\src\lib.rs - (line 21) stdout ----
+error: linking with `x86_64-w64-mingw32-gcc` failed: exit code: 1
+  |
+  = note: "x86_64-w64-mingw32-gcc" "-fno-use-linker-plugin" "-Wl,--dynamicbase" "-Wl,--disable-auto-image-base" "-m64" "-Wl,--high-entropy-va" "C:\\Users\\Admin\\AppData\\Local\\Temp\\rustdoctest7Xf5IN\\rustcpI7AAK\\symbols.o" "<2 object files omitted>" "-Wl,-Bstatic" "C:\\Users\\Admin\\AppData\\Local\\Temp\\vecdht-review\\target\\debug\\deps/{libvecdht_node-6b8cfec53cf2816d,libvecdht_index-3cc6912e2eb67395,libcrc32fast-cb0891e4225e4898,libvecdht_artifact-a63bfae903af4580,libhex-8e6b9b0425e6765c,libvecdht_crypto-63b92592a8a829e7,libed25519_dalek-81db087a1013e5a3,libsha2-74a3fe889b15f966,librand_core-91d27a782c179597,libcurve25519_dalek-027cf1daf91eb0b2,libcpufeatures-80ca1a08a0616ab6,libzeroize-a430fdfbca5d6439,libsubtle-53240d55a5b04f55,libdigest-da932857cd1df4f3,libblock_buffer-78694a40697a1d54,libcrypto_common-bc5bed7713518372,libgeneric_array-d2e5fd013d41ccd6,libtypenum-950b19de66964911,libed25519-5aa351d78c242529,libsignature-e7b88cbc930767b8,libblake3-6967fb28a136bd0c,libconstant_time_eq-f973f1bb897551e9,libcpufeatures-a0abab9ee4a5c48c,libcfg_if-5838861026973db0,libarrayvec-ec2c953276be06b5,libvecdht_wire-60d54c67dad6b7bb,libthiserror-1ef270bdbf098aa2}.rlib" "<sysroot>\\lib\\rustlib\\x86_64-pc-windows-gnu\\lib/{libstd-*,libpanic_unwind-*,libobject-*,libmemchr-*,libaddr2line-*,libgimli-*,libcfg_if-*,libwindows_link-*,librustc_demangle-*,libstd_detect-*,libhashbrown-*,librustc_std_workspace_alloc-*,libminiz_oxide-*,libadler2-*,libunwind-*,liblibc-*,librustc_std_workspace_core-*,liballoc-*,libcore-*,libcompiler_builtins-*}.rlib" "-Wl,-Bdynamic" "-lkernel32" "-lkernel32" "-lkernel32" "-lntdll" "-luserenv" "-lws2_32" "-ldbghelp" "-lgcc_eh" "-l:libpthread.a" "-lmsvcrt" "-lmingwex" "-lmingw32" "-lgcc" "-lmsvcrt" "-lmingwex" "-luser32" "-lkernel32" "-Wl,--nxcompat" "-L" "C:\\Users\\Admin\\AppData\\Local\\Temp\\vecdht-review\\target\\debug\\build\\blake3-d4e2869965f043f1\\out" "-o" "C:\\Users\\Admin\\AppData\\Local\\Temp\\rustdoctest7Xf5IN\\rust_out.exe" "-Wl,--gc-sections" "-nodefaultlibs"
+  = note: some arguments are omitted. use `--verbose` to show all linker arguments
+  = note: Warning: .drectve `-exclude-symbols:_RINvNtCs9qcQDiGWtgW_3std2rt10lang_startuECsjlthYCwUNzp_8rust_out ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node10membershipNtB2_10Membership5epochB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node10membershipNtB2_10Membership7membersB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node10membershipNtB2_10Membership7primaryB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node10membershipNtB2_10Membership8is_emptyB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node10membershipNtB2_10Membership9is_memberB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs0_NtCs88CdWkXDe7G_11vecdht_node10membershipNtB5_15MembershipErrorNtNtCs2Ja4erDm0Jl_4core3fmt5Debug3fmtB7_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node10membershipNtB4_10Membership5peerss_0B6_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvYNcNtNtNtCs88CdWkXDe7G_11vecdht_node4node9NodeError4Sync0INtNtNtCs2Ja4erDm0Jl_4core3ops8function6FnOnceTNtNtBa_8snapshot9SyncErrorEE9call_onceBa_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNcNtNtNtCs88CdWkXDe7G_11vecdht_node4node9NodeError4Sync0B7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB2_9ShardNode2meB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB2_9ShardNode5epochB4_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs2n_NtCsal51L4X37NO_11vecdht_wire8messagesNtB6_6MemberNtNtCs2Ja4erDm0Jl_4core5clone5Clone5cloneCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs2p_NtCsal51L4X37NO_11vecdht_wire8messagesNtB6_6MemberNtNtCs2Ja4erDm0Jl_4core3cmp9PartialEq2eqCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs2s_NtCsal51L4X37NO_11vecdht_wire8messagesNtB6_16MembershipUpdateNtNtCs2Ja4erDm0Jl_4core5clone5Clone5cloneCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB6_9ShardNode8speakers00B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNCNvNtCs88CdWkXDe7G_11vecdht_node4node12same_members00B7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode10load_chain0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode10load_chains0_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode10load_chains_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode11grant_lease0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode11handle_find0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode11live_roster0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode12handle_leave0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode14handle_publish0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode14handle_publishs0_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode14handle_publishs_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode14serve_snapshot0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode14should_propose0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode14should_proposes_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode16handle_replicate0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode16handle_replicates_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode17handle_membership0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode17handle_memberships_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode19handle_pull_request0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode19handle_pull_requests0_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode19handle_pull_requests_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode20broadcast_membership0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode20handle_pull_response0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode20handle_replicate_ack0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode4tick0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode4ticks_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode5adopt0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode5adopts_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode5leave0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode5peers0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode7persist0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode7persists0_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode7persists1_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode7persists_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode8on_frame0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode8speakers0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node4nodeNtB4_9ShardNode9replicate0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node4node10merge_sigs0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs88CdWkXDe7G_11vecdht_node3netNtB6_8LocalNet11deliver_due0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs88CdWkXDe7G_11vecdht_node3netNtB6_8LocalNet7pending0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs88CdWkXDe7G_11vecdht_node3netNtB6_8LocalNet8has_mail0B8_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNtCs2Ja4erDm0Jl_4core3ptr25swap_nonoverlapping_bytesCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr11write_bytes18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr19copy_nonoverlapping18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr19swap_nonoverlapping18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCs2Ja4erDm0Jl_4core5slice5index16into_slice_rangeCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvXs0_NtNtCs2Ja4erDm0Jl_4core5slice5indexjINtB7_10SliceIndexSpE13get_unchecked18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvXs0_NtNtCs2Ja4erDm0Jl_4core5slice5indexjINtB7_10SliceIndexSpE17get_unchecked_mut18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvXs2_NtNtCs2Ja4erDm0Jl_4core5slice5indexINtNtNtBb_3ops5range5RangejEINtB7_10SliceIndexSpE13get_unchecked18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core4hint16assert_unchecked18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXsU_NtNtCs2Ja4erDm0Jl_4core3fmt3numhNtB7_5Debug3fmtCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsV_NtNtCs2Ja4erDm0Jl_4core3fmt3numtNtB7_5Debug3fmtCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsW_NtNtCs2Ja4erDm0Jl_4core3fmt3nummNtB7_5Debug3fmtCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsX_NtNtCs2Ja4erDm0Jl_4core3fmt3numyNtB7_5Debug3fmtCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNCNvNtCs88CdWkXDe7G_11vecdht_node10candidates13speaker_order00B7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNCNvNtCs88CdWkXDe7G_11vecdht_node10candidates7ordered00B7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs88CdWkXDe7G_11vecdht_node10candidatesNtB6_10MemberList5peerss_0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs88CdWkXDe7G_11vecdht_node10candidatesNtB6_10MemberList8index_of0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node10candidates13speaker_order0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node10candidates6select0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node10candidates7ordered0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs11_NtNtCs2Ja4erDm0Jl_4core3cmp5implsmNtB8_3Ord3cmpCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs13_NtNtCs2Ja4erDm0Jl_4core3cmp5implsyNtB8_3Ord3cmpCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsZ_NtNtCs2Ja4erDm0Jl_4core3cmp5implstNtB7_3Ord3cmpCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsk_NtNtCs2Ja4erDm0Jl_4core3cmp5implshNtB7_9PartialEq2eqCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs3_NtCs88CdWkXDe7G_11vecdht_node9admissionNtB5_7Evictor7bits_ofB7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs3_NtCs88CdWkXDe7G_11vecdht_node9admissionNtB5_7Evictor9scan_fromB7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsw_NtCs88CdWkXDe7G_11vecdht_node9admissionNtB5_9CandidateNtNtCs2Ja4erDm0Jl_4core3cmp10PartialOrd11partial_cmpB7_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node10candidatesNtB2_6Holder4fitsB4_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Arguments8from_strCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvMs_NtCsinMxvmwVKXS_5alloc3vecINtB6_3VecppE13from_parts_in18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs_NtCsinMxvmwVKXS_5alloc3vecINtB6_3VecppE17from_raw_parts_in18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvMs0_NtCs88CdWkXDe7G_11vecdht_node10rendezvousNtB7_5Spend7consume0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs0_NtCs88CdWkXDe7G_11vecdht_node10rendezvousNtB7_5Spend7consumes0_0B9_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs0_NtCsinMxvmwVKXS_5alloc5allocNtB5_6Global18alloc_impl_runtimeCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs0_NtCsinMxvmwVKXS_5alloc5allocNtB5_6Global19shrink_impl_runtimeCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1_NtCsinMxvmwVKXS_5alloc5allocNtB5_6GlobalNtNtCs2Ja4erDm0Jl_4core5alloc9Allocator10deallocateCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1_NtCsinMxvmwVKXS_5alloc5allocNtB5_6GlobalNtNtCs2Ja4erDm0Jl_4core5alloc9Allocator8allocateCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node5leaseNtB2_5Lease9active_atB4_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String9from_utf8Cs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1q_NtCs9qcQDiGWtgW_3std4pathNtNtCsinMxvmwVKXS_5alloc6string6StringINtNtCs2Ja4erDm0Jl_4core7convert5AsRefNtB6_4PathE6as_refCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsZ_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Write10write_charCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsZ_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Write9write_strCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsr_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Debug3fmtCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs0_NtCsal51L4X37NO_11vecdht_wire5frameNtB5_4KindNtNtCs2Ja4erDm0Jl_4core3fmt5Debug3fmtCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtCs2Ja4erDm0Jl_4core5slice3raw14from_raw_parts18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs88CdWkXDe7G_11vecdht_node6configNtB2_5Clock2atB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCs88CdWkXDe7G_11vecdht_node6config7bucketsB3_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCs88CdWkXDe7G_11vecdht_node6config9bucket_ofB3_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs1_NtNtCs2Ja4erDm0Jl_4core2io5errorNtB5_5Error14is_interruptedCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1_NtNtCs2Ja4erDm0Jl_4core2io5errorNtB5_5Error4kindCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs2Ja4erDm0Jl_4core3numt13from_le_bytesCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm11checked_subCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm13from_le_bytesCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm8div_ceilCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy11to_le_bytesCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy13from_be_bytesCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy13from_le_bytesCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy14saturating_mulCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy8div_ceilCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs9_NtCs2Ja4erDm0Jl_4core3numj13unchecked_add18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMsj_NtNtCs9qcQDiGWtgW_3std3ffi6os_strNtB5_5OsStr15to_string_lossyCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1_NtNtCs9qcQDiGWtgW_3std3ffi6os_strNtB5_8OsStringINtNtNtCs2Ja4erDm0Jl_4core3ops5index5IndexNtNtBV_5range9RangeFullE5indexCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node5leaseNtB4_5Lease6verify0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs88CdWkXDe7G_11vecdht_node5leaseNtB4_5Lease6verifys0_0B6_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node7session13parse_request0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node7session13parse_requests_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node7session15verify_response0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node7session15verify_responses0_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node7session15verify_responses1_0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot10read_chunk0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot10read_chunks0_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot10read_chunks_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot3hex0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot6header0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot6headers0_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot6headers_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot7install0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot7installs0_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot7installs1_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot7installs2_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot7installs3_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot7installs4_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot7installs_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node8snapshot9file_hash0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB2_10ShardStore13serving_epochCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB2_10ShardStore3lenCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB2_10ShardStore8is_emptyCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtNtCs2Ja4erDm0Jl_4core5alloc6layoutNtB4_6Layout25from_size_align_unchecked18precondition_checkCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB4_8IvfIndex10owner_slotCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB4_8IvfIndex5entryCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB4_8IvfIndex7is_liveCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB4_8IvfIndex9next_slotCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node7testing11authorities0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs88CdWkXDe7G_11vecdht_node7testing14genesis_update0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer8into_vecCs88CdWkXDe7G_11vecdht_node ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs1_NtNtCs2Ja4erDm0Jl_4core2io5errorNtB5_5Error14is_interruptedCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1_NtNtCs2Ja4erDm0Jl_4core2io5errorNtB5_5Error4kindCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsf_NtNtCs2Ja4erDm0Jl_4core2io5errorNtB5_9ErrorKind9from_primCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXst_NtNtCs2Ja4erDm0Jl_4core3str7patternReNtB5_7Pattern15strip_prefix_ofCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXsV_NtNtCs2Ja4erDm0Jl_4core3fmt3numtNtB7_5Debug3fmtCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsW_NtNtCs2Ja4erDm0Jl_4core3fmt3nummNtB7_5Debug3fmtCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsX_NtNtCs2Ja4erDm0Jl_4core3fmt3numyNtB7_5Debug3fmtCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Arguments23as_statically_known_strCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Arguments8from_strCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsa_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Formatter9write_fmtCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvYNcNtNtNtCs7c3pHCNmowy_12vecdht_index8snapshot13SnapshotError5Index0INtNtNtCs2Ja4erDm0Jl_4core3ops8function6FnOnceTNtNtCsinMxvmwVKXS_5alloc6string6StringEE9call_onceBa_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvYNvYeNtNtCsinMxvmwVKXS_5alloc6borrow7ToOwned8to_ownedINtNtNtCs2Ja4erDm0Jl_4core3ops8function6FnOnceTReEE9call_onceCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvYNvYhNtNtNtCsinMxvmwVKXS_5alloc3vec7is_zero6IsZero7is_zeroINtNtNtCs2Ja4erDm0Jl_4core3ops8function5FnMutTRhEE8call_mutCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvYNvYmNtNtCs2Ja4erDm0Jl_4core3cmp10PartialOrd2ltINtNtNtBa_3ops8function5FnMutTRmB1g_EE8call_mutCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNtCs2Ja4erDm0Jl_4core3ptr25swap_nonoverlapping_bytesCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr19copy_nonoverlapping18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr19swap_nonoverlapping18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtCs2Ja4erDm0Jl_4core5slice3raw14from_raw_parts18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtCs7c3pHCNmowy_12vecdht_index3walNtB5_9WalWriter14needs_rotationB7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtCs7c3pHCNmowy_12vecdht_index3walNtB5_9WalWriter4pathB7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtCs7c3pHCNmowy_12vecdht_index3walNtB5_9WalWriter9start_seqB7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs4_NtCs7c3pHCNmowy_12vecdht_index3walNtB5_5FaultNtNtCs2Ja4erDm0Jl_4core3fmt5Debug3fmtB7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs9_NtCs7c3pHCNmowy_12vecdht_index3walNtB5_5FaultNtNtCs2Ja4erDm0Jl_4core3cmp9PartialEq2eqB7_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvXs0_NtNtCs2Ja4erDm0Jl_4core5slice5indexjINtB7_10SliceIndexSpE13get_unchecked18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXNtNtCs2Ja4erDm0Jl_4core3cmp5implsuNtB4_9PartialEq2eqCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs10_NtNtCs2Ja4erDm0Jl_4core3cmp5implsmNtB8_10PartialOrd13___chaining_geCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs10_NtNtCs2Ja4erDm0Jl_4core3cmp5implsmNtB8_10PartialOrd13___chaining_ltCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs11_NtNtCs2Ja4erDm0Jl_4core3cmp5implsmNtB8_3Ord3cmpCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs2Ja4erDm0Jl_4core3stre5bytesCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNcNtNtNtCs7c3pHCNmowy_12vecdht_index8snapshot13SnapshotError5Index0B7_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs10_NtNtCs2Ja4erDm0Jl_4core4sync6atomicINtB6_6AtomicyE9fetch_addCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtCs2Ja4erDm0Jl_4core5sliceSp14swap_unchecked18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core4hint16assert_unchecked18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs0_NtNtNtCs2Ja4erDm0Jl_4core7convert3num18ptr_try_from_implsmINtB9_7TryFromjE8try_fromCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs16_NtCs9qcQDiGWtgW_3std4pathNtB6_4Path6existsCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1Y_NtCs9qcQDiGWtgW_3std4pathNtB6_9ComponentNtNtCs2Ja4erDm0Jl_4core3cmp9PartialEq2eqCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1l_NtCs9qcQDiGWtgW_3std4pathNtB6_4PathINtNtCs2Ja4erDm0Jl_4core7convert5AsRefBv_E6as_refCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1p_NtCs9qcQDiGWtgW_3std4patheINtNtCs2Ja4erDm0Jl_4core7convert5AsRefNtB6_4PathE6as_refCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1r_NtCs9qcQDiGWtgW_3std4pathNtB6_7PathBufINtNtCs2Ja4erDm0Jl_4core7convert5AsRefNtB6_4PathE6as_refCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs2m_NtCs9qcQDiGWtgW_3std4pathNtB6_7PathBufINtNtCs2Ja4erDm0Jl_4core3cmp9PartialEqRNtB6_4PathE2eqCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsH_NtCs9qcQDiGWtgW_3std4pathNtB5_7PathBufNtNtNtCs2Ja4erDm0Jl_4core3ops5deref5Deref5derefCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMsj_NtCs9qcQDiGWtgW_3std2fsNtB5_11OpenOptions3newCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsj_NtCs9qcQDiGWtgW_3std2fsNtB5_11OpenOptions4readCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsj_NtCs9qcQDiGWtgW_3std2fsNtB5_11OpenOptions5writeCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsj_NtCs9qcQDiGWtgW_3std2fsNtB5_11OpenOptions6appendCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsj_NtCs9qcQDiGWtgW_3std2fsNtB5_11OpenOptions6createCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsj_NtCs9qcQDiGWtgW_3std2fsNtB5_11OpenOptions8truncateCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsm_NtCs9qcQDiGWtgW_3std2fsNtB5_8Metadata3lenCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvMs0_NtCs7c3pHCNmowy_12vecdht_index3walNtB7_8WalFrame6decode0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs1_NtCs7c3pHCNmowy_12vecdht_index3walNtB7_15SegmentContents4seqs0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs2_NtCs7c3pHCNmowy_12vecdht_index3walNtB7_9WalWriter4open0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index3wal13list_segments0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index3wal18parse_segment_name0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index3wal18parse_segment_names0_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index3wal18parse_segment_names1_0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB4_8IvfIndex10owner_slotB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB4_8IvfIndex5entryB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB4_8IvfIndex7is_liveB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB4_8IvfIndex9next_slotB6_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXsb_NtNtCsinMxvmwVKXS_5alloc3vec7is_zerohNtB5_6IsZero7is_zeroCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3numh14is_ascii_digitCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs2Ja4erDm0Jl_4core3numt11to_le_bytesCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs2Ja4erDm0Jl_4core3numt13from_le_bytesCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm11to_le_bytesCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm13from_le_bytesCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy11to_le_bytesCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy13from_le_bytesCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs9_NtCs2Ja4erDm0Jl_4core3numj17next_power_of_twoCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs9_NtCs2Ja4erDm0Jl_4core3numj8div_ceilCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs3_NtCs2Ja4erDm0Jl_4core3numi13unchecked_neg18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs9_NtCs2Ja4erDm0Jl_4core3numj13unchecked_add18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs9_NtCs2Ja4erDm0Jl_4core3numj13unchecked_sub18precondition_checkCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB8_8IvfIndex10load_entrys_00Ba_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB8_8IvfIndex6insert00Ba_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB8_8IvfIndex9mark_dead00Ba_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex10alloc_slot0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex10load_entry0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex10load_entrys_0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex11list_insert0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex11list_remove0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex13next_deadline0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex16check_invariants0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex6insert0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex6search0B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs_NtCs7c3pHCNmowy_12vecdht_index3ivfNtB6_8IvfIndex9mark_dead0B8_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMsj_NtNtCs9qcQDiGWtgW_3std3ffi6os_strNtB5_5OsStr15to_string_lossyCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1_NtNtCs9qcQDiGWtgW_3std3ffi6os_strNtB5_8OsStringINtNtNtCs2Ja4erDm0Jl_4core3ops5index5IndexNtNtBV_5range9RangeFullE5indexCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs3_NtNtCs9qcQDiGWtgW_3std3ffi6os_strNtB5_8OsStringNtNtNtCs2Ja4erDm0Jl_4core3ops5deref5Deref5derefCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsE_NtNtCs9qcQDiGWtgW_3std3ffi6os_strNtB5_5OsStrNtNtCs2Ja4erDm0Jl_4core3cmp9PartialEq2eqCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs1q_NtCs9qcQDiGWtgW_3std4pathNtNtCsinMxvmwVKXS_5alloc6string6StringINtNtCs2Ja4erDm0Jl_4core7convert5AsRefNtB6_4PathE6as_refCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsK_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringINtNtCs2Ja4erDm0Jl_4core7convert4FromReE4fromCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsZ_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Write10write_charCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsZ_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Write9write_strCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsq_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt7Display3fmtCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsr_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Debug3fmtCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvMs0_NtCs7c3pHCNmowy_12vecdht_index8snapshotNtB7_6Cursor4skip0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index8snapshot14list_snapshots0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index8snapshot14parse_snapshot0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index8snapshot14parse_snapshots_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index8snapshot19parse_snapshot_name0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index8snapshot19parse_snapshot_names0_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs7c3pHCNmowy_12vecdht_index8snapshot19parse_snapshot_names1_0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index11owner_tableNtB4_10OwnerTable3lenB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index11owner_tableNtB4_10OwnerTable4maskB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index11owner_tableNtB4_10OwnerTable5bytesB6_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs1_NtCsinMxvmwVKXS_5alloc5allocNtB5_6GlobalNtNtCs2Ja4erDm0Jl_4core5alloc9Allocator10deallocateCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index5entryNtB4_10IndexEntry10is_expiredB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index5entryNtB4_10IndexEntry11from_insertB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index5entryNtB4_10IndexEntry15deadline_bucketB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCs7c3pHCNmowy_12vecdht_index5entryNtB4_10IndexEntry9to_insertB6_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore11apply_frame0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore11apply_frames0_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore11apply_frames1_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore11apply_frames_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore14flush_snapshot0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore14flush_snapshots0_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore14flush_snapshots1_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore14flush_snapshots2_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore14flush_snapshots_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore4open0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore4opens0_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore4opens1_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore4opens2_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore4opens4_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore4opens5_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore4opens_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore5stage0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore5stages_0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCs7c3pHCNmowy_12vecdht_index5storeNtB4_10ShardStore6commit0B6_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtNtCs2Ja4erDm0Jl_4core4char7methodsc8to_digitCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXsH_NtNtCs2Ja4erDm0Jl_4core4iter5rangemNtB5_4Step13steps_betweenCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer3u16Cs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer3u32Cs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer5vec_qCs7c3pHCNmowy_12vecdht_index ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvYNcNtNtNtCslqOrCKjiUDb_15vecdht_artifact4json4Json3Int0INtNtNtCs2Ja4erDm0Jl_4core3ops8function6FnOnceTxEE9call_onceBa_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvYNvYAhj20_NtNtCs2Ja4erDm0Jl_4core3cmp10PartialOrd2ltINtNtNtBf_3ops8function5FnMutTRB5_B1l_EE8call_mutCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNCNvMNtCslqOrCKjiUDb_15vecdht_artifact4jsonNtB6_4Json3obj00B8_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs0_NtCslqOrCKjiUDb_15vecdht_artifact4jsonNtB7_1P6number0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs0_NtCslqOrCKjiUDb_15vecdht_artifact4jsonNtB7_1P6numbers_0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs0_NtCslqOrCKjiUDb_15vecdht_artifact4jsonNtB7_1P6object0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs0_NtCslqOrCKjiUDb_15vecdht_artifact4jsonNtB7_1P6string0B9_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvMs_NtCsinMxvmwVKXS_5alloc3vecINtB6_3VecppE17from_raw_parts_in18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String10into_bytesCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String3lenCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String3newCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String4pushCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String6as_strCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String8is_emptyCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String8push_strCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1M_NtCsinMxvmwVKXS_5alloc6stringxNtB6_12SpecToString14spec_to_stringCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1h_NtCsinMxvmwVKXS_5alloc6stringNtB6_6StringNtNtCs2Ja4erDm0Jl_4core3cmp9PartialEq2eqCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1w_NtCsinMxvmwVKXS_5alloc6stringNtB6_6StringINtNtCs2Ja4erDm0Jl_4core3cmp9PartialEqeE2eqCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1y_NtCsinMxvmwVKXS_5alloc6stringNtB6_6StringINtNtCs2Ja4erDm0Jl_4core3cmp9PartialEqReE2neCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs25_NtCsinMxvmwVKXS_5alloc6stringReNtB6_12SpecToString14spec_to_stringCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsK_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringINtNtCs2Ja4erDm0Jl_4core7convert4FromReE4fromCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsZ_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Write10write_charCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsZ_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Write9write_strCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsq_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt7Display3fmtCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsr_NtCsinMxvmwVKXS_5alloc6stringNtB5_6StringNtNtCs2Ja4erDm0Jl_4core3fmt5Debug3fmtCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNcNtNtNtCslqOrCKjiUDb_15vecdht_artifact4json4Json3Int0B7_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXNtNtCs2Ja4erDm0Jl_4core3cmp5implsuNtB4_9PartialEq2eqCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsk_NtNtCs2Ja4erDm0Jl_4core3cmp5implshNtB7_9PartialEq2eqCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtCs2Ja4erDm0Jl_4core5slice3raw14from_raw_parts18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Arguments23as_statically_known_strCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsa_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Formatter9write_fmtCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNtCs2Ja4erDm0Jl_4core3ptr25swap_nonoverlapping_bytesCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr19copy_nonoverlapping18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr19swap_nonoverlapping18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RINvNtCslqOrCKjiUDb_15vecdht_artifact8manifest6hex_ofKj20_EB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RINvNtCslqOrCKjiUDb_15vecdht_artifact8manifest9hex_fixedKj20_EB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RINvNtCslqOrCKjiUDb_15vecdht_artifact8manifest9hex_fixedKj40_EB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCINvNtCslqOrCKjiUDb_15vecdht_artifact8manifest6hex_ofKj20_E0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCINvNtCslqOrCKjiUDb_15vecdht_artifact8manifest9hex_fixedKj20_E0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCINvNtCslqOrCKjiUDb_15vecdht_artifact8manifest9hex_fixedKj40_E0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNCNvMs9_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB9_8Manifest5builds_00Bb_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs1_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_7Routing7to_json0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs8_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_9Authority7to_json0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs8_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_9Authority9from_json0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs8_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_9Authority9from_jsons_0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs9_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_8Manifest5build0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs9_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_8Manifest5check0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs9_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_8Manifest5checks0_0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs9_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_8Manifest5checks_0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs9_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_8Manifest6decode0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMs9_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB7_8Manifest6decodes_0B9_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCslqOrCKjiUDb_15vecdht_artifact8manifest10check_keys0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCslqOrCKjiUDb_15vecdht_artifact8manifest10check_keyss0_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCslqOrCKjiUDb_15vecdht_artifact8manifest10check_keyss_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCslqOrCKjiUDb_15vecdht_artifact8manifest11u16_list_of0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCslqOrCKjiUDb_15vecdht_artifact8manifest11u16_list_ofs_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCslqOrCKjiUDb_15vecdht_artifact8manifest5value0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtNtCs2Ja4erDm0Jl_4core4char7methodsc8from_u32CslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtNtCs2Ja4erDm0Jl_4core4char7methodsc8to_digitCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCs2Ja4erDm0Jl_4core4char7methods15encode_utf8_rawCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXsS_NtNtCs2Ja4erDm0Jl_4core3fmt3numnNtB7_5Debug3fmtCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsV_NtNtCs2Ja4erDm0Jl_4core3fmt3numtNtB7_5Debug3fmtCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsX_NtNtCs2Ja4erDm0Jl_4core3fmt3numyNtB7_5Debug3fmtCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtCs2Ja4erDm0Jl_4core5sliceSp14swap_unchecked18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtCs2Ja4erDm0Jl_4core5sliceSp18split_at_unchecked18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCslqOrCKjiUDb_15vecdht_artifact9centroidsNtB4_9Centroids4rows0B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCslqOrCKjiUDb_15vecdht_artifact9centroidsNtB4_9Centroids7from_u80B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvMNtCslqOrCKjiUDb_15vecdht_artifact9centroidsNtB4_9Centroids8as_bytes0B6_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvCslqOrCKjiUDb_15vecdht_artifact18reference_manifest0B3_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvCslqOrCKjiUDb_15vecdht_artifact19reference_centroids0B3_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvCslqOrCKjiUDb_15vecdht_artifact4read0B3_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvCslqOrCKjiUDb_15vecdht_artifact5write0B3_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs0_NtCsinMxvmwVKXS_5alloc5allocNtB5_6Global18alloc_impl_runtimeCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1_NtCsinMxvmwVKXS_5alloc5allocNtB5_6GlobalNtNtCs2Ja4erDm0Jl_4core5alloc9Allocator10deallocateCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core4hint16assert_unchecked18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXsD_NtNtCs2Ja4erDm0Jl_4core4iter5rangehNtB5_4Step13steps_betweenCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsD_NtNtCs2Ja4erDm0Jl_4core4iter5rangehNtB5_4Step17forward_uncheckedCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvXs5_NtNtCs2Ja4erDm0Jl_4core3str6traitsINtNtNtBb_3ops5range5RangejEINtNtNtBb_5slice5index10SliceIndexeE13get_unchecked18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3numh14is_ascii_digitCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs4_NtCs2Ja4erDm0Jl_4core3numh13unchecked_add18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs9_NtCs2Ja4erDm0Jl_4core3numj13unchecked_add18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs9_NtCs2Ja4erDm0Jl_4core3numj13unchecked_sub18precondition_checkCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs2Ja4erDm0Jl_4core3stre3lenCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs2Ja4erDm0Jl_4core3stre5bytesCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs1l_NtCs9qcQDiGWtgW_3std4pathNtB6_4PathINtNtCs2Ja4erDm0Jl_4core7convert5AsRefBv_E6as_refCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1p_NtCs9qcQDiGWtgW_3std4patheINtNtCs2Ja4erDm0Jl_4core7convert5AsRefNtB6_4PathE6as_refCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB4_13ManifestError5field ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCslqOrCKjiUDb_15vecdht_artifact8manifestNtB4_13ManifestError5range ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCslqOrCKjiUDb_15vecdht_artifact8manifest6str_of ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCslqOrCKjiUDb_15vecdht_artifact8manifest9hex_fixed3nib ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCs2Ja4erDm0Jl_4core4char7convert8from_u32CslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs1_NtNtCs9qcQDiGWtgW_3std3ffi6os_strNtB5_8OsStringINtNtNtCs2Ja4erDm0Jl_4core3ops5index5IndexNtNtBV_5range9RangeFullE5indexCslqOrCKjiUDb_15vecdht_artifact ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNtCs2Ja4erDm0Jl_4core3ptr25swap_nonoverlapping_bytesCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr19copy_nonoverlapping18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr19swap_nonoverlapping18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtCs2Ja4erDm0Jl_4core5slice3raw14from_raw_parts18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs9qcQDiGWtgW_3std3f64d4ceilCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs9qcQDiGWtgW_3std3f64d4sqrtCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs2Ja4erDm0Jl_4core3numt11to_le_bytesCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm11to_le_bytesCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy11to_le_bytesCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy13from_be_bytesCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs5_NtCs2Ja4erDm0Jl_4core3numt13unchecked_add18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs7_NtCs2Ja4erDm0Jl_4core3numy13unchecked_add18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs9_NtCs2Ja4erDm0Jl_4core3numj13unchecked_add18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvMs_NtCsinMxvmwVKXS_5alloc3vecINtB6_3VecppE17from_raw_parts_in18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtCs2Ja4erDm0Jl_4core5sliceSp14swap_unchecked18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtCs2Ja4erDm0Jl_4core5sliceSp18split_at_unchecked18precondition_checkCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs8BajJrTD7Ii_13ed25519_dalek9verifyingNtB5_12VerifyingKey10from_bytesCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs5e4RWSIvfaN_13vecdht_crypto5quant12top_clusters0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs5e4RWSIvfaN_13vecdht_crypto5quant12top_clusterss0_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs5e4RWSIvfaN_13vecdht_crypto5quant12top_clusterss_0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs5e4RWSIvfaN_13vecdht_crypto5quant14group_by_shard0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCNvNtCs5e4RWSIvfaN_13vecdht_crypto5quant14group_by_shards_0B5_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs2J_NtCsal51L4X37NO_11vecdht_wire8messagesNtB6_10CertRevokeNtNtCs2Ja4erDm0Jl_4core5clone5Clone5cloneCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsw_NtCsal51L4X37NO_11vecdht_wire8messagesNtB5_4RoleNtNtCs2Ja4erDm0Jl_4core3fmt5Debug3fmtCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs0_NtCsinMxvmwVKXS_5alloc5allocNtB5_6Global18alloc_impl_runtimeCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs11_NtNtCs2Ja4erDm0Jl_4core3cmp5implsmNtB8_3Ord3cmpCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs1d_NtNtCs2Ja4erDm0Jl_4core3cmp5implslNtB8_3Ord5clampCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer10extend_rawCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer3u16Cs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer3u32Cs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer3u64Cs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXsF_NtNtCs2Ja4erDm0Jl_4core4iter5rangetNtB5_4Step13steps_betweenCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsF_NtNtCs2Ja4erDm0Jl_4core4iter5rangetNtB5_4Step17forward_uncheckedCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCs8BajJrTD7Ii_13ed25519_dalek7signingNtB2_10SigningKey10from_bytesCs5e4RWSIvfaN_13vecdht_crypto ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs1K_NtNtCs2Ja4erDm0Jl_4core9core_arch3x86NtB6_7___m128i8as_i16x8CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1K_NtNtCs2Ja4erDm0Jl_4core9core_arch3x86NtB6_7___m128i8as_i64x2CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1T_NtNtCs2Ja4erDm0Jl_4core9core_arch3x86NtB6_7___m256i8as_i64x4CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCshbA4XAcqOZb_4sha26sha2564soft8compress ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863sha20__mm_sha256msg1_epu32CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863sha20__mm_sha256msg2_epu32CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863sha21__mm_sha256rnds2_epu32CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864sse213__mm_add_epi32CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864sse213__mm_set_epi32CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864sse214__mm_set_epi64xCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864sse215__mm_loadu_si128CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864sse216__mm_storeu_si128CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865cpuid13___cpuid_countCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865cpuid7___cpuidCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865ssse316__mm_shuffle_epi8CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs_NtNtCs2Ja4erDm0Jl_4core3str6traitseNtNtB8_3cmp9PartialEq2eqCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm13from_be_bytesCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsC_NtNtCs2Ja4erDm0Jl_4core4sync6atomicINtB5_6AtomichE4loadCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsC_NtNtCs2Ja4erDm0Jl_4core4sync6atomicINtB5_6AtomichE5storeCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCshbA4XAcqOZb_4sha26sha2563x868compress ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCshbA4XAcqOZb_4sha26sha5124soft8compress ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863avx16__mm256_set_m128iCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863avx17__mm256_set_epi64xCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863avx20__mm256_setzero_si256CshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865xsave7__xgetbvCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtNtCs2Ja4erDm0Jl_4core3ptr9const_ptrPp20offset_from_unsigned18precondition_checkCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core9ub_checks23maybe_is_nonoverlapping7runtimeCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtCs2Ja4erDm0Jl_4core5slice3raw14from_raw_parts18precondition_checkCshbA4XAcqOZb_4sha2 ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNcNtNtCsfSXQlaNXryM_16curve25519_dalek7edwards18CompressedEdwardsY0B5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMse_NtCsfSXQlaNXryM_16curve25519_dalek7edwardsNtB5_12EdwardsPoint15as_affine_niels ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsf_NtCsfSXQlaNXryM_16curve25519_dalek7edwardsNtB5_12EdwardsPoint6double ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsm_NtCsfSXQlaNXryM_16curve25519_dalek6scalarNtB5_6Scalar7bits_le ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMsC_NtCsfSXQlaNXryM_16curve25519_dalek6windowINtB5_19LookupTableRadix256NtNtNtNtB7_7backend6serial12curve_models16AffineNielsPointE6selectB7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMse_NtCsfSXQlaNXryM_16curve25519_dalek6windowINtB5_18LookupTableRadix32NtNtNtNtB7_7backend6serial12curve_models16AffineNielsPointE6selectB7_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsm_NtCsfSXQlaNXryM_16curve25519_dalek6windowINtB5_18LookupTableRadix64NtNtNtNtB7_7backend6serial12curve_models16AffineNielsPointE6selectB7_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs1_NtCsfSXQlaNXryM_16curve25519_dalek5fieldNtNtNtNtNtB7_7backend6serial3u645field14FieldElement5112sqrt_ratio_i ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1_NtCsfSXQlaNXryM_16curve25519_dalek5fieldNtNtNtNtNtB7_7backend6serial3u645field14FieldElement516invert ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1_NtCsfSXQlaNXryM_16curve25519_dalek5fieldNtNtNtNtNtB7_7backend6serial3u645field14FieldElement517invsqrt ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1_NtCsfSXQlaNXryM_16curve25519_dalek5fieldNtNtNtNtNtB7_7backend6serial3u645field14FieldElement517is_zero ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMCs86pkegFZJSy_6subtleNtB2_6Choice9unwrap_u8CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs2Ja4erDm0Jl_4core3numt11to_le_bytesCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm11to_le_bytesCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy11to_le_bytesCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy13from_le_bytesCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs8_NtCs2Ja4erDm0Jl_4core3numo11to_le_bytesCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs9_NtCs2Ja4erDm0Jl_4core3numj11checked_mulCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCs2Ja4erDm0Jl_4core10intrinsics9cold_pathCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfSXQlaNXryM_16curve25519_dalek7backend17variable_base_mul ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfSXQlaNXryM_16curve25519_dalek7backend23vartime_double_base_mul ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCsfSXQlaNXryM_16curve25519_dalek7edwards10decompress6step_1 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCsfSXQlaNXryM_16curve25519_dalek7edwards10decompress6step_2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCsfSXQlaNXryM_16curve25519_dalek9ristretto10decompress6step_1 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtCsfSXQlaNXryM_16curve25519_dalek9ristretto10decompress6step_2 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864avx216__mm256_mul_epu32CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864avx217__mm256_srlv_epi32CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864avx221__mm256_unpackhi_epi32CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864avx221__mm256_unpacklo_epi32CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x864avx227__mm256_permutevar8x32_epi32CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtNtCs2Ja4erDm0Jl_4core3ptr9const_ptrPp20offset_from_unsigned18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB4_5u64x45splat11__impl_splatBa_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs3_NtCs2Ja4erDm0Jl_4core3numi13unchecked_neg18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs6_NtCs2Ja4erDm0Jl_4core3numm13unchecked_add18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs9_NtCs2Ja4erDm0Jl_4core3numj13unchecked_sub18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB6_5u32x83new9__impl_newBc_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMs_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB6_5u32x85splat11__impl_splatBc_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr13read_volatile18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core3ptr14write_volatile18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtCs2Ja4erDm0Jl_4core4hint16assert_unchecked18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtCs2Ja4erDm0Jl_4core5slice3raw14from_raw_parts18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvMsx_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x85mul32B1c_NtB2_14___Impl_mul32__11__impl_mul32Be_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXs6_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u64x4INtNtCs2Ja4erDm0Jl_4core7convert4FromNtNtNtB1s_9core_arch3x867___m256iE4fromB1c_NtB2_13___Impl_from__10__impl_fromBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXs8_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u64x4NtNtNtCs2Ja4erDm0Jl_4core3ops5arith3Add3addB1c_NtB2_12___Impl_add__9__impl_addBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXs9_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u64x4NtNtNtCs2Ja4erDm0Jl_4core3ops5arith9AddAssign10add_assignB1c_NtB2_19___Impl_add_assign__16__impl_add_assignBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsa_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u64x4NtNtNtCs2Ja4erDm0Jl_4core3ops5arith3Sub3subB1c_NtB2_12___Impl_sub__9__impl_subBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsb_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u64x4NtNtNtCs2Ja4erDm0Jl_4core3ops3bit6BitAnd6bitandB1c_NtB2_15___Impl_bitand__12__impl_bitandBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsd_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u64x4NtNtNtCs2Ja4erDm0Jl_4core3ops3bit12BitAndAssign13bitand_assignB1c_NtB2_22___Impl_bitand_assign__19__impl_bitand_assignBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsm_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x8INtNtCs2Ja4erDm0Jl_4core7convert4FromNtNtNtB1s_9core_arch3x867___m256iE4fromB1c_NtB2_13___Impl_from__10__impl_fromBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXso_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x8NtNtNtCs2Ja4erDm0Jl_4core3ops5arith3Add3addB1c_NtB2_12___Impl_add__9__impl_addBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsp_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x8NtNtNtCs2Ja4erDm0Jl_4core3ops5arith9AddAssign10add_assignB1c_NtB2_19___Impl_add_assign__16__impl_add_assignBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsq_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x8NtNtNtCs2Ja4erDm0Jl_4core3ops5arith3Sub3subB1c_NtB2_12___Impl_sub__9__impl_subBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsr_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x8NtNtNtCs2Ja4erDm0Jl_4core3ops3bit6BitAnd6bitandB1c_NtB2_15___Impl_bitand__12__impl_bitandBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXss_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x8NtNtNtCs2Ja4erDm0Jl_4core3ops3bit6BitXor6bitxorB1c_NtB2_15___Impl_bitxor__12__impl_bitxorBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsu_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x8NtNtNtCs2Ja4erDm0Jl_4core3ops3bit12BitXorAssign13bitxor_assignB1c_NtB2_22___Impl_bitxor_assign__19__impl_bitxor_assignBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsw_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtB8_5u32x8INtNtCs2Ja4erDm0Jl_4core7convert4FromNtB8_5u64x4E4fromB1c_NtB2_13___Impl_from__10__impl_fromBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs0_Cs86pkegFZJSy_6subtleNtB5_6ChoiceNtNtNtCs2Ja4erDm0Jl_4core3ops3bit6BitAnd6bitandCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs19_NtNtCs2Ja4erDm0Jl_4core3cmp5implsaNtB8_3Ord3cmpCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs2_Cs86pkegFZJSy_6subtleNtB5_6ChoiceNtNtNtCs2Ja4erDm0Jl_4core3ops3bit5BitOr5bitorCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs37_NtNtCs2Ja4erDm0Jl_4core7convert3numiINtB8_7TryFromjE8try_fromCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs4i_NtNtCs2Ja4erDm0Jl_4core3ops5arithRjINtB6_3RemjE3remCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs6_Cs86pkegFZJSy_6subtleNtB5_6ChoiceNtNtNtCs2Ja4erDm0Jl_4core3ops3bit3Not3notCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs7_Cs86pkegFZJSy_6subtleNtB5_6ChoiceINtNtCs2Ja4erDm0Jl_4core7convert4FromhE4fromCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsD_Cs86pkegFZJSy_6subtlehNtB5_23ConditionallySelectable18conditional_selectCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsJ_Cs86pkegFZJSy_6subtleyNtB5_23ConditionallySelectable16conditional_swapCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsJ_Cs86pkegFZJSy_6subtleyNtB5_23ConditionallySelectable18conditional_assignCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsJ_Cs86pkegFZJSy_6subtleyNtB5_23ConditionallySelectable18conditional_selectCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsX_NtNtCs2Ja4erDm0Jl_4core3fmt3numyNtB7_5Debug3fmtCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs_Cs86pkegFZJSy_6subtlebINtNtCs2Ja4erDm0Jl_4core7convert4FromNtB4_6ChoiceE4fromCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXst_Cs86pkegFZJSy_6subtlehNtB5_14ConstantTimeEq5ct_eqCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsv_Cs86pkegFZJSy_6subtletNtB5_14ConstantTimeEq5ct_eqCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx29constants20CACHEDPOINT_IDENTITY ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx29constants22EXTENDEDPOINT_IDENTITY ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs1T_NtNtCs2Ja4erDm0Jl_4core9core_arch3x86NtB6_7___m256i8as_i32x8CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1T_NtNtCs2Ja4erDm0Jl_4core9core_arch3x86NtB6_7___m256i8as_i64x4CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1T_NtNtCs2Ja4erDm0Jl_4core9core_arch3x86NtB6_7___m256i8as_u32x8CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1T_NtNtCs2Ja4erDm0Jl_4core9core_arch3x86NtB6_7___m256i8as_u64x4CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs1W_NtNtCs2Ja4erDm0Jl_4core9core_arch3x86INtNtB8_4simd4SimdmKj8_E8as_m256iCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Arguments8from_strCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsC_NtNtCs2Ja4erDm0Jl_4core4sync6atomicINtB5_6AtomichE4loadCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsC_NtNtCs2Ja4erDm0Jl_4core4sync6atomicINtB5_6AtomichE5storeCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsa_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Formatter9write_fmtCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863avx16__mm256_set_epi32CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863avx17__mm256_set1_epi32CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863avx18__mm256_set1_epi64xCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x863avx20__mm256_setzero_si256CsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865cpuid13___cpuid_countCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865cpuid7___cpuidCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865xsave7__xgetbvCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial10scalar_mul13variable_base3mul ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMse_NtNtCs2Ja4erDm0Jl_4core3num7nonzeroINtB7_7NonZeropE13new_unchecked18precondition_checkCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector10scalar_mul13variable_base9spec_avx23mul9__impl_mul ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector10scalar_mul19vartime_double_base9spec_avx23mul9__impl_mul ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXs5_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x867___m256iINtNtB1i_7convert4FromNtB8_5u64x4E4fromB1c_NtB2_13___Impl_from__10__impl_fromBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsl_NtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector11packed_simdNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x867___m256iINtNtB1i_7convert4FromNtB8_5u32x8E4fromB1c_NtB2_13___Impl_from__10__impl_fromBe_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsH_NtNtCs2Ja4erDm0Jl_4core4iter5rangemNtB5_4Step17forward_uncheckedCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsL_NtNtCs2Ja4erDm0Jl_4core4iter5rangejNtB5_4Step18backward_uncheckedCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXs_NtNtCs2Ja4erDm0Jl_4core3str6traitseNtNtB8_3cmp9PartialEq2eqCsfSXQlaNXryM_16curve25519_dalek ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvYNcNtNtCsfSXQlaNXryM_16curve25519_dalek7edwards18CompressedEdwardsY0INtNtNtCs2Ja4erDm0Jl_4core3ops8function6FnOnceTAhj20_EE9call_onceB8_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar5210from_bytes ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar5213as_montgomery ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar5214montgomery_mul ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar5215from_bytes_wide ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar5215from_montgomery ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar5217montgomery_square ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar523add ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar523mul ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs2_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6serial3u646scalarNtB5_8Scalar523sub ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsn_NtCsfSXQlaNXryM_16curve25519_dalek6scalarNtNtNtNtNtB7_7backend6serial3u646scalar8Scalar5217montgomery_invert ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsn_NtCsfSXQlaNXryM_16curve25519_dalek6scalarNtNtNtNtNtB7_7backend6serial3u646scalar8Scalar524pack ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsn_NtCsfSXQlaNXryM_16curve25519_dalek6scalarNtNtNtNtNtB7_7backend6serial3u646scalar8Scalar526invert ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvMsb_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx25fieldNtB8_18FieldElement2625x411negate_lazyB1c_NtB2_20___Impl_negate_lazy__17__impl_negate_lazyBg_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvMsb_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx25fieldNtB8_18FieldElement2625x45blendB1c_NtB2_14___Impl_blend__11__impl_blendBg_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvMsb_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx25fieldNtB8_18FieldElement2625x47shuffleB1c_NtB2_16___Impl_shuffle__13__impl_shuffleBg_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvMsb_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx25fieldNtB8_18FieldElement2625x48diff_sumB1c_NtB2_17___Impl_diff_sum__14__impl_diff_sumBg_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsc_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx25fieldNtB8_18FieldElement2625x4NtNtNtCs2Ja4erDm0Jl_4core3ops5arith3Neg3negB1c_NtB2_12___Impl_neg__9__impl_negBg_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsd_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx25fieldNtB8_18FieldElement2625x4NtNtNtCs2Ja4erDm0Jl_4core3ops5arith3Add3addB1c_NtB2_12___Impl_add__9__impl_addBg_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXse_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx25fieldNtB8_18FieldElement2625x4INtNtNtCs2Ja4erDm0Jl_4core3ops5arith3MulTmmmmEE3mulB1c_NtB2_12___Impl_mul__9__impl_mulBg_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXNvXsf_NtNtNtNtCsfSXQlaNXryM_16curve25519_dalek7backend6vector4avx25fieldRNtB8_18FieldElement2625x4NtNtNtCs2Ja4erDm0Jl_4core3ops5arith3Mul3mulB1c_NtB2_12___Impl_mul__9__impl_mulBg_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Arguments8from_strCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm11to_le_bytesCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm13from_le_bytesCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy17next_power_of_twoCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs9_NtCs2Ja4erDm0Jl_4core3numj17next_power_of_twoCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsC_NtNtCs2Ja4erDm0Jl_4core4sync6atomicINtB5_6AtomichE4loadCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsC_NtNtCs2Ja4erDm0Jl_4core4sync6atomicINtB5_6AtomichE5storeCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsa_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Formatter9write_fmtCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfCPIRKYxiiY_6blake34sse212compress_xof ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfCPIRKYxiiY_6blake34sse217compress_in_place ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfCPIRKYxiiY_6blake35sse4112compress_xof ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfCPIRKYxiiY_6blake35sse4117compress_in_place ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfCPIRKYxiiY_6blake36avx51212compress_xof ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfCPIRKYxiiY_6blake36avx51217compress_in_place ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtCsfCPIRKYxiiY_6blake38portable12compress_xof ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865cpuid13___cpuid_countCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865cpuid7___cpuidCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNtNtNtCs2Ja4erDm0Jl_4core9core_arch3x865xsave7__xgetbvCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvMNtNtCs2Ja4erDm0Jl_4core3ptr9const_ptrPp20offset_from_unsigned18precondition_checkCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtCs2Ja4erDm0Jl_4core5slice3raw14from_raw_parts18precondition_checkCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvNvNtNtCs2Ja4erDm0Jl_4core5slice3raw18from_raw_parts_mut18precondition_checkCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsU_NtNtCs2Ja4erDm0Jl_4core3fmt3numhNtB7_5Debug3fmtCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsX_NtNtCs2Ja4erDm0Jl_4core3fmt3numyNtB7_5Debug3fmtCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvXsZ_NtNtCs2Ja4erDm0Jl_4core3fmt3numjNtB7_5Debug3fmtCsfCPIRKYxiiY_6blake3 ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RINvCsfCPIRKYxiiY_6blake316hash_all_at_onceNtNtB2_4join10SerialJoinEB2_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCINvCsfCPIRKYxiiY_6blake321compress_subtree_wideNtNtB4_4join10SerialJoinE0B4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNCINvCsfCPIRKYxiiY_6blake321compress_subtree_wideNtNtB4_4join10SerialJoinEs_0B4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvCsfCPIRKYxiiY_6blake311counter_lowB1_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvCsfCPIRKYxiiY_6blake312counter_highB1_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvCsfCPIRKYxiiY_6blake318parent_node_output ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMCsfCPIRKYxiiY_6blake3NtB2_4Hash8as_bytesB2_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs9_CsfCPIRKYxiiY_6blake3NtB5_6Output14chaining_value ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs9_CsfCPIRKYxiiY_6blake3NtB5_6Output9root_hash ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsa_CsfCPIRKYxiiY_6blake3NtB5_10ChunkState3new ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsa_CsfCPIRKYxiiY_6blake3NtB5_10ChunkState6output ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsc_CsfCPIRKYxiiY_6blake3NtB5_16IncrementCounter3yesB5_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMsh_CsfCPIRKYxiiY_6blake3NtB5_12OutputReader3new ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs2_NtCsfCPIRKYxiiY_6blake38platformNtB5_8PlatformNtNtCs2Ja4erDm0Jl_4core3fmt5Debug3fmtB7_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsinMxvmwVKXS_5alloc6stringNtB2_6String9from_utf8Csal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvXs10_NtNtCs2Ja4erDm0Jl_4core3cmp5implsmNtB8_10PartialOrd13___chaining_gtCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer10extend_rawB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer2u8B4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer3u16B4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer3u32B4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer3u64B4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer4boolB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer5bytesB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer5vec_qB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer6stringB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMNtCsal51L4X37NO_11vecdht_wire5codecNtB2_6Writer8into_vecB4_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCsal51L4X37NO_11vecdht_wire5codecNtB4_6Reader2u8B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCsal51L4X37NO_11vecdht_wire5codecNtB4_6Reader3u16B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCsal51L4X37NO_11vecdht_wire5codecNtB4_6Reader3u32B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCsal51L4X37NO_11vecdht_wire5codecNtB4_6Reader3u64B6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCsal51L4X37NO_11vecdht_wire5codecNtB4_6Reader4boolB6_ ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs_NtCsal51L4X37NO_11vecdht_wire5codecNtB4_6Reader5vec_qB6_ ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs2Ja4erDm0Jl_4core3numt11to_be_bytesCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs2Ja4erDm0Jl_4core3numt11to_le_bytesCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs5_NtCs2Ja4erDm0Jl_4core3numt13from_le_bytesCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm11to_le_bytesCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs6_NtCs2Ja4erDm0Jl_4core3numm13from_le_bytesCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy11to_le_bytesCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: .drectve `-exclude-symbols:_RNvMs7_NtCs2Ja4erDm0Jl_4core3numy13from_le_bytesCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: .drectve `-exclude-symbols:_RNvMs4_NtCs2Ja4erDm0Jl_4core3fmtNtB5_9Arguments8from_strCsal51L4X37NO_11vecdht_wire ' unrecognized
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          Warning: corrupt .drectve at end of def file
+          C:\Users\Admin\.rustup\toolchains\stable-x86_64-pc-windows-gnu\lib\rustlib\x86_64-pc-windows-gnu\lib\libstd-f903e3d16df36da5.rlib(std-f903e3d16df36da5.std.6dc08216e95b97e0-cgu.0.rcgu.o): In function `_RNvNtNtNtNtCs9qcQDiGWtgW_3std3sys3net8hostname7windows8hostname':
+          /rustc/58cf8f9c35b355199727627d07ae34a4e2846d67/library\std\src\sys\net\hostname/windows.rs:15: undefined reference to `GetHostNameW'
+          collect2.exe: error: ld returned 1 exit status
+          
+  = note: some `extern` functions couldn't be found; some native libraries may need to be installed or have their path specified
+  = note: use the `-l` flag to specify native libraries to link
+  = note: use the `cargo:rustc-link-lib` directive to specify the native libraries to link with Cargo (see https://doc.rust-lang.org/cargo/reference/build-scripts.html#rustc-link-lib)
+
+error: aborting due to 1 previous error
+
+Couldn't compile the test.
+
+failures:
+    crates\vecdht-node\src\lib.rs - (line 21)
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+
+error: doctest failed, to rerun pass `-p vecdht-node --doc`
+########## EXIT=101 ##########
+########## ДОПОЛНЕНИЕ (append-only): КОНТРОЛЬ с корректным PATH 2026-10-22T08:02:34+03:00 ##########
+# блок КОНТРОЛЬ выше падал на линковке doctest (GetHostNameW): скрипт запускался без mingw64 в PATH.
+# коды выхода cargo — настоящего, без пайпа:
+test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.89s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+REAL_TEST_EXIT=0
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.82s
+REAL_DOCTEST_EXIT=0
