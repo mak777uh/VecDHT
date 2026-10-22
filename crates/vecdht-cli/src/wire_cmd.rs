@@ -442,6 +442,7 @@ mod tests {
                 query_id: 5,
                 target_ed25519: [0xEE; 32],
                 slot: 41,
+                present: vec![0x50; 9],
             }
             .body_bytes(),
             Kind::IntentTextResponse => IntentTextResponse {

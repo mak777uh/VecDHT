@@ -5,6 +5,11 @@
 //! нечем. Здесь меряется два факта: (1) сторона цели из `session.rs` обслуживает запрос
 //! без всякого приёма (отсечь его не может), (2) библиотека `Spend` исправна — второй
 //! расход того же кадра есть `AlreadySpent`.
+//! АДДЕНДУМ 2026-10-22 (`ADR-0013`, `E-0051`): фикция закрыта — появился кадр
+//! предъявления. `IntentTextRequest` несёт поле `present` (лимит `MAX_PRESENT_BYTES = 512`),
+//! единственный путь обслуживания запроса — `session::serve_request`: пустое `present`
+//! даёт `TextError::NoAccept`, подпись вне списка держателей шарда — `NotSignedByShardHolder`.
+//! Живой гейт приёмки — `tests/present_serving_gate.rs` (`E-0051`).
 
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, rendezvous, session, testing, Spend};

@@ -1525,3 +1525,18 @@ TEST_EXIT=0
 TOTAL_PASSED=557
     Finished `dev` profile [unoptimized + debuginfo] target(s) in 1.35s
 CLIPPY_REAL_EXIT=0
+
+########## E-0051/ADR-0013 · workspace-verify · 2026-10-22T10:50:32+03:00 ##########
+TEST_EXIT=0
+TOTAL_PASSED=558
+    Checking vecdht-artifact v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-artifact)
+    Checking vecdht-index v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-index)
+    Checking vecdht-embed v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-embed)
+    Checking vecdht-node v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-node)
+    Checking vecdht-benches v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\benches)
+    Checking vecdht-net v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-net)
+    Checking vecdht-cli v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-cli)
+    Checking vecdht-crypto v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-crypto)
+    Checking vecdht-wire v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-wire)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.07s
+CLIPPY_REAL_EXIT=0

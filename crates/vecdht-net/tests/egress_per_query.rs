@@ -320,7 +320,9 @@ fn measure_path(top_k: usize, text: &[u8], text_arm: &'static str) -> PathBytes 
     let mut down_text = Seg::default();
     for i in 0..INTENT_PEERS {
         let owner = identity(i as u8 + 1);
-        let req = IntentTextRequest { query_id, target_ed25519: owner.pubkey(), slot: i as u32 };
+        // ADR-0013 добавляет present (~150 Б на запрос); исторический путь E-0026 мерится
+        // без него — бюджет ≤ 1 МБ обязан держаться и с ним, это проверяет оракул E-0051.
+        let req = IntentTextRequest { query_id, target_ed25519: owner.pubkey(), slot: i as u32, present: Vec::new() };
         let body = req.body_bytes();
         let frame = req.encode_unsigned();
         assert_eq!(

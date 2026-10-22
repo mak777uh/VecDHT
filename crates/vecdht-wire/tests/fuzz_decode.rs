@@ -132,7 +132,7 @@ fn corpus() -> Vec<Vec<u8>> {
     out.push(Find { preprocessing_version: u16::MAX, query_vector: [127i8; DIM], clusters: vec![], top_k: u16::MAX, query_id: u64::MAX, requester_ed25519: [4; 32], tlv: vec![(0x0002, vec![])] }.encode_signed(&sig));
     out.push(MatchResult { shard: 0, epoch: 0, query_id: 0, responder_ed25519: [5; 32], matches: vec![] }.encode_signed(&sig));
     out.push(MatchResult { shard: 63, epoch: 1, query_id: 2, responder_ed25519: [5; 32], matches: vec![Match { owner_ed25519: [1; 32], cluster_id: 80, d2: 0, slot: 3 }, Match { owner_ed25519: [2; 32], cluster_id: 81, d2: vecdht_wire::MAX_D2, slot: 4 }] }.encode_signed(&sig));
-    out.push(IntentTextRequest { query_id: u64::MAX, target_ed25519: [6; 32], slot: u32::MAX }.encode_unsigned());
+    out.push(IntentTextRequest { query_id: u64::MAX, target_ed25519: [6; 32], slot: u32::MAX, present: vec![7; 8] }.encode_unsigned());
     out.push(IntentTextResponse { owner_ed25519: [6; 32], model_version: String::new(), preprocessing_version: 0, text: vec![0xD0, 0xBF] }.encode_signed(&sig));
     out.push(WalPullRequest { shard: 0, from_seq: 0, to_seq: u64::MAX, max_bytes: u32::MAX }.encode_unsigned());
     let mut wal_frames = Writer::new();

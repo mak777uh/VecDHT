@@ -132,7 +132,7 @@ fn m_match_result() -> MatchResult {
 }
 
 fn m_text_request() -> IntentTextRequest {
-    IntentTextRequest { query_id: 5, target_ed25519: [0xEE; 32], slot: 41 }
+    IntentTextRequest { query_id: 5, target_ed25519: [0xEE; 32], slot: 41, present: vec![0x50; 9] }
 }
 
 fn m_text_response() -> IntentTextResponse {

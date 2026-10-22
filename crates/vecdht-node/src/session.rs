@@ -24,6 +24,7 @@ use vecdht_wire::messages::{
 };
 
 use crate::net::Addr;
+use crate::rendezvous::{AcceptError, Grant, Spend};
 
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum TextError {
@@ -43,6 +44,12 @@ pub enum TextError {
     TextTooLong(usize),
     #[error("текст не является UTF-8")]
     NotUtf8,
+    #[error("запрос без предъявления: цель не обязана отвечать (§12.3, ADR-0013)")]
+    NoAccept,
+    #[error("подпись приёма не совпала ни с одним держателем шарда")]
+    NotSignedByShardHolder,
+    #[error("предъявленный кадр отбракован расходом: {0}")]
+    Spend(#[from] AcceptError),
 }
 
 /// Проверенный ответ: текст уже прошёл владельца, подпись, лимит и UTF-8. Отдельный тип, а не
@@ -59,7 +66,59 @@ pub struct IntentText {
 /// агент: старый слот после смены эпизоды даёт `NO_SUCH_SLOT` на стороне владельца, а не чужой
 /// текст.
 pub fn encode_request(query_id: u64, target: Addr, slot: u32) -> Vec<u8> {
-    IntentTextRequest { query_id, target_ed25519: target, slot }.encode_unsigned()
+    IntentTextRequest {
+        query_id,
+        target_ed25519: target,
+        slot,
+        present: Vec::new(),
+    }
+    .encode_unsigned()
+}
+
+/// Запрос с предъявлением (`ADR-0013`): `present` — полный байтовый подписанный кадр
+/// `RendezvousAccept`, полученный агентом в ответе `Find`.
+pub fn encode_request_present(query_id: u64, target: Addr, slot: u32, present: &[u8]) -> Vec<u8> {
+    IntentTextRequest {
+        query_id,
+        target_ed25519: target,
+        slot,
+        present: present.to_vec(),
+    }
+    .encode_unsigned()
+}
+
+/// Единственный путь обслуживания запроса на стороне цели (§12.3, `ADR-0013`): разбор →
+/// обязательное предъявление → `Spend::consume` по списку держателей шарда-кандидатов.
+/// Перебор кандидатов допускается только по `BadSignature` (ключ издателя в кадре не
+/// хранится — цель проверяет подпись списком ключей изchain'а членства); `AlreadySpent`,
+/// `Expired`, `WrongTarget` и `TtlOutOfPolicy` означают отказ немедленно, перебор их
+/// маскировал бы. Успешный `Grant` — доказательство того, что запрос предъявлен; само
+/// обслуживание текста — дело приложения цели, но строить его поверх `parse_request`
+/// без расхода спека больше не позволяет.
+pub fn serve_request(
+    frame: &[u8],
+    me: &Addr,
+    issuers: &[Addr],
+    now_bucket: u32,
+    spend: &mut Spend,
+) -> Result<Grant, TextError> {
+    let req = parse_request(frame, me)?;
+    if req.present.is_empty() {
+        return Err(TextError::NoAccept);
+    }
+    let mut saw_bad_signature = false;
+    for issuer in issuers {
+        match spend.consume(&req.present, issuer, me, now_bucket) {
+            Ok(grant) => return Ok(grant),
+            // Не тот ключ: пробуем следующего держателя, но помним, что подпись проверялась.
+            Err(AcceptError::BadSignature) => saw_bad_signature = true,
+            Err(e) => return Err(TextError::Spend(e)),
+        }
+    }
+    if saw_bad_signature {
+        return Err(TextError::NotSignedByShardHolder);
+    }
+    Err(TextError::NotSignedByShardHolder)
 }
 
 /// Разобрать запрос на стороне владельца и убедиться, что он адресован именно ему.

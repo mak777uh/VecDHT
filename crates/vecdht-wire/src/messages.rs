@@ -471,7 +471,13 @@ pub struct IntentTextRequest {
     pub query_id: u64,
     pub target_ed25519: [u8; 32],
     pub slot: u32,
+    /// Предъявление (`ADR-0013`, §12.3): полный байтовый подписанный кадр
+    /// `RendezvousAccept`. Пустое значение разборимо, но цель обязана отказать (`NoAccept`).
+    pub present: Vec<u8>,
 }
+
+/// Лимит `present`: кадр приёма ~148 Б (76 тело + 8 заголовок + 64 подпись), запас на рост.
+pub const MAX_PRESENT_BYTES: usize = 512;
 
 impl Codec for IntentTextRequest {
     const KIND: Kind = Kind::IntentTextRequest;
@@ -481,14 +487,19 @@ impl Codec for IntentTextRequest {
         w.u64(self.query_id);
         w.fixed(&self.target_ed25519);
         w.u32(self.slot);
+        w.bytes(&self.present);
     }
 
     fn decode_body(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
         let query_id = r.u64()?;
         let target_ed25519 = r.fixed()?;
         let slot = r.u32()?;
+        let present = r.bytes()?;
         r.expect_end()?;
-        Ok(IntentTextRequest { query_id, target_ed25519, slot })
+        if present.len() > MAX_PRESENT_BYTES {
+            return Err(DecodeError::FieldTooLong(present.len()));
+        }
+        Ok(IntentTextRequest { query_id, target_ed25519, slot, present })
     }
 }
 
@@ -1272,7 +1283,12 @@ mod tests {
                 Match { owner_ed25519: [3; 32], cluster_id: 80, d2: 2000, slot: 1 },
             ],
         });
-        roundtrip(&IntentTextRequest { query_id: 5, target_ed25519: [0xEE; 32], slot: 41 });
+        roundtrip(&IntentTextRequest {
+            query_id: 5,
+            target_ed25519: [0xEE; 32],
+            slot: 41,
+            present: vec![0x50; 12],
+        });
         roundtrip(&IntentTextResponse {
             owner_ed25519: [1; 32],
             model_version: "granite-embedding-97m-v2".into(),

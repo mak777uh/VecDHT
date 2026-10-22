@@ -1,0 +1,418 @@
+########## E-0051 ·present· 2026-10-22T11:09:41+03:00 ##########
+a3c1fc2
+gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+### RUN --nocapture ### 2026-10-22T11:09:41+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.53s
+     Running tests\present_serving_gate.rs (target\debug\deps\present_serving_gate-e43457ccfee1790f.exe)
+
+running 1 test
+## оверхед: bare 54 Б → present 203 Б (+149 Б на кадр 149 Б ≤ лимит 512; против 52 Б до ADR-0013 —          +151 Б на предъявление) ##
+## пороги (1)…(6): предъявление обязательно, расход одноразов на живом входе, перебор кандидатов, оверхед и лимит в норме ##
+test serving_gate_requires_presentation_and_spend_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+EXIT=0
+### ИНВЕНТАРЬ ###
+476:    pub present: Vec<u8>,
+479:/// Лимит `present`: кадр приёма ~148 Б (76 тело + 8 заголовок + 64 подпись), запас на рост.
+490:        w.bytes(&self.present);
+497:        let present = r.bytes()?;
+499:        if present.len() > MAX_PRESENT_BYTES {
+500:            return Err(DecodeError::FieldTooLong(present.len()));
+98:pub fn serve_request(
+### КОНТРОЛЬ wire+node+net ### 2026-10-22T11:09:43+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.78s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-502162b5780742df.exe)
+
+running 22 tests
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-5cee7e68d1cbde1d.exe)
+
+running 1 test
+test egress_bytes_per_query has been running for over 60 seconds
+test egress_bytes_per_query ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 129.78s
+
+     Running tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-f40c74591c2c28ad.exe)
+
+running 3 tests
+test a_manifest_with_other_geometry_is_refused_today ... ok
+test the_two_implementations_agree_on_every_cluster_at_protocol_geometry ... ok
+test rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\transport.rs (target\debug\deps\transport-0c7fb6bb4a5d446d.exe)
+
+running 10 tests
+test quic_handshake_binds_the_cert_to_the_transport_key ... ok
+test an_agent_discovers_the_shard_provider_through_kademlia ... ok
+test gossip_delivers_a_signed_publish_to_the_primary ... ok
+test a_valid_revoke_on_a_shard_topic_is_refused ... ok
+test a_closed_connection_reaches_peer_lost_in_the_shard ... ok
+test publish_and_find_travel_over_the_real_transport ... ok
+test a_revoke_below_threshold_is_rejected_before_it_can_revoke ... ok
+test an_agent_publishes_finds_and_opens_a_direct_session ... ok
+test a_cert_whose_owner_is_not_the_transport_key_is_rejected ... ok
+test a_threshold_revoke_drops_connections_and_blocks_reconnect ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.42s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-b4229cc6dbb75a49.exe)
+
+running 73 tests
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+
+test result: ok. 73 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running tests\accept_presentation_api_only.rs (target\debug\deps\accept_presentation_api_only-3b58d0b62cfdd363.exe)
+
+running 1 test
+test target_side_serves_text_without_accept_and_spend_is_library_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\accept_ttl_boundary.rs (target\debug\deps\accept_ttl_boundary-589b0c83ca99fd9c.exe)
+
+running 1 test
+test accept_lives_inclusive_to_the_boundary_bucket_and_the_table_prunes_with_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\admission.rs (target\debug\deps\admission-72e3978f6d439743.exe)
+
+running 7 tests
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests\admission_table_over_limit.rs (target\debug\deps\admission_table_over_limit-600fdb5ec8509c80.exe)
+
+running 2 tests
+test the_peer_table_holds_active_keys_over_the_limit_and_forgets_nothing ... ok
+test idle_surge_forgets_exactly_over_rows_and_the_forgotten_key_returns_fresh ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\adversarial.rs (target\debug\deps\adversarial-715297e4012b836a.exe)
+
+running 8 tests
+test p5_gate_sixteen_core_sybil_for_ten_minutes ... ignored, гейт P5: 16 ядер × 10 минут × 2^20; запускать в release с --ignored
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.12s
+
+     Running tests\anti_replay_find.rs (target\debug\deps\anti_replay_find-9a50ab5aa9e23642.exe)
+
+running 1 test
+test the_same_query_id_is_answered_again_and_again_including_after_61_seconds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests\ceiling_partial_accepts.rs (target\debug\deps\ceiling_partial_accepts-d59ba56ff1b599ad.exe)
+
+running 1 test
+test ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.48s
+
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-a8ca24229a3e5262.exe)
+
+running 1 test
+test denylist_is_unreachable_in_and_vanishes_on_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests\epoch_rotation_accept.rs (target\debug\deps\epoch_rotation_accept-7bf09247df86f8d4.exe)
+
+running 1 test
+test pre_epoch_accept_spends_after_rotation_and_new_primary_issues_fresh ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests\find_admission_price.rs (target\debug\deps\find_admission_price-0515ce333c1da78d.exe)
+
+running 1 test
+test find_quota_price_ignores_cluster_list_length ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests\find_empty_cluster_list.rs (target\debug\deps\find_empty_cluster_list-ff56cffa18593288.exe)
+
+running 1 test
+test empty_cluster_list_is_served_as_signed_empty_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests\find_no_queue.rs (target\debug\deps\find_no_queue-5333e4be701d1202.exe)
+
+running 2 tests
+test an_expensive_find_is_fixed_in_one_answer_and_repeats_byte_identically ... ok
+test the_sybil_surge_leaves_no_frame_without_an_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\find_node_budget.rs (target\debug\deps\find_node_budget-37b2c5de1e7a89f4.exe)
+
+running 1 test
+test sybil_find_surge_passes_node_budget_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-ed967e3cb6bd0020.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+     Running tests\gc.rs (target\debug\deps\gc-997679f7266fc12e.exe)
+
+running 2 tests
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests\lease_table_ceiling.rs (target\debug\deps\lease_table_ceiling-61b42197d6680a73.exe)
+
+running 1 test
+test repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests\lease_table_restart.rs (target\debug\deps\lease_table_restart-6ede19e5f5a07a8d.exe)
+
+running 1 test
+test restart_empties_the_table_and_the_old_accept_still_spends ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests\present_serving_gate.rs (target\debug\deps\present_serving_gate-cc723a7a4a8078cf.exe)
+
+running 1 test
+test serving_gate_requires_presentation_and_spend_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-1362051a3c49a948.exe)
+
+running 3 tests
+test a_find_without_matches_issues_no_accept ... ok
+test an_accept_stops_working_after_its_ttl ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\top_k_clamp_live.rs (target\debug\deps\top_k_clamp_live-2453b1e02cba6d43.exe)
+
+running 1 test
+test live_find_clamps_top_k_to_64_and_issues_one_accept_per_match ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_wire-f16856eefb5d4dc9.exe)
+
+running 39 tests
+test cert::tests::inverted_validity_window_rejected ... ok
+test cert::tests::bad_version_role_and_shard_rejected ... ok
+test cert::tests::cert_roundtrip_and_canonical_bytes ... ok
+test cert::tests::unsigned_body_excludes_sigs ... ok
+test codec::tests::tlv_ascending_and_duplicate_rules ... ok
+test cert::tests::validity_half_open ... ok
+test codec::tests::trailing_bytes_are_error ... ok
+test cert::tests::wildcard_covers_every_shard ... ok
+test codec::tests::fixed_le_roundtrip ... ok
+test codec::tests::vec_q_preserves_twos_complement ... ok
+test constants::tests::max_d2_bound_is_sound ... ok
+test constants::tests::provider_key_layout ... ok
+test codec::tests::writer_enforces_ascending_tags ... ok
+test codec::tests::truncation_reports_offset ... ok
+test constants::tests::shard_mapping_covers_all_clusters ... ok
+test frame::tests::body_len_cap ... ok
+test frame::tests::frame_roundtrip_unsigned ... ok
+test frame::tests::frame_roundtrip_signed ... ok
+test frame::tests::kind_table_is_complete_and_disjoint ... ok
+test frame::tests::only_ed25519_length_is_accepted ... ok
+test frame::tests::reserved_flags_rejected ... ok
+test frame::tests::sig_input_is_deterministic_and_kind_bounded ... ok
+test frame::tests::sig_length_validated ... ok
+test frame::tests::unknown_kind_rejected ... ok
+test frame::tests::version_mismatch_rejected ... ok
+test messages::tests::cert_revoke_unsigned_body_excludes_signature_list ... ok
+test messages::tests::all_messages_roundtrip ... ok
+test messages::tests::cluster_id_out_of_range_rejected ... ok
+test messages::tests::intent_text_over_limit_rejected ... ok
+test messages::tests::kind_mismatch_between_messages_rejected ... ok
+test messages::tests::lease_grant_rejects_unknown_shard ... ok
+test messages::tests::marks_encode_deterministically ... ok
+test messages::tests::match_sort_contract_enforced ... ok
+test messages::tests::membership_unsigned_body_excludes_signature_list ... ok
+test messages::tests::publish_with_reserved_tlv_roundtrip ... ok
+test messages::tests::publish_roundtrip ... ok
+test messages::tests::signature_required_matrix_matches_spec ... ok
+test messages::tests::snapshot_offer_geometry_is_validated_on_decode ... ok
+test messages::tests::unknown_tlv_tag_is_ignored_not_fatal ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\find_cluster_list.rs (target\debug\deps\find_cluster_list-fb9c9972e9203741.exe)
+
+running 2 tests
+test overflowing_list_is_rejected_not_silently_accepted ... ok
+test maximal_u16_list_round_trips_through_the_codec ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\fuzz_decode.rs (target\debug\deps\fuzz_decode-3a564a8b470f4d63.exe)
+
+running 3 tests
+test corpus_covers_every_kind ... ok
+test header_declared_lengths_are_bounded_by_the_buffer ... ok
+test fuzz_decode_never_panics_and_accepts_only_canonical_bytes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.30s
+
+     Running tests\golden_vectors.rs (target\debug\deps\golden_vectors-035474248071c0ee.exe)
+
+running 4 tests
+test wire_rules_that_golden_pins_down_are_still_enforced ... ok
+test every_kind_is_covered_by_a_golden_frame ... ok
+test golden_frames_are_self_consistent ... ok
+test golden_vectors_match_checked_in_fixture ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_net
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_node
+
+running 1 test
+test crates\vecdht-node\src\lib.rs - (line 21) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.11s
+
+   Doc-tests vecdht_wire
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
