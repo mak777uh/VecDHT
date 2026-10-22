@@ -1,0 +1,54 @@
+########## E-0032 · fan-out: правило кода против правила спеки · 2026-10-22T05:35:04+03:00 ##########
+a04b474
+########## BUILD ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.40s
+  Executable tests\fanout_rule.rs (target\debug\deps\fanout_rule-0e81a2e20de743f7.exe)
+########## RUN fanout_rule ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.38s
+     Running tests\fanout_rule.rs (target\debug\deps\fanout_rule-0e81a2e20de743f7.exe)
+
+running 1 test
+## nprobe=4: кластерное правило — средний fan-out 4.00, медиана 4.0, ровно nprobe в 100.0 % запросов; шардовое (§7.5.1) — 4.00; список кластеров в Find 4 (полный скан потребовал бы 64); Jaccard 1.000; запросов с разными множествами шардов 0 из 256 ##
+## nprobe=16: кластерное правило — средний fan-out 13.30, медиана 13.0, ровно nprobe в 11.3 % запросов; шардовое (§7.5.1) — 16.00; список кластеров в Find 16 (полный скан потребовал бы 256); Jaccard 0.832; запросов с разными множествами шардов 227 из 256 ##
+## nprobe=32: кластерное правило — средний fan-out 17.91, медиана 16.0, ровно nprobe в 0.0 % запросов; шардовое (§7.5.1) — 32.00; список кластеров в Find 32 (полный скан потребовал бы 512); Jaccard 0.560; запросов с разными множествами шардов 256 из 256 ##
+
+thread 'the_shipped_cluster_rule_fans_out_less_than_nprobe' (23260) panicked at crates\vecdht-artifact\tests\fanout_rule.rs:163:9:
+nprobe=4: кластерное правило даёт средний fan-out == nprobe — различие двух правил несущественно по ширине (фальсификатор в)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test the_shipped_cluster_rule_fans_out_less_than_nprobe ... FAILED
+
+failures:
+
+failures:
+    the_shipped_cluster_rule_fans_out_less_than_nprobe
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.58s
+
+error: test failed, to rerun pass `-p vecdht-artifact --test fanout_rule`
+########## EXIT=101 ##########
+########## КОНТРОЛЬ: тесты artifact не сломаны ##########
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.14s
+error: test failed, to rerun pass `-p vecdht-artifact --test fanout_rule`
+########## ПОРОГ (1): правила §7.5.1 вне vecdht-embed (нетестовый код) ##########
+crates/vecdht-embed/src/candle_backend.rs:304:        println!("минимум по {} текстам: {worst:.6}", texts.len());
+crates/vecdht-embed/src/shardmap.rs:79:    /// центроида ячейки — поэтому клиентская политика §7.5.1 считает минимум по 16 строкам шарда.
+-- всех упоминаний §7.5.1 по нетестовому коду: 1
+-- из них вне embed: 0
+########## ПОРОГ (2): кто зовёт Centroids::top (нетестовый код) ##########
+crates/vecdht-artifact/src/centroids.rs:95:        top_clusters(vec_q, &rows, nprobe)
+crates/vecdht-artifact/src/centroids.rs:197:        let top = c.top(&query, 16);
+crates/vecdht-artifact/src/centroids.rs:199:        assert_eq!(top, vecdht_crypto::quant::top_clusters(&query, &rows, 16));
+crates/vecdht-artifact/src/centroids.rs:209:        assert_eq!(c.top(&mine, 4)[0], 777);
+crates/vecdht-cli/src/index_cmd.rs:489:        let top = a.centroids.top(q, nprobe);
+crates/vecdht-crypto/src/quant.rs:133:pub fn top_clusters(v: &[i8; DIM], centroids: &[&[i8; DIM]], nprobe: usize) -> Vec<u16> {
+crates/vecdht-crypto/src/quant.rs:358:        assert_eq!(top_clusters(&probe, &tied_refs, 2), vec![0, 1]);
+crates/vecdht-crypto/src/quant.rs:389:        let top = top_clusters(&q, &refs, 16);
+crates/vecdht-embed/src/model.rs:275:        let clusters = self.centroids.top(&encoded.vec_q, nprobe);
+########## клиентский список кластеров против скана владельца ##########
+crates/vecdht-node/src/node.rs:986:        let hits = self.store.search(&q.query_vector, &q.clusters, top_k);
+crates/vecdht-index/src/ivf.rs:465:    pub fn search(
+crates/vecdht-index/src/store.rs:476:    pub fn search(&self, q: &[i8; DIM], clusters: &[u16], top_k: usize) -> Vec<(u32, u32)> {
+########## где стенд гейта считает правило сам ##########
+1603:/// же корзине (`ftruth`). Политика выбора ячеек не меняется: §7.5.1, бюджет `nprobe` ячеек.
+2141:        // владельцами (бюджет §7.5). Обход ячеек по гейтной сортировке §7.5.1: ячейка

@@ -1,12 +1,15 @@
-//! Оракул `E-0032` (`H-0032`): два правила выбора — по кластерам (собранный код) и по шардам
-//! (спека §7.5.1). Пороги зафиксированы в `lab/hypotheses/H-0032-shard-rule-not-in-client-code.md`
-//! ДО прогона; здесь только измерение, ничего не правится.
+//! Измерение `E-0032`: два правила выбора — по кластерам (собранный код) и по шардам
+//! (спека §7.5.1). Пороги были зафиксированы в
+//! `lab/hypotheses/H-0032-shard-rule-not-in-client-code.md` ДО прогона; прогон их не подтвердил,
+//! поэтому `H-0032` закрыта как `refuted` (см. `lab/experiments/E-0032-shard-rule-vs-client-code.md`).
 //!
-//! Пункты: (1) кластерное правило = `Centroids::top` (то, что зовёт `embed::model::encode_query` и
-//! `cli/index_cmd`), (2) шардовое правило = минимум `l2_sq` по 16 строкам шарда (то, что предписано
-//! спекой и что считает стенд гейта), (3) выразимость «полного скана шарда» через длину списка
-//! кластеров в `Find`. Корпуса и `candle` нет: числа относятся к структуре выбора на эталонном
-//! артефакте, а не к recall.
+//! Этот файл после закрытия гипотезы переписан в **описание измеренного** (characterization):
+//! assert'ы ниже фиксируют то, что было снято в прогоне, а не предрегистрированный порог, и
+//! служат регрессией на структуру выбора. Разница между «что утверждали» и «что измерено»
+//! проговорена в записи эксперимента, здесь — только в именах и комментариях.
+//!
+//! Корпуса и `candle` нет: числа относятся к структуре выбора на эталонном артефакте
+//! (`reference_artifact()`, синтетические центроиды-сетка), а не к recall.
 
 use vecdht_artifact::reference_artifact;
 use vecdht_crypto::quant::l2_sq;
@@ -91,7 +94,9 @@ struct Row {
     nprobe: usize,
     mean_cluster: f64,
     median_cluster: f64,
+    min_cluster: usize,
     share_equal: f64,
+    collisions: usize,
     mean_shard: f64,
     jaccard: f64,
     list_len: usize,
@@ -100,15 +105,13 @@ struct Row {
 }
 
 #[test]
-fn the_shipped_cluster_rule_fans_out_less_than_nprobe() {
+fn the_two_rules_coincide_at_nprobe_4_and_diverge_above_it() {
     let a = reference_artifact();
     let rows = a.centroids.rows();
     let qs = queries(256);
 
-    // Снимка: сначала измеряем и печатаем все три значения `nprobe`, порог проверяем после.
-    // Порог (3) — «строго меньше nprobe для 4, 16 и 32», фальсификатор (в) — «fan-out == nprobe для
-    // ВСЕХ трёх». Assert внутри цикла оставлял бы (в) непроверяемым (первая же точка обрывала
-    // прогон), поэтому проверка вынесена в конец; сам порог не изменён.
+    // Снимка: сначала измеряем и печатаем все три значения `nprobe`, проверки после.
+    // Assert внутри цикла обрывал бы прогон на первой точке, поэтому проверка вынесена в конец.
     let mut table: Vec<Row> = Vec::new();
 
     for nprobe in [4usize, 16, 32] {
@@ -116,6 +119,7 @@ fn the_shipped_cluster_rule_fans_out_less_than_nprobe() {
         let mut by_shard: Vec<usize> = Vec::new();
         let mut jac: Vec<f64> = Vec::new();
         let mut equal_to_nprobe = 0usize;
+        let mut collision_queries = 0usize;
         let mut cluster_list_len = 0usize;
 
         for q in &qs {
@@ -129,13 +133,19 @@ fn the_shipped_cluster_rule_fans_out_less_than_nprobe() {
             if shards_cluster.len() == nprobe {
                 equal_to_nprobe += 1;
             }
+            // Столкновение: два выбранных кластера в одном шарде (тогда fan-out < nprobe).
+            if shards_cluster.len() < clusters.len() {
+                collision_queries += 1;
+            }
         }
 
         table.push(Row {
             nprobe,
             mean_cluster: mean(&by_cluster),
             median_cluster: median(by_cluster.clone()),
+            min_cluster: *by_cluster.iter().min().expect("256 замеров"),
             share_equal: 100.0 * equal_to_nprobe as f64 / qs.len() as f64,
+            collisions: collision_queries,
             mean_shard: mean(&by_shard),
             jaccard: mean_f(&jac),
             list_len: cluster_list_len,
@@ -146,11 +156,13 @@ fn the_shipped_cluster_rule_fans_out_less_than_nprobe() {
 
     for r in &table {
         eprintln!(
-            "## nprobe={}: кластерное правило — средний fan-out {:.2}, медиана {:.1}, ровно nprobe в {:.1} % запросов; шардовое (§7.5.1) — {:.2}; список кластеров в Find {} (полный скан потребовал бы {}); Jaccard {:.3}; запросов с разными множествами шардов {} из 256 ##",
+            "## nprobe={}: кластерное правило — средний fan-out {:.2}, медиана {:.1}, минимум {}, ровно nprobe в {:.1} % запросов, запросов со столкновением кластеров в одном шарде {}; шардовое (§7.5.1) — {:.2}; список кластеров в Find {} (полный скан потребовал бы {}); средний Jaccard {:.3}; запросов с разными множествами шардов {} из 256 ##",
             r.nprobe,
             r.mean_cluster,
             r.median_cluster,
+            r.min_cluster,
             r.share_equal,
+            r.collisions,
             r.mean_shard,
             r.list_len,
             r.nprobe * usize::from(CLUSTERS_PER_SHARD),
@@ -159,21 +171,32 @@ fn the_shipped_cluster_rule_fans_out_less_than_nprobe() {
         );
     }
 
+    // Ниже — описание измеренного, снятого в прогоне E-0032 (числа в записи эксперимента).
+    // Инварианты, которые от порога не зависели и подтвердились:
     for r in &table {
+        // Клиент шлёт список кластеров длины `nprobe`, никогда `nprobe * 16` («полный скан шарда»
+        // через тип Find не выражается).
+        assert_eq!(r.list_len, r.nprobe, "длина списка кластеров в Find поехала");
+        // Шардовое правило по построению отдаёт ровно `nprobe` шардов на каждом запросе.
+        assert!(r.all_shard_equal, "шардовое правило не отдаёт ровно nprobe шардов");
+    }
+
+    // Измеренная nprobe-зависимость (то, из-за чего H-0032 опровергнута): при nprobe = 4 правила
+    // совпадают на всех 256 запросах, при 16 и 32 — расходятся.
+    let r4 = &table[0];
+    assert_eq!(r4.mean_cluster, 4.0, "при nprobe=4 средний fan-out не равен nprobe");
+    assert_eq!(r4.collisions, 0, "при nprobe=4 столкновений не было");
+    assert_eq!(r4.differing, 0, "при nprobe=4 множества шардов совпали на всех запросах");
+    for r in &table[1..] {
         assert!(
             r.mean_cluster < r.nprobe as f64,
-            "nprobe={}: кластерное правило даёт средний fan-out == nprobe — различие двух правил \
-             несущественно по ширине (фальсификатор в)",
+            "nprobe={}: кластерное правило не уже шардового",
             r.nprobe
         );
-        assert!(r.all_shard_equal, "шардовое правило не отдаёт ровно nprobe шардов");
         assert!(
             r.differing * 2 >= qs.len(),
-            "nprobe={}: правила выбирают одно и то же множество шардов почти всегда ({} из {})",
-            r.nprobe,
-            r.differing,
-            qs.len()
+            "nprobe={}: различие множеств шардов на меньшинстве запросов",
+            r.nprobe
         );
-        assert_eq!(r.list_len, r.nprobe, "длина списка кластеров в Find поехала");
     }
 }
