@@ -550,8 +550,8 @@ fn cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail() {
     assert_eq!(t.node(h).store.len(), 160);
     assert_eq!(t.node(s).applied_seq(), 0, "(3) S холоден");
 
-    let seq = t.node_mut(h).store.flush_snapshot().expect("flush_snapshot");
-    assert_eq!(seq, 160, "(3) снапшот на applied_seq");
+    let written = t.node_mut(h).store.flush_snapshot().expect("flush_snapshot");
+    assert_eq!(written, 73_268, "(3) flush пишет снапшот на applied_seq 160");
     let path = t.dir_of(h).join(snapshot_name(160));
     assert_eq!(
         std::fs::metadata(&path).expect("файл снапшота").len(),
@@ -673,7 +673,8 @@ fn snapshot_offer_skews_seq_when_the_holder_has_moved_on() {
     // A — снапшот на 1.
     let out = publish_via(&mut t, p, 20, 30, 1, 1, h);
     assert_eq!(acks_of(&out).len(), 1);
-    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 1"), 1);
+    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 1"), 4_580,
+        "(4) flush пишет снапшот на 1");
     assert_eq!(
         std::fs::metadata(t.dir_of(h).join(snapshot_name(1))).unwrap().len(),
         snapshot_size_for(1) as u64
@@ -729,7 +730,8 @@ fn snapshot_offer_skews_seq_when_the_holder_has_moved_on() {
     assert!(format!("{bad}").contains("next_slot"), "(4) каталог неоткрываем до нового снапшота: {bad}");
 
     // Новый снапшот на 2 записи согласован с живым manifest — установка проходит.
-    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 2"), 2);
+    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 2"), 5_012,
+        "(4) flush пишет снапшот на 2");
     assert_eq!(
         std::fs::metadata(t.dir_of(h).join(snapshot_name(2))).unwrap().len(),
         snapshot_size_for(2) as u64
@@ -792,7 +794,8 @@ fn warm_lagging_replica_cannot_take_the_snapshot_and_stops() {
     let out = publish_via(&mut t, p, 32, 42, 1, 2, h);
     assert_eq!(acks_of(&out).len(), 1);
     assert_eq!(t.node(h).applied_seq(), 3);
-    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 3"), 3);
+    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 3"), 5_444,
+        "(5) flush пишет снапшот на 3");
     assert_eq!(
         std::fs::metadata(t.dir_of(h).join(snapshot_name(3))).unwrap().len(),
         snapshot_size_for(3) as u64
