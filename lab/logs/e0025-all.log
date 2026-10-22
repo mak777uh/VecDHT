@@ -1,0 +1,332 @@
+########## BUILD (один бинарник на все руки) ##########
+    Finished `release` profile [optimized] target(s) in 0.74s
+  Executable unittests src\lib.rs (target\release\deps\vecdht_embed-c839ecd91f0682e1.exe)
+  Executable tests\p0_harness.rs (target\release\deps\p0_harness-f0eccb61ac7965fc.exe)
+  Executable tests\p0_real_corpus.rs (target\release\deps\p0_real_corpus-9190d43365bf20d4.exe)
+########## EXE target/release/deps/p0_real_corpus-9190d43365bf20d4.exe (md5 27c491f1124c) ##########
+########## STEP 807k-nlist1024 ##########
+
+running 1 test
+P0(ii): корпус 807596 текстов (blake3 c1b559149b0965d294b160415481dc708ccbc609b876f8e6aff8b82a8251a738), запросы 1000 (blake3 d681413a12c6a02e646ddc815c76eee92bea706bfbec517d5c17faeaeb9eb392); потоков расчёта 8
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/corpus-807k-superset.p0emb (807596 строк)
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/queries-1k.p0emb (1000 строк)
+корпус: токенов min 4 / медиана 9 / p95 14 / max 100
+запросы: токенов min 4 / медиана 9 / p95 15 / max 31
+k-means: k=1024, cap=1578 (2×N/nlist), max_iters=12, seed=0x5645434448540002
+режим COARSE: шард = грубая ячейка (64 ячеек над 1024 кластерами); выбранный шард сканирует все свои кластеры, fan-out считается по топ-16 ячейкам
+test gate_ii_real_corpus_recall has been running for over 60 seconds
+k-means: 12 итераций за 227.7 с
+  итерация  1: changed=807596, objective=0.333988, max_cluster= 2270, over_cap=3
+  итерация  2: changed=353546, objective=0.220565, max_cluster= 2024, over_cap=2
+  итерация  3: changed=187974, objective=0.212408, max_cluster= 2155, over_cap=1
+  итерация  4: changed=122913, objective=0.209072, max_cluster= 2057, over_cap=1
+  итерация  5: changed= 88240, objective=0.207308, max_cluster= 1871, over_cap=1
+  итерация  6: changed= 68020, objective=0.206240, max_cluster= 1594, over_cap=1
+  итерация  7: changed= 54265, objective=0.205508, max_cluster= 1578, over_cap=0
+  итерация  8: changed= 44378, objective=0.204997, max_cluster= 1578, over_cap=0
+  итерация  9: changed= 37136, objective=0.204611, max_cluster= 1578, over_cap=0
+  итерация 10: changed= 32288, objective=0.204307, max_cluster= 1578, over_cap=0
+  итерация 11: changed= 28066, objective=0.204060, max_cluster= 1578, over_cap=0
+  итерация 12: changed= 24850, objective=0.203858, max_cluster= 1578, over_cap=0
+кластеры (argmin int8): min 103 / p50 751 / p95 1369 / max 1894 / среднее 788.7; over_cap=16 (cap 1578)
+ВАЖНО: назначение при обучении НЕ даёт ровных шардов — неровных ячеек 31 из 64 (см. `E-0009`); карта используется как есть
+COARSE (ровные шарды, жадная правка): размер ячейки min 16 / max 16 (ровно 16 ожидалось)
+COARSE (карта обучения): размер ячейки min 1 / max 32 (ровно 16 ожидалось)
+COHERENT (транспортная задача): 64 ячеек над 1024 кластерами; размер ячейки min 16 / max 16 (ровно 16 ожидалось), разброс внутри шарда 4509275 (int8 l2_sq до центроида шарда)
+COARSE (int8-argmin) для сравнения: разброс внутри ячейки 4529330
+COARSE: 64 ячеек над 1024 кластерами, k-means top-level за 12 итераций; размер ячейки min 1 / max 33 (ровно 16 ожидалось), over_cap=25, пустых=0
+COARSE: fan-out при nprobe=16 ячейках ≤16 шардов, скан 256 кластеров (25% nlist) — против 16 кластеров у пересечения
+ground truth: brute-force по 807596 int8-векторам для 1000 запросов за 12.5 с
+s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.6392 (min 0.00)    1.0/1    12970.7 0.5 с
+     4  0.8814 (min 0.10)    4.0/4    51620.4 2.2 с
+     8  0.9434 (min 0.10)    8.0/8   102669.9 4.2 с
+    16  0.9790 (min 0.30)   16.0/16  204715.6 8.1 с
+    24  0.9908 (min 0.70)   24.0/24  305111.9 12.3 с
+    32  0.9955 (min 0.80)   32.0/32  404545.0 15.4 с
+    64  1.0000 (min 1.00)   64.0/64  807596.0 33.2 с
+ДОПОЛНИТЕЛЬНОЕ ПРАВИЛО ОЦЕНКИ ШАРДА (не гейт): до грубого центроида ячейки
+nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.5037 (min 0.00)    1.0/1    13119.9 0.5 с
+     4  0.7957 (min 0.00)    4.0/4    51838.1 2.2 с
+     8  0.8846 (min 0.00)    8.0/8   102955.3 4.1 с
+    16  0.9437 (min 0.00)   16.0/16  204408.3 8.5 с
+    24  0.9719 (min 0.00)   24.0/24  304794.2 12.5 с
+    32  0.9806 (min 0.00)   32.0/32  404351.7 15.7 с
+    64  1.0000 (min 1.00)   64.0/64  807596.0 30.2 с
+COARSE (дополнительное правило): recall@10 = 0.9437 при nprobe=16 — справочное измерение, гейт считается по основному правилу
+COARSE-COHERENT (H-0012): recall@10 = 0.9790 при nprobe=16 ячеек, порог 0.95, цель 0.98 — PASS
+test gate_ii_real_corpus_recall ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 462.18s
+
+########## STEP 807k-nlist1024 DONE (exit 0) ##########
+########## STEP 807k-nlist4096 ##########
+
+running 1 test
+P0(ii): корпус 807596 текстов (blake3 c1b559149b0965d294b160415481dc708ccbc609b876f8e6aff8b82a8251a738), запросы 1000 (blake3 d681413a12c6a02e646ddc815c76eee92bea706bfbec517d5c17faeaeb9eb392); потоков расчёта 8
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/corpus-807k-superset.p0emb (807596 строк)
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/queries-1k.p0emb (1000 строк)
+корпус: токенов min 4 / медиана 9 / p95 14 / max 100
+запросы: токенов min 4 / медиана 9 / p95 15 / max 31
+ГЕОМЕТРИЯ ВНЕ ПРОТОКОЛА (`H-0024`): nlist=4096 вместо протокольного 1024 — при 16 кластерах на шард это 256 шардов, а `vecdht-wire` объявляет SHARDS=64 и фиксирует `centroid.bin` ровно в 1024 строк; манифест такой артефакт не примет. Числа относятся к гипотетической геометрии и становятся протокольными только со стадии 1 плана v9. Доля корпуса в скане при бюджете 16 ячеек — 6.2 % против 25.0 % при nlist=1024.
+k-means: k=4096, cap=395 (2×N/nlist), max_iters=12, seed=0x5645434448540002 [ЛЕСТНИЦА §8.6: nlist=4096, гейт по умолчанию — 1024]
+режим COARSE: шард = грубая ячейка (256 ячеек над 4096 кластерами); выбранный шард сканирует все свои кластеры, fan-out считается по топ-16 ячейкам
+test gate_ii_real_corpus_recall has been running for over 60 seconds
+k-means: 12 итераций за 963.9 с
+  итерация  1: changed=807596, objective=0.290230, max_cluster=  801, over_cap=23
+  итерация  2: changed=327212, objective=0.194731, max_cluster=  671, over_cap=11
+  итерация  3: changed=172569, objective=0.185737, max_cluster=  548, over_cap=2
+  итерация  4: changed=108284, objective=0.182198, max_cluster=  466, over_cap=1
+  итерация  5: changed= 74149, objective=0.180374, max_cluster=  433, over_cap=1
+  итерация  6: changed= 55310, objective=0.179262, max_cluster=  433, over_cap=2
+  итерация  7: changed= 43354, objective=0.178508, max_cluster=  429, over_cap=1
+  итерация  8: changed= 35545, objective=0.177954, max_cluster=  427, over_cap=1
+  итерация  9: changed= 29260, objective=0.177527, max_cluster=  427, over_cap=1
+  итерация 10: changed= 24330, objective=0.177209, max_cluster=  426, over_cap=1
+  итерация 11: changed= 20575, objective=0.176960, max_cluster=  426, over_cap=1
+  итерация 12: changed= 17578, objective=0.176761, max_cluster=  422, over_cap=1
+кластеры (argmin int8): min 20 / p50 187 / p95 372 / max 561 / среднее 197.2; over_cap=119 (cap 395)
+ВАЖНО: назначение при обучении НЕ даёт ровных шардов — неровных ячеек 117 из 256 (см. `E-0009`); карта используется как есть
+COARSE (ровные шарды, жадная правка): размер ячейки min 16 / max 16 (ровно 16 ожидалось)
+COARSE (карта обучения): размер ячейки min 1 / max 39 (ровно 16 ожидалось)
+COHERENT (транспортная задача): 256 ячеек над 4096 кластерами; размер ячейки min 16 / max 16 (ровно 16 ожидалось), разброс внутри шарда 4607007 (int8 l2_sq до центроида шарда)
+COARSE (int8-argmin) для сравнения: разброс внутри ячейки 4620877
+COARSE: 256 ячеек над 4096 кластерами, k-means top-level за 12 итераций; размер ячейки min 1 / max 39 (ровно 16 ожидалось), over_cap=88, пустых=0
+COARSE: fan-out при nprobe=16 ячейках ≤16 шардов, скан 256 кластеров (6% nlist) — против 16 кластеров у пересечения
+ground truth: brute-force по 807596 int8-векторам для 1000 запросов за 15.8 с
+s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.5957 (min 0.00)    1.0/1     3288.8 0.2 с
+     4  0.8289 (min 0.00)    4.0/4    13094.1 0.7 с
+     8  0.8903 (min 0.10)    8.0/8    26037.8 1.4 с
+    16  0.9391 (min 0.20)   16.0/16   51668.6 2.6 с
+    24  0.9586 (min 0.20)   24.0/24   77177.8 3.8 с
+    32  0.9705 (min 0.20)   32.0/32  102555.9 5.0 с
+    64  0.9893 (min 0.60)   64.0/64  203409.7 9.9 с
+   128  0.9986 (min 0.90)  128.0/128 403372.9 18.3 с
+   256  1.0000 (min 1.00)  256.0/256 807596.0 36.2 с
+ДОПОЛНИТЕЛЬНОЕ ПРАВИЛО ОЦЕНКИ ШАРДА (не гейт): до грубого центроида ячейки
+nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.4518 (min 0.00)    1.0/1     3367.5 0.1 с
+     4  0.7058 (min 0.00)    4.0/4    13270.7 0.5 с
+     8  0.7995 (min 0.00)    8.0/8    26417.3 1.3 с
+    16  0.8785 (min 0.00)   16.0/16   52374.1 2.3 с
+    24  0.9131 (min 0.00)   24.0/24   78113.6 3.3 с
+    32  0.9334 (min 0.00)   32.0/32  103699.1 4.3 с
+    64  0.9694 (min 0.10)   64.0/64  205161.5 8.5 с
+   128  0.9889 (min 0.20)  128.0/128 405242.0 17.3 с
+   256  1.0000 (min 1.00)  256.0/256 807596.0 34.0 с
+COARSE (дополнительное правило): recall@10 = 0.8785 при nprobe=16 — справочное измерение, гейт считается по основному правилу
+COARSE-COHERENT (H-0012): recall@10 = 0.9391 при nprobe=16 ячеек, порог 0.95, цель 0.98 — FAIL
+
+thread 'gate_ii_real_corpus_recall' (25248) panicked at crates\vecdht-embed\tests\p0_real_corpus.rs:1122:9:
+гейт (ii): nlist=4096, recall@10 = 0.9391 < 0.95 при nprobe=16. COHERENT (H-0012): оптимальное ровное назначение (транспортная задача) не подняло recall до 0.95 — «ровно 16 на шард» и «пространственная связность» несовместимы при заданной верхней карте
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test gate_ii_real_corpus_recall ... FAILED
+
+failures:
+
+failures:
+    gate_ii_real_corpus_recall
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1395.22s
+
+########## STEP 807k-nlist4096 DONE (exit 101) ##########
+########## STEP 807k-nlist8192 ##########
+
+running 1 test
+P0(ii): корпус 807596 текстов (blake3 c1b559149b0965d294b160415481dc708ccbc609b876f8e6aff8b82a8251a738), запросы 1000 (blake3 d681413a12c6a02e646ddc815c76eee92bea706bfbec517d5c17faeaeb9eb392); потоков расчёта 8
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/corpus-807k-superset.p0emb (807596 строк)
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/queries-1k.p0emb (1000 строк)
+корпус: токенов min 4 / медиана 9 / p95 14 / max 100
+запросы: токенов min 4 / медиана 9 / p95 15 / max 31
+ГЕОМЕТРИЯ ВНЕ ПРОТОКОЛА (`H-0024`): nlist=8192 вместо протокольного 1024 — при 16 кластерах на шард это 512 шардов, а `vecdht-wire` объявляет SHARDS=64 и фиксирует `centroid.bin` ровно в 1024 строк; манифест такой артефакт не примет. Числа относятся к гипотетической геометрии и становятся протокольными только со стадии 1 плана v9. Доля корпуса в скане при бюджете 16 ячеек — 3.1 % против 25.0 % при nlist=1024.
+k-means: k=8192, cap=198 (2×N/nlist), max_iters=12, seed=0x5645434448540002 [ЛЕСТНИЦА §8.6: nlist=8192, гейт по умолчанию — 1024]
+режим COARSE: шард = грубая ячейка (512 ячеек над 8192 кластерами); выбранный шард сканирует все свои кластеры, fan-out считается по топ-16 ячейкам
+test gate_ii_real_corpus_recall has been running for over 60 seconds
+k-means: 12 итераций за 2211.8 с
+  итерация  1: changed=807596, objective=0.267380, max_cluster=  773, over_cap=64
+  итерация  2: changed=301267, objective=0.180529, max_cluster=  417, over_cap=23
+  итерация  3: changed=155705, objective=0.171395, max_cluster=  324, over_cap=8
+  итерация  4: changed= 95253, objective=0.167768, max_cluster=  326, over_cap=6
+  итерация  5: changed= 65285, objective=0.165866, max_cluster=  327, over_cap=3
+  итерация  6: changed= 47425, objective=0.164699, max_cluster=  320, over_cap=3
+  итерация  7: changed= 35900, objective=0.163928, max_cluster=  300, over_cap=3
+  итерация  8: changed= 28033, objective=0.163388, max_cluster=  273, over_cap=3
+  итерация  9: changed= 22498, objective=0.162995, max_cluster=  243, over_cap=3
+  итерация 10: changed= 18269, objective=0.162692, max_cluster=  228, over_cap=2
+  итерация 11: changed= 15146, objective=0.162457, max_cluster=  224, over_cap=2
+  итерация 12: changed= 12543, objective=0.162273, max_cluster=  221, over_cap=2
+кластеры (argmin int8): min 2 / p50 93 / p95 191 / max 288 / среднее 98.6; over_cap=291 (cap 198)
+ВАЖНО: назначение при обучении НЕ даёт ровных шардов — неровных ячеек 216 из 512 (см. `E-0009`); карта используется как есть
+COARSE (ровные шарды, жадная правка): размер ячейки min 16 / max 16 (ровно 16 ожидалось)
+COARSE (карта обучения): размер ячейки min 1 / max 46 (ровно 16 ожидалось)
+COHERENT (транспортная задача): 512 ячеек над 8192 кластерами; размер ячейки min 16 / max 16 (ровно 16 ожидалось), разброс внутри шарда 4640891 (int8 l2_sq до центроида шарда)
+COARSE (int8-argmin) для сравнения: разброс внутри ячейки 4649471
+COARSE: 512 ячеек над 8192 кластерами, k-means top-level за 12 итераций; размер ячейки min 1 / max 51 (ровно 16 ожидалось), over_cap=192, пустых=0
+COARSE: fan-out при nprobe=16 ячейках ≤16 шардов, скан 256 кластеров (3% nlist) — против 16 кластеров у пересечения
+ground truth: brute-force по 807596 int8-векторам для 1000 запросов за 11.4 с
+s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.6045 (min 0.00)    1.0/1     1646.4 0.2 с
+     4  0.8292 (min 0.00)    4.0/4     6558.4 0.3 с
+     8  0.8848 (min 0.00)    8.0/8    13006.2 0.6 с
+    16  0.9251 (min 0.20)   16.0/16   25793.0 1.2 с
+    24  0.9423 (min 0.20)   24.0/24   38484.9 1.7 с
+    32  0.9532 (min 0.20)   32.0/32   51123.3 2.3 с
+    64  0.9779 (min 0.40)   64.0/64  101523.8 4.3 с
+   128  0.9915 (min 0.60)  128.0/128 201867.2 8.5 с
+   256  0.9985 (min 0.90)  256.0/256 400716.5 18.5 с
+   512  1.0000 (min 1.00)  512.0/512 807596.0 33.6 с
+ДОПОЛНИТЕЛЬНОЕ ПРАВИЛО ОЦЕНКИ ШАРДА (не гейт): до грубого центроида ячейки
+nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.4449 (min 0.00)    1.0/1     1692.0 0.1 с
+     4  0.6977 (min 0.00)    4.0/4     6608.1 0.3 с
+     8  0.7854 (min 0.00)    8.0/8    13059.0 0.5 с
+    16  0.8612 (min 0.00)   16.0/16   25842.3 1.0 с
+    24  0.8908 (min 0.00)   24.0/24   38523.6 1.5 с
+    32  0.9114 (min 0.00)   32.0/32   51168.6 2.2 с
+    64  0.9450 (min 0.00)   64.0/64  101688.3 4.1 с
+   128  0.9709 (min 0.00)  128.0/128 202521.7 8.0 с
+   256  0.9862 (min 0.00)  256.0/256 402615.6 16.0 с
+   512  1.0000 (min 1.00)  512.0/512 807596.0 29.9 с
+COARSE (дополнительное правило): recall@10 = 0.8612 при nprobe=16 — справочное измерение, гейт считается по основному правилу
+COARSE-COHERENT (H-0012): recall@10 = 0.9251 при nprobe=16 ячеек, порог 0.95, цель 0.98 — FAIL
+
+thread 'gate_ii_real_corpus_recall' (1888) panicked at crates\vecdht-embed\tests\p0_real_corpus.rs:1122:9:
+гейт (ii): nlist=8192, recall@10 = 0.9251 < 0.95 при nprobe=16. COHERENT (H-0012): оптимальное ровное назначение (транспортная задача) не подняло recall до 0.95 — «ровно 16 на шард» и «пространственная связность» несовместимы при заданной верхней карте
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test gate_ii_real_corpus_recall ... FAILED
+
+failures:
+
+failures:
+    gate_ii_real_corpus_recall
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3256.18s
+
+########## STEP 807k-nlist8192 DONE (exit 101) ##########
+########## STEP 50k-nlist1024 ##########
+
+running 1 test
+P0(ii): корпус 50000 текстов (blake3 d4a650ec0a0a135cac1967709f2cb80c46beb5fe075ac5ae60220eb3f3530a61), запросы 1000 (blake3 d681413a12c6a02e646ddc815c76eee92bea706bfbec517d5c17faeaeb9eb392); потоков расчёта 8
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/corpus-50k.p0emb (50000 строк)
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/queries-1k.p0emb (1000 строк)
+корпус: токенов min 4 / медиана 9 / p95 14 / max 45
+запросы: токенов min 4 / медиана 9 / p95 15 / max 31
+k-means: k=1024, cap=98 (2×N/nlist), max_iters=12, seed=0x5645434448540002
+режим COARSE: шард = грубая ячейка (64 ячеек над 1024 кластерами); выбранный шард сканирует все свои кластеры, fan-out считается по топ-16 ячейкам
+k-means: 12 итераций за 12.8 с
+  итерация  1: changed= 50000, objective=0.329065, max_cluster=  190, over_cap=7
+  итерация  2: changed= 16509, objective=0.217111, max_cluster=  117, over_cap=1
+  итерация  3: changed=  7499, objective=0.209026, max_cluster=   98, over_cap=0
+  итерация  4: changed=  4366, objective=0.205930, max_cluster=   98, over_cap=0
+  итерация  5: changed=  2915, objective=0.204285, max_cluster=   98, over_cap=0
+  итерация  6: changed=  2105, objective=0.203269, max_cluster=   98, over_cap=0
+  итерация  7: changed=  1587, objective=0.202552, max_cluster=   98, over_cap=0
+  итерация  8: changed=  1232, objective=0.202068, max_cluster=   98, over_cap=0
+  итерация  9: changed=   900, objective=0.201718, max_cluster=   98, over_cap=0
+  итерация 10: changed=   696, objective=0.201467, max_cluster=   98, over_cap=0
+  итерация 11: changed=   561, objective=0.201279, max_cluster=   98, over_cap=0
+  итерация 12: changed=   418, objective=0.201130, max_cluster=   98, over_cap=0
+кластеры (argmin int8): min 4 / p50 46 / p95 93 / max 107 / среднее 48.8; over_cap=22 (cap 98)
+ВАЖНО: назначение при обучении НЕ даёт ровных шардов — неровных ячеек 28 из 64 (см. `E-0009`); карта используется как есть
+COARSE (ровные шарды, жадная правка): размер ячейки min 16 / max 16 (ровно 16 ожидалось)
+COARSE (карта обучения): размер ячейки min 4 / max 30 (ровно 16 ожидалось)
+COHERENT (транспортная задача): 64 ячеек над 1024 кластерами; размер ячейки min 16 / max 16 (ровно 16 ожидалось), разброс внутри шарда 4494664 (int8 l2_sq до центроида шарда)
+COARSE (int8-argmin) для сравнения: разброс внутри ячейки 4507877
+COARSE: 64 ячеек над 1024 кластерами, k-means top-level за 12 итераций; размер ячейки min 4 / max 30 (ровно 16 ожидалось), over_cap=22, пустых=0
+COARSE: fan-out при nprobe=16 ячейках ≤16 шардов, скан 256 кластеров (25% nlist) — против 16 кластеров у пересечения
+ground truth: brute-force по 50000 int8-векторам для 1000 запросов за 0.5 с
+s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.5751 (min 0.00)    1.0/1      820.5 0.0 с
+     4  0.8333 (min 0.10)    4.0/4     3216.2 0.1 с
+     8  0.9119 (min 0.10)    8.0/8     6364.4 0.2 с
+    16  0.9645 (min 0.40)   16.0/16   12558.8 0.3 с
+    24  0.9827 (min 0.50)   24.0/24   18721.5 0.4 с
+    32  0.9918 (min 0.60)   32.0/32   24909.1 0.5 с
+    64  1.0000 (min 1.00)   64.0/64   50000.0 1.0 с
+ДОПОЛНИТЕЛЬНОЕ ПРАВИЛО ОЦЕНКИ ШАРДА (не гейт): до грубого центроида ячейки
+nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.4900 (min 0.00)    1.0/1      834.5 0.0 с
+     4  0.7723 (min 0.00)    4.0/4     3273.7 0.1 с
+     8  0.8677 (min 0.00)    8.0/8     6460.3 0.1 с
+    16  0.9393 (min 0.00)   16.0/16   12774.7 0.3 с
+    24  0.9641 (min 0.20)   24.0/24   19027.5 0.4 с
+    32  0.9802 (min 0.20)   32.0/32   25255.5 0.7 с
+    64  1.0000 (min 1.00)   64.0/64   50000.0 1.1 с
+COARSE (дополнительное правило): recall@10 = 0.9393 при nprobe=16 — справочное измерение, гейт считается по основному правилу
+COARSE-COHERENT (H-0012): recall@10 = 0.9645 при nprobe=16 ячеек, порог 0.95, цель 0.98 — PASS
+test gate_ii_real_corpus_recall ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.35s
+
+########## STEP 50k-nlist1024 DONE (exit 0) ##########
+########## STEP 50k-nlist4096 ##########
+
+running 1 test
+P0(ii): корпус 50000 текстов (blake3 d4a650ec0a0a135cac1967709f2cb80c46beb5fe075ac5ae60220eb3f3530a61), запросы 1000 (blake3 d681413a12c6a02e646ddc815c76eee92bea706bfbec517d5c17faeaeb9eb392); потоков расчёта 8
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/corpus-50k.p0emb (50000 строк)
+эмбеддинги: кеш C:/Users/Admin/models/p0-msmarco/queries-1k.p0emb (1000 строк)
+корпус: токенов min 4 / медиана 9 / p95 14 / max 45
+запросы: токенов min 4 / медиана 9 / p95 15 / max 31
+ГЕОМЕТРИЯ ВНЕ ПРОТОКОЛА (`H-0024`): nlist=4096 вместо протокольного 1024 — при 16 кластерах на шард это 256 шардов, а `vecdht-wire` объявляет SHARDS=64 и фиксирует `centroid.bin` ровно в 1024 строк; манифест такой артефакт не примет. Числа относятся к гипотетической геометрии и становятся протокольными только со стадии 1 плана v9. Доля корпуса в скане при бюджете 16 ячеек — 6.2 % против 25.0 % при nlist=1024.
+k-means: k=4096, cap=25 (2×N/nlist), max_iters=12, seed=0x5645434448540002 [ЛЕСТНИЦА §8.6: nlist=4096, гейт по умолчанию — 1024]
+режим COARSE: шард = грубая ячейка (256 ячеек над 4096 кластерами); выбранный шард сканирует все свои кластеры, fan-out считается по топ-16 ячейкам
+k-means: 10 итераций за 48.7 с
+  итерация  1: changed= 50000, objective=0.268227, max_cluster=   71, over_cap=16
+  итерация  2: changed=  7550, objective=0.178157, max_cluster=   41, over_cap=7
+  итерация  3: changed=  3272, objective=0.172122, max_cluster=   40, over_cap=5
+  итерация  4: changed=  1733, objective=0.169696, max_cluster=   39, over_cap=4
+  итерация  5: changed=   966, objective=0.168487, max_cluster=   37, over_cap=6
+  итерация  6: changed=   547, objective=0.167839, max_cluster=   36, over_cap=5
+  итерация  7: changed=   298, objective=0.167487, max_cluster=   37, over_cap=4
+  итерация  8: changed=   214, objective=0.167302, max_cluster=   34, over_cap=3
+  итерация  9: changed=   104, objective=0.167176, max_cluster=   33, over_cap=2
+  итерация 10: changed=    46, objective=0.167114, max_cluster=   32, over_cap=2
+test gate_ii_real_corpus_recall has been running for over 60 seconds
+кластеры (argmin int8): min 1 / p50 11 / p95 25 / max 42 / среднее 12.2; over_cap=138 (cap 25)
+ВАЖНО: назначение при обучении НЕ даёт ровных шардов — неровных ячеек 146 из 256 (см. `E-0009`); карта используется как есть
+COARSE (ровные шарды, жадная правка): размер ячейки min 16 / max 16 (ровно 16 ожидалось)
+COARSE (карта обучения): размер ячейки min 1 / max 62 (ровно 16 ожидалось)
+COHERENT (транспортная задача): 256 ячеек над 4096 кластерами; размер ячейки min 16 / max 16 (ровно 16 ожидалось), разброс внутри шарда 4571325 (int8 l2_sq до центроида шарда)
+COARSE (int8-argmin) для сравнения: разброс внутри ячейки 4591370
+COARSE: 256 ячеек над 4096 кластерами, k-means top-level за 12 итераций; размер ячейки min 1 / max 63 (ровно 16 ожидалось), over_cap=101, пустых=0
+COARSE: fan-out при nprobe=16 ячейках ≤16 шардов, скан 256 кластеров (6% nlist) — против 16 кластеров у пересечения
+ground truth: brute-force по 50000 int8-векторам для 1000 запросов за 0.5 с
+s/t/nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.4593 (min 0.00)    1.0/1      212.5 0.1 с
+     4  0.7384 (min 0.00)    4.0/4      828.6 0.1 с
+     8  0.8313 (min 0.10)    8.0/8     1631.0 0.1 с
+    16  0.9055 (min 0.20)   16.0/16    3220.6 0.1 с
+    24  0.9354 (min 0.30)   24.0/24    4796.4 0.2 с
+    32  0.9545 (min 0.40)   32.0/32    6368.3 0.2 с
+    64  0.9839 (min 0.60)   64.0/64   12606.2 0.4 с
+   128  0.9971 (min 0.80)  128.0/128  24974.0 0.6 с
+   256  1.0000 (min 1.00)  256.0/256  50000.0 1.3 с
+ДОПОЛНИТЕЛЬНОЕ ПРАВИЛО ОЦЕНКИ ШАРДА (не гейт): до грубого центроида ячейки
+nprobe  recall@10   fan-out avg/max   candidates avg   время
+     1  0.3728 (min 0.00)    1.0/1      222.1 0.0 с
+     4  0.6123 (min 0.00)    4.0/4      862.6 0.0 с
+     8  0.7073 (min 0.00)    8.0/8     1700.7 0.0 с
+    16  0.7871 (min 0.00)   16.0/16    3355.6 0.1 с
+    24  0.8241 (min 0.00)   24.0/24    5002.2 0.1 с
+    32  0.8466 (min 0.00)   32.0/32    6639.7 0.2 с
+    64  0.8946 (min 0.00)   64.0/64   13124.8 0.3 с
+   128  0.9354 (min 0.20)  128.0/128  25953.4 0.7 с
+   256  1.0000 (min 1.00)  256.0/256  50000.0 1.2 с
+COARSE (дополнительное правило): recall@10 = 0.7871 при nprobe=16 — справочное измерение, гейт считается по основному правилу
+COARSE-COHERENT (H-0012): recall@10 = 0.9055 при nprobe=16 ячеек, порог 0.95, цель 0.98 — FAIL
+
+thread 'gate_ii_real_corpus_recall' (39696) panicked at crates\vecdht-embed\tests\p0_real_corpus.rs:1122:9:
+гейт (ii): nlist=4096, recall@10 = 0.9055 < 0.95 при nprobe=16. COHERENT (H-0012): оптимальное ровное назначение (транспортная задача) не подняло recall до 0.95 — «ровно 16 на шард» и «пространственная связность» несовместимы при заданной верхней карте
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test gate_ii_real_corpus_recall ... FAILED
+
+failures:
+
+failures:
+    gate_ii_real_corpus_recall
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 132.80s
+
+########## STEP 50k-nlist4096 DONE (exit 101) ##########
