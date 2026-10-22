@@ -1145,6 +1145,18 @@ RAYON_NUM_THREADS=4 VEC_DHT_MODEL_DIR=<...> \
   `lab/e0065-run.sh`; черновик `ADR-0015` (три варианта, решение не принято) — правки
   спеки/кода до слова владельца НЕ производятся; замеры после коммита.
 
+- **Вердикт `E-0072` (2026-10-22):** `H-0072` подтверждена — read у любой реплики обещает
+  *ответ*, а не *свежесть*. Publish A дошёл до P и H (W=2); S пуст: Find у H — 1 match, у S —
+  `MatchResult{epoch:1, matches:0}`, и Find не породил ни pull, ни `ReplicateOp`; `tick(2..3)` и
+  продление lease на 4 не изменили `applied_seq` S. Смена эпохи 2 `[H,S]` латает: adopt S шлёт
+  ровно один `WalPullRequest{from_seq:0}` новому primary H, H отвечает
+  `WalPullResponse{primary_epoch:2, to_seq:1}`, S применяет seq 1; после heal оба чтения дают
+  1 match эпохи 2. Publish B без второго держателя: 2 `ReplicateOp`, `PublishAck` нет, B виден
+  только у P, тики не ретраят. КОНТРОЛЬ 132 ok. Находка: §9.4 обещает read-repair при запросе —
+  в `handle_find` его нет, латает только anti-entropy при смене эпизоды; седьмая спека-фикция
+  семейства (`OPEN-QUESTIONS` п. 7). Wire не менялся. Верификация воркспейса 576 ok, 84 бинаря,
+  `TEST_EXIT=0`, `CLIPPY_EXIT=0`.
+
 - **Вердикт `E-0070` (2026-10-22):** `H-0070` подтверждена — `ADR-0017` делает heal механизмом
   в один шаг. На бакете 4 (до истечения lease P) `P.peer_alive(Q)` снимает `unreachable(Q)` и
   отдаёт `MembershipUpdate{epoch:1}`; доставка к Q даёт ответ `MembershipUpdate{epoch:2}` (R2),
