@@ -90,12 +90,17 @@ fn empty_cluster_list_is_served_as_signed_empty_result() {
     assert_eq!(res.query_id, 1, "query_id не протерялся");
 
     // Порог (2): пять пропущено, шестой — QUOTA_FIND/200: пустой кадр стоит ровно один токен.
+    // (Форма после раскрытия: первый вариант прогона проверял только код отказа; wait=200 —
+    // тоже часть порога, assert добавлен и прогон переписан ниже в том же цикле.)
     let mut codes: Vec<Option<String>> = Vec::new();
+    let mut waits: Vec<Option<u32>> = Vec::new();
     for _ in 0..6 {
         let replies = n
             .on_frame(me, &frame, testing::clock(0))
             .expect("пустой find");
-        codes.push(error_to(&replies, me).map(|e| e.code));
+        let err = error_to(&replies, me);
+        codes.push(err.as_ref().map(|e| e.code.clone()));
+        waits.push(err.map(|e| e.retry_after_ms));
     }
     // Первый пропуск уже снят выше (запрос №1), здесь №2..=7 того же ключа: из семи пропущено
     // ровно пять (№1..№5 выше и здесь первые четыре), шестой и седьмой — QUOTA_FIND.
@@ -104,6 +109,11 @@ fn empty_cluster_list_is_served_as_signed_empty_result() {
     assert!(
         codes[4..].iter().all(|c| c.as_deref() == Some(err_code::QUOTA_FIND)),
         "шестой и седьмой пустой find обязаны быть QUOTA_FIND: {codes:?}"
+    );
+    assert_eq!(
+        &waits[4..],
+        &[Some(200), Some(200)],
+        "отказ на пустом списке обязан нести retry_after_ms = 200, как и обычный QUOTA_FIND"
     );
     eprintln!("## порог (1)(2): пустой список — пустой подписанный MatchResult; квота тратится как за обычный find ##");
 

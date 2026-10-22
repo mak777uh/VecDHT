@@ -223,3 +223,7 @@ REAL_TEST_EXIT=0
 --- cargo clippy -j 2 --workspace --all-targets -- -D warnings ---
 REAL_CLIPPY_EXIT=0
 2026-10-22T06:21:35+03:00
+### полная верификация перед закрытием E-0038 · 2026-10-22T06:56:41+03:00 · HEAD=eb6c24b
+TEST_EXIT=0
+52
+CLIPPY_EXIT=0
