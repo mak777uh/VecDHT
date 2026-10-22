@@ -10,7 +10,7 @@
 //! а политика `Spend::new` — только отказ.
 //!
 //! Пороги (ttl живой карты = 300, buckets(300)=19, buckets(1)=1, buckets(315)=20;
-//! приём A бакета 0 от primary-издателя owner=identity(77)):
+//! приём A бакета 0, издатель — сам primary (подпись n.id, iss = n.me())):
 //! (0) consume f0@19 → Ok, spent==1;
 //! (1) ttl=0 подделка @19 → TtlOutOfPolicy(0), spent не изменился;
 //! (2) ttl=301 @19 в Spend::new(300) → TtlOutOfPolicy(301);
@@ -35,7 +35,7 @@ const OWNER_SEEDS: [u8; 3] = [77, 78, 79];
 const EDGE_300: u32 = 19; // 0 + buckets(300)
 const DEAD_300: u32 = 20;
 
-fn primary_on(dir_name: &str) -> (ShardNode, std::path::PathBuf) {
+fn primary_on(dir_name: &str) -> (ShardNode, std::path::PathBuf, u8) {
     let order = candidates::ordered(1, SHARD, &testing::holders(&SEEDS));
     let seed = *SEEDS
         .iter()
@@ -50,7 +50,7 @@ fn primary_on(dir_name: &str) -> (ShardNode, std::path::PathBuf) {
     )
     .expect("genesis");
     assert!(n.is_primary(), "приёмы выпускает primary эпизода");
-    (n, d)
+    (n, d, seed)
 }
 
 fn publish_frame(agent_seed: u8, vec_seed: u8) -> Vec<u8> {
@@ -85,9 +85,11 @@ fn reforge(acc: RendezvousAccept, ttl: u16, key: &Identity) -> Vec<u8> {
     f.encode_signed(&sig)
 }
 
+
 #[test]
 fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
-    let (mut n, d) = primary_on("ttl-policy-order");
+    let (mut n, d, pseed) = primary_on("ttl-policy-order");
+    let pid = testing::identity(pseed);
     for (i, s) in OWNER_SEEDS.iter().enumerate() {
         n.on_frame(
             testing::identity(*s).pubkey(),
@@ -109,15 +111,10 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     let (f0, a0) = &accs[0];
     assert_eq!((a0.issued_bucket, a0.ttl_sec), (0, 300), "фальсификатор (д): карта не бакета 0/ttl=300");
     let me = n.me();
-    // Издатель приёмки — primary; под его подписью живёт ТОТ владелец, на которого выписан
-    // кадр (node.rs: target = m.owner_ed25519). ДИАГНОЗ 14:45: сид 77 был догадкой харнеса.
-    let owner = testing::identity(
-        *OWNER_SEEDS
-            .iter()
-            .find(|s| testing::identity(**s).pubkey() == a0.target)
-            .expect("издатель карты — один из владельцев"),
-    );
-    let iss = a0.target;
+    // Издатель — сам узел: кадр подписан `n.id` (node.rs:1019), а `target` — только заявка,
+    // сверяемая с `me` цели (adversarial.rs передаёт consume `&n.me()`). ДИАГНОЗ 14:45/14:58:
+    // привязка к владельцу записи была догадкой харнеса, пороги не менялись.
+    let iss = me;
 
     // Порог (0): базовая грань окна 300.
     let mut spend = Spend::new(300);
@@ -126,7 +123,7 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     assert_eq!(spend.spent(), 1, "фальсификатор (ж): spent после Ok");
 
     // Порог (1): ttl=0 — политика; память расхода НЕ тронута (гейт до вставки).
-    let f0z = reforge(*a0, 0, &owner);
+    let f0z = reforge(*a0, 0, &pid);
     assert_eq!(
         spend.consume(&f0z, &iss, &me, EDGE_300),
         Err(rendezvous::AcceptError::TtlOutOfPolicy(0)),
@@ -135,7 +132,7 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     assert_eq!(spend.spent(), 1, "фальсификатор (б): отказ по политике тронул spent");
 
     // Порог (2): ttl=301 при политике 300 — отказ.
-    let f301 = reforge(*a0, 301, &owner);
+    let f301 = reforge(*a0, 301, &pid);
     assert_eq!(
         spend.consume(&f301, &iss, &me, EDGE_300),
         Err(rendezvous::AcceptError::TtlOutOfPolicy(301)),
@@ -167,7 +164,7 @@ fn ttl_policy_gate_and_check_order_match_the_spec_sequence() {
     );
 
     // Порог (6): ttl=1 — окно = buckets(1)=1 из карты; память = окно.
-    let f1 = reforge(*a0, 1, &owner);
+    let f1 = reforge(*a0, 1, &pid);
     let mut spend6 = Spend::new(300);
     spend6
         .consume(&f1, &iss, &me, 1)
