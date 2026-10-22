@@ -333,8 +333,15 @@ fn epoch_gap_never_heals() {
             .cloned()
             .collect();
         assert_eq!(ops.len(), 2, "(0) оба кадра — ReplicateOp: {out:?}");
-        let replies = t.route(p_addr, &ops, 1);
-        let delivered = t.route(p_addr, &replies, 1);
+        // Кворум §9.4 считается по **разным** отправителям (`aw.acks.push(from)`), поэтому
+        // ack-и реплик доставляются раздельно и с их настоящим отправителем: общий `from`
+        // на пачке дал бы кворум из одного пира и не собрал бы W=2 (ДИАГНОЗ-2).
+        let op_a = ops.iter().find(|e| e.to == a_addr).expect("операция к A").clone();
+        let op_b = ops.iter().find(|e| e.to == b_addr).expect("операция к B").clone();
+        let ack_a = t.route(p_addr, &[op_a], 1);
+        let ack_b = t.route(p_addr, &[op_b], 1);
+        let mut delivered = t.route(a_addr, &ack_a, 1);
+        delivered.extend(t.route(b_addr, &ack_b, 1));
         let a = acks(&delivered);
         assert_eq!(a.len(), 1, "(0) кворум W=2 собран: {delivered:?}");
         assert_eq!(a[0].error_code, "OK", "(0) {a:?}");
@@ -440,15 +447,22 @@ fn epoch_gap_never_heals() {
         assert_eq!(upd.epoch, 2, "(4) P по своему счёту предлагает эпоху 2");
         assert!(e.to == a_addr || e.to == b_addr, "(4) адресат — живой участник");
     }
-    let answer = t.route(p_addr, &draft, 20);
-    assert_eq!(answer.len(), 2, "(4) живые отвечают текущей цепочкой: {answer:?}");
-    for e in &answer {
+    // Отвечают два разных пира, поэтому и доставляются раздельно: общий `from` на пачке
+    // означал бы, что ответили оба, и адресатом был бы не тот, кто отвечал (ДИАГНОЗ-2).
+    let draft_a = draft.iter().find(|e| e.to == a_addr).expect("черновик к A").clone();
+    let draft_b = draft.iter().find(|e| e.to == b_addr).expect("черновик к B").clone();
+    let answer_a = t.route(p_addr, &[draft_a], 20);
+    let answer_b = t.route(p_addr, &[draft_b], 20);
+    assert_eq!(answer_a.len(), 1, "(4) живой A отвечает текущей цепочкой: {answer_a:?}");
+    assert_eq!(answer_b.len(), 1, "(4) живой B отвечает текущей цепочкой: {answer_b:?}");
+    for e in [&answer_a[0], &answer_b[0]] {
         assert_eq!(kind_of(e), Kind::MembershipUpdate, "(4) ответ — MembershipUpdate");
         assert_eq!(e.to, p_addr, "(4) ответ адресован P");
         let sent = MembershipUpdate::decode(&e.frame).expect("ответ разбирается");
         assert_eq!(sent.epoch, 3, "(4) живой отдал текущую цепочку (ADR-0017)");
     }
-    let back = t.route(a_addr, &answer, 20);
+    let mut back = t.route(a_addr, &answer_a, 20);
+    back.extend(t.route(b_addr, &answer_b, 20));
     assert!(back.is_empty(), "(4) P отбросил цепочку молча: {back:?}");
     assert!(errors(&back).is_empty(), "(4) ни одного Error: {back:?}");
     let after: Vec<(Option<u64>, u64)> = t
