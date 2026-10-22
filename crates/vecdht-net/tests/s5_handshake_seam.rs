@@ -285,17 +285,25 @@ fn a_foreign_network_is_refused_and_the_reason_never_reaches_the_peer() {
         foreign.dial(addr).expect("dial узла");
         let (np, fp) = (node.peer_id(), foreign.peer_id());
 
-        let mut errs = Vec::new();
+        // Ждём **завершённого** обмена, а не первого признака разговора: ошибка handshake на
+        // стороне узла означает, что иносетевой агент уже разобрал встречное приветствие и
+        // ответил отказом (ДИАГНОЗ-2: порядка между потоками QUIC нет, и «ошибка появилась»
+        // ещё не значит «состояние наступило»).
+        let mut node_errs = Vec::new();
+        let mut peer_errs = Vec::new();
         let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
         while tokio::time::Instant::now() < deadline {
             node.step().await;
             foreign.step().await;
-            errs.extend(node.take_errors());
-            errs.extend(foreign.take_errors());
-            if errs.iter().any(|e| e.contains("handshake")) {
+            node_errs.extend(node.take_errors());
+            peer_errs.extend(foreign.take_errors());
+            let node_settled = node_errs.iter().any(|e| e.contains("handshake"));
+            let peer_settled = peer_errs.iter().any(|e| e.contains("кредашиал не разобран"));
+            if node_settled && peer_settled {
                 break;
             }
         }
+        let errs: Vec<String> = node_errs.iter().chain(peer_errs.iter()).cloned().collect();
         assert!(!node.is_authenticated(&fp), "(1) узел не аутентифицировал иносетевого пира");
         assert!(!foreign.is_authenticated(&np), "(1) иносетевый агент не принял узел");
         assert!(
@@ -492,24 +500,25 @@ fn the_gossip_door_is_open_to_a_peer_the_handshake_refused() {
         peer.dial(addr).expect("dial узла");
         let (np, pp) = (node.peer_id(), peer.peer_id());
 
-        let mut errs = Vec::new();
+        // Ждём положительного условия: пир принял узла. ДИАГНОЗ-2 (первый замер): цикл
+        // выходил по появлению ошибки handshake, а это событие наступает РАНЬШЕ, чем пир
+        // разберёт встречное приветствие — отказ и приветствие идут разными потоками QUIC,
+        // и порядка между ними нет. Условие «ошибка появилась» — не «состояние наступило».
         let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
-        while tokio::time::Instant::now() < deadline {
+        let mut errs = Vec::new();
+        while !peer.is_authenticated(&np) && tokio::time::Instant::now() < deadline {
             node.step().await;
             peer.step().await;
             errs.extend(node.take_errors());
             errs.extend(peer.take_errors());
-            if errs.iter().any(|e| e.contains("handshake")) {
-                break;
-            }
         }
         assert!(
-            !node.is_authenticated(&pp),
-            "(5) узел аутентифицировал просроченный кредашиал"
+            peer.is_authenticated(&np),
+            "(5) пир принял узла — прямой путь для проверки доступен; ошибки={errs:?}"
         );
         assert!(
-            peer.is_authenticated(&np),
-            "(5) пир принял узел — прямой путь для проверки доступен"
+            !node.is_authenticated(&pp),
+            "(5) узел аутентифицировал просроченный кредашиал; ошибки={errs:?}"
         );
 
         // Прямая дверь закрыта.
