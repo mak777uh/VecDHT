@@ -108,7 +108,7 @@ fn repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result()
     assert_eq!(f2[0].0, f1[0].0, "приём в том же бакете обязан быть побайтово тем же");
     assert_eq!(n.rendezvous.live(), 1, "фальсификатор (а): повтор съел вторую строку таблицы");
 
-    let r3 = n.on_frame(me_a, &find_frame(&a), testing::clock(16)).expect("find 3");
+    let r3 = n.on_frame(me_a, &find_frame(&a), testing::clock(1)).expect("find 3");
     let f3 = accept_frames(&r3);
     assert_eq!(f3.len(), 1);
     assert_eq!(f3[0].1.issued_bucket, 1, "фальсификатор (г): бакет не повлиял на выпуск");
@@ -133,7 +133,7 @@ fn repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result()
     let b = testing::identity(89);
     let me_b = b.pubkey();
     let refused_before = n.rendezvous.refused_full;
-    let r5 = n.on_frame(me_b, &find_frame(&b), testing::clock(16)).expect("find B");
+    let r5 = n.on_frame(me_b, &find_frame(&b), testing::clock(1)).expect("find B");
     let m5 = match_result(&r5).expect("фальсификатор (б): при потолке MatchResult обязан остаться");
     assert_eq!(m5.matches.len(), 1, "совпадение не теряется");
     assert!(accept_frames(&r5).is_empty(), "приёмов при потолке — ноль");
