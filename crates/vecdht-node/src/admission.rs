@@ -706,6 +706,38 @@ mod tests {
     }
 
     #[test]
+    fn prune_among_idle_rows_picks_the_smallest_address_not_the_quietest() {
+        // E-0040, порог (1). Комментарий поля обещает «самый молчаливый при prune», но
+        // `prune_idle` `seen_sec` не читает: жертва — первые `over` idle-строк в порядке
+        // `BTreeMap`. Подбираем расхождение правил: X молчит дольше всех (seen 0), но адрес у
+        // него наибольший; Y молчит меньше (seen 1), зато адрес наименьший. Отбор по адресу
+        // удалит Y, обещание комментария удалило бы X.
+        let mut a = Admission::with_limits(&params(), 3, 1);
+        let x = key(0xF0);
+        let y = key(0x01);
+        let z = key(0x02);
+        let w = key(0x70);
+        for _ in 0..5 {
+            assert!(a.check_find(&x, 0).is_allow());
+        }
+        assert!(a.check_find(&x, 0).is_rejected(), "burst find X исчерпан при t=0");
+        for k in [&y, &z] {
+            for _ in 0..5 {
+                assert!(a.check_find(k, 1).is_allow());
+            }
+            assert!(a.check_find(k, 1).is_rejected(), "burst исчерпан и у {k:?} при t=1");
+        }
+        // При t=2 все три строки idle (refill 5/с добирает бакет за секунду),
+        // seen: X=0, Y=Z=1. Вставка W — четвёртая строка, over = 1.
+        assert!(a.check_find(&w, 2).is_allow(), "четвёртая строка запускает prune");
+        assert_eq!(a.tracked_peers(), 3);
+        assert_eq!(a.stats.forgotten_peers, 1);
+        assert_eq!(a.per_peer.get(&x).map(|p| p.seen_sec), Some(0), "молчаливый X выжил");
+        assert!(a.per_peer.contains_key(&z), "Z не жертва");
+        assert!(!a.per_peer.contains_key(&y), "жертва — Y: наименьший адрес среди idle, не самый молчаливый");
+    }
+
+    #[test]
     fn the_peer_table_never_forgets_a_key_with_an_empty_bucket() {
         let mut a = Admission::with_limits(&params(), 4, 1);
         // Активный ключ (бакет пуст) не вытесняется: иначе sybil сбрасывал бы квоту переполнением
