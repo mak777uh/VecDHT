@@ -248,21 +248,30 @@ fn heal_demotion_window() {
     base_publish(&mut t, p, q, r);
     split_adopt_epoch2(&mut t, p, q, r, &frame2);
 
-    // (0) База A.
-    for seed in SEEDS {
-        let n = t.node(t.addr(seed));
-        assert_eq!(n.serving_epoch(4), Some(1), "(0) до раскола lease эпохи 1 жив");
-        assert_eq!(n.applied_seq(), 1, "(0) запись A применена");
-    }
+    // (0) База A: P остался на эпохе 1, Q,R приняли эпоху 2.
     {
         let n = t.node(p);
         assert_eq!(n.epoch(), Some(1), "(0) P остался на эпохе 1");
+        assert_eq!(n.serving_epoch(4), Some(1), "(0) P обслуживает эпоху 1");
+        assert_eq!(n.applied_seq(), 1, "(0) запись A применена у P");
         assert_eq!(
             n.lease.as_ref().map(|l| (l.epoch, l.primary, l.expires_at_bucket)),
             Some((1, p, 6)),
             "(0) lease P: эпоха 1, expires 6"
         );
         assert_eq!(n.membership.as_ref().map(|m| m.members().len()), Some(3), "(0) состав [P,Q,R]");
+    }
+    for seed in [q_seed, r_seed] {
+        let addr = t.addr(seed);
+        let n = t.node(addr);
+        assert_eq!(n.epoch(), Some(2), "(0) Q/R приняли эпоху 2");
+        assert_eq!(n.serving_epoch(4), Some(2), "(0) Q/R обслуживают эпоху 2");
+        assert_eq!(n.applied_seq(), 1, "(0) запись A применена у Q/R");
+        assert_eq!(
+            n.lease.as_ref().map(|l| (l.epoch, l.primary)),
+            Some((2, new_primary)),
+            "(0) adopt выдал lease эпохи 2"
+        );
     }
 
     // (1) Доставка до истечения lease: ожидание по [P,Q,R] — три члена против двух.
