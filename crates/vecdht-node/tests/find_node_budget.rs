@@ -67,11 +67,16 @@ fn sybil_find_surge_passes_node_budget_untouched() {
     assert_eq!(quota, usize::from(KEYS), "QUOTA_FIND не по ключу: {quota}");
     assert!(other.is_empty(), "фальсификатор (а): исход, отличный от пропуска/QUOTA_FIND: {other:?}");
 
-    // Порог (2): статистика ровно та же (бакет find не делился с узлом).
-    let stats = &n.admission.borrow().stats;
-    assert_eq!(stats.finds_allowed, 126 - usize::from(KEYS) as u64, "finds_allowed");
-    assert_eq!(stats.rejected_find_quota, usize::from(KEYS) as u64, "rejected_find_quota");
-    assert_eq!(stats.rejected_node_busy, 0, "фальсификатор (б): find всё-таки трогает узловой бюджет");
+    // Порог (2): статистика ровно та же (бакет find не делился с узлом). Захват счётчиков —
+    // копированием в локальные значения: `&n.admission.borrow().stats` продлевает RefCell-borrow
+    // на всё выражение (первый прогон этого цикла падал на «RefCell already borrowed» в (3)).
+    let (finds_allowed, rejected_find_quota, rejected_node_busy) = {
+        let a = n.admission.borrow();
+        (a.stats.finds_allowed, a.stats.rejected_find_quota, a.stats.rejected_node_busy)
+    };
+    assert_eq!(finds_allowed, 126 - usize::from(KEYS) as u64, "finds_allowed");
+    assert_eq!(rejected_find_quota, usize::from(KEYS) as u64, "rejected_find_quota");
+    assert_eq!(rejected_node_busy, 0, "фальсификатор (б): find всё-таки трогает узловой бюджет");
 
     // Порог (3): контраст — узловой бюджет цел: 100 подряд Allow, 101-й NodeBusy/10 мс.
     for i in 0..100u32 {
