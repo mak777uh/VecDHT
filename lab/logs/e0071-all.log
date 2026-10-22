@@ -1,0 +1,1104 @@
+=== E-0071 прогон 2026-10-23T01:24:52+03:00 ===
+c5ae15f
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+### BUILD --no-run ### 2026-10-23T01:24:52+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+  Executable tests\s9_epoch_gap.rs (target\debug\deps\s9_epoch_gap-40c24b17b131e108.exe)
+EXIT=0
+### RUN --nocapture ### 2026-10-23T01:24:53+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\s9_epoch_gap.rs (target\debug\deps\s9_epoch_gap-40c24b17b131e108.exe)
+
+running 1 test
+
+thread 'epoch_gap_never_heals' (1480) panicked at crates\vecdht-node\tests\s9_epoch_gap.rs:339:9:
+assertion `left == right` failed: (0) кворум W=2 собран: []
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test epoch_gap_never_heals ... FAILED
+
+failures:
+
+failures:
+    epoch_gap_never_heals
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s
+
+error: test failed, to rerun pass `-p vecdht-node --test s9_epoch_gap`
+EXIT=101
+### ИНВЕНТАРЬ ###
+-- цепочка принимает только epoch+1, разрыв — EpochNotNext:
+18-pub enum MembershipError {
+19-    #[error("членство для шарда {found}, а узел держит {want}")]
+20-    ForeignShard { want: u16, found: u16 },
+21-    #[error("ожидается genesis (epoch = {need}), пришло epoch = {got} (§9.2)")]
+22-    NotGenesis { got: u64, need: u64 },
+23-    #[error("epoch = {got}: следующая эпизода {need} (цепочка не пропускает эпохи)")]
+24:    EpochNotNext { got: u64, need: u64 },
+--
+171-                }
+172-                self.check_authorities(&payload, &upd.sigs)?
+173-            }
+174-            Some(prev) => {
+175-                let need = prev.epoch() + 1;
+176-                if upd.epoch != need {
+177:                    return Err(MembershipError::EpochNotNext { got: upd.epoch, need });
+--
+417-        let mut skip = next.clone();
+418-        skip.epoch += 1;
+419-        skip.sigs = vec![
+420-            prev.sign_transition(&id(10), &skip).unwrap(),
+421-            prev.sign_transition(&id(11), &skip).unwrap(),
+422-        ];
+423:        assert_eq!(c.validate(Some(&prev), &skip), Err(MembershipError::EpochNotNext {
+-- разрыв гасится молча: Ok(Vec::new()) без Error и без лога:
+524-                    Ok(m) => {
+525-                        self.persist(&m.update)?;
+526-                        self.adopt(m, now_bucket)
+527-                    }
+528:                    Err(_) => Ok(Vec::new()),
+--
+532-            Err(MembershipError::BelowThreshold { .. }) => {
+533-                self.proposal = Some(upd.clone());
+534-                Ok(self.broadcast_membership(&upd))
+535-            }
+536:            Err(_) => Ok(Vec::new()),
+-- next_list всегда предлагает текущая+1:
+388:    fn next_list(&self, now_bucket: u32) -> MemberList {
+389-        let epoch = self.epoch().unwrap_or(GENESIS_EPOCH - 1) + 1;
+390-        let entries = self.store.len() as u64;
+391-        MemberList {
+392-            epoch,
+393-            shard: self.shard,
+394-            members: candidates::members(epoch, self.shard, &self.live_roster(now_bucket), self.params.r, entries),
+395-            generated_at: now_bucket,
+396-        }
+397-    }
+398-
+399-    /// Ростер минус те, кого мы считаем недоступными, и минус сам узел, если он объявил уход.
+400-    ///
+-- узел с меньшей эпохой отвечает текущей цепочкой (§9.8/ADR-0017):
+460:    fn handle_membership(
+461-        &mut self,
+462-        from: Addr,
+463-        bytes: &[u8],
+464-        now_bucket: u32,
+465-    ) -> Result<Vec<Envelope>, NodeError> {
+466-        let incoming = MembershipUpdate::decode(bytes)?;
+467-        if incoming.shard != self.shard {
+468-            return Ok(Vec::new());
+469-        }
+470-        if let Some(cur) = self.membership.clone() {
+471-            if incoming.epoch < cur.epoch() {
+472-                // ADR-0017: отставший прислал прошлую эпоху. Рассылка `MembershipUpdate`
+473-                // best-effort, поэтому молчание здесь означало бы «пропущенное не догоняется».
+474-                // Отвечаем один раз текущей цепочкой и только известному узлу; равенство
+475-                // эпох молчит, иначе два узла переписывались бы бесконечно.
+476-                let known = self.roster.iter().any(|h| h.owner_ed25519 == from)
+477-                    || cur.is_member(&from);
+478-                return Ok(if known {
+479-                    vec![Envelope::new(from, self.membership_frame(&cur.update))]
+480-                } else {
+481-                    Vec::new()
+482-                });
+483-            }
+484-            if incoming.epoch == cur.epoch() {
+-- peer_alive лечит только текущей цепочкой:
+1389:    pub fn peer_alive(&mut self, addr: Addr) -> Result<Vec<Envelope>, NodeError> {
+1390-        self.unreachable.retain(|a| *a != addr);
+1391-        let Some(m) = self.membership.as_ref() else { return Ok(Vec::new()) };
+1392-        // Цепочка — не публичная рассылка: отдаём её только тому, кто есть в статическом
+1393-        // ростере или в принятой эпохе. Агент не должен получать состав шарда по handshake.
+1394-        let known = self.roster.iter().any(|h| h.owner_ed25519 == addr) || m.is_member(&addr);
+1395-        if !known {
+1396-            return Ok(Vec::new());
+1397-        }
+1398-        Ok(vec![Envelope::new(addr, self.membership_frame(&m.update))])
+1399-    }
+1400-
+1401-    /// Публичное «я ухожу»: подписать `LeaveNotice`, сдать право писать и предложить состав без
+-- leave принимается только по эпохе текущего члена:
+1329:    fn handle_leave(
+1330-        &mut self,
+1331-        from: Addr,
+1332-        bytes: &[u8],
+1333-        now_bucket: u32,
+1334-    ) -> Result<Vec<Envelope>, NodeError> {
+1335-        let frame = decode_frame(bytes)?;
+1336-        let notice = LeaveNotice::decode(bytes)?;
+1337-        let sig: [u8; 64] = match frame.signature {
+1338-            Some(s) => s.try_into().unwrap_or([0u8; 64]),
+1339-            None => return Ok(Vec::new()),
+1340-        };
+1341-        let member = self
+1342-            .membership
+1343-            .as_ref()
+1344-            .map(|m| m.epoch() == notice.epoch && m.is_member(&notice.leaving_owner))
+1345-            .unwrap_or(false);
+-- публикация отвергается по serving_epoch (EPOCH_STALE):
+crates/vecdht-node/src/node.rs:669:            Err(_) => self.err(from, err_code::EPOCH_STALE, 1_000),
+crates/vecdht-node/src/node.rs:728:            None => return self.err(from, err_code::EPOCH_STALE, 1_000),
+crates/vecdht-wire/src/messages.rs:39:    pub const EPOCH_STALE: &str = "EPOCH_STALE";
+-- на проводе нет вида кадра для истории членства:
+-- §9.2 обещает доставку принятой эпизоды всем участникам:
+981:Принятую эпизоду узел обязан разослать всем её участникам, а не ждать pull'я: цепочка самовалидна, и «доставить её тому, кто ещё не знает» — единственное, что отличает легитимный переход от зависшего состава. Ретрансляция возможна от любого участника и ничего не стоит с точки зрения доверия (§9.2: источник истины — пороги подписей в самом теле).
+-- wire и спека не тронуты этим циклом:
+-- оракул E-0071:
+284:#[test]
+285-fn epoch_gap_never_heals() {
+-- пороги заморожены в пре-регистрации:
+57:## Замороженные пороги (до первого прогона)
+58-
+59-Оракул `crates/vecdht-node/tests/s9_epoch_gap.rs`, один процесс, ручная доставка (без
+60-транспорта: события транспорта задаются вызовами `peer_lost`/`peer_alive`), шард 7,
+### КОНТРОЛЬ vecdht-node ### 2026-10-23T01:24:55+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-b5c4bef439652d93.exe)
+
+running 74 tests
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test lease::tests::a_lease_from_the_future_is_not_adopted ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+
+test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests\accept_presentation_api_only.rs (target\debug\deps\accept_presentation_api_only-1c1f325f00d68d4b.exe)
+
+running 1 test
+test target_side_serves_text_without_accept_and_spend_is_library_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\accept_ttl_boundary.rs (target\debug\deps\accept_ttl_boundary-e8d55d8712060310.exe)
+
+running 1 test
+test accept_lives_inclusive_to_the_boundary_bucket_and_the_table_prunes_with_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\admission.rs (target\debug\deps\admission-b3cf28692351ccf7.exe)
+
+running 7 tests
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests\admission_table_over_limit.rs (target\debug\deps\admission_table_over_limit-dec1769ea7ef0ce2.exe)
+
+running 2 tests
+test idle_surge_forgets_exactly_over_rows_and_the_forgotten_key_returns_fresh ... ok
+test the_peer_table_holds_active_keys_over_the_limit_and_forgets_nothing ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\adversarial.rs (target\debug\deps\adversarial-430892ab291c3c1c.exe)
+
+running 8 tests
+test p5_gate_sixteen_core_sybil_for_ten_minutes ... ignored, гейт P5: 16 ядер × 10 минут × 2^20; запускать в release с --ignored
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.91s
+
+     Running tests\anti_replay_find.rs (target\debug\deps\anti_replay_find-2e5c817945dc6e80.exe)
+
+running 1 test
+test the_same_query_id_is_answered_again_and_again_including_after_61_seconds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\ceiling_clamp_compose.rs (target\debug\deps\ceiling_clamp_compose-6a71718c04ca6c2f.exe)
+
+running 1 test
+test clamp_runs_before_issue_so_the_ceiling_refuses_the_tail_of_the_clamped_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.80s
+
+     Running tests\ceiling_gradual_prune.rs (target\debug\deps\ceiling_gradual_prune-3cdfdb860d8f84db.exe)
+
+running 1 test
+test the_ceiling_returns_bucket_by_bucket_when_rows_live_in_different_buckets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.08s
+
+     Running tests\ceiling_partial_accepts.rs (target\debug\deps\ceiling_partial_accepts-b0edca2a312a597d.exe)
+
+running 1 test
+test ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 17.09s
+
+     Running tests\ceiling_prune_recovery.rs (target\debug\deps\ceiling_prune_recovery-0ba88986ab3c2c4b.exe)
+
+running 1 test
+test the_ceiling_hole_returns_when_leased_rows_expire_out_of_prune ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.99s
+
+     Running tests\ceiling_two_seekers.rs (target\debug\deps\ceiling_two_seekers-ac17ce4bac15287f.exe)
+
+running 1 test
+test one_hole_is_consumed_by_the_first_seeker_and_the_second_gets_no_accept_at_all ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.57s
+
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-b905c5b6c122c1e4.exe)
+
+running 1 test
+test denylist_is_unreachable_in_and_vanishes_on_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests\epoch_rotation_accept.rs (target\debug\deps\epoch_rotation_accept-43bac2b1c1f9f9e0.exe)
+
+running 1 test
+test pre_epoch_accept_spends_after_rotation_and_new_primary_issues_fresh ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests\find_admission_price.rs (target\debug\deps\find_admission_price-90428aec9ecac5b2.exe)
+
+running 1 test
+test find_quota_price_ignores_cluster_list_length ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_empty_cluster_list.rs (target\debug\deps\find_empty_cluster_list-df04b442ab063819.exe)
+
+running 1 test
+test empty_cluster_list_is_served_as_signed_empty_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_no_queue.rs (target\debug\deps\find_no_queue-2a2f31c468b64aac.exe)
+
+running 2 tests
+test an_expensive_find_is_fixed_in_one_answer_and_repeats_byte_identically ... ok
+test the_sybil_surge_leaves_no_frame_without_an_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\find_node_budget.rs (target\debug\deps\find_node_budget-e796383c0ced7544.exe)
+
+running 1 test
+test sybil_find_surge_passes_node_budget_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\frame_byte_mutation.rs (target\debug\deps\frame_byte_mutation-e184517e0ca3ffab.exe)
+
+running 1 test
+test noncanonical_accept_bytes_do_not_create_a_second_spend ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\future_epoch_lease_freeze.rs (target\debug\deps\future_epoch_lease_freeze-266b32bc37e058f3.exe)
+
+running 1 test
+test a_future_epoch_grant_from_an_arbitrary_key_freezes_the_shard ... ignored, исторический замер E-0067: поведение до ADR-0016, действующий контракт — lease_membership_binding.rs
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-9806abdb3d00e478.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+
+     Running tests\gc.rs (target\debug\deps\gc-9948c6b278ccd4a0.exe)
+
+running 2 tests
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running tests\heal_demotion_window.rs (target\debug\deps\heal_demotion_window-11ca37feab9b67e5.exe)
+
+running 1 test
+test heal_demotion_window ... ignored, исторический оракул E-0069: heal-окно §9.8 до ADR-0017 (замер на rev ee6ba8e); R1–R3 намеренно меняют поведение — актуальный оракул heal_one_step
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\heal_one_step.rs (target\debug\deps\heal_one_step-adb31212c86ed834.exe)
+
+running 1 test
+test heal_one_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+
+     Running tests\immediate_refusals_exit.rs (target\debug\deps\immediate_refusals_exit-fdd70cbadb056b75.exe)
+
+running 1 test
+test immediate_refusals_leave_serve_request_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\lease_membership_binding.rs (target\debug\deps\lease_membership_binding-9e089dc863480635.exe)
+
+running 1 test
+test a_grant_is_bound_to_the_accepted_epoch_and_primary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.50s
+
+     Running tests\lease_table_ceiling.rs (target\debug\deps\lease_table_ceiling-6586afb71ea612a5.exe)
+
+running 1 test
+test repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+     Running tests\lease_table_restart.rs (target\debug\deps\lease_table_restart-e14c915fd2bc2ce6.exe)
+
+running 1 test
+test restart_empties_the_table_and_the_old_accept_still_spends ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests\live_split_brain_fencing.rs (target\debug\deps\live_split_brain_fencing-aa1e3b015761fa9f.exe)
+
+running 1 test
+test a_live_deposed_primary_cannot_ack_or_impose_its_write ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+     Running tests\post_prune_spend_window.rs (target\debug\deps\post_prune_spend_window-8de7bb0c9004421b.exe)
+
+running 1 test
+test post_prune_accept_expires_at_the_same_bucket_the_issuer_prunes_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.55s
+
+     Running tests\present_serving_gate.rs (target\debug\deps\present_serving_gate-e43457ccfee1790f.exe)
+
+running 1 test
+test serving_gate_requires_presentation_and_spend_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-7ed8e13c4b151eba.exe)
+
+running 3 tests
+test a_find_without_matches_issues_no_accept ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+test an_accept_stops_working_after_its_ttl ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\response_verification_order.rs (target\debug\deps\response_verification_order-f2f8dce990c7b5c7.exe)
+
+running 1 test
+test response_checks_follow_the_named_sequence_and_refusals_stay_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\restart_recovery.rs (target\debug\deps\restart_recovery-aef32f31b9a43cec.exe)
+
+running 1 test
+test restart_recovers_wal_snapshot_and_gc ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+
+     Running tests\rotation_present_serving.rs (target\debug\deps\rotation_present_serving-763fd072f9ef45aa.exe)
+
+running 1 test
+test serving_path_survives_rotation_and_error_masking_is_deterministic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.63s
+
+     Running tests\s15_authority_seam.rs (target\debug\deps\s15_authority_seam-6d69de8b3b2a37dc.exe)
+
+running 5 tests
+test genesis_accepts_a_signature_under_a_foreign_index ... ok
+test authority_threshold_lives_in_two_hands ... ok
+test transition_binds_the_index_that_genesis_ignores ... ok
+test doors_do_not_lend_signatures ... ok
+test genesis_threshold_is_exactly_three_of_five ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.86s
+
+     Running tests\s94_tail.rs (target\debug\deps\s94_tail-c4f7f0de6a66cd72.exe)
+
+running 5 tests
+test leaving_primary_hands_off_and_is_demoted ... ok
+test one_pull_heals_a_gap_but_the_response_is_unauthenticated ... ok
+test snapshot_offer_skews_seq_when_the_holder_has_moved_on ... ok
+test warm_lagging_replica_cannot_take_the_snapshot_and_stops ... ok
+test cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.43s
+
+     Running tests\s9_epoch_gap.rs (target\debug\deps\s9_epoch_gap-40c24b17b131e108.exe)
+
+running 1 test
+test epoch_gap_never_heals ... FAILED
+
+failures:
+
+---- epoch_gap_never_heals stdout ----
+
+thread 'epoch_gap_never_heals' (22268) panicked at crates\vecdht-node\tests\s9_epoch_gap.rs:339:9:
+assertion `left == right` failed: (0) кворум W=2 собран: []
+  left: 0
+ right: 1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    epoch_gap_never_heals
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s
+
+error: test failed, to rerun pass `-p vecdht-node --test s9_epoch_gap`
+EXIT=101
+=== E-0071 прогон 2026-10-23T01:27:59+03:00 ===
+e98e3fe
+rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+### BUILD --no-run ### 2026-10-23T01:27:59+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+  Executable tests\s9_epoch_gap.rs (target\debug\deps\s9_epoch_gap-40c24b17b131e108.exe)
+EXIT=0
+### RUN --nocapture ### 2026-10-23T01:28:00+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running tests\s9_epoch_gap.rs (target\debug\deps\s9_epoch_gap-40c24b17b131e108.exe)
+
+running 1 test
+test epoch_gap_never_heals ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.61s
+
+EXIT=0
+### ИНВЕНТАРЬ ###
+-- цепочка принимает только epoch+1, разрыв — EpochNotNext:
+18-pub enum MembershipError {
+19-    #[error("членство для шарда {found}, а узел держит {want}")]
+20-    ForeignShard { want: u16, found: u16 },
+21-    #[error("ожидается genesis (epoch = {need}), пришло epoch = {got} (§9.2)")]
+22-    NotGenesis { got: u64, need: u64 },
+23-    #[error("epoch = {got}: следующая эпизода {need} (цепочка не пропускает эпохи)")]
+24:    EpochNotNext { got: u64, need: u64 },
+--
+171-                }
+172-                self.check_authorities(&payload, &upd.sigs)?
+173-            }
+174-            Some(prev) => {
+175-                let need = prev.epoch() + 1;
+176-                if upd.epoch != need {
+177:                    return Err(MembershipError::EpochNotNext { got: upd.epoch, need });
+--
+417-        let mut skip = next.clone();
+418-        skip.epoch += 1;
+419-        skip.sigs = vec![
+420-            prev.sign_transition(&id(10), &skip).unwrap(),
+421-            prev.sign_transition(&id(11), &skip).unwrap(),
+422-        ];
+423:        assert_eq!(c.validate(Some(&prev), &skip), Err(MembershipError::EpochNotNext {
+-- разрыв гасится молча: Ok(Vec::new()) без Error и без лога:
+524-                    Ok(m) => {
+525-                        self.persist(&m.update)?;
+526-                        self.adopt(m, now_bucket)
+527-                    }
+528:                    Err(_) => Ok(Vec::new()),
+--
+532-            Err(MembershipError::BelowThreshold { .. }) => {
+533-                self.proposal = Some(upd.clone());
+534-                Ok(self.broadcast_membership(&upd))
+535-            }
+536:            Err(_) => Ok(Vec::new()),
+-- next_list всегда предлагает текущая+1:
+388:    fn next_list(&self, now_bucket: u32) -> MemberList {
+389-        let epoch = self.epoch().unwrap_or(GENESIS_EPOCH - 1) + 1;
+390-        let entries = self.store.len() as u64;
+391-        MemberList {
+392-            epoch,
+393-            shard: self.shard,
+394-            members: candidates::members(epoch, self.shard, &self.live_roster(now_bucket), self.params.r, entries),
+395-            generated_at: now_bucket,
+396-        }
+397-    }
+398-
+399-    /// Ростер минус те, кого мы считаем недоступными, и минус сам узел, если он объявил уход.
+400-    ///
+-- узел с меньшей эпохой отвечает текущей цепочкой (§9.8/ADR-0017):
+460:    fn handle_membership(
+461-        &mut self,
+462-        from: Addr,
+463-        bytes: &[u8],
+464-        now_bucket: u32,
+465-    ) -> Result<Vec<Envelope>, NodeError> {
+466-        let incoming = MembershipUpdate::decode(bytes)?;
+467-        if incoming.shard != self.shard {
+468-            return Ok(Vec::new());
+469-        }
+470-        if let Some(cur) = self.membership.clone() {
+471-            if incoming.epoch < cur.epoch() {
+472-                // ADR-0017: отставший прислал прошлую эпоху. Рассылка `MembershipUpdate`
+473-                // best-effort, поэтому молчание здесь означало бы «пропущенное не догоняется».
+474-                // Отвечаем один раз текущей цепочкой и только известному узлу; равенство
+475-                // эпох молчит, иначе два узла переписывались бы бесконечно.
+476-                let known = self.roster.iter().any(|h| h.owner_ed25519 == from)
+477-                    || cur.is_member(&from);
+478-                return Ok(if known {
+479-                    vec![Envelope::new(from, self.membership_frame(&cur.update))]
+480-                } else {
+481-                    Vec::new()
+482-                });
+483-            }
+484-            if incoming.epoch == cur.epoch() {
+-- peer_alive лечит только текущей цепочкой:
+1389:    pub fn peer_alive(&mut self, addr: Addr) -> Result<Vec<Envelope>, NodeError> {
+1390-        self.unreachable.retain(|a| *a != addr);
+1391-        let Some(m) = self.membership.as_ref() else { return Ok(Vec::new()) };
+1392-        // Цепочка — не публичная рассылка: отдаём её только тому, кто есть в статическом
+1393-        // ростере или в принятой эпохе. Агент не должен получать состав шарда по handshake.
+1394-        let known = self.roster.iter().any(|h| h.owner_ed25519 == addr) || m.is_member(&addr);
+1395-        if !known {
+1396-            return Ok(Vec::new());
+1397-        }
+1398-        Ok(vec![Envelope::new(addr, self.membership_frame(&m.update))])
+1399-    }
+1400-
+1401-    /// Публичное «я ухожу»: подписать `LeaveNotice`, сдать право писать и предложить состав без
+-- leave принимается только по эпохе текущего члена:
+1329:    fn handle_leave(
+1330-        &mut self,
+1331-        from: Addr,
+1332-        bytes: &[u8],
+1333-        now_bucket: u32,
+1334-    ) -> Result<Vec<Envelope>, NodeError> {
+1335-        let frame = decode_frame(bytes)?;
+1336-        let notice = LeaveNotice::decode(bytes)?;
+1337-        let sig: [u8; 64] = match frame.signature {
+1338-            Some(s) => s.try_into().unwrap_or([0u8; 64]),
+1339-            None => return Ok(Vec::new()),
+1340-        };
+1341-        let member = self
+1342-            .membership
+1343-            .as_ref()
+1344-            .map(|m| m.epoch() == notice.epoch && m.is_member(&notice.leaving_owner))
+1345-            .unwrap_or(false);
+-- публикация отвергается по serving_epoch (EPOCH_STALE):
+crates/vecdht-node/src/node.rs:669:            Err(_) => self.err(from, err_code::EPOCH_STALE, 1_000),
+crates/vecdht-node/src/node.rs:728:            None => return self.err(from, err_code::EPOCH_STALE, 1_000),
+crates/vecdht-wire/src/messages.rs:39:    pub const EPOCH_STALE: &str = "EPOCH_STALE";
+-- на проводе нет вида кадра для истории членства:
+-- §9.2 обещает доставку принятой эпизоды всем участникам:
+981:Принятую эпизоду узел обязан разослать всем её участникам, а не ждать pull'я: цепочка самовалидна, и «доставить её тому, кто ещё не знает» — единственное, что отличает легитимный переход от зависшего состава. Ретрансляция возможна от любого участника и ничего не стоит с точки зрения доверия (§9.2: источник истины — пороги подписей в самом теле).
+-- wire и спека не тронуты этим циклом:
+-- оракул E-0071:
+284:#[test]
+285-fn epoch_gap_never_heals() {
+-- пороги заморожены в пре-регистрации:
+57:## Замороженные пороги (до первого прогона)
+58-
+59-Оракул `crates/vecdht-node/tests/s9_epoch_gap.rs`, один процесс, ручная доставка (без
+60-транспорта: события транспорта задаются вызовами `peer_lost`/`peer_alive`), шард 7,
+### КОНТРОЛЬ vecdht-node ### 2026-10-23T01:28:02+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-b5c4bef439652d93.exe)
+
+running 74 tests
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test lease::tests::a_lease_from_the_future_is_not_adopted ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+
+test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests\accept_presentation_api_only.rs (target\debug\deps\accept_presentation_api_only-1c1f325f00d68d4b.exe)
+
+running 1 test
+test target_side_serves_text_without_accept_and_spend_is_library_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\accept_ttl_boundary.rs (target\debug\deps\accept_ttl_boundary-e8d55d8712060310.exe)
+
+running 1 test
+test accept_lives_inclusive_to_the_boundary_bucket_and_the_table_prunes_with_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\admission.rs (target\debug\deps\admission-b3cf28692351ccf7.exe)
+
+running 7 tests
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests\admission_table_over_limit.rs (target\debug\deps\admission_table_over_limit-dec1769ea7ef0ce2.exe)
+
+running 2 tests
+test the_peer_table_holds_active_keys_over_the_limit_and_forgets_nothing ... ok
+test idle_surge_forgets_exactly_over_rows_and_the_forgotten_key_returns_fresh ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\adversarial.rs (target\debug\deps\adversarial-430892ab291c3c1c.exe)
+
+running 8 tests
+test p5_gate_sixteen_core_sybil_for_ten_minutes ... ignored, гейт P5: 16 ядер × 10 минут × 2^20; запускать в release с --ignored
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.01s
+
+     Running tests\anti_replay_find.rs (target\debug\deps\anti_replay_find-2e5c817945dc6e80.exe)
+
+running 1 test
+test the_same_query_id_is_answered_again_and_again_including_after_61_seconds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\ceiling_clamp_compose.rs (target\debug\deps\ceiling_clamp_compose-6a71718c04ca6c2f.exe)
+
+running 1 test
+test clamp_runs_before_issue_so_the_ceiling_refuses_the_tail_of_the_clamped_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.98s
+
+     Running tests\ceiling_gradual_prune.rs (target\debug\deps\ceiling_gradual_prune-3cdfdb860d8f84db.exe)
+
+running 1 test
+test the_ceiling_returns_bucket_by_bucket_when_rows_live_in_different_buckets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.80s
+
+     Running tests\ceiling_partial_accepts.rs (target\debug\deps\ceiling_partial_accepts-b0edca2a312a597d.exe)
+
+running 1 test
+test ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.93s
+
+     Running tests\ceiling_prune_recovery.rs (target\debug\deps\ceiling_prune_recovery-0ba88986ab3c2c4b.exe)
+
+running 1 test
+test the_ceiling_hole_returns_when_leased_rows_expire_out_of_prune ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.96s
+
+     Running tests\ceiling_two_seekers.rs (target\debug\deps\ceiling_two_seekers-ac17ce4bac15287f.exe)
+
+running 1 test
+test one_hole_is_consumed_by_the_first_seeker_and_the_second_gets_no_accept_at_all ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.88s
+
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-b905c5b6c122c1e4.exe)
+
+running 1 test
+test denylist_is_unreachable_in_and_vanishes_on_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests\epoch_rotation_accept.rs (target\debug\deps\epoch_rotation_accept-43bac2b1c1f9f9e0.exe)
+
+running 1 test
+test pre_epoch_accept_spends_after_rotation_and_new_primary_issues_fresh ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests\find_admission_price.rs (target\debug\deps\find_admission_price-90428aec9ecac5b2.exe)
+
+running 1 test
+test find_quota_price_ignores_cluster_list_length ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_empty_cluster_list.rs (target\debug\deps\find_empty_cluster_list-df04b442ab063819.exe)
+
+running 1 test
+test empty_cluster_list_is_served_as_signed_empty_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_no_queue.rs (target\debug\deps\find_no_queue-2a2f31c468b64aac.exe)
+
+running 2 tests
+test an_expensive_find_is_fixed_in_one_answer_and_repeats_byte_identically ... ok
+test the_sybil_surge_leaves_no_frame_without_an_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\find_node_budget.rs (target\debug\deps\find_node_budget-e796383c0ced7544.exe)
+
+running 1 test
+test sybil_find_surge_passes_node_budget_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\frame_byte_mutation.rs (target\debug\deps\frame_byte_mutation-e184517e0ca3ffab.exe)
+
+running 1 test
+test noncanonical_accept_bytes_do_not_create_a_second_spend ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests\future_epoch_lease_freeze.rs (target\debug\deps\future_epoch_lease_freeze-266b32bc37e058f3.exe)
+
+running 1 test
+test a_future_epoch_grant_from_an_arbitrary_key_freezes_the_shard ... ignored, исторический замер E-0067: поведение до ADR-0016, действующий контракт — lease_membership_binding.rs
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-9806abdb3d00e478.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+
+     Running tests\gc.rs (target\debug\deps\gc-9948c6b278ccd4a0.exe)
+
+running 2 tests
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests\heal_demotion_window.rs (target\debug\deps\heal_demotion_window-11ca37feab9b67e5.exe)
+
+running 1 test
+test heal_demotion_window ... ignored, исторический оракул E-0069: heal-окно §9.8 до ADR-0017 (замер на rev ee6ba8e); R1–R3 намеренно меняют поведение — актуальный оракул heal_one_step
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\heal_one_step.rs (target\debug\deps\heal_one_step-adb31212c86ed834.exe)
+
+running 1 test
+test heal_one_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+
+     Running tests\immediate_refusals_exit.rs (target\debug\deps\immediate_refusals_exit-fdd70cbadb056b75.exe)
+
+running 1 test
+test immediate_refusals_leave_serve_request_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\lease_membership_binding.rs (target\debug\deps\lease_membership_binding-9e089dc863480635.exe)
+
+running 1 test
+test a_grant_is_bound_to_the_accepted_epoch_and_primary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests\lease_table_ceiling.rs (target\debug\deps\lease_table_ceiling-6586afb71ea612a5.exe)
+
+running 1 test
+test repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.39s
+
+     Running tests\lease_table_restart.rs (target\debug\deps\lease_table_restart-e14c915fd2bc2ce6.exe)
+
+running 1 test
+test restart_empties_the_table_and_the_old_accept_still_spends ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests\live_split_brain_fencing.rs (target\debug\deps\live_split_brain_fencing-aa1e3b015761fa9f.exe)
+
+running 1 test
+test a_live_deposed_primary_cannot_ack_or_impose_its_write ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests\post_prune_spend_window.rs (target\debug\deps\post_prune_spend_window-8de7bb0c9004421b.exe)
+
+running 1 test
+test post_prune_accept_expires_at_the_same_bucket_the_issuer_prunes_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.98s
+
+     Running tests\present_serving_gate.rs (target\debug\deps\present_serving_gate-e43457ccfee1790f.exe)
+
+running 1 test
+test serving_gate_requires_presentation_and_spend_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-7ed8e13c4b151eba.exe)
+
+running 3 tests
+test a_find_without_matches_issues_no_accept ... ok
+test an_accept_stops_working_after_its_ttl ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\response_verification_order.rs (target\debug\deps\response_verification_order-f2f8dce990c7b5c7.exe)
+
+running 1 test
+test response_checks_follow_the_named_sequence_and_refusals_stay_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\restart_recovery.rs (target\debug\deps\restart_recovery-aef32f31b9a43cec.exe)
+
+running 1 test
+test restart_recovers_wal_snapshot_and_gc ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.19s
+
+     Running tests\rotation_present_serving.rs (target\debug\deps\rotation_present_serving-763fd072f9ef45aa.exe)
+
+running 1 test
+test serving_path_survives_rotation_and_error_masking_is_deterministic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.56s
+
+     Running tests\s15_authority_seam.rs (target\debug\deps\s15_authority_seam-6d69de8b3b2a37dc.exe)
+
+running 5 tests
+test genesis_accepts_a_signature_under_a_foreign_index ... ok
+test authority_threshold_lives_in_two_hands ... ok
+test transition_binds_the_index_that_genesis_ignores ... ok
+test doors_do_not_lend_signatures ... ok
+test genesis_threshold_is_exactly_three_of_five ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+
+     Running tests\s94_tail.rs (target\debug\deps\s94_tail-c4f7f0de6a66cd72.exe)
+
+running 5 tests
+test leaving_primary_hands_off_and_is_demoted ... ok
+test snapshot_offer_skews_seq_when_the_holder_has_moved_on ... ok
+test one_pull_heals_a_gap_but_the_response_is_unauthenticated ... ok
+test warm_lagging_replica_cannot_take_the_snapshot_and_stops ... ok
+test cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.43s
+
+     Running tests\s9_epoch_gap.rs (target\debug\deps\s9_epoch_gap-40c24b17b131e108.exe)
+
+running 1 test
+test epoch_gap_never_heals ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.55s
+
+     Running tests\slot_rebirth_double_spend.rs (target\debug\deps\slot_rebirth_double_spend-8ac74dc670827800.exe)
+
+running 1 test
+test a_pruned_slot_reissues_and_the_same_spend_consumes_the_second_lease_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.96s
+
+     Running tests\slot_request_accept_binding.rs (target\debug\deps\slot_request_accept_binding-852972623213b926.exe)
+
+running 1 test
+test request_slot_is_never_reconciled_with_the_spent_accept ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\top_k_clamp_live.rs (target\debug\deps\top_k_clamp_live-6d168673e1135dc4.exe)
+
+running 1 test
+test live_find_clamps_top_k_to_64_and_issues_one_accept_per_match ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests\ttl_policy_order.rs (target\debug\deps\ttl_policy_order-4272ad30f76a1fdf.exe)
+
+running 1 test
+test ttl_policy_gate_and_check_order_match_the_spec_sequence ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests\utf8_last_gate.rs (target\debug\deps\utf8_last_gate-903178a63f666076.exe)
+
+running 1 test
+test utf8_is_the_last_gate_and_two_fields_pay_different_names ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\w2r3_stale_read.rs (target\debug\deps\w2r3_stale_read-7527f7b1b62d5807.exe)
+
+running 1 test
+test w2r3_stale_read ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+
+   Doc-tests vecdht_node
+
+running 1 test
+test crates\vecdht-node\src\lib.rs - (line 21) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+
+EXIT=0
