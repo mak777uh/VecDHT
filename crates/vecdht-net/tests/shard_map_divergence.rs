@@ -58,7 +58,7 @@ fn rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics() {
         "## (2) cps: константа {CLUSTERS_PER_SHARD} → параметр {new_cps}: первый расходящийся {:?}, всего {diverged} из {NLIST} ##",
         first
     );
-    assert_eq!(first.map(|f| f.0), Some(new_cps as usize), "первый расходящийся кластер обязан быть ровно {new_cps}");
+    assert_eq!(first.map(|f| f.0), Some(new_cps), "первый расходящийся кластер обязан быть ровно {new_cps}");
     assert_eq!(diverged, NLIST as usize - new_cps as usize, "число расходящихся кластеров");
     // Тихость ошибки: обе реализации возвращают корректный номер (None только вне nlist),
     // то есть ни паники, ни отказа декодера — неверный шард просто используется.

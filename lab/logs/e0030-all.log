@@ -1,0 +1,40 @@
+########## E-0030 · две карты шардов · 2026-10-22T05:09:04+03:00 ##########
+f2ebd09
+########## BUILD ##########
+   Compiling vecdht-net v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-net)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.80s
+  Executable tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-f40c74591c2c28ad.exe)
+########## RUN shard_map_divergence ##########
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.87s
+     Running tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-f40c74591c2c28ad.exe)
+
+running 3 tests
+## (3) манифест с cps=8: Some("артефакт: manifest: `routing.clusters_per_shard` = 8, а кодек говорит 16") ##
+## (3а) кто отверг: manifest.check() раньше сверки
+test a_manifest_with_other_geometry_is_refused_today ... ok
+## (2) cps: константа 16 → параметр 8: первый расходящийся Some((8, 1, 0)), всего 1016 из 1024 ##
+test rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics ... ok
+## (1) NLIST=1024, CLUSTERS_PER_SHARD=16: расходящихся кластеров 0 ##
+test the_two_implementations_agree_on_every_cluster_at_protocol_geometry ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+########## EXIT=0 ##########
+########## КОНТРОЛЬ: тесты net не сломаны ##########
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 132.57s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.30s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+########## ИНВЕНТАРЬ (справочно): сайты константной механики, нетестовый код ##########
+shard_of(: 17
+clusters_of_shard: 8
+CLUSTERS_PER_SHARD: 38
+NLIST: 66
+########## где именно в agent.rs живёт константная механика ##########
+39:use vecdht_wire::constants::{shard_of, CLUSTERS_PER_SHARD, DIM, NLIST, SHARDS};
+80:        if m.routing.nlist != NLIST
+82:            || m.routing.clusters_per_shard != CLUSTERS_PER_SHARD
+85:                "манифест: nlist/shards/clusters_per_shard = {}/{}/{}, кодек v8 — {NLIST}/{SHARDS}/{CLUSTERS_PER_SHARD}",
+1156:        let cluster = shard * CLUSTERS_PER_SHARD;
+1372:        let list = out.entry(shard_of(*c)).or_default();
