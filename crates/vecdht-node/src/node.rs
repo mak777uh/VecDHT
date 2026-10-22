@@ -459,6 +459,7 @@ impl ShardNode {
 
     fn handle_membership(
         &mut self,
+        from: Addr,
         bytes: &[u8],
         now_bucket: u32,
     ) -> Result<Vec<Envelope>, NodeError> {
@@ -466,8 +467,23 @@ impl ShardNode {
         if incoming.shard != self.shard {
             return Ok(Vec::new());
         }
-        if self.membership.as_ref().map(|m| incoming.epoch <= m.epoch()).unwrap_or(false) {
-            return Ok(Vec::new());
+        if let Some(cur) = self.membership.clone() {
+            if incoming.epoch < cur.epoch() {
+                // ADR-0017: отставший прислал прошлую эпоху. Рассылка `MembershipUpdate`
+                // best-effort, поэтому молчание здесь означало бы «пропущенное не догоняется».
+                // Отвечаем один раз текущей цепочкой и только известному узлу; равенство
+                // эпох молчит, иначе два узла переписывались бы бесконечно.
+                let known = self.roster.iter().any(|h| h.owner_ed25519 == from)
+                    || cur.is_member(&from);
+                return Ok(if known {
+                    vec![Envelope::new(from, self.membership_frame(&cur.update))]
+                } else {
+                    Vec::new()
+                });
+            }
+            if incoming.epoch == cur.epoch() {
+                return Ok(Vec::new());
+            }
         }
         let mut upd = incoming.clone();
         // То же предложение, что разослали мы: подписи объединяются, а не заводится второй черновик.
@@ -476,11 +492,15 @@ impl ShardNode {
                 merge_sigs(&mut upd, &ours.sigs);
             }
         }
-        // Своя подпись: индекс смотрит в epoch−1 (§9.2).
+        // Своя подпись: индекс смотрит в epoch−1 (§9.2). Цепочку, которая нас исключает,
+        // не подписываем: она не описывает наш live-roster, и автоматическая подпись
+        // добирала бы порог для собственной демоции одной чужой подписью (ADR-0017).
         if let Some(cur) = self.membership.clone() {
-            if let Some((idx, sig)) = cur.sign_transition(&self.id, &upd) {
-                if !upd.sigs.iter().any(|(i, _)| *i == idx) {
-                    upd.sigs.push((idx, sig));
+            if upd.members.iter().any(|m| m.owner_ed25519 == self.me()) {
+                if let Some((idx, sig)) = cur.sign_transition(&self.id, &upd) {
+                    if !upd.sigs.iter().any(|(i, _)| *i == idx) {
+                        upd.sigs.push((idx, sig));
+                    }
                 }
             }
         }
@@ -491,6 +511,22 @@ impl ShardNode {
             Ok(m) => {
                 self.persist(&m.update)?;
                 self.adopt(m, now_bucket)
+            }
+            // ADR-0017: цепочка, которая нас исключает, — это демоция, а не подлог состава.
+            // Порог предыдущей эпохи и переход уже проверены; сверка с кандидатами требует
+            // чужого live-roster, которого у нас нет. Цепочка, содержащая нас, по-прежнему
+            // обязана совпасть с кандидатами: иначе кворум мог бы переставить наши слоты.
+            Err(MembershipError::MembersOutOfOrder)
+                if prev.is_some()
+                    && !upd.members.iter().any(|x| x.owner_ed25519 == self.me()) =>
+            {
+                match self.chain.validate(prev.as_ref(), &upd) {
+                    Ok(m) => {
+                        self.persist(&m.update)?;
+                        self.adopt(m, now_bucket)
+                    }
+                    Err(_) => Ok(Vec::new()),
+                }
             }
             // Порога ещё нет: черновик живой, рассылаем его с нашей подписью дальше.
             Err(MembershipError::BelowThreshold { .. }) => {
@@ -1343,6 +1379,25 @@ impl ShardNode {
         Ok(Vec::new())
     }
 
+    /// Транспорт завершил handshake с владельцем `addr` (§9.8, ADR-0017): обратное событие
+    /// к `peer_lost`. Метка недоступности снимается — иначе вернувшийся узел навсегда
+    /// исключён из `live_roster`, и честная цепочка, где его нет, не принимается.
+    ///
+    /// Заодно узел отдаёт коллеге принятую цепочку: `MembershipUpdate` — best-effort
+    /// рассылка, и переподключение обязано её догонять, а не ждать следующей эпохи.
+    /// `draining` не трогается: уход — подписанное решение, а не свойство транспорта.
+    pub fn peer_alive(&mut self, addr: Addr) -> Result<Vec<Envelope>, NodeError> {
+        self.unreachable.retain(|a| *a != addr);
+        let Some(m) = self.membership.as_ref() else { return Ok(Vec::new()) };
+        // Цепочка — не публичная рассылка: отдаём её только тому, кто есть в статическом
+        // ростере или в принятой эпохе. Агент не должен получать состав шарда по handshake.
+        let known = self.roster.iter().any(|h| h.owner_ed25519 == addr) || m.is_member(&addr);
+        if !known {
+            return Ok(Vec::new());
+        }
+        Ok(vec![Envelope::new(addr, self.membership_frame(&m.update))])
+    }
+
     /// Публичное «я ухожу»: подписать `LeaveNotice`, сдать право писать и предложить состав без
     /// себя. Возвращает письма, чтобы транспорт успел их отправить до остановки процесса.
     pub fn leave(&mut self, now_bucket: u32, drain_after_buckets: u32) -> Result<Vec<Envelope>, NodeError> {
@@ -1395,7 +1450,7 @@ impl ShardNode {
             Kind::Find => self.handle_find(from, bytes, now),
             Kind::ReplicateOp => self.handle_replicate(from, bytes),
             Kind::ReplicateAck => self.handle_replicate_ack(from, bytes),
-            Kind::MembershipUpdate => self.handle_membership(bytes, now.bucket),
+            Kind::MembershipUpdate => self.handle_membership(from, bytes, now.bucket),
             Kind::LeaseGrant => self.handle_lease_grant(from, bytes, now.bucket),
             Kind::WalPullRequest => self.handle_pull_request(from, bytes, now.bucket),
             Kind::WalPullResponse => self.handle_pull_response(from, bytes),

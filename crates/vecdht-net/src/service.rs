@@ -587,7 +587,14 @@ impl NetService {
         };
         if kind == Kind::Handshake {
             return match self.accept_handshake(peer, &request) {
-                Ok(()) => vec![self.greeting.encode_unsigned()],
+                Ok(who) => {
+                    let mut batch = vec![self.greeting.encode_unsigned()];
+                    // ADR-0017: завершённый handshake — доказательство достижимости и повод
+                    // догнать пропущенную цепочку. Кадры идут в том же ответе, после
+                    // приветствия: инициирующая сторона обработает их уже аутентифицированной.
+                    batch.extend(self.peer_alive_events(who.owner).into_iter().map(|e| e.frame));
+                    batch
+                }
                 Err(e) => vec![error_frame(err_code::CERT_INVALID, 0, 0, &e.to_string())],
             };
         }
@@ -602,7 +609,7 @@ impl NetService {
         self.route_app_frame(peer, who.owner, &request)
     }
 
-    fn accept_handshake(&mut self, peer: PeerId, frame: &[u8]) -> Result<(), HandshakeError> {
+    fn accept_handshake(&mut self, peer: PeerId, frame: &[u8]) -> Result<PeerIdentity, HandshakeError> {
         let hs = Handshake::decode(frame)?;
         let now = now_sec() as u32;
         let v = handshake::Verifier {
@@ -615,8 +622,8 @@ impl NetService {
         };
         let who = handshake::verify(&hs, peer, &v)?;
         self.owners.insert(who.owner, peer);
-        self.peers.insert(peer, who);
-        Ok(())
+        self.peers.insert(peer, who.clone());
+        Ok(who)
     }
 
     fn on_response(&mut self, peer: PeerId, id: OutboundRequestId, response: Vec<Vec<u8>>) {
@@ -624,13 +631,24 @@ impl NetService {
             Some(Pending::Handshake) => {
                 // Встречная сторона отвечает своим `Handshake`, а не пустым «ok»: иначе
                 // инициатор принимал бы любую роль без кредашиала.
-                match response.first() {
-                    Some(frame) => {
-                        if let Err(e) = self.accept_handshake(peer, frame) {
-                            self.errors.push(format!("handshake {peer}: {e}"));
+                let Some((first, rest)) = response.split_first() else {
+                    self.errors.push(format!("handshake {peer}: пустой ответ"));
+                    return;
+                };
+                match self.accept_handshake(peer, first) {
+                    Ok(who) => {
+                        // ADR-0017: приветствие принято — handshake завершён у обеих сторон.
+                        // Сначала маршрутизируем дополнительные кадры ответа (ответчик мог
+                        // вложить туда принятую цепочку), затем отдаём свою: переподключение
+                        // обязано догонять membership, а не ждать следующей эпохи.
+                        for frame in rest {
+                            self.route_inbound(peer, frame.clone());
+                        }
+                        for env in self.peer_alive_events(who.owner) {
+                            self.dispatch(env);
                         }
                     }
-                    None => self.errors.push(format!("handshake {peer}: пустой ответ")),
+                    Err(e) => self.errors.push(format!("handshake {peer}: {e}")),
                 }
             }
             _ => {
@@ -838,6 +856,21 @@ impl NetService {
         for env in out {
             self.dispatch(env);
         }
+    }
+
+    /// Обратное к `peer_lost` (§9.8, ADR-0017): завершённый handshake снимает метку и даёт
+    /// узлам принятую цепочку для отставшего коллеги. Возвращает конверты, а не рассылает
+    /// их: на входящем handshake они обязаны уйти в том же пакете ответа, а не запросом
+    /// раньше, чем встречная сторона приняла наше приветствие.
+    fn peer_alive_events(&mut self, owner: [u8; 32]) -> Vec<Envelope> {
+        let mut out = Vec::new();
+        for node in self.nodes.values_mut() {
+            match node.peer_alive(owner) {
+                Ok(list) => out.extend(list),
+                Err(e) => self.errors.push(format!("peer_alive шарда {}: {e}", node.shard)),
+            }
+        }
+        out
     }
 
     /// Прикладная подпись gossip-кадра (§5.3). Проверяется до узла, потому что узел видит
