@@ -128,6 +128,15 @@ fn a_pruned_slot_reissues_and_the_same_spend_consumes_the_second_lease_once() {
         Err(rendezvous::AcceptError::AlreadySpent),
         "фальсификатор (б): повтор первого lease обслужен"
     );
+    assert_eq!(spend.spent(), 1, "порог (1): одна запись расхода после первого lease");
+
+    // Порог (1c): грань окна f0 (19 = 0+19, ещё не Expired) — AlreadySpent: память
+    // расхода держится ВСЁ окно lease (различающий зонд против «purge вообще»).
+    assert_eq!(
+        spend.consume(&f0, &n.me(), &owner.pubkey(), 19),
+        Err(rendezvous::AcceptError::AlreadySpent),
+        "фальсификатор (и): память расхода испарилась до конца окна lease"
+    );
 
     // now = 20: prune бакета 0, тот же слот тому же seeker — новый lease бакета 20.
     let (f20, x20) = only_accept(&find(&mut n, &a, 20, 802));
@@ -139,33 +148,38 @@ fn a_pruned_slot_reissues_and_the_same_spend_consumes_the_second_lease_once() {
 
     // Порог (2): now = 40 — третий lease того же слота (prune бакета 20 ровно на 40,
     // E-0058), и он расходуется в той же памяти цели: слот возродился, а не «сожжён».
+    // Предваряющий зонд (2a): на входе в consume(40) память key0 уже вычищена
+    // (expires 20 ≤ 40) — предъявление мёртвого f0 на 40 даёт Expired, не AlreadySpent.
+    assert_eq!(
+        spend.consume(&f0, &n.me(), &owner.pubkey(), 40),
+        Err(rendezvous::AcceptError::Expired),
+        "фальсификатор (г): мёртвый lease дымит AlreadySpent вместо Expired"
+    );
     let (f40, x40) = only_accept(&find(&mut n, &a, 40, 803));
     assert_eq!(x40.issued_bucket, 40, "фальсификатор (д): третий lease не бакета 40");
     let g2 = spend
         .consume(&f40, &n.me(), &owner.pubkey(), 40)
         .expect("фальсификатор (в): цель отвергла перерождённый слот — расход слота пожизненный");
     assert_eq!((g2.seeker, g2.slot, g2.issued_bucket), (a.pubkey(), x0.slot, 40), "фальсификатор (ж): grant второго lease");
-    assert_eq!(spend.spent(), 2, "порог (2): в памяти цели ДВА одноразовых расхода одного слота");
+    assert_eq!(
+        spend.spent(),
+        1,
+        "фальсификатор (т): память расхода накопилась — запись key0 обязана быть вычищена prune'ом этого же consume (expires 20 ≤ 40)"
+    );
 
-    // Порог (3): одноразовость живёт внутри lease: повтор f40 — AlreadySpent, а мёртвый
-    // f0 на now=40 — Expired (строгая проверка ПЕРЕД spent: неAlreadySpent).
+    // Порог (3): одноразовость живёт внутри lease: повтор f40 — AlreadySpent.
     assert_eq!(
         spend.consume(&f40, &n.me(), &owner.pubkey(), 40),
         Err(rendezvous::AcceptError::AlreadySpent),
         "фальсификатор (б): повтор перерождённого lease обслужен"
     );
-    assert_eq!(
-        spend.consume(&f0, &n.me(), &owner.pubkey(), 40),
-        Err(rendezvous::AcceptError::Expired),
-        "фальсификатор (г): мёртвый lease дымит AlreadySpent вместо Expired"
-    );
 
     eprintln!(
-        "## пороги (1)…(3): lease бакета 0 расходется однажды; после prune тот же слот \
-         тому же seeker выдаёт lease 20 (live 1, новых отказов 0), а на 40 — lease 40, \
-         который расходуется в той же памяти цели (spent == 2, разные issued_bucket = \
-         разные ключи); повтор lease 40 — AlreadySpent, предъявление мёртвого lease 0 \
-         на 40 — Expired, не AlreadySpent ##"
+        "## пороги (1)…(3) по поправке H-0059: lease бакета 0 расходется однажды (spent 1) \
+         и его AlreadySpent держится всё окно (f0@19 — AlreadySpent); после prune тот же \
+         слот тому же seeker выдаёт lease 20 (live 1, новых отказов 0), на 40 — lease 40; \
+         мёртвый f0@40 уже Expired (память key0 вычищена: expires 20), f40@40 расходится \
+         (слот возродился), spent()==1 (накопления нет), повтор f40 — AlreadySpent ##"
     );
     remove(&d);
 }
