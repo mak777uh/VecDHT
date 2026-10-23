@@ -22,7 +22,7 @@ use vecdht_artifact::reference_manifest;
 use vecdht_net::{keys, NetConfig, NetService};
 use vecdht_node::{candidates, testing, Clock};
 use vecdht_wire::frame::{decode_frame, Kind};
-use vecdht_wire::messages::{domain, Codec, ProtocolError, Role};
+use vecdht_wire::messages::{domain, Codec, Find, ProtocolError, Role};
 
 const SHARD: u16 = 7;
 const CLUSTER: u16 = 112;
@@ -247,6 +247,26 @@ fn find_frame(seed: u8, salt: u64) -> Vec<u8> {
     testing::find_frame(&testing::identity(seed), &testing::vector(3), &[CLUSTER], 5, salt)
 }
 
+/// `Find` с подписью приложения. Нужен именно подписанный: `publish_gossip` отказывает
+/// неподписанному кадру (§5.3, `service.rs:443`), и до фильтра двери такой кадр вообще не
+/// доходит — `(О2)` про `Find` без этой подписи измерял бы харнес, а не протокол (`ДИАГНОЗ-1`
+/// в `lab/logs/e0087-all.log`).
+fn signed_find_frame(seed: u8, salt: u64) -> Vec<u8> {
+    let agent = testing::identity(seed);
+    let q = Find {
+        preprocessing_version: testing::PREPROCESSING_VERSION,
+        query_vector: testing::vector(3),
+        clusters: vec![CLUSTER],
+        top_k: 5,
+        query_id: salt,
+        requester_ed25519: agent.pubkey(),
+        tlv: Vec::new(),
+    };
+    let body = q.body_bytes();
+    let sig = agent.sign_body(domain::FIND, Kind::Find, &body);
+    q.encode_signed(&sig)
+}
+
 /// Сколько записей в индексе шарда у узла (0, если узел шарда не держит).
 fn stored(node: &NetService, shard: u16) -> usize {
     node.node(shard).map(|n| n.store.len()).unwrap_or(usize::MAX)
@@ -317,14 +337,27 @@ fn a_peer_refused_at_the_door_loses_the_gossip_publish_path() {
         let landed = gossip_until(&mut peer, &mut node, publish, 20, |n| stored(n, SHARD) > 0)
             .await;
         let after_publish = node.take_errors();
-        let gate_after_publish = after_publish.iter().filter(|e| e.contains(GATE_MARK)).count();
+        let gate_after_publish =
+            after_publish.iter().filter(|e| e.contains("Publish без пройденной двери")).count();
+
+        // Отдельно меряется стража, из-за которой этот гейт сначала измерял харнес: неподписанный
+        // `Find` в тему шарда не выходит вообще. Это факт продукта (§5.3), а не предсказание
+        // фикса, поэтому он печатается, но не входит в свёртку `(О1)+(О2)`.
+        let unsigned_guard = match peer.publish_gossip(SHARD, find_frame(PEER_SEED, 4245)) {
+            Err(e) => e.to_string(),
+            Ok(()) => "ПУСТИЛ".to_string(),
+        };
 
         // `Find` того же пира: он не пишет индекс, но тратит rendezvous-приёмы и получает
-        // ответы, то есть ровно та стоимость, ради которой дверь и ставится.
-        let _ = gossip_until(&mut peer, &mut node, find_frame(PEER_SEED, 4245), 6, |_| false).await;
+        // ответы, то есть ровно та стоимость, ради которой дверь и ставится. Кадр подписан,
+        // иначе проверка бессодержательна (см. `signed_find_frame`).
+        let _ =
+            gossip_until(&mut peer, &mut node, signed_find_frame(PEER_SEED, 4246), 10, |_| false)
+                .await;
         let after_find = node.take_errors();
-        let gate_after_find = after_find.iter().filter(|e| e.contains(GATE_MARK)).count();
-        let find_dropped = gate_after_find > gate_after_publish;
+        let gate_after_find =
+            after_find.iter().filter(|e| e.contains("Find без пройденной двери")).count();
+        let find_dropped = gate_after_find > 0;
         let stored_after = stored(&node, SHARD);
         println!(
             "МЕРЕНО o2_gossip_landed={} o2_stored={} o2_gate_publish={gate_after_publish} o2_gate_find={gate_after_find} o2_find_gated={}",
@@ -332,6 +365,7 @@ fn a_peer_refused_at_the_door_loses_the_gossip_publish_path() {
             stored_after,
             if find_dropped { 1 } else { 0 }
         );
+        println!("МЕРЕНО o2_unsigned_guard={unsigned_guard}");
         assert!(!landed, "(О2) `Publish` отказанного пира лёг в индекс по gossip");
         assert_eq!(stored_after, 0, "(О2) индекс содержит {stored_after} записей после отказа");
         assert!(gate_after_publish > 0, "(О2) фильтр не записал себе причину отказа");

@@ -36,6 +36,9 @@ ORACLE=crates/vecdht-net/tests/gossip_door_parity.rs
 # положительных контроля, (О4) кадр членства не отфильтрован, свёртка фактов.
 KEYS="o1_refused o1_direct_code o2_gossip_landed o2_stored o2_gate_publish o2_gate_find
 o2_find_gated o12_digest o3_stored o3_gate_hits o3_agent_stored o3_agent_gate_hits o4_gated"
+# ПОПРАВКА (ДИАГНОЗ-1): печатается и отдельный ключ стражи §5.3 — он факт продукта, а не
+# предсказание фикса, поэтому в KEYS (и в свёртку) не входит, но в лог обязан попасть.
+EXTRA_KEYS="o2_unsigned_guard"
 
 WORST_RC=0
 
@@ -88,15 +91,17 @@ R1=$(mktemp); R2=$(mktemp); REG=$(mktemp); V1=$(mktemp)
   fi
 } >> "$LOG"
 
-run_to "$R1" "ШАГ 1 оракул, прогон n=1" cargo test -p vecdht-net --test gossip_door_parity -- --nocapture --test-threads=1
-{ echo "### ВЕКТОР ПОРОГОВ n=1 ###"; grab "$R1" r1 "$KEYS"; } >> "$LOG"
+run_to "$R1" "ШАГ 1 оракул, прогон n=1 (после ПОПРАВКИ ДИАГНОЗ-1)" cargo test -p vecdht-net --test gossip_door_parity -- --nocapture --test-threads=1
+{ echo "### ВЕКТОР ПОРОГОВ n=1 ###"; grab "$R1" r1 "$KEYS"; grab "$R1" r1 "$EXTRA_KEYS"; } >> "$LOG"
 
 run_to "$R2" "ШАГ 2 оракул, прогон n=2 (порог (6): свёртка обязана совпасть)" cargo test -p vecdht-net --test gossip_door_parity -- --nocapture --test-threads=1
-{ echo "### ВЕКТОР ПОРОГОВ n=2 ###"; grab "$R2" r2 "$KEYS"; } >> "$LOG"
+{ echo "### ВЕКТОР ПОРОГОВ n=2 ###"; grab "$R2" r2 "$KEYS"; grab "$R2" r2 "$EXTRA_KEYS"; } >> "$LOG"
 
 # Шаг 3 — регрессия по соседям (порог (5)): все тесты `vecdht-net`, кроме двух помеченных
-# `#[ignore]` как описание поведения до ADR-0043.
-run_to "$REG" "ШАГ 3 регрессия: весь vecdht-net" cargo test -p vecdht-net
+# `#[ignore]` как описание поведения до ADR-0043. `--no-fail-fast` обязателен: в первом прогоне
+# cargo остановился на упавшем бинаре и остальные 8 таргетов не были исполнены вовсе, то есть
+# порог (5) был не «провален», а не измерен (ДИАГНОЗ-2 в логе).
+run_to "$REG" "ШАГ 3 регрессия: весь vecdht-net (--no-fail-fast)" cargo test -p vecdht-net --no-fail-fast
 { echo "### РЕГРЕССИЯ ###"
   grep -E "^test result|running \d+ tests|EXIT=" "$REG" | tail -30
   echo "ignored_всего=$(grep -c 'ignore = ' crates/vecdht-net/tests/s53_door_branches.rs crates/vecdht-net/tests/s5_handshake_seam.rs | tr '\n' ' ')"

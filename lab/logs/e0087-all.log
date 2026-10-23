@@ -1,0 +1,502 @@
+
+########## E-0087 · ADR-0043 gossip-путь обязан пройти дверь · прогон 2026-10-23T17:03:18+03:00 ##########
+HEAD: 50502b2
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+oracle: crates/vecdht-net/tests/gossip_door_parity.rs
+PRE_FIX_ЗАМЕР: снят отдельным вызовом до коммита правки (git stash сервиса), блок ниже
+RAM_FREE_MB_BEFORE=6949 DISK_FREE_MB_BEFORE=20761
+### ШАГ 0 PRE_FIX (дерево до правки) ###
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... МЕРЕНО o1_refused=1
+МЕРЕНО o1_direct_code=DENIED
+МЕРЕНО o2_gossip_landed=1 o2_stored=1 o2_gate_publish=0 o2_gate_find=0 o2_find_gated=0
+thread 'a_peer_refused_at_the_door_loses_the_gossip_publish_path' (20932) panicked at crates\vecdht-net\tests\gossip_door_parity.rs:335:9:
+test an_agent_without_a_credential_still_lands ... МЕРЕНО o3_agent_stored=1 o3_agent_gate_hits=0
+test membership_style_gossip_is_not_gated ... МЕРЕНО o4_gated=0 o4_errors=["handshake 12D3KooWGTSzhShkoYo5Sc1wpKjanGDC7f9q7Bgy8mtqbVjSgzfw: кредашиал отвергнут: not valid yet: now=1792762909, valid_from=1792766508"]
+test the_same_identity_lands_once_the_door_is_passed ... МЕРЕНО o3_stored=1 o3_gate_hits=0
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.08s
+### ШАГ 1 оракул, прогон n=1 ### 2026-10-23T17:03:20+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-ef356aaada758ffd.exe)
+
+running 4 tests
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... МЕРЕНО o1_refused=1
+МЕРЕНО o1_direct_code=DENIED
+МЕРЕНО o2_gossip_landed=0 o2_stored=0 o2_gate_publish=69 o2_gate_find=0 o2_find_gated=0
+
+thread 'a_peer_refused_at_the_door_loses_the_gossip_publish_path' (39188) panicked at crates\vecdht-net\tests\gossip_door_parity.rs:338:9:
+(О2) `Find` отказанного пира не был отброшен фильтром
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test an_agent_without_a_credential_still_lands ... МЕРЕНО o3_agent_stored=1 o3_agent_gate_hits=0
+ok
+test membership_style_gossip_is_not_gated ... МЕРЕНО o4_gated=0 o4_errors=["handshake 12D3KooWGTSzhShkoYo5Sc1wpKjanGDC7f9q7Bgy8mtqbVjSgzfw: кредашиал отвергнут: not valid yet: now=1792764230, valid_from=1792767830"]
+ok
+test the_same_identity_lands_once_the_door_is_passed ... МЕРЕНО o3_stored=1 o3_gate_hits=0
+ok
+
+failures:
+
+failures:
+    a_peer_refused_at_the_door_loses_the_gossip_publish_path
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.05s
+
+error: test failed, to rerun pass `-p vecdht-net --test gossip_door_parity`
+EXIT=101
+### ВЕКТОР ПОРОГОВ n=1 ###
+o1_refused_r1=1
+o1_direct_code_r1=DENIED
+o2_gossip_landed_r1=0
+o2_stored_r1=0
+o2_gate_publish_r1=69
+o2_gate_find_r1=0
+o2_find_gated_r1=0
+o12_digest_r1=
+o3_stored_r1=1
+o3_gate_hits_r1=0
+o3_agent_stored_r1=1
+o3_agent_gate_hits_r1=0
+o4_gated_r1=0
+### ШАГ 2 оракул, прогон n=2 (порог (6): свёртка обязана совпасть) ### 2026-10-23T17:03:59+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-ef356aaada758ffd.exe)
+
+running 4 tests
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... МЕРЕНО o1_refused=1
+МЕРЕНО o1_direct_code=DENIED
+МЕРЕНО o2_gossip_landed=0 o2_stored=0 o2_gate_publish=71 o2_gate_find=0 o2_find_gated=0
+
+thread 'a_peer_refused_at_the_door_loses_the_gossip_publish_path' (22396) panicked at crates\vecdht-net\tests\gossip_door_parity.rs:338:9:
+(О2) `Find` отказанного пира не был отброшен фильтром
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test an_agent_without_a_credential_still_lands ... МЕРЕНО o3_agent_stored=1 o3_agent_gate_hits=0
+ok
+test membership_style_gossip_is_not_gated ... МЕРЕНО o4_gated=0 o4_errors=["handshake 12D3KooWGTSzhShkoYo5Sc1wpKjanGDC7f9q7Bgy8mtqbVjSgzfw: кредашиал отвергнут: not valid yet: now=1792764267, valid_from=1792767867"]
+ok
+test the_same_identity_lands_once_the_door_is_passed ... МЕРЕНО o3_stored=1 o3_gate_hits=0
+ok
+
+failures:
+
+failures:
+    a_peer_refused_at_the_door_loses_the_gossip_publish_path
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 35.04s
+
+error: test failed, to rerun pass `-p vecdht-net --test gossip_door_parity`
+EXIT=101
+### ВЕКТОР ПОРОГОВ n=2 ###
+o1_refused_r2=1
+o1_direct_code_r2=DENIED
+o2_gossip_landed_r2=0
+o2_stored_r2=0
+o2_gate_publish_r2=71
+o2_gate_find_r2=0
+o2_find_gated_r2=0
+o12_digest_r2=
+o3_stored_r2=1
+o3_gate_hits_r2=0
+o3_agent_stored_r2=1
+o3_agent_gate_hits_r2=0
+o4_gated_r2=0
+### ШАГ 3 регрессия: весь vecdht-net ### 2026-10-23T17:04:36+03:00
+   Compiling vecdht-net v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-net)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 21.82s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-502162b5780742df.exe)
+
+running 22 tests
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-5cee7e68d1cbde1d.exe)
+
+running 1 test
+test egress_bytes_per_query has been running for over 60 seconds
+test egress_bytes_per_query ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 125.07s
+
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-ef356aaada758ffd.exe)
+
+running 4 tests
+test an_agent_without_a_credential_still_lands ... ok
+test the_same_identity_lands_once_the_door_is_passed ... ok
+test membership_style_gossip_is_not_gated ... ok
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... FAILED
+
+failures:
+
+---- a_peer_refused_at_the_door_loses_the_gossip_publish_path stdout ----
+МЕРЕНО o1_refused=1
+МЕРЕНО o1_direct_code=DENIED
+МЕРЕНО o2_gossip_landed=0 o2_stored=0 o2_gate_publish=77 o2_gate_find=0 o2_find_gated=0
+
+thread 'a_peer_refused_at_the_door_loses_the_gossip_publish_path' (8464) panicked at crates\vecdht-net\tests\gossip_door_parity.rs:338:9:
+(О2) `Find` отказанного пира не был отброшен фильтром
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    a_peer_refused_at_the_door_loses_the_gossip_publish_path
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.72s
+
+error: test failed, to rerun pass `-p vecdht-net --test gossip_door_parity`
+EXIT=101
+### РЕГРЕССИЯ ###
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 125.07s
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 26.72s
+ignored_всего=crates/vecdht-net/tests/s53_door_branches.rs:1 crates/vecdht-net/tests/s5_handshake_seam.rs:1 
+### КОНТРОЛЬ ПОРОГОВ ###
+порог (4) оракул зелёный оба прогона: EXIT n1/n2 см. блоки ШАГ 1/2
+порог (6) digest_совпал=0  r1=  r2=
+порог (8) осевшие_каталоги=0
+порог (5) регрессия: failed=1
+RAM_FREE_MB_AFTER=5621 DISK_FREE_MB_AFTER=18299
+TARGET_SIZE_MB=4262
+
+########## E-0087 · ПОПРАВКА после прогона n=1/n=2 (append-only; замороженные векторы выше не переписаны) ##########
+
+ДИИАГНОЗ-1. Прогон n=1 и n=2 упал на одном и том же assert'е (`gossip_door_parity.rs:338`,
+`(О2) «Find» отказанного пира не был отброшен фильтром`) при o2_gate_find=0 и
+o2_gossip_landed=0. Причина — не продукт, а харнес: `find_frame()` из `vecdht_node::testing`
+возвращает `encode_unsigned()` (`testing.rs:297`), а `publish_gossip` отказывает неподписанному
+кадру ещё до отправки (`service.rs:443`: «gossip-кадр шарда N обязан быть подписан приложением
+(§5.3)»). Кадр до фильтра двери не доходил ни на каком дереве, то есть замороженная формулировка
+`(О2)` про `Find` была невыполнима по построению и измеряла харнес. Факт стражи измерен и
+печатается отдельно: `o2_unsigned_guard=не удалось собрать транспорт: gossip-кадр шарда 7 обязан
+быть подписан приложением (§5.3)` (идентично в прогоне с фиксом и в PRE_FIX — стража от фикса не
+зависит). Исправление: кадр `Find` строится подписанным (`signed_find_frame`), проверка `(О2)`
+меряется по роду кадра (`"Find без пройденной двери"`), а не сравнением двух счётчиков —
+сравнение `gate_find > gate_publish` было бы нарушено и правилом 7 (е): оно зависит от числа
+доставок, то есть от расписания шагов. Порог (О2) по смыслу не изменён: «прикладной кадр
+отказанного пира отбрасывается фильтром и это видно в журнале узла».
+
+ДИАГНОЗ-2. Тот же прогон показал, что порог (5) (регрессия всего `vecdht-net`) не был измерен, а
+не провален: `cargo test -p vecdht-net` останавливается на первом упавшем бинаре, и восемь
+остальных таргетов не исполнялись (в логе видно только 22 unit + 1 таргет + падение оракула).
+Helper исправлен: `--no-fail-fast`.
+
+Что осталось от первого прогона как факт: предсказание PRE_FIX подтвердилось и в исходной, и в
+исправленной формулировке — `o2_gossip_landed=1 o2_stored=1` при `o1_refused=1` и
+`o2_gate_publish=0 o2_gate_find=0`; свёртка `o12_digest` в обоих прогонах не снята, потому что
+assert срабатывал до её печати (порог (6) первого прогона = не измерен). Ресурсы первого прогона:
+RAM_FREE_MB_BEFORE=7027 DISK_FREE_MB_BEFORE=20764, RAM_FREE_MB_AFTER=5621 DISK_FREE_MB_AFTER=18299,
+TARGET_SIZE_MB=4262, осевших каталогов 0.
+
+########## E-0087 · ПРОГОН ПОСЛЕ ПОПРАВКИ, замер до сборки: TARGET_SIZE_MB_BEFORE=4265 DISK_FREE_MB_BEFORE=18290 RAM_FREE_MB_BEFORE=6789 · 2026-10-23T17:20:36+03:00 ##########
+
+########## E-0087 · ADR-0043 gossip-путь обязан пройти дверь · прогон 2026-10-23T17:20:41+03:00 ##########
+HEAD: 50502b2
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+oracle: crates/vecdht-net/tests/gossip_door_parity.rs
+PRE_FIX_ЗАМЕР: снят отдельным вызовом до коммита правки (git stash сервиса), блок ниже
+RAM_FREE_MB_BEFORE=6622 DISK_FREE_MB_BEFORE=18285
+### ШАГ 0 PRE_FIX (дерево до правки) ###
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... МЕРЕНО o1_refused=1
+МЕРЕНО o1_direct_code=DENIED
+МЕРЕНО o2_gossip_landed=1 o2_stored=1 o2_gate_publish=0 o2_gate_find=0 o2_find_gated=0
+МЕРЕНО o2_unsigned_guard=не удалось собрать транспорт: gossip-кадр шарда 7 обязан быть подписан приложением (§5.3)
+thread 'a_peer_refused_at_the_door_loses_the_gossip_publish_path' (22896) panicked at crates\vecdht-net\tests\gossip_door_parity.rs:369:9:
+test an_agent_without_a_credential_still_lands ... МЕРЕНО o3_agent_stored=1 o3_agent_gate_hits=0
+test membership_style_gossip_is_not_gated ... МЕРЕНО o4_gated=0 o4_errors=["handshake 12D3KooWGTSzhShkoYo5Sc1wpKjanGDC7f9q7Bgy8mtqbVjSgzfw: кредашиал отвергнут: not valid yet: now=1792765083, valid_from=1792768683"]
+test the_same_identity_lands_once_the_door_is_passed ... МЕРЕНО o3_stored=1 o3_gate_hits=0
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.94s
+### ШАГ 1 оракул, прогон n=1 (после ПОПРАВКИ ДИАГНОЗ-1) ### 2026-10-23T17:20:42+03:00
+   Compiling vecdht-net v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-net)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.96s
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-ef356aaada758ffd.exe)
+
+running 4 tests
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... МЕРЕНО o1_refused=1
+МЕРЕНО o1_direct_code=DENIED
+МЕРЕНО o2_gossip_landed=0 o2_stored=0 o2_gate_publish=74 o2_gate_find=36 o2_find_gated=1
+МЕРЕНО o2_unsigned_guard=не удалось собрать транспорт: gossip-кадр шарда 7 обязан быть подписан приложением (§5.3)
+МЕРЕНО o12_digest=3a92925f9ae79dea682d358a96c32042e820499291570fd1cda91e3cac2a6e7c
+ok
+test an_agent_without_a_credential_still_lands ... МЕРЕНО o3_agent_stored=1 o3_agent_gate_hits=0
+ok
+test membership_style_gossip_is_not_gated ... МЕРЕНО o4_gated=0 o4_errors=["handshake 12D3KooWGTSzhShkoYo5Sc1wpKjanGDC7f9q7Bgy8mtqbVjSgzfw: кредашиал отвергнут: not valid yet: now=1792765283, valid_from=1792768883"]
+ok
+test the_same_identity_lands_once_the_door_is_passed ... МЕРЕНО o3_stored=1 o3_gate_hits=0
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.68s
+
+EXIT=0
+### ВЕКТОР ПОРОГОВ n=1 ###
+o1_refused_r1=1
+o1_direct_code_r1=DENIED
+o2_gossip_landed_r1=0
+o2_stored_r1=0
+o2_gate_publish_r1=74
+o2_gate_find_r1=36
+o2_find_gated_r1=1
+o12_digest_r1=3a92925f9ae79dea682d358a96c32042e820499291570fd1cda91e3cac2a6e7c
+o3_stored_r1=1
+o3_gate_hits_r1=0
+o3_agent_stored_r1=1
+o3_agent_gate_hits_r1=0
+o4_gated_r1=0
+o2_unsigned_guard_r1=не
+### ШАГ 2 оракул, прогон n=2 (порог (6): свёртка обязана совпасть) ### 2026-10-23T17:21:31+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.81s
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-ef356aaada758ffd.exe)
+
+running 4 tests
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... МЕРЕНО o1_refused=1
+МЕРЕНО o1_direct_code=DENIED
+МЕРЕНО o2_gossip_landed=0 o2_stored=0 o2_gate_publish=73 o2_gate_find=36 o2_find_gated=1
+МЕРЕНО o2_unsigned_guard=не удалось собрать транспорт: gossip-кадр шарда 7 обязан быть подписан приложением (§5.3)
+МЕРЕНО o12_digest=3a92925f9ae79dea682d358a96c32042e820499291570fd1cda91e3cac2a6e7c
+ok
+test an_agent_without_a_credential_still_lands ... МЕРЕНО o3_agent_stored=1 o3_agent_gate_hits=0
+ok
+test membership_style_gossip_is_not_gated ... МЕРЕНО o4_gated=0 o4_errors=["handshake 12D3KooWGTSzhShkoYo5Sc1wpKjanGDC7f9q7Bgy8mtqbVjSgzfw: кредашиал отвергнут: not valid yet: now=1792765324, valid_from=1792768924"]
+ok
+test the_same_identity_lands_once_the_door_is_passed ... МЕРЕНО o3_stored=1 o3_gate_hits=0
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 38.78s
+
+EXIT=0
+### ВЕКТОР ПОРОГОВ n=2 ###
+o1_refused_r2=1
+o1_direct_code_r2=DENIED
+o2_gossip_landed_r2=0
+o2_stored_r2=0
+o2_gate_publish_r2=73
+o2_gate_find_r2=36
+o2_find_gated_r2=1
+o12_digest_r2=3a92925f9ae79dea682d358a96c32042e820499291570fd1cda91e3cac2a6e7c
+o3_stored_r2=1
+o3_gate_hits_r2=0
+o3_agent_stored_r2=1
+o3_agent_gate_hits_r2=0
+o4_gated_r2=0
+o2_unsigned_guard_r2=не
+### ШАГ 3 регрессия: весь vecdht-net (--no-fail-fast) ### 2026-10-23T17:22:12+03:00
+   Compiling vecdht-net v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-net)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 10.43s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-502162b5780742df.exe)
+
+running 22 tests
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-5cee7e68d1cbde1d.exe)
+
+running 1 test
+test egress_bytes_per_query has been running for over 60 seconds
+test egress_bytes_per_query ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 124.54s
+
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-ef356aaada758ffd.exe)
+
+running 4 tests
+test an_agent_without_a_credential_still_lands ... ok
+test the_same_identity_lands_once_the_door_is_passed ... ok
+test membership_style_gossip_is_not_gated ... ok
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.65s
+
+     Running tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+
+running 5 tests
+test a_node_accepts_a_find_with_a_pad_tail ... ok
+test a_find_frame_has_a_fixed_overhead_and_carries_no_pad ... ok
+test a_lying_node_can_fabricate_a_distance_and_nobody_checks_it ... ok
+test a_full_scan_is_sixteen_frames_not_one_long_one ... ok
+test a_missing_owner_drops_the_next_groups_find_off_the_wire ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.60s
+
+     Running tests\s163_shard_without_owner.rs (target\debug\deps\s163_shard_without_owner-86d702f193c5bec8.exe)
+
+running 9 tests
+test a_shard_without_an_epoch_answers_reads_and_refuses_writes ... ok
+test an_epochless_holder_produces_no_protocol_action_at_all ... ok
+test only_the_matching_genesis_opens_an_epoch_and_the_mismatch_is_silent ... ok
+test the_four_local_states_name_which_one_takes_a_write ... ok
+test an_epochless_holder_still_answers_the_dht_as_a_provider_of_the_shard ... ok
+test publishing_to_an_epochless_shard_ends_in_not_owner_not_in_an_empty_answer ... ok
+test the_agent_pays_pow_for_an_epoch_nobody_serves ... ok
+test a_second_candidate_doubles_the_price_and_not_the_outcome ... ok
+test not_owner_ends_the_attempt_while_a_temporary_code_repeats_it ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.06s
+
+     Running tests\s19_find_e2e_price.rs (target\debug\deps\s19_find_e2e_price-6f804c62f5276aab.exe)
+
+running 4 tests
+test s19_structural_shape_of_the_stand ... ok
+test s19_cold_and_warm_find_fanout1 ... ok
+test s19_scan_share_in_end_to_end_time ... ok
+test s19_fanout13_find_price has been running for over 60 seconds
+test s19_fanout13_find_price ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 77.47s
+
+     Running tests\s53_door_branches.rs (target\debug\deps\s53_door_branches-88b807059943f7dd.exe)
+
+running 5 tests
+test a_cert_that_is_not_valid_yet_is_refused_and_its_publish_still_lands ... ignored, поведение дерева до ADR-0043: блок gate6d_stored=1 теперь обязан быть 0; живой контракт — crates/vecdht-net/tests/gossip_door_parity.rs (E-0087)
+test the_sum_capacity_rule_of_9_2_has_no_mechanism ... ok
+test a_cert_with_zero_capacity_is_refused_on_the_door_too ... ok
+test eleven_refusal_causes_all_speak_cert_invalid ... ok
+test a_live_revoke_forgets_the_peer_but_not_the_provider_cache has been running for over 60 seconds
+test a_live_revoke_forgets_the_peer_but_not_the_provider_cache ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 64.24s
+
+     Running tests\s5_handshake_seam.rs (target\debug\deps\s5_handshake_seam-544b85b042daa41e.exe)
+
+running 5 tests
+test the_gossip_door_is_open_to_a_peer_the_handshake_refused ... ignored, поведение дерева до ADR-0043: «gossip-дверь открыта отказанному пиру» — зафиксированная фикция (E-0076); живой контракт — crates/vecdht-net/tests/gossip_door_parity.rs (E-0087)
+test a_foreign_network_is_refused_and_the_reason_never_reaches_the_peer ... ok
+test a_normal_handshake_binds_both_sides ... ok
+test the_refusal_speaks_cert_invalid_and_keeps_the_old_identity ... ok
+test the_authentication_cache_outlives_valid_until ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 11.00s
+
+     Running tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-f40c74591c2c28ad.exe)
+
+running 3 tests
+test a_manifest_with_other_geometry_is_refused_today ... ok
+test rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics ... ok
+test the_two_implementations_agree_on_every_cluster_at_protocol_geometry ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\transport.rs (target\debug\deps\transport-0c7fb6bb4a5d446d.exe)
+
+running 10 tests
+test quic_handshake_binds_the_cert_to_the_transport_key ... ok
+test an_agent_discovers_the_shard_provider_through_kademlia ... ok
+test gossip_delivers_a_signed_publish_to_the_primary ... ok
+test a_valid_revoke_on_a_shard_topic_is_refused ... ok
+test a_closed_connection_reaches_peer_lost_in_the_shard ... ok
+test publish_and_find_travel_over_the_real_transport ... ok
+test a_revoke_below_threshold_is_rejected_before_it_can_revoke ... ok
+test an_agent_publishes_finds_and_opens_a_direct_session ... ok
+test a_threshold_revoke_drops_connections_and_blocks_reconnect ... ok
+test a_cert_whose_owner_is_not_the_transport_key_is_rejected ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.32s
+
+   Doc-tests vecdht_net
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+### РЕГРЕССИЯ ###
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 124.54s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.65s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.60s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.06s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 77.47s
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 64.24s
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 11.00s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.32s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+ignored_всего=crates/vecdht-net/tests/s53_door_branches.rs:1 crates/vecdht-net/tests/s5_handshake_seam.rs:1 
+### КОНТРОЛЬ ПОРОГОВ ###
+порог (4) оракул зелёный оба прогона: EXIT n1/n2 см. блоки ШАГ 1/2
+порог (6) digest_совпал=0  r1=  r2=
+порог (8) осевшие_каталоги=0
+порог (5) регрессия: failed=0
+RAM_FREE_MB_AFTER=5984 DISK_FREE_MB_AFTER=18166
+TARGET_SIZE_MB=4384
+DIGEST_r1=3a92925f9ae79dea682d358a96c32042e820499291570fd1cda91e3cac2a6e7c
+DIGEST_r2=3a92925f9ae79dea682d358a96c32042e820499291570fd1cda91e3cac2a6e7c
+DIGEST_MATCH=1
+
+### ДИАГНОЗ-3 (контроль порога (6) после исправленного прогона) ###
+Строка «порог (6) digest_совпал=0 r1= r2=» из КОНТРОЛЯ — артефакт экстрактора: `get` берёт
+первое вхождение ключа в лог, а лог append-only и содержит ещё и первый (упавший) прогон, где
+свёртка не печаталась. Проверка тем же числом по последнему вхождению:
+DIGEST_r1=3a92925f9ae79dea682d358a96c32042e820499291570fd1cda91e3cac2a6e7c
+DIGEST_r2=3a92925f9ae79dea682d358a96c32042e820499291570fd1cda91e3cac2a6e7c
+DIGEST_MATCH=1 — порог (6) исправленного прогона выполнен. Правило на будущее: в append-only логе
+контроль обязан брать последнее вхождение (`tail -1`), иначе второй прогон в том же файле делает
+сверку ложью. Заодно заметим: `o2_gate_find` = 36 в обоих прогонах при `o2_gate_publish` = 73/74 —
+число доставок нестабильно, а нуль/ненуль стабилен, поэтому вердикт и меряется по нему.
+
+### ДИАГНОЗ-4 (честность двух `#[ignore]`) ###
+Оба исторических таргета исполнены вручную с `--ignored` на дереве с фиксом и обязаны падать:
+`s5_handshake_seam.rs::the_gossip_door_is_open_to_a_peer_the_handshake_refused` — EXIT=101, паника
+на `s5_handshake_seam.rs:556`; `s53_door_branches.rs::a_cert_that_is_not_valid_yet_is_refused_and_its_publish_still_lands`
+— EXIT=101, паника на `s53_door_branches.rs:563` (ожидание «gossip-публикация дошла»), при этом
+`gate6a_refused=1`, `gate6b_hidden=1`, `gate6c_answered=1 gate6c_code=DENIED` сохранились. То есть
+помечены именно те строки, которые фикс сделал ложью, а не соседние ветки.
+
+### ИТОГ исправленного прогона ###
+Порог (0) правка = фильтр + оракул + два `#[ignore]` — выполнен; (1) `--no-run` EXIT=0 (11,36 с);
+(2) clippy `--all-targets -D warnings` EXIT=0; (3) PRE_FIX на дереве без правки падает ровно в (О2)
+(`gossip_door_parity.rs:369`, `o2_gossip_landed=1 o2_stored=1 o2_gate_publish=0 o2_gate_find=0`);
+(4) оракул n=1 и n=2 — 4 passed / 0 failed, EXIT=0; (5) регрессия всего `vecdht-net` c
+`--no-fail-fast` — 11 бинарей, 0 failed, 2 ignored, EXIT=0; (6) свёртка совпала (ДИАГНОЗ-3);
+(7) ни одно замороженное число предков не изменено, `git diff` по `docs/` пуст до закрывающего
+коммита; (8) осевших `vecdht-gdp` = 0; (9) ресурсы мерялись до/после, `cargo clean` не исполнялся.
+RAM 6789 → 5984 МБ, диск 18290 → 18166 МБ, `target/` 4265 → 4384 МБ. Свободный диск ниже допуска
+PLAN (15 000 МБ) не опустился.
+
+### ВЕРИФИКАЦИЯ воркспейса (блок `E-0087 · workspace-verify` в lab/logs/workspace-verify-2026-10-22.log) ###
+TEST_EXIT=0, CLIPPY_EXIT=0; 101 срез «test result: ok», 641 passed, 0 failed, 7 ignored.
+Сверка с предыдущим блоком (`E-0085`: 100 срез / 639 passed): +1 срез = новый бинарь
+`gossip_door_parity`, +4 таргета из него, −2 ушедших в `ignored` = 641. Число `ignored` 5 → 7 —
+ровно два помеченных исторических таргета. Ресурсы вокруг верификации: `target/` 4384 → 7252 МБ,
+после — свободно 19 791 МБ, RAM 8300 МБ. `cargo clean` не исполнялся.

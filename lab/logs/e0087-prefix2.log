@@ -1,0 +1,29 @@
+   Compiling vecdht-net v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-net)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 7.77s
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-ef356aaada758ffd.exe)
+
+running 4 tests
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... МЕРЕНО o1_refused=1
+МЕРЕНО o1_direct_code=DENIED
+МЕРЕНО o2_gossip_landed=1 o2_stored=1 o2_gate_publish=0 o2_gate_find=0 o2_find_gated=0
+МЕРЕНО o2_unsigned_guard=не удалось собрать транспорт: gossip-кадр шарда 7 обязан быть подписан приложением (§5.3)
+
+thread 'a_peer_refused_at_the_door_loses_the_gossip_publish_path' (22896) panicked at crates\vecdht-net\tests\gossip_door_parity.rs:369:9:
+(О2) `Publish` отказанного пира лёг в индекс по gossip
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test an_agent_without_a_credential_still_lands ... МЕРЕНО o3_agent_stored=1 o3_agent_gate_hits=0
+ok
+test membership_style_gossip_is_not_gated ... МЕРЕНО o4_gated=0 o4_errors=["handshake 12D3KooWGTSzhShkoYo5Sc1wpKjanGDC7f9q7Bgy8mtqbVjSgzfw: кредашиал отвергнут: not valid yet: now=1792765083, valid_from=1792768683"]
+ok
+test the_same_identity_lands_once_the_door_is_passed ... МЕРЕНО o3_stored=1 o3_gate_hits=0
+ok
+
+failures:
+
+failures:
+    a_peer_refused_at_the_door_loses_the_gossip_publish_path
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.94s
+
+error: test failed, to rerun pass `-p vecdht-net --test gossip_door_parity`
