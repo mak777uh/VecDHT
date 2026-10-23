@@ -1,0 +1,2277 @@
+=== E-0079 прогон 2026-10-23T04:10:47+03:00 ===
+HEAD: 928182d
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+lean: Lean (version 4.36.0-rc1, x86_64-w64-windows-gnu, commit c9afcddf514a6772bd4d649f7cfc04eff0b9f15e, Release)
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ОС: Майкрософт Windows 11 Pro 10.0.26300
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 7489,45703125
+ДИСК СВОБОДНО до прогона, МБ: 10024,69921875
+### СТОИМОСТЬ ### 2026-10-23T04:10:50+03:00
+-- модель Lean: строк всего / без комментариев / теорем / определений / native_decide:
+   всего: 302
+   без комментариев и пустых: 201
+   теорем: 18
+   определений: 27
+   native_decide: 6
+   sorry (обязан быть 0): 0
+   import Mathlib (обязан быть 0): 0
+-- оракул Rust: строк / тестов:
+   строк: 592
+   тестов: 6
+-- зависимостей добавлено не было:
+-- продуктовый код, wire и спека этим циклом не тронуты (пусто = ок):
+### LEAN CHECK lab/lean/VecDHT/Admission.lean ### 2026-10-23T04:10:50+03:00
+83521
+8
+3
+2
+2
+EXIT=0
+LEAN_MS=3847 LEAN_S=3
+### ИНВЕНТАРЬ ### 2026-10-23T04:10:54+03:00
+-- порядок гейтов Publish (модель повторяет его по строкам):
+        let frame = decode_frame(bytes)?;
+        let msg = Publish::decode(bytes)?;
+        if frame.header.signed() {
+            let ok = match frame.signature {
+                Some(sig) => verify_body(
+                    &msg.owner_ed25519,
+                    domain::PUBLISH,
+                    Kind::Publish,
+                    frame.body,
+                    &sig.try_into().unwrap_or([0u8; 64]),
+                )
+                .unwrap_or(false),
+                None => false,
+            };
+            if !ok {
+                return self.err(from, err_code::DENIED, 0);
+            }
+        }
+        // расхождение — подделка, а не другая реализация.
+        if msg.intent_id != intent_id(&msg.vec_q, msg.preprocessing_version) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
+        if shard_of_cluster(msg.cluster_id) != self.shard {
+            return self.err(from, err_code::SHARD_MISMATCH, 0);
+        }
+        // Publish принимает только primary: реплика, у которой тоже активный lease и подтверждённый
+        // `grant_epoch`, иначе ответила бы агенту `PublishAck`, не имея возможности разослать опс
+        let verdict = self.admission.borrow_mut().check_publish(&from, &msg.owner_ed25519, now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        // `slot_key` из §11.1 — это `intent_id`: слот узел назначает сам и агент узнать его
+        // не может (спека, §11.1: привязка к identity, которую доприём вычисляет клиент).
+        let expires = msg.published_bucket.saturating_add(msg.ttl_buckets as u32);
+        let input = pow_input(&msg.owner_ed25519, self.shard, epoch, &msg.intent_id, expires);
+        let bits = msg.pow_bits as u32;
+        if bits < self.pow_bits as u32 {
+            return self.err(from, err_code::POW_BITS_LOW, 1_000);
+        }
+        if bits > self.params.pow_bits_max as u32 {
+            return self.err(from, err_code::POW_INVALID, 1_000);
+        }
+        if !pow_ok(&input, msg.pow_nonce, bits) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
+        // §11.3.4: узловой бюджет резервируется *до* вытеснения. Обратный порядок оставлял бы
+        // за `BUSY` уже удалённую чужую запись — отказ дешевле принятия, но не ценой чужого
+        // слота. Токен при последующем `SHARD_FULL` не возвращается: см. политику в
+        // `Admission::check_publish`.
+        let verdict = self.admission.borrow_mut().reserve_admit(now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        let mut victim = None;
+        if !replacing && (self.store.len() as u64) >= self.params.max_live_per_shard {
+            let newcomer = Candidate::newcomer(bits, msg.published_bucket);
+            victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            if victim.is_none() {
+                // Резервуар не знает всех цен: он видел только те записи, что принял этот узел
+                // (рестарт и handoff обнуляют знание, §11.3.3). Один ограниченный проход по арене
+                // дешевле, чем O(M) на каждый publish, и честнее, чем «жертвы нет» при живой
+                // дешёвой записи.
+                let from_slot = self.evictor.scan_from();
+                let arena_end = self.store.index.next_slot();
+                let entries = self
+                    .store
+                    .index
+                    .live_slots_from(from_slot)
+                    .map(|(s, e)| (s, e.published_bucket));
+                self.evictor.refill(entries, arena_end, admission::EVICT_SCAN_BUDGET);
+                victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            }
+            if victim.is_none() {
+                // §11.3.3: дешевле новичка никого — значит отказ, а не вытеснение дорогой записи.
+                return self.err(from, err_code::SHARD_FULL, 10_000);
+            }
+        }
+        // Владелец жертвы нужен и для WAL-фрейма `Delete`, и для реплики: удаление — это
+-- pow_input: owner, shard, epoch, slot_key, expires — cluster_id нет:
+pub fn pow_input(
+    owner_ed25519: &[u8; 32],
+    shard: u16,
+    epoch: u64,
+    slot_key: &[u8; 32],
+    expires_bucket: u32,
+) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.extend_raw(POW_DOMAIN);
+    w.fixed(owner_ed25519);
+    w.u16(shard);
+    w.u64(epoch);
+    w.fixed(slot_key);
+    w.u32(expires_bucket);
+    w.into_vec()
+}
+
+/// Проверка: один blake3 над `input ‖ nonce`.
+-- константы сложности §11.2:
+/// МХеш/с, которого на коротких входах не бывает: замер даёт 3,0–7,0 МХеш/с на ядро, то есть
+/// 2²⁴ = 2,4–5,6 с, а 2²⁸ = 38–89 с.
+pub const POW_BITS_DEFAULT: u32 = 20;
+pub const POW_BITS_MIN: u32 = 18;
+pub const POW_BITS_MAX: u32 = 24;
+
+// Инвариант политики проверяется на сборке: значения констант, значит и проверка константная.
+-- переезд между posting list'ами:
+    pub fn insert(&mut self, e: IndexEntry) -> Result<InsertOutcome, IndexError> {
+        if e.cluster_id >= NLIST {
+            return Err(IndexError::ClusterOutOfRange(e.cluster_id));
+        }
+        let want = shard_of(e.cluster_id);
+        if want != self.shard {
+            return Err(IndexError::ShardMismatch { cluster: e.cluster_id, shard: self.shard, want });
+        }
+        if let Some(slot) = self.owner_slot(&e.owner_ed25519) {
+            let old = self.entries[slot as usize];
+            if old.cluster_id != e.cluster_id {
+                // Меняется только состав списков: slot остаётся прежним.
+                self.list_remove(old.cluster_id, slot);
+                self.list_insert(e.cluster_id, slot);
+            }
+            self.entries[slot as usize] = e;
+            return Ok(InsertOutcome { slot, replaced: true });
+        }
+-- размер ячейки есть в индексе и не вызывается при приёме:
+crates/vecdht-cli/src/index_cmd.rs:309:        .map(|c| (o.store.index.cluster_len(c), c))
+crates/vecdht-index/src/ivf.rs:447:    pub fn cluster_len(&self, cluster: u16) -> usize {
+crates/vecdht-index/src/ivf.rs:667:        assert_eq!(ix.cluster_len(1), 1, "дублей в списке нет");
+crates/vecdht-index/src/ivf.rs:678:        assert_eq!(ix.cluster_len(0), 0);
+crates/vecdht-index/src/ivf.rs:679:        assert_eq!(ix.cluster_len(2), 1);
+-- скан без дедупликации списка кластеров:
+    ) -> Vec<(u32, u32)> {
+        if top_k == 0 {
+            return Vec::new();
+        }
+        let mut best: Vec<(u32, u32)> = Vec::with_capacity(top_k);
+        for &c in clusters {
+            let Some(list) = self.lists.get(c as usize) else { continue };
+            for &slot in list {
+                let e = &self.entries[slot as usize];
+                // Запись могла пережить дедлайн, но ещё не быть снята GcTick'ом.
+                if e.is_expired(now_bucket) {
+                    continue;
+                }
+                let hit = (l2_sq(q, &e.vec_q), slot);
+                // Худший из удержанных — последний: буфер всегда отсортирован по компаратору §8.4.
+                if best.len() == top_k && hit >= best[top_k - 1] {
+                    continue;
+                }
+                let pos = best.partition_point(|&h| h < hit);
+                best.insert(pos, hit);
+                best.truncate(top_k);
+            }
+        }
+        best
+    }
+
+    /// Те же хиты в wire-представлении: `MatchResult` подписывается именно по ним (§8.4).
+    pub fn matches(&self, hits: &[(u32, u32)]) -> Vec<Match> {
+        hits.iter()
+            .filter_map(|(d2, slot)| {
+-- документированная уверенность, которую проверяет тест (1):
+    /// Кадр для `on_frame`, без TLV.
+    ///
+    /// Кадр не подписывается: подпись `Publish` опциональна (§5.3), а `owner_ed25519` в теле узел
+    /// сверяет с PoW-привязкой, так что подделка не даёт ничего.
+    pub fn frame(&self) -> Vec<u8> {
+        self.msg(Vec::new()).encode_unsigned()
+    }
+}
+-- обещание спеки (строка 1392):
+1392:Векторы атак и границы: (i) flood publish → квоты + PoW + evict по `pow_bits`; (ii) дорогой find → bucket 5/с на ключ; ни rerank-пути, ни очереди поиска с ограничением по времени на узле нет — кадр обрабатывается синхронно, усиление стоимости измерено `E-0037` и ограничено только квотой ключа (`ADR-0008`); (iii) надувание DHT-записей → 64 ключа, членство не читается из DHT (§9.2); (iv) надувание кластеров (подделанные embedding'ы, слитые в один горячий центроид) → **защиты нет**: per-cluster admission cap в коде не реализован, а балансировка `cap 2×` работает только при построении артефакта, то есть на уже принятые записи не влияет. Что ограничивает поток реально: per-key publish-бакет и узловой бюджет 100 admits/с (§11.3.4), evict по cheapest `pow_bits` (§11.4) и потолок таблицы приёмов — `MAX_ACCEPTS = 100 000` живых приёмов (§12.3, `rendezvous.rs`); ни одно из них не зависит от заполненности кластера, поэтому слив в один центроид даёт линейный рост скана этой ячейки. Адаптивная `POW_BITS` — предложение, тоже не реализовано (§20.2, строка 4 — не измерено); (v) eclipse — мин. `R=3` владельцев, все 8 шардов узла не могут покрыть зондирование одного запроса.
+-- тесты оракула:
+139:#[test]
+140-fn an_unsigned_publish_under_a_foreign_owner_replaces_their_record() {
+--
+211:#[test]
+212-fn changing_cluster_id_costs_no_new_pow() {
+--
+280:#[test]
+281-fn one_cell_grows_to_the_shard_cap() {
+--
+324:#[test]
+325-fn find_scan_price_scales_with_cell_size_and_list_length() {
+--
+430:#[test]
+431-fn the_price_of_one_accepted_record() {
+--
+491:#[test]
+492-fn per_cluster_cap_is_three_policies_and_two_are_broken() {
+### ORACLE BUILD --no-run ### 2026-10-23T04:10:55+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+  Executable tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+EXIT=0
+### ORACLE RUN --nocapture ### 2026-10-23T04:10:55+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+
+running 6 tests
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ## (1) подмена прошла: принято чужих кадров в бакет жертвы = 20 из 25, отказ жертвы = QUOTA_PUBLISH, запись восстановлена на следующий токен ##
+ok
+test changing_cluster_id_costs_no_new_pow ... ## (2) переезд: 4 записи в одной ячейке при total 4, evicted 0; смена cluster_id в оплаченном кадре прошла без нового nonce ##
+ok
+test find_scan_price_scales_with_cell_size_and_list_length ... 
+thread 'find_scan_price_scales_with_cell_size_and_list_length' (30588) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:366:13:
+assertion `left == right` failed: отбор top_k=64
+  left: 0
+ right: 16
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test one_cell_grows_to_the_shard_cap ... ## (3) потолок: cluster_len = 200 = max_live_per_shard (200), отказов 0, коды []; 210 кадров живым путём за 364 мс (evicted 10) ##
+ok
+test per_cluster_cap_is_three_policies_and_two_are_broken ... 
+thread 'per_cluster_cap_is_three_policies_and_two_are_broken' (20864) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:578:5:
+фальсификатор (6б): строгая форма не ломает продления — (1, 8, 0, 35, 20, 60)
+FAILED
+test the_price_of_one_accepted_record ... 
+thread 'the_price_of_one_accepted_record' (24092) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:445:5:
+инструментальный порог: 4× работы (18→20 бит) дала 0.97× времени — майнер сломан
+FAILED
+
+failures:
+
+failures:
+    find_scan_price_scales_with_cell_size_and_list_length
+    per_cluster_cap_is_three_policies_and_two_are_broken
+    the_price_of_one_accepted_record
+
+test result: FAILED. 3 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.26s
+
+error: test failed, to rerun pass `-p vecdht-node --test s14_cluster_bloat_price`
+EXIT=101
+RUST_MS=7321 RUST_S=7
+### РЕСУРСЫ ПОСЛЕ ОРАКУЛА ### 2026-10-23T04:11:02+03:00
+RAM СВОБОДНО, МБ: 7348,9296875
+ДИСК СВОБОДНО, МБ: 10022,4765625
+target/, МБ: 6898
+лог, МБ: 1
+### КОНТРОЛЬ vecdht-node ### 2026-10-23T04:11:06+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-b5c4bef439652d93.exe)
+
+running 74 tests
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test lease::tests::a_lease_from_the_future_is_not_adopted ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+
+test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests\accept_presentation_api_only.rs (target\debug\deps\accept_presentation_api_only-1c1f325f00d68d4b.exe)
+
+running 1 test
+test target_side_serves_text_without_accept_and_spend_is_library_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\accept_ttl_boundary.rs (target\debug\deps\accept_ttl_boundary-e8d55d8712060310.exe)
+
+running 1 test
+test accept_lives_inclusive_to_the_boundary_bucket_and_the_table_prunes_with_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\admission.rs (target\debug\deps\admission-b3cf28692351ccf7.exe)
+
+running 7 tests
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests\admission_table_over_limit.rs (target\debug\deps\admission_table_over_limit-dec1769ea7ef0ce2.exe)
+
+running 2 tests
+test idle_surge_forgets_exactly_over_rows_and_the_forgotten_key_returns_fresh ... ok
+test the_peer_table_holds_active_keys_over_the_limit_and_forgets_nothing ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\adversarial.rs (target\debug\deps\adversarial-430892ab291c3c1c.exe)
+
+running 8 tests
+test p5_gate_sixteen_core_sybil_for_ten_minutes ... ignored, гейт P5: 16 ядер × 10 минут × 2^20; запускать в release с --ignored
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+     Running tests\anti_replay_find.rs (target\debug\deps\anti_replay_find-2e5c817945dc6e80.exe)
+
+running 1 test
+test the_same_query_id_is_answered_again_and_again_including_after_61_seconds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests\ceiling_clamp_compose.rs (target\debug\deps\ceiling_clamp_compose-6a71718c04ca6c2f.exe)
+
+running 1 test
+test clamp_runs_before_issue_so_the_ceiling_refuses_the_tail_of_the_clamped_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.57s
+
+     Running tests\ceiling_gradual_prune.rs (target\debug\deps\ceiling_gradual_prune-3cdfdb860d8f84db.exe)
+
+running 1 test
+test the_ceiling_returns_bucket_by_bucket_when_rows_live_in_different_buckets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.48s
+
+     Running tests\ceiling_partial_accepts.rs (target\debug\deps\ceiling_partial_accepts-b0edca2a312a597d.exe)
+
+running 1 test
+test ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.83s
+
+     Running tests\ceiling_prune_recovery.rs (target\debug\deps\ceiling_prune_recovery-0ba88986ab3c2c4b.exe)
+
+running 1 test
+test the_ceiling_hole_returns_when_leased_rows_expire_out_of_prune ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.55s
+
+     Running tests\ceiling_two_seekers.rs (target\debug\deps\ceiling_two_seekers-ac17ce4bac15287f.exe)
+
+running 1 test
+test one_hole_is_consumed_by_the_first_seeker_and_the_second_gets_no_accept_at_all ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.65s
+
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-b905c5b6c122c1e4.exe)
+
+running 1 test
+test denylist_is_unreachable_in_and_vanishes_on_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests\epoch_rotation_accept.rs (target\debug\deps\epoch_rotation_accept-43bac2b1c1f9f9e0.exe)
+
+running 1 test
+test pre_epoch_accept_spends_after_rotation_and_new_primary_issues_fresh ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running tests\find_admission_price.rs (target\debug\deps\find_admission_price-90428aec9ecac5b2.exe)
+
+running 1 test
+test find_quota_price_ignores_cluster_list_length ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_empty_cluster_list.rs (target\debug\deps\find_empty_cluster_list-df04b442ab063819.exe)
+
+running 1 test
+test empty_cluster_list_is_served_as_signed_empty_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_no_queue.rs (target\debug\deps\find_no_queue-2a2f31c468b64aac.exe)
+
+running 2 tests
+test an_expensive_find_is_fixed_in_one_answer_and_repeats_byte_identically ... ok
+test the_sybil_surge_leaves_no_frame_without_an_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\find_node_budget.rs (target\debug\deps\find_node_budget-e796383c0ced7544.exe)
+
+running 1 test
+test sybil_find_surge_passes_node_budget_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\frame_byte_mutation.rs (target\debug\deps\frame_byte_mutation-e184517e0ca3ffab.exe)
+
+running 1 test
+test noncanonical_accept_bytes_do_not_create_a_second_spend ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\future_epoch_lease_freeze.rs (target\debug\deps\future_epoch_lease_freeze-266b32bc37e058f3.exe)
+
+running 1 test
+test a_future_epoch_grant_from_an_arbitrary_key_freezes_the_shard ... ignored, исторический замер E-0067: поведение до ADR-0016, действующий контракт — lease_membership_binding.rs
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-9806abdb3d00e478.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+     Running tests\gc.rs (target\debug\deps\gc-9948c6b278ccd4a0.exe)
+
+running 2 tests
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests\heal_demotion_window.rs (target\debug\deps\heal_demotion_window-11ca37feab9b67e5.exe)
+
+running 1 test
+test heal_demotion_window ... ignored, исторический оракул E-0069: heal-окно §9.8 до ADR-0017 (замер на rev ee6ba8e); R1–R3 намеренно меняют поведение — актуальный оракул heal_one_step
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\heal_one_step.rs (target\debug\deps\heal_one_step-adb31212c86ed834.exe)
+
+running 1 test
+test heal_one_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests\immediate_refusals_exit.rs (target\debug\deps\immediate_refusals_exit-fdd70cbadb056b75.exe)
+
+running 1 test
+test immediate_refusals_leave_serve_request_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\lease_membership_binding.rs (target\debug\deps\lease_membership_binding-9e089dc863480635.exe)
+
+running 1 test
+test a_grant_is_bound_to_the_accepted_epoch_and_primary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+     Running tests\lease_table_ceiling.rs (target\debug\deps\lease_table_ceiling-6586afb71ea612a5.exe)
+
+running 1 test
+test repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+     Running tests\lease_table_restart.rs (target\debug\deps\lease_table_restart-e14c915fd2bc2ce6.exe)
+
+running 1 test
+test restart_empties_the_table_and_the_old_accept_still_spends ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests\live_split_brain_fencing.rs (target\debug\deps\live_split_brain_fencing-aa1e3b015761fa9f.exe)
+
+running 1 test
+test a_live_deposed_primary_cannot_ack_or_impose_its_write ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests\post_prune_spend_window.rs (target\debug\deps\post_prune_spend_window-8de7bb0c9004421b.exe)
+
+running 1 test
+test post_prune_accept_expires_at_the_same_bucket_the_issuer_prunes_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.58s
+
+     Running tests\present_serving_gate.rs (target\debug\deps\present_serving_gate-e43457ccfee1790f.exe)
+
+running 1 test
+test serving_gate_requires_presentation_and_spend_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-7ed8e13c4b151eba.exe)
+
+running 3 tests
+test a_find_without_matches_issues_no_accept ... ok
+test an_accept_stops_working_after_its_ttl ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\response_verification_order.rs (target\debug\deps\response_verification_order-f2f8dce990c7b5c7.exe)
+
+running 1 test
+test response_checks_follow_the_named_sequence_and_refusals_stay_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\restart_recovery.rs (target\debug\deps\restart_recovery-aef32f31b9a43cec.exe)
+
+running 1 test
+test restart_recovers_wal_snapshot_and_gc ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+
+     Running tests\rotation_present_serving.rs (target\debug\deps\rotation_present_serving-763fd072f9ef45aa.exe)
+
+running 1 test
+test serving_path_survives_rotation_and_error_masking_is_deterministic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+
+     Running tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+
+running 6 tests
+test per_cluster_cap_is_three_policies_and_two_are_broken ... FAILED
+test the_price_of_one_accepted_record ... FAILED
+test changing_cluster_id_costs_no_new_pow ... ok
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ok
+test one_cell_grows_to_the_shard_cap ... ok
+test find_scan_price_scales_with_cell_size_and_list_length ... FAILED
+
+failures:
+
+---- per_cluster_cap_is_three_policies_and_two_are_broken stdout ----
+
+thread 'per_cluster_cap_is_three_policies_and_two_are_broken' (38228) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:578:5:
+фальсификатор (6б): строгая форма не ломает продления — (1, 8, 0, 35, 20, 60)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- the_price_of_one_accepted_record stdout ----
+
+thread 'the_price_of_one_accepted_record' (15224) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:445:5:
+инструментальный порог: 4× работы (18→20 бит) дала 0.92× времени — майнер сломан
+
+---- find_scan_price_scales_with_cell_size_and_list_length stdout ----
+
+thread 'find_scan_price_scales_with_cell_size_and_list_length' (29348) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:366:13:
+assertion `left == right` failed: отбор top_k=64
+  left: 0
+ right: 16
+
+
+failures:
+    find_scan_price_scales_with_cell_size_and_list_length
+    per_cluster_cap_is_three_policies_and_two_are_broken
+    the_price_of_one_accepted_record
+
+test result: FAILED. 3 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.58s
+
+error: test failed, to rerun pass `-p vecdht-node --test s14_cluster_bloat_price`
+EXIT=101
+### ИТОГ ### 2026-10-23T04:12:56+03:00
+HEAD после прогонов: 928182d
+RAM СВОБОДНО, МБ: 7416,1875
+ДИСК СВОБОДНО, МБ: 10017,00390625
+лог: lab/logs/e0079-all.log (658 строк)
+=== E-0079 прогон 2026-10-23T04:22:24+03:00 ===
+HEAD: 928182d
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+lean: Lean (version 4.36.0-rc1, x86_64-w64-windows-gnu, commit c9afcddf514a6772bd4d649f7cfc04eff0b9f15e, Release)
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ОС: Майкрософт Windows 11 Pro 10.0.26300
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 7630
+ДИСК СВОБОДНО до прогона, МБ: 10017
+### СТОИМОСТЬ ### 2026-10-23T04:22:27+03:00
+-- модель Lean: строк всего / без комментариев / теорем / определений / native_decide:
+   всего: 302
+   без комментариев и пустых: 201
+   теорем: 18
+   определений: 27
+   native_decide: 6
+   sorry (обязан быть 0): 0
+   import Mathlib (обязан быть 0): 0
+-- оракул Rust: строк / тестов:
+   строк: 663
+   тестов: 6
+-- зависимостей добавлено не было:
+-- продуктовый код, wire и спека этим циклом не тронуты (пусто = ок):
+### LEAN CHECK lab/lean/VecDHT/Admission.lean ### 2026-10-23T04:22:27+03:00
+83521
+8
+3
+2
+2
+EXIT=0
+LEAN_MS=4168 LEAN_S=4
+### ИНВЕНТАРЬ ### 2026-10-23T04:22:31+03:00
+-- порядок гейтов Publish (модель повторяет его по строкам):
+        let frame = decode_frame(bytes)?;
+        let msg = Publish::decode(bytes)?;
+        if frame.header.signed() {
+            let ok = match frame.signature {
+                Some(sig) => verify_body(
+                    &msg.owner_ed25519,
+                    domain::PUBLISH,
+                    Kind::Publish,
+                    frame.body,
+                    &sig.try_into().unwrap_or([0u8; 64]),
+                )
+                .unwrap_or(false),
+                None => false,
+            };
+            if !ok {
+                return self.err(from, err_code::DENIED, 0);
+            }
+        }
+        // расхождение — подделка, а не другая реализация.
+        if msg.intent_id != intent_id(&msg.vec_q, msg.preprocessing_version) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
+        if shard_of_cluster(msg.cluster_id) != self.shard {
+            return self.err(from, err_code::SHARD_MISMATCH, 0);
+        }
+        // Publish принимает только primary: реплика, у которой тоже активный lease и подтверждённый
+        // `grant_epoch`, иначе ответила бы агенту `PublishAck`, не имея возможности разослать опс
+        let verdict = self.admission.borrow_mut().check_publish(&from, &msg.owner_ed25519, now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        // `slot_key` из §11.1 — это `intent_id`: слот узел назначает сам и агент узнать его
+        // не может (спека, §11.1: привязка к identity, которую доприём вычисляет клиент).
+        let expires = msg.published_bucket.saturating_add(msg.ttl_buckets as u32);
+        let input = pow_input(&msg.owner_ed25519, self.shard, epoch, &msg.intent_id, expires);
+        let bits = msg.pow_bits as u32;
+        if bits < self.pow_bits as u32 {
+            return self.err(from, err_code::POW_BITS_LOW, 1_000);
+        }
+        if bits > self.params.pow_bits_max as u32 {
+            return self.err(from, err_code::POW_INVALID, 1_000);
+        }
+        if !pow_ok(&input, msg.pow_nonce, bits) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
+        // §11.3.4: узловой бюджет резервируется *до* вытеснения. Обратный порядок оставлял бы
+        // за `BUSY` уже удалённую чужую запись — отказ дешевле принятия, но не ценой чужого
+        // слота. Токен при последующем `SHARD_FULL` не возвращается: см. политику в
+        // `Admission::check_publish`.
+        let verdict = self.admission.borrow_mut().reserve_admit(now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        let mut victim = None;
+        if !replacing && (self.store.len() as u64) >= self.params.max_live_per_shard {
+            let newcomer = Candidate::newcomer(bits, msg.published_bucket);
+            victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            if victim.is_none() {
+                // Резервуар не знает всех цен: он видел только те записи, что принял этот узел
+                // (рестарт и handoff обнуляют знание, §11.3.3). Один ограниченный проход по арене
+                // дешевле, чем O(M) на каждый publish, и честнее, чем «жертвы нет» при живой
+                // дешёвой записи.
+                let from_slot = self.evictor.scan_from();
+                let arena_end = self.store.index.next_slot();
+                let entries = self
+                    .store
+                    .index
+                    .live_slots_from(from_slot)
+                    .map(|(s, e)| (s, e.published_bucket));
+                self.evictor.refill(entries, arena_end, admission::EVICT_SCAN_BUDGET);
+                victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            }
+            if victim.is_none() {
+                // §11.3.3: дешевле новичка никого — значит отказ, а не вытеснение дорогой записи.
+                return self.err(from, err_code::SHARD_FULL, 10_000);
+            }
+        }
+        // Владелец жертвы нужен и для WAL-фрейма `Delete`, и для реплики: удаление — это
+-- pow_input: owner, shard, epoch, slot_key, expires — cluster_id нет:
+pub fn pow_input(
+    owner_ed25519: &[u8; 32],
+    shard: u16,
+    epoch: u64,
+    slot_key: &[u8; 32],
+    expires_bucket: u32,
+) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.extend_raw(POW_DOMAIN);
+    w.fixed(owner_ed25519);
+    w.u16(shard);
+    w.u64(epoch);
+    w.fixed(slot_key);
+    w.u32(expires_bucket);
+    w.into_vec()
+}
+
+/// Проверка: один blake3 над `input ‖ nonce`.
+-- константы сложности §11.2:
+/// МХеш/с, которого на коротких входах не бывает: замер даёт 3,0–7,0 МХеш/с на ядро, то есть
+/// 2²⁴ = 2,4–5,6 с, а 2²⁸ = 38–89 с.
+pub const POW_BITS_DEFAULT: u32 = 20;
+pub const POW_BITS_MIN: u32 = 18;
+pub const POW_BITS_MAX: u32 = 24;
+
+// Инвариант политики проверяется на сборке: значения констант, значит и проверка константная.
+-- переезд между posting list'ами:
+    pub fn insert(&mut self, e: IndexEntry) -> Result<InsertOutcome, IndexError> {
+        if e.cluster_id >= NLIST {
+            return Err(IndexError::ClusterOutOfRange(e.cluster_id));
+        }
+        let want = shard_of(e.cluster_id);
+        if want != self.shard {
+            return Err(IndexError::ShardMismatch { cluster: e.cluster_id, shard: self.shard, want });
+        }
+        if let Some(slot) = self.owner_slot(&e.owner_ed25519) {
+            let old = self.entries[slot as usize];
+            if old.cluster_id != e.cluster_id {
+                // Меняется только состав списков: slot остаётся прежним.
+                self.list_remove(old.cluster_id, slot);
+                self.list_insert(e.cluster_id, slot);
+            }
+            self.entries[slot as usize] = e;
+            return Ok(InsertOutcome { slot, replaced: true });
+        }
+-- размер ячейки есть в индексе и не вызывается при приёме:
+crates/vecdht-cli/src/index_cmd.rs:309:        .map(|c| (o.store.index.cluster_len(c), c))
+crates/vecdht-index/src/ivf.rs:447:    pub fn cluster_len(&self, cluster: u16) -> usize {
+crates/vecdht-index/src/ivf.rs:667:        assert_eq!(ix.cluster_len(1), 1, "дублей в списке нет");
+crates/vecdht-index/src/ivf.rs:678:        assert_eq!(ix.cluster_len(0), 0);
+crates/vecdht-index/src/ivf.rs:679:        assert_eq!(ix.cluster_len(2), 1);
+-- скан без дедупликации списка кластеров:
+    ) -> Vec<(u32, u32)> {
+        if top_k == 0 {
+            return Vec::new();
+        }
+        let mut best: Vec<(u32, u32)> = Vec::with_capacity(top_k);
+        for &c in clusters {
+            let Some(list) = self.lists.get(c as usize) else { continue };
+            for &slot in list {
+                let e = &self.entries[slot as usize];
+                // Запись могла пережить дедлайн, но ещё не быть снята GcTick'ом.
+                if e.is_expired(now_bucket) {
+                    continue;
+                }
+                let hit = (l2_sq(q, &e.vec_q), slot);
+                // Худший из удержанных — последний: буфер всегда отсортирован по компаратору §8.4.
+                if best.len() == top_k && hit >= best[top_k - 1] {
+                    continue;
+                }
+                let pos = best.partition_point(|&h| h < hit);
+                best.insert(pos, hit);
+                best.truncate(top_k);
+            }
+        }
+        best
+    }
+
+    /// Те же хиты в wire-представлении: `MatchResult` подписывается именно по ним (§8.4).
+    pub fn matches(&self, hits: &[(u32, u32)]) -> Vec<Match> {
+        hits.iter()
+            .filter_map(|(d2, slot)| {
+-- документированная уверенность, которую проверяет тест (1):
+    /// Кадр для `on_frame`, без TLV.
+    ///
+    /// Кадр не подписывается: подпись `Publish` опциональна (§5.3), а `owner_ed25519` в теле узел
+    /// сверяет с PoW-привязкой, так что подделка не даёт ничего.
+    pub fn frame(&self) -> Vec<u8> {
+        self.msg(Vec::new()).encode_unsigned()
+    }
+}
+-- обещание спеки (строка 1392):
+1392:Векторы атак и границы: (i) flood publish → квоты + PoW + evict по `pow_bits`; (ii) дорогой find → bucket 5/с на ключ; ни rerank-пути, ни очереди поиска с ограничением по времени на узле нет — кадр обрабатывается синхронно, усиление стоимости измерено `E-0037` и ограничено только квотой ключа (`ADR-0008`); (iii) надувание DHT-записей → 64 ключа, членство не читается из DHT (§9.2); (iv) надувание кластеров (подделанные embedding'ы, слитые в один горячий центроид) → **защиты нет**: per-cluster admission cap в коде не реализован, а балансировка `cap 2×` работает только при построении артефакта, то есть на уже принятые записи не влияет. Что ограничивает поток реально: per-key publish-бакет и узловой бюджет 100 admits/с (§11.3.4), evict по cheapest `pow_bits` (§11.4) и потолок таблицы приёмов — `MAX_ACCEPTS = 100 000` живых приёмов (§12.3, `rendezvous.rs`); ни одно из них не зависит от заполненности кластера, поэтому слив в один центроид даёт линейный рост скана этой ячейки. Адаптивная `POW_BITS` — предложение, тоже не реализовано (§20.2, строка 4 — не измерено); (v) eclipse — мин. `R=3` владельцев, все 8 шардов узла не могут покрыть зондирование одного запроса.
+-- тесты оракула:
+139:#[test]
+140-fn an_unsigned_publish_under_a_foreign_owner_replaces_their_record() {
+--
+211:#[test]
+212-fn changing_cluster_id_costs_no_new_pow() {
+--
+280:#[test]
+281-fn one_cell_grows_to_the_shard_cap() {
+--
+324:#[test]
+325-fn find_scan_price_scales_with_cell_size_and_list_length() {
+--
+444:#[test]
+445-fn the_price_of_one_accepted_record() {
+--
+551:#[test]
+552-fn per_cluster_cap_is_three_policies_and_two_are_broken() {
+### ORACLE BUILD --no-run ### 2026-10-23T04:22:32+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+  Executable tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+EXIT=0
+### ORACLE RUN --nocapture ### 2026-10-23T04:22:32+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+
+running 6 tests
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ## (1) подмена прошла: принято чужих кадров в бакет жертвы = 20 из 25, отказ жертвы = QUOTA_PUBLISH, запись восстановлена на следующий токен ##
+ok
+test changing_cluster_id_costs_no_new_pow ... ## (2) переезд: 4 записи в одной ячейке при total 4, evicted 0; смена cluster_id в оплаченном кадре прошла без нового nonce ##
+ok
+test find_scan_price_scales_with_cell_size_and_list_length ... ## (4) скан: медианы [172, 680, 2858, 10833, 43273] мкс при лестнице [16, 64, 256, 1024, 4096]; п95 [187, 693, 2924, 11605, 44783]; мкс/запись [10.75, 10.625, 11.1640625, 10.5791015625, 10.564697265625]; 256 копий одной ячейки: 44270 → 11969826 мкс (усиление 270.4×); живой Find: [("пустая", 360, 1), ("горячая 4096", 54802, 65)] ##
+ok
+test one_cell_grows_to_the_shard_cap ... ## (3) потолок: cluster_len = 200 = max_live_per_shard (200), отказов 0, коды []; 210 кадров живым путём за 405 мс (evicted 10) ##
+ok
+test per_cluster_cap_is_three_policies_and_two_are_broken ... 
+thread 'per_cluster_cap_is_three_policies_and_two_are_broken' (14256) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:649:5:
+фальсификатор (6б): строгая форма не ломает продления — (1, 8, 0, 35, 20, 64)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test the_price_of_one_accepted_record ... 
+thread 'the_price_of_one_accepted_record' (24952) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:496:5:
+инструмент (расширение): прогретый майнер дал [0.9980846925033667, 1.053971395160565] при ожидаемых 4× — счёт не годится
+FAILED
+
+failures:
+
+failures:
+    per_cluster_cap_is_three_policies_and_two_are_broken
+    the_price_of_one_accepted_record
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 190.75s
+
+error: test failed, to rerun pass `-p vecdht-node --test s14_cluster_bloat_price`
+EXIT=101
+RUST_MS=191926 RUST_S=191
+### РЕСУРСЫ ПОСЛЕ ОРАКУЛА ### 2026-10-23T04:25:44+03:00
+RAM СВОБОДНО, МБ: 7973
+ДИСК СВОБОДНО, МБ: 10017
+target/, МБ: 6899
+лог, МБ: 1
+### КОНТРОЛЬ vecdht-node ### 2026-10-23T04:25:47+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-b5c4bef439652d93.exe)
+
+running 74 tests
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test lease::tests::a_lease_from_the_future_is_not_adopted ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+
+test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests\accept_presentation_api_only.rs (target\debug\deps\accept_presentation_api_only-1c1f325f00d68d4b.exe)
+
+running 1 test
+test target_side_serves_text_without_accept_and_spend_is_library_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\accept_ttl_boundary.rs (target\debug\deps\accept_ttl_boundary-e8d55d8712060310.exe)
+
+running 1 test
+test accept_lives_inclusive_to_the_boundary_bucket_and_the_table_prunes_with_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\admission.rs (target\debug\deps\admission-b3cf28692351ccf7.exe)
+
+running 7 tests
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests\admission_table_over_limit.rs (target\debug\deps\admission_table_over_limit-dec1769ea7ef0ce2.exe)
+
+running 2 tests
+test the_peer_table_holds_active_keys_over_the_limit_and_forgets_nothing ... ok
+test idle_surge_forgets_exactly_over_rows_and_the_forgotten_key_returns_fresh ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\adversarial.rs (target\debug\deps\adversarial-430892ab291c3c1c.exe)
+
+running 8 tests
+test p5_gate_sixteen_core_sybil_for_ten_minutes ... ignored, гейт P5: 16 ядер × 10 минут × 2^20; запускать в release с --ignored
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+     Running tests\anti_replay_find.rs (target\debug\deps\anti_replay_find-2e5c817945dc6e80.exe)
+
+running 1 test
+test the_same_query_id_is_answered_again_and_again_including_after_61_seconds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\ceiling_clamp_compose.rs (target\debug\deps\ceiling_clamp_compose-6a71718c04ca6c2f.exe)
+
+running 1 test
+test clamp_runs_before_issue_so_the_ceiling_refuses_the_tail_of_the_clamped_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.81s
+
+     Running tests\ceiling_gradual_prune.rs (target\debug\deps\ceiling_gradual_prune-3cdfdb860d8f84db.exe)
+
+running 1 test
+test the_ceiling_returns_bucket_by_bucket_when_rows_live_in_different_buckets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.46s
+
+     Running tests\ceiling_partial_accepts.rs (target\debug\deps\ceiling_partial_accepts-b0edca2a312a597d.exe)
+
+running 1 test
+test ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.82s
+
+     Running tests\ceiling_prune_recovery.rs (target\debug\deps\ceiling_prune_recovery-0ba88986ab3c2c4b.exe)
+
+running 1 test
+test the_ceiling_hole_returns_when_leased_rows_expire_out_of_prune ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.83s
+
+     Running tests\ceiling_two_seekers.rs (target\debug\deps\ceiling_two_seekers-ac17ce4bac15287f.exe)
+
+running 1 test
+test one_hole_is_consumed_by_the_first_seeker_and_the_second_gets_no_accept_at_all ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.63s
+
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-b905c5b6c122c1e4.exe)
+
+running 1 test
+test denylist_is_unreachable_in_and_vanishes_on_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+     Running tests\epoch_rotation_accept.rs (target\debug\deps\epoch_rotation_accept-43bac2b1c1f9f9e0.exe)
+
+running 1 test
+test pre_epoch_accept_spends_after_rotation_and_new_primary_issues_fresh ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running tests\find_admission_price.rs (target\debug\deps\find_admission_price-90428aec9ecac5b2.exe)
+
+running 1 test
+test find_quota_price_ignores_cluster_list_length ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_empty_cluster_list.rs (target\debug\deps\find_empty_cluster_list-df04b442ab063819.exe)
+
+running 1 test
+test empty_cluster_list_is_served_as_signed_empty_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_no_queue.rs (target\debug\deps\find_no_queue-2a2f31c468b64aac.exe)
+
+running 2 tests
+test an_expensive_find_is_fixed_in_one_answer_and_repeats_byte_identically ... ok
+test the_sybil_surge_leaves_no_frame_without_an_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\find_node_budget.rs (target\debug\deps\find_node_budget-e796383c0ced7544.exe)
+
+running 1 test
+test sybil_find_surge_passes_node_budget_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\frame_byte_mutation.rs (target\debug\deps\frame_byte_mutation-e184517e0ca3ffab.exe)
+
+running 1 test
+test noncanonical_accept_bytes_do_not_create_a_second_spend ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\future_epoch_lease_freeze.rs (target\debug\deps\future_epoch_lease_freeze-266b32bc37e058f3.exe)
+
+running 1 test
+test a_future_epoch_grant_from_an_arbitrary_key_freezes_the_shard ... ignored, исторический замер E-0067: поведение до ADR-0016, действующий контракт — lease_membership_binding.rs
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-9806abdb3d00e478.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.58s
+
+     Running tests\gc.rs (target\debug\deps\gc-9948c6b278ccd4a0.exe)
+
+running 2 tests
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests\heal_demotion_window.rs (target\debug\deps\heal_demotion_window-11ca37feab9b67e5.exe)
+
+running 1 test
+test heal_demotion_window ... ignored, исторический оракул E-0069: heal-окно §9.8 до ADR-0017 (замер на rev ee6ba8e); R1–R3 намеренно меняют поведение — актуальный оракул heal_one_step
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\heal_one_step.rs (target\debug\deps\heal_one_step-adb31212c86ed834.exe)
+
+running 1 test
+test heal_one_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+
+     Running tests\immediate_refusals_exit.rs (target\debug\deps\immediate_refusals_exit-fdd70cbadb056b75.exe)
+
+running 1 test
+test immediate_refusals_leave_serve_request_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\lease_membership_binding.rs (target\debug\deps\lease_membership_binding-9e089dc863480635.exe)
+
+running 1 test
+test a_grant_is_bound_to_the_accepted_epoch_and_primary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+     Running tests\lease_table_ceiling.rs (target\debug\deps\lease_table_ceiling-6586afb71ea612a5.exe)
+
+running 1 test
+test repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+
+     Running tests\lease_table_restart.rs (target\debug\deps\lease_table_restart-e14c915fd2bc2ce6.exe)
+
+running 1 test
+test restart_empties_the_table_and_the_old_accept_still_spends ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests\live_split_brain_fencing.rs (target\debug\deps\live_split_brain_fencing-aa1e3b015761fa9f.exe)
+
+running 1 test
+test a_live_deposed_primary_cannot_ack_or_impose_its_write ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests\post_prune_spend_window.rs (target\debug\deps\post_prune_spend_window-8de7bb0c9004421b.exe)
+
+running 1 test
+test post_prune_accept_expires_at_the_same_bucket_the_issuer_prunes_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.09s
+
+     Running tests\present_serving_gate.rs (target\debug\deps\present_serving_gate-e43457ccfee1790f.exe)
+
+running 1 test
+test serving_gate_requires_presentation_and_spend_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-7ed8e13c4b151eba.exe)
+
+running 3 tests
+test a_find_without_matches_issues_no_accept ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+test an_accept_stops_working_after_its_ttl ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\response_verification_order.rs (target\debug\deps\response_verification_order-f2f8dce990c7b5c7.exe)
+
+running 1 test
+test response_checks_follow_the_named_sequence_and_refusals_stay_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\restart_recovery.rs (target\debug\deps\restart_recovery-aef32f31b9a43cec.exe)
+
+running 1 test
+test restart_recovers_wal_snapshot_and_gc ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.05s
+
+     Running tests\rotation_present_serving.rs (target\debug\deps\rotation_present_serving-763fd072f9ef45aa.exe)
+
+running 1 test
+test serving_path_survives_rotation_and_error_masking_is_deterministic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+
+running 6 tests
+test per_cluster_cap_is_three_policies_and_two_are_broken ... FAILED
+test changing_cluster_id_costs_no_new_pow ... ok
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ok
+test one_cell_grows_to_the_shard_cap ... ok
+test the_price_of_one_accepted_record ... FAILED
+test find_scan_price_scales_with_cell_size_and_list_length has been running for over 60 seconds
+test find_scan_price_scales_with_cell_size_and_list_length ... ok
+
+failures:
+
+---- per_cluster_cap_is_three_policies_and_two_are_broken stdout ----
+
+thread 'per_cluster_cap_is_three_policies_and_two_are_broken' (25264) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:649:5:
+фальсификатор (6б): строгая форма не ломает продления — (1, 8, 0, 35, 20, 64)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- the_price_of_one_accepted_record stdout ----
+
+thread 'the_price_of_one_accepted_record' (32080) panicked at crates\vecdht-node\tests\s14_cluster_bloat_price.rs:496:5:
+инструмент (расширение): прогретый майнер дал [0.9974857570813385, 0.9966213498511785] при ожидаемых 4× — счёт не годится
+
+
+failures:
+    per_cluster_cap_is_three_policies_and_two_are_broken
+    the_price_of_one_accepted_record
+
+test result: FAILED. 4 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 189.49s
+
+error: test failed, to rerun pass `-p vecdht-node --test s14_cluster_bloat_price`
+EXIT=101
+### ИТОГ ### 2026-10-23T04:30:42+03:00
+HEAD после прогонов: 928182d
+RAM СВОБОДНО, МБ: 7319
+ДИСК СВОБОДНО, МБ: 10012
+лог: lab/logs/e0079-all.log (1305 строк)
+HELPER_EXIT=101 (худший из кодов шагов; 0 = все шаги отработали; exit в блоке | tee не сработал бы — он вышел бы из подшелла)
+=== E-0079 прогон 2026-10-23T04:44:28+03:00 ===
+HEAD: 9dd07af
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+lean: Lean (version 4.36.0-rc1, x86_64-w64-windows-gnu, commit c9afcddf514a6772bd4d649f7cfc04eff0b9f15e, Release)
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ОС: Майкрософт Windows 11 Pro 10.0.26300
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 8390
+ДИСК СВОБОДНО до прогона, МБ: 9994
+### СТОИМОСТЬ ### 2026-10-23T04:44:31+03:00
+-- модель Lean: строк всего / без комментариев / теорем / определений / native_decide:
+   всего: 302
+   без комментариев и пустых: 201
+   теорем: 18
+   определений: 27
+   native_decide: 6
+   sorry (обязан быть 0): 0
+   import Mathlib (обязан быть 0): 0
+-- оракул Rust: строк / тестов:
+   строк: 749
+   тестов: 7
+-- зависимостей добавлено не было:
+-- продуктовый код, wire и спека этим циклом не тронуты (пусто = ок):
+### LEAN CHECK lab/lean/VecDHT/Admission.lean ### 2026-10-23T04:44:32+03:00
+83521
+8
+3
+2
+2
+EXIT=0
+LEAN_MS=4386 LEAN_S=4
+### ИНВЕНТАРЬ ### 2026-10-23T04:44:36+03:00
+-- порядок гейтов Publish (модель повторяет его по строкам):
+        let frame = decode_frame(bytes)?;
+        let msg = Publish::decode(bytes)?;
+        if frame.header.signed() {
+            let ok = match frame.signature {
+                Some(sig) => verify_body(
+                    &msg.owner_ed25519,
+                    domain::PUBLISH,
+                    Kind::Publish,
+                    frame.body,
+                    &sig.try_into().unwrap_or([0u8; 64]),
+                )
+                .unwrap_or(false),
+                None => false,
+            };
+            if !ok {
+                return self.err(from, err_code::DENIED, 0);
+            }
+        }
+        // расхождение — подделка, а не другая реализация.
+        if msg.intent_id != intent_id(&msg.vec_q, msg.preprocessing_version) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
+        if shard_of_cluster(msg.cluster_id) != self.shard {
+            return self.err(from, err_code::SHARD_MISMATCH, 0);
+        }
+        // Publish принимает только primary: реплика, у которой тоже активный lease и подтверждённый
+        // `grant_epoch`, иначе ответила бы агенту `PublishAck`, не имея возможности разослать опс
+        let verdict = self.admission.borrow_mut().check_publish(&from, &msg.owner_ed25519, now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        // `slot_key` из §11.1 — это `intent_id`: слот узел назначает сам и агент узнать его
+        // не может (спека, §11.1: привязка к identity, которую доприём вычисляет клиент).
+        let expires = msg.published_bucket.saturating_add(msg.ttl_buckets as u32);
+        let input = pow_input(&msg.owner_ed25519, self.shard, epoch, &msg.intent_id, expires);
+        let bits = msg.pow_bits as u32;
+        if bits < self.pow_bits as u32 {
+            return self.err(from, err_code::POW_BITS_LOW, 1_000);
+        }
+        if bits > self.params.pow_bits_max as u32 {
+            return self.err(from, err_code::POW_INVALID, 1_000);
+        }
+        if !pow_ok(&input, msg.pow_nonce, bits) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
+        // §11.3.4: узловой бюджет резервируется *до* вытеснения. Обратный порядок оставлял бы
+        // за `BUSY` уже удалённую чужую запись — отказ дешевле принятия, но не ценой чужого
+        // слота. Токен при последующем `SHARD_FULL` не возвращается: см. политику в
+        // `Admission::check_publish`.
+        let verdict = self.admission.borrow_mut().reserve_admit(now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        let mut victim = None;
+        if !replacing && (self.store.len() as u64) >= self.params.max_live_per_shard {
+            let newcomer = Candidate::newcomer(bits, msg.published_bucket);
+            victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            if victim.is_none() {
+                // Резервуар не знает всех цен: он видел только те записи, что принял этот узел
+                // (рестарт и handoff обнуляют знание, §11.3.3). Один ограниченный проход по арене
+                // дешевле, чем O(M) на каждый publish, и честнее, чем «жертвы нет» при живой
+                // дешёвой записи.
+                let from_slot = self.evictor.scan_from();
+                let arena_end = self.store.index.next_slot();
+                let entries = self
+                    .store
+                    .index
+                    .live_slots_from(from_slot)
+                    .map(|(s, e)| (s, e.published_bucket));
+                self.evictor.refill(entries, arena_end, admission::EVICT_SCAN_BUDGET);
+                victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            }
+            if victim.is_none() {
+                // §11.3.3: дешевле новичка никого — значит отказ, а не вытеснение дорогой записи.
+                return self.err(from, err_code::SHARD_FULL, 10_000);
+            }
+        }
+        // Владелец жертвы нужен и для WAL-фрейма `Delete`, и для реплики: удаление — это
+-- pow_input: owner, shard, epoch, slot_key, expires — cluster_id нет:
+pub fn pow_input(
+    owner_ed25519: &[u8; 32],
+    shard: u16,
+    epoch: u64,
+    slot_key: &[u8; 32],
+    expires_bucket: u32,
+) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.extend_raw(POW_DOMAIN);
+    w.fixed(owner_ed25519);
+    w.u16(shard);
+    w.u64(epoch);
+    w.fixed(slot_key);
+    w.u32(expires_bucket);
+    w.into_vec()
+}
+
+/// Проверка: один blake3 над `input ‖ nonce`.
+-- константы сложности §11.2:
+/// МХеш/с, которого на коротких входах не бывает: замер даёт 3,0–7,0 МХеш/с на ядро, то есть
+/// 2²⁴ = 2,4–5,6 с, а 2²⁸ = 38–89 с.
+pub const POW_BITS_DEFAULT: u32 = 20;
+pub const POW_BITS_MIN: u32 = 18;
+pub const POW_BITS_MAX: u32 = 24;
+
+// Инвариант политики проверяется на сборке: значения констант, значит и проверка константная.
+-- переезд между posting list'ами:
+    pub fn insert(&mut self, e: IndexEntry) -> Result<InsertOutcome, IndexError> {
+        if e.cluster_id >= NLIST {
+            return Err(IndexError::ClusterOutOfRange(e.cluster_id));
+        }
+        let want = shard_of(e.cluster_id);
+        if want != self.shard {
+            return Err(IndexError::ShardMismatch { cluster: e.cluster_id, shard: self.shard, want });
+        }
+        if let Some(slot) = self.owner_slot(&e.owner_ed25519) {
+            let old = self.entries[slot as usize];
+            if old.cluster_id != e.cluster_id {
+                // Меняется только состав списков: slot остаётся прежним.
+                self.list_remove(old.cluster_id, slot);
+                self.list_insert(e.cluster_id, slot);
+            }
+            self.entries[slot as usize] = e;
+            return Ok(InsertOutcome { slot, replaced: true });
+        }
+-- размер ячейки есть в индексе и не вызывается при приёме:
+crates/vecdht-cli/src/index_cmd.rs:309:        .map(|c| (o.store.index.cluster_len(c), c))
+crates/vecdht-index/src/ivf.rs:447:    pub fn cluster_len(&self, cluster: u16) -> usize {
+crates/vecdht-index/src/ivf.rs:667:        assert_eq!(ix.cluster_len(1), 1, "дублей в списке нет");
+crates/vecdht-index/src/ivf.rs:678:        assert_eq!(ix.cluster_len(0), 0);
+crates/vecdht-index/src/ivf.rs:679:        assert_eq!(ix.cluster_len(2), 1);
+-- скан без дедупликации списка кластеров:
+    ) -> Vec<(u32, u32)> {
+        if top_k == 0 {
+            return Vec::new();
+        }
+        let mut best: Vec<(u32, u32)> = Vec::with_capacity(top_k);
+        for &c in clusters {
+            let Some(list) = self.lists.get(c as usize) else { continue };
+            for &slot in list {
+                let e = &self.entries[slot as usize];
+                // Запись могла пережить дедлайн, но ещё не быть снята GcTick'ом.
+                if e.is_expired(now_bucket) {
+                    continue;
+                }
+                let hit = (l2_sq(q, &e.vec_q), slot);
+                // Худший из удержанных — последний: буфер всегда отсортирован по компаратору §8.4.
+                if best.len() == top_k && hit >= best[top_k - 1] {
+                    continue;
+                }
+                let pos = best.partition_point(|&h| h < hit);
+                best.insert(pos, hit);
+                best.truncate(top_k);
+            }
+        }
+        best
+    }
+
+    /// Те же хиты в wire-представлении: `MatchResult` подписывается именно по ним (§8.4).
+    pub fn matches(&self, hits: &[(u32, u32)]) -> Vec<Match> {
+        hits.iter()
+            .filter_map(|(d2, slot)| {
+-- документированная уверенность, которую проверяет тест (1):
+    /// Кадр для `on_frame`, без TLV.
+    ///
+    /// Кадр не подписывается: подпись `Publish` опциональна (§5.3), а `owner_ed25519` в теле узел
+    /// сверяет с PoW-привязкой, так что подделка не даёт ничего.
+    pub fn frame(&self) -> Vec<u8> {
+        self.msg(Vec::new()).encode_unsigned()
+    }
+}
+-- обещание спеки (строка 1392):
+1392:Векторы атак и границы: (i) flood publish → квоты + PoW + evict по `pow_bits`; (ii) дорогой find → bucket 5/с на ключ; ни rerank-пути, ни очереди поиска с ограничением по времени на узле нет — кадр обрабатывается синхронно, усиление стоимости измерено `E-0037` и ограничено только квотой ключа (`ADR-0008`); (iii) надувание DHT-записей → 64 ключа, членство не читается из DHT (§9.2); (iv) надувание кластеров (подделанные embedding'ы, слитые в один горячий центроид) → **защиты нет**: per-cluster admission cap в коде не реализован, а балансировка `cap 2×` работает только при построении артефакта, то есть на уже принятые записи не влияет. Что ограничивает поток реально: per-key publish-бакет и узловой бюджет 100 admits/с (§11.3.4), evict по cheapest `pow_bits` (§11.4) и потолок таблицы приёмов — `MAX_ACCEPTS = 100 000` живых приёмов (§12.3, `rendezvous.rs`); ни одно из них не зависит от заполненности кластера, поэтому слив в один центроид даёт линейный рост скана этой ячейки. Адаптивная `POW_BITS` — предложение, тоже не реализовано (§20.2, строка 4 — не измерено); (v) eclipse — мин. `R=3` владельцев, все 8 шардов узла не могут покрыть зондирование одного запроса.
+-- тесты оракула:
+146:#[test]
+147-fn an_unsigned_publish_under_a_foreign_owner_replaces_their_record() {
+--
+218:#[test]
+219-fn changing_cluster_id_costs_no_new_pow() {
+--
+287:#[test]
+288-fn one_cell_grows_to_the_shard_cap() {
+--
+331:#[test]
+332-fn find_scan_price_scales_with_cell_size_and_list_length() {
+--
+452:#[test]
+453-fn the_price_of_one_accepted_record() {
+--
+582:#[test]
+583-fn the_pow_gate_carries_difficulty_and_one_input_is_not_a_sample() {
+--
+628:#[test]
+629-fn per_cluster_cap_is_three_policies_and_two_are_broken() {
+### ORACLE BUILD --no-run ### 2026-10-23T04:44:36+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+  Executable tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+EXIT=0
+### ORACLE RUN --nocapture ### 2026-10-23T04:44:37+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+
+running 7 tests
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ## (1) подмена прошла: принято чужих кадров в бакет жертвы = 20 из 25, отказ жертвы = QUOTA_PUBLISH, запись восстановлена на следующий токен ##
+ok
+test changing_cluster_id_costs_no_new_pow ... ## (2) переезд: 4 записи в одной ячейке при total 4, evicted 0; смена cluster_id в оплаченном кадре прошла без нового nonce ##
+ok
+test find_scan_price_scales_with_cell_size_and_list_length ... ## (4) скан: медианы [201, 769, 3075, 12386, 49293] мкс при лестнице [16, 64, 256, 1024, 4096]; п95 [267, 1029, 3458, 14173, 69073]; мкс/запись [12.5625, 12.015625, 12.01171875, 12.095703125, 12.034423828125]; 256 копий одной ячейки: 50532 → 12988365 мкс (усиление 257.0×); живой Find: [("пустая", 396, 1), ("горячая 4096", 61717, 65)] ##
+ok
+test one_cell_grows_to_the_shard_cap ... ## (3) потолок: cluster_len = 200 = max_live_per_shard (200), отказов 0, коды []; 210 кадров живым путём за 440 мс (evicted 10) ##
+ok
+test per_cluster_cap_is_three_policies_and_two_are_broken ... ## (6) три политики на трейсе 264 кадров: льготa 0 → горячая ячейка 41, продлений отвергнуто 0; строгая 1 → 8, 8; с учётом переезда 2 → 8, продлений 0, переездов 33. Боевая ячейка (свежие + продления в ней): [8, 8, 8]. Профиль: [68, 68, 68] записей. Соответствие модели: admitX/admitA/admitM в Admission.lean ##
+ok
+test the_pow_gate_carries_difficulty_and_one_input_is_not_a_sample ... ## (5в) зонд: A) принятых nonce из 100000 при [8,10,12,14] битах — [(8, 423, 390), (10, 100, 97), (12, 19, 24), (14, 5, 6)] (ожидание ~100000/2^bits); B) шесть независимых входов, сумма мкс и сумма nonce по уровням [(18, 824263, 1275772), (20, 3492920, 5420364), (22, 7981289, 12044322)], отношения соседних уровней [4.237628038623595, 2.2849904950585755] (ожидаемое ~4.0) ##
+ok
+test the_price_of_one_accepted_record ... ## (5а) один вход, min-of-3: [(18, 37366, 59218), (20, 37289, 59218), (22, 37549, 59218)] мкс (бит, мкс, nonce); попытки/цена [(18, 59219, 630.9799219844982), (20, 59219, 629.6796636214729), (22, 59219, 634.0701464057144)]; отношения [0.997939303109779, 1.0069725656359785] — ДИАГНОЗ-5, не гейт; цена записи по измеренному хешрейту (бит, с CPU на одну запись в среднем) [(18, 0.1721426640896), (20, 0.6885706563584), (24, 11.0171305017344)] ##
+## (5) цена записи. ЗАМОРОЖЕННЫЙ ПОРОГ (5): холодный одиночный прогон 18 бит = 37 мс, 20 бит = 37 мс, nonce 59218 и 59218, отношение 1.00× при интервале [1.6, 3.2] → НЕ ВЫПОЛНЕН (ДИАГНОЗ-2 и ДИАГНОЗ-5: один вход — одна выборка геометрического распределения с СКО, равным среднему; порог не двигался и не выполнен). Хешрейт 656.7 нс/попытка — debug-профиль, абсолютные секунды не являются ценой в бою. Приём узлом (полный путь с fsync): медиана 1590 мкс, п95 2076 мкс, 200 кадров за 365 мс ##
+ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 218.67s
+
+EXIT=0
+=== E-0079 прогон 2026-10-23T04:52:23+03:00 ===
+HEAD: 9dd07af
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+lean: Lean (version 4.36.0-rc1, x86_64-w64-windows-gnu, commit c9afcddf514a6772bd4d649f7cfc04eff0b9f15e, Release)
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ОС: Майкрософт Windows 11 Pro 10.0.26300
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 8168
+ДИСК СВОБОДНО до прогона, МБ: 18227
+### СТОИМОСТЬ ### 2026-10-23T04:52:25+03:00
+-- модель Lean: строк всего / без комментариев / теорем / определений / native_decide:
+   всего: 302
+   без комментариев и пустых: 201
+   теорем: 18
+   определений: 27
+   native_decide: 6
+   sorry (обязан быть 0): 0
+   import Mathlib (обязан быть 0): 0
+-- оракул Rust: строк / тестов:
+   строк: 749
+   тестов: 7
+-- зависимостей добавлено не было:
+-- продуктовый код, wire и спека этим циклом не тронуты (пусто = ок):
+### LEAN CHECK lab/lean/VecDHT/Admission.lean ### 2026-10-23T04:52:26+03:00
+83521
+8
+3
+2
+2
+EXIT=0
+LEAN_MS=4403 LEAN_S=4
+### ИНВЕНТАРЬ ### 2026-10-23T04:52:30+03:00
+-- порядок гейтов Publish (модель повторяет его по строкам):
+        let frame = decode_frame(bytes)?;
+        let msg = Publish::decode(bytes)?;
+        if frame.header.signed() {
+            let ok = match frame.signature {
+                Some(sig) => verify_body(
+                    &msg.owner_ed25519,
+                    domain::PUBLISH,
+                    Kind::Publish,
+                    frame.body,
+                    &sig.try_into().unwrap_or([0u8; 64]),
+                )
+                .unwrap_or(false),
+                None => false,
+            };
+            if !ok {
+                return self.err(from, err_code::DENIED, 0);
+            }
+        }
+        // расхождение — подделка, а не другая реализация.
+        if msg.intent_id != intent_id(&msg.vec_q, msg.preprocessing_version) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
+        if shard_of_cluster(msg.cluster_id) != self.shard {
+            return self.err(from, err_code::SHARD_MISMATCH, 0);
+        }
+        // Publish принимает только primary: реплика, у которой тоже активный lease и подтверждённый
+        // `grant_epoch`, иначе ответила бы агенту `PublishAck`, не имея возможности разослать опс
+        let verdict = self.admission.borrow_mut().check_publish(&from, &msg.owner_ed25519, now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        // `slot_key` из §11.1 — это `intent_id`: слот узел назначает сам и агент узнать его
+        // не может (спека, §11.1: привязка к identity, которую доприём вычисляет клиент).
+        let expires = msg.published_bucket.saturating_add(msg.ttl_buckets as u32);
+        let input = pow_input(&msg.owner_ed25519, self.shard, epoch, &msg.intent_id, expires);
+        let bits = msg.pow_bits as u32;
+        if bits < self.pow_bits as u32 {
+            return self.err(from, err_code::POW_BITS_LOW, 1_000);
+        }
+        if bits > self.params.pow_bits_max as u32 {
+            return self.err(from, err_code::POW_INVALID, 1_000);
+        }
+        if !pow_ok(&input, msg.pow_nonce, bits) {
+            return self.err(from, err_code::POW_INVALID, 0);
+        }
+        // §11.3.4: узловой бюджет резервируется *до* вытеснения. Обратный порядок оставлял бы
+        // за `BUSY` уже удалённую чужую запись — отказ дешевле принятия, но не ценой чужого
+        // слота. Токен при последующем `SHARD_FULL` не возвращается: см. политику в
+        // `Admission::check_publish`.
+        let verdict = self.admission.borrow_mut().reserve_admit(now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        let mut victim = None;
+        if !replacing && (self.store.len() as u64) >= self.params.max_live_per_shard {
+            let newcomer = Candidate::newcomer(bits, msg.published_bucket);
+            victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            if victim.is_none() {
+                // Резервуар не знает всех цен: он видел только те записи, что принял этот узел
+                // (рестарт и handoff обнуляют знание, §11.3.3). Один ограниченный проход по арене
+                // дешевле, чем O(M) на каждый publish, и честнее, чем «жертвы нет» при живой
+                // дешёвой записи.
+                let from_slot = self.evictor.scan_from();
+                let arena_end = self.store.index.next_slot();
+                let entries = self
+                    .store
+                    .index
+                    .live_slots_from(from_slot)
+                    .map(|(s, e)| (s, e.published_bucket));
+                self.evictor.refill(entries, arena_end, admission::EVICT_SCAN_BUDGET);
+                victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
+            }
+            if victim.is_none() {
+                // §11.3.3: дешевле новичка никого — значит отказ, а не вытеснение дорогой записи.
+                return self.err(from, err_code::SHARD_FULL, 10_000);
+            }
+        }
+        // Владелец жертвы нужен и для WAL-фрейма `Delete`, и для реплики: удаление — это
+-- pow_input: owner, shard, epoch, slot_key, expires — cluster_id нет:
+pub fn pow_input(
+    owner_ed25519: &[u8; 32],
+    shard: u16,
+    epoch: u64,
+    slot_key: &[u8; 32],
+    expires_bucket: u32,
+) -> Vec<u8> {
+    let mut w = Writer::new();
+    w.extend_raw(POW_DOMAIN);
+    w.fixed(owner_ed25519);
+    w.u16(shard);
+    w.u64(epoch);
+    w.fixed(slot_key);
+    w.u32(expires_bucket);
+    w.into_vec()
+}
+
+/// Проверка: один blake3 над `input ‖ nonce`.
+-- константы сложности §11.2:
+/// МХеш/с, которого на коротких входах не бывает: замер даёт 3,0–7,0 МХеш/с на ядро, то есть
+/// 2²⁴ = 2,4–5,6 с, а 2²⁸ = 38–89 с.
+pub const POW_BITS_DEFAULT: u32 = 20;
+pub const POW_BITS_MIN: u32 = 18;
+pub const POW_BITS_MAX: u32 = 24;
+
+// Инвариант политики проверяется на сборке: значения констант, значит и проверка константная.
+-- переезд между posting list'ами:
+    pub fn insert(&mut self, e: IndexEntry) -> Result<InsertOutcome, IndexError> {
+        if e.cluster_id >= NLIST {
+            return Err(IndexError::ClusterOutOfRange(e.cluster_id));
+        }
+        let want = shard_of(e.cluster_id);
+        if want != self.shard {
+            return Err(IndexError::ShardMismatch { cluster: e.cluster_id, shard: self.shard, want });
+        }
+        if let Some(slot) = self.owner_slot(&e.owner_ed25519) {
+            let old = self.entries[slot as usize];
+            if old.cluster_id != e.cluster_id {
+                // Меняется только состав списков: slot остаётся прежним.
+                self.list_remove(old.cluster_id, slot);
+                self.list_insert(e.cluster_id, slot);
+            }
+            self.entries[slot as usize] = e;
+            return Ok(InsertOutcome { slot, replaced: true });
+        }
+-- размер ячейки есть в индексе и не вызывается при приёме:
+crates/vecdht-cli/src/index_cmd.rs:309:        .map(|c| (o.store.index.cluster_len(c), c))
+crates/vecdht-index/src/ivf.rs:447:    pub fn cluster_len(&self, cluster: u16) -> usize {
+crates/vecdht-index/src/ivf.rs:667:        assert_eq!(ix.cluster_len(1), 1, "дублей в списке нет");
+crates/vecdht-index/src/ivf.rs:678:        assert_eq!(ix.cluster_len(0), 0);
+crates/vecdht-index/src/ivf.rs:679:        assert_eq!(ix.cluster_len(2), 1);
+-- скан без дедупликации списка кластеров:
+    ) -> Vec<(u32, u32)> {
+        if top_k == 0 {
+            return Vec::new();
+        }
+        let mut best: Vec<(u32, u32)> = Vec::with_capacity(top_k);
+        for &c in clusters {
+            let Some(list) = self.lists.get(c as usize) else { continue };
+            for &slot in list {
+                let e = &self.entries[slot as usize];
+                // Запись могла пережить дедлайн, но ещё не быть снята GcTick'ом.
+                if e.is_expired(now_bucket) {
+                    continue;
+                }
+                let hit = (l2_sq(q, &e.vec_q), slot);
+                // Худший из удержанных — последний: буфер всегда отсортирован по компаратору §8.4.
+                if best.len() == top_k && hit >= best[top_k - 1] {
+                    continue;
+                }
+                let pos = best.partition_point(|&h| h < hit);
+                best.insert(pos, hit);
+                best.truncate(top_k);
+            }
+        }
+        best
+    }
+
+    /// Те же хиты в wire-представлении: `MatchResult` подписывается именно по ним (§8.4).
+    pub fn matches(&self, hits: &[(u32, u32)]) -> Vec<Match> {
+        hits.iter()
+            .filter_map(|(d2, slot)| {
+-- документированная уверенность, которую проверяет тест (1):
+    /// Кадр для `on_frame`, без TLV.
+    ///
+    /// Кадр не подписывается: подпись `Publish` опциональна (§5.3), а `owner_ed25519` в теле узел
+    /// сверяет с PoW-привязкой, так что подделка не даёт ничего.
+    pub fn frame(&self) -> Vec<u8> {
+        self.msg(Vec::new()).encode_unsigned()
+    }
+}
+-- обещание спеки (строка 1392):
+1392:Векторы атак и границы: (i) flood publish → квоты + PoW + evict по `pow_bits`; (ii) дорогой find → bucket 5/с на ключ; ни rerank-пути, ни очереди поиска с ограничением по времени на узле нет — кадр обрабатывается синхронно, усиление стоимости измерено `E-0037` и ограничено только квотой ключа (`ADR-0008`); (iii) надувание DHT-записей → 64 ключа, членство не читается из DHT (§9.2); (iv) надувание кластеров (подделанные embedding'ы, слитые в один горячий центроид) → **защиты нет**: per-cluster admission cap в коде не реализован, а балансировка `cap 2×` работает только при построении артефакта, то есть на уже принятые записи не влияет. Что ограничивает поток реально: per-key publish-бакет и узловой бюджет 100 admits/с (§11.3.4), evict по cheapest `pow_bits` (§11.4) и потолок таблицы приёмов — `MAX_ACCEPTS = 100 000` живых приёмов (§12.3, `rendezvous.rs`); ни одно из них не зависит от заполненности кластера, поэтому слив в один центроид даёт линейный рост скана этой ячейки. Адаптивная `POW_BITS` — предложение, тоже не реализовано (§20.2, строка 4 — не измерено); (v) eclipse — мин. `R=3` владельцев, все 8 шардов узла не могут покрыть зондирование одного запроса.
+-- тесты оракула:
+146:#[test]
+147-fn an_unsigned_publish_under_a_foreign_owner_replaces_their_record() {
+--
+218:#[test]
+219-fn changing_cluster_id_costs_no_new_pow() {
+--
+287:#[test]
+288-fn one_cell_grows_to_the_shard_cap() {
+--
+331:#[test]
+332-fn find_scan_price_scales_with_cell_size_and_list_length() {
+--
+452:#[test]
+453-fn the_price_of_one_accepted_record() {
+--
+582:#[test]
+583-fn the_pow_gate_carries_difficulty_and_one_input_is_not_a_sample() {
+--
+628:#[test]
+629-fn per_cluster_cap_is_three_policies_and_two_are_broken() {
+### ORACLE BUILD --no-run ### 2026-10-23T04:52:31+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+  Executable tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+EXIT=0
+### ORACLE RUN --nocapture ### 2026-10-23T04:52:31+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+
+running 7 tests
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ## (1) подмена прошла: принято чужих кадров в бакет жертвы = 20 из 25, отказ жертвы = QUOTA_PUBLISH, запись восстановлена на следующий токен ##
+ok
+test changing_cluster_id_costs_no_new_pow ... ## (2) переезд: 4 записи в одной ячейке при total 4, evicted 0; смена cluster_id в оплаченном кадре прошла без нового nonce ##
+ok
+test find_scan_price_scales_with_cell_size_and_list_length ... ## (4) скан: медианы [188, 762, 2954, 11978, 47792] мкс при лестнице [16, 64, 256, 1024, 4096]; п95 [207, 770, 3040, 19541, 48533]; мкс/запись [11.75, 11.90625, 11.5390625, 11.697265625, 11.66796875]; 256 копий одной ячейки: 48318 → 12409921 мкс (усиление 256.8×); живой Find: [("пустая", 369, 1), ("горячая 4096", 59438, 65)] ##
+ok
+test one_cell_grows_to_the_shard_cap ... ## (3) потолок: cluster_len = 200 = max_live_per_shard (200), отказов 0, коды []; 210 кадров живым путём за 392 мс (evicted 10) ##
+ok
+test per_cluster_cap_is_three_policies_and_two_are_broken ... ## (6) три политики на трейсе 264 кадров: льготa 0 → горячая ячейка 41, продлений отвергнуто 0; строгая 1 → 8, 8; с учётом переезда 2 → 8, продлений 0, переездов 33. Боевая ячейка (свежие + продления в ней): [8, 8, 8]. Профиль: [68, 68, 68] записей. Соответствие модели: admitX/admitA/admitM в Admission.lean ##
+ok
+test the_pow_gate_carries_difficulty_and_one_input_is_not_a_sample ... ## (5в) зонд: A) принятых nonce из 100000 при [8,10,12,14] битах — [(8, 423, 390), (10, 100, 97), (12, 19, 24), (14, 5, 6)] (ожидание ~100000/2^bits); B) шесть независимых входов, сумма мкс и сумма nonce по уровням [(18, 745730, 1275772), (20, 3229595, 5420364), (22, 7081410, 12044322)], отношения соседних уровней [4.330783259356604, 2.192661928198427] (ожидаемое ~4.0) ##
+ok
+test the_price_of_one_accepted_record ... ## (5а) один вход, min-of-3: [(18, 34698, 59218), (20, 34290, 59218), (22, 34118, 59218)] мкс (бит, мкс, nonce); попытки/цена [(18, 59219, 585.9268140292811), (20, 59219, 579.0371333524713), (22, 59219, 576.1326601259731)]; отношения [0.9882413971986858, 0.9949839603382911] — ДИАГНОЗ-5, не гейт; цена записи по измеренному хешрейту (бит, с CPU на одну запись в среднем) [(18, 0.156574416896), (20, 0.626297667584), (24, 10.020762681344)] ##
+## (5) цена записи. ЗАМОРОЖЕННЫЙ ПОРОГ (5): холодный одиночный прогон 18 бит = 36 мс, 20 бит = 36 мс, nonce 59218 и 59218, отношение 1.00× при интервале [1.6, 3.2] → НЕ ВЫПОЛНЕН (ДИАГНОЗ-2 и ДИАГНОЗ-5: один вход — одна выборка геометрического распределения с СКО, равным среднему; порог не двигался и не выполнен). Хешрейт 597.3 нс/попытка — debug-профиль, абсолютные секунды не являются ценой в бою. Приём узлом (полный путь с fsync): медиана 1516 мкс, п95 2079 мкс, 200 кадров за 350 мс ##
+ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 207.54s
+
+EXIT=0
+RUST_MS=208741 RUST_S=208
+### РЕСУРСЫ ПОСЛЕ ОРАКУЛА ### 2026-10-23T04:56:00+03:00
+RAM СВОБОДНО, МБ: 8407
+ДИСК СВОБОДНО, МБ: 18224
+target/, МБ: 6901
+лог, МБ: 1
+### КОНТРОЛЬ vecdht-node ### 2026-10-23T04:56:03+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-b5c4bef439652d93.exe)
+
+running 74 tests
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test lease::tests::a_lease_from_the_future_is_not_adopted ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+
+test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests\accept_presentation_api_only.rs (target\debug\deps\accept_presentation_api_only-1c1f325f00d68d4b.exe)
+
+running 1 test
+test target_side_serves_text_without_accept_and_spend_is_library_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\accept_ttl_boundary.rs (target\debug\deps\accept_ttl_boundary-e8d55d8712060310.exe)
+
+running 1 test
+test accept_lives_inclusive_to_the_boundary_bucket_and_the_table_prunes_with_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\admission.rs (target\debug\deps\admission-b3cf28692351ccf7.exe)
+
+running 7 tests
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests\admission_table_over_limit.rs (target\debug\deps\admission_table_over_limit-dec1769ea7ef0ce2.exe)
+
+running 2 tests
+test idle_surge_forgets_exactly_over_rows_and_the_forgotten_key_returns_fresh ... ok
+test the_peer_table_holds_active_keys_over_the_limit_and_forgets_nothing ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\adversarial.rs (target\debug\deps\adversarial-430892ab291c3c1c.exe)
+
+running 8 tests
+test p5_gate_sixteen_core_sybil_for_ten_minutes ... ignored, гейт P5: 16 ядер × 10 минут × 2^20; запускать в release с --ignored
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+     Running tests\anti_replay_find.rs (target\debug\deps\anti_replay_find-2e5c817945dc6e80.exe)
+
+running 1 test
+test the_same_query_id_is_answered_again_and_again_including_after_61_seconds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests\ceiling_clamp_compose.rs (target\debug\deps\ceiling_clamp_compose-6a71718c04ca6c2f.exe)
+
+running 1 test
+test clamp_runs_before_issue_so_the_ceiling_refuses_the_tail_of_the_clamped_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.73s
+
+     Running tests\ceiling_gradual_prune.rs (target\debug\deps\ceiling_gradual_prune-3cdfdb860d8f84db.exe)
+
+running 1 test
+test the_ceiling_returns_bucket_by_bucket_when_rows_live_in_different_buckets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.50s
+
+     Running tests\ceiling_partial_accepts.rs (target\debug\deps\ceiling_partial_accepts-b0edca2a312a597d.exe)
+
+running 1 test
+test ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.59s
+
+     Running tests\ceiling_prune_recovery.rs (target\debug\deps\ceiling_prune_recovery-0ba88986ab3c2c4b.exe)
+
+running 1 test
+test the_ceiling_hole_returns_when_leased_rows_expire_out_of_prune ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.64s
+
+     Running tests\ceiling_two_seekers.rs (target\debug\deps\ceiling_two_seekers-ac17ce4bac15287f.exe)
+
+running 1 test
+test one_hole_is_consumed_by_the_first_seeker_and_the_second_gets_no_accept_at_all ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.65s
+
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-b905c5b6c122c1e4.exe)
+
+running 1 test
+test denylist_is_unreachable_in_and_vanishes_on_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests\epoch_rotation_accept.rs (target\debug\deps\epoch_rotation_accept-43bac2b1c1f9f9e0.exe)
+
+running 1 test
+test pre_epoch_accept_spends_after_rotation_and_new_primary_issues_fresh ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+     Running tests\find_admission_price.rs (target\debug\deps\find_admission_price-90428aec9ecac5b2.exe)
+
+running 1 test
+test find_quota_price_ignores_cluster_list_length ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_empty_cluster_list.rs (target\debug\deps\find_empty_cluster_list-df04b442ab063819.exe)
+
+running 1 test
+test empty_cluster_list_is_served_as_signed_empty_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests\find_no_queue.rs (target\debug\deps\find_no_queue-2a2f31c468b64aac.exe)
+
+running 2 tests
+test an_expensive_find_is_fixed_in_one_answer_and_repeats_byte_identically ... ok
+test the_sybil_surge_leaves_no_frame_without_an_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\find_node_budget.rs (target\debug\deps\find_node_budget-e796383c0ced7544.exe)
+
+running 1 test
+test sybil_find_surge_passes_node_budget_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\frame_byte_mutation.rs (target\debug\deps\frame_byte_mutation-e184517e0ca3ffab.exe)
+
+running 1 test
+test noncanonical_accept_bytes_do_not_create_a_second_spend ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\future_epoch_lease_freeze.rs (target\debug\deps\future_epoch_lease_freeze-266b32bc37e058f3.exe)
+
+running 1 test
+test a_future_epoch_grant_from_an_arbitrary_key_freezes_the_shard ... ignored, исторический замер E-0067: поведение до ADR-0016, действующий контракт — lease_membership_binding.rs
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-9806abdb3d00e478.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+     Running tests\gc.rs (target\debug\deps\gc-9948c6b278ccd4a0.exe)
+
+running 2 tests
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+     Running tests\heal_demotion_window.rs (target\debug\deps\heal_demotion_window-11ca37feab9b67e5.exe)
+
+running 1 test
+test heal_demotion_window ... ignored, исторический оракул E-0069: heal-окно §9.8 до ADR-0017 (замер на rev ee6ba8e); R1–R3 намеренно меняют поведение — актуальный оракул heal_one_step
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\heal_one_step.rs (target\debug\deps\heal_one_step-adb31212c86ed834.exe)
+
+running 1 test
+test heal_one_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+
+     Running tests\immediate_refusals_exit.rs (target\debug\deps\immediate_refusals_exit-fdd70cbadb056b75.exe)
+
+running 1 test
+test immediate_refusals_leave_serve_request_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\lease_membership_binding.rs (target\debug\deps\lease_membership_binding-9e089dc863480635.exe)
+
+running 1 test
+test a_grant_is_bound_to_the_accepted_epoch_and_primary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+
+     Running tests\lease_table_ceiling.rs (target\debug\deps\lease_table_ceiling-6586afb71ea612a5.exe)
+
+running 1 test
+test repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running tests\lease_table_restart.rs (target\debug\deps\lease_table_restart-e14c915fd2bc2ce6.exe)
+
+running 1 test
+test restart_empties_the_table_and_the_old_accept_still_spends ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests\live_split_brain_fencing.rs (target\debug\deps\live_split_brain_fencing-aa1e3b015761fa9f.exe)
+
+running 1 test
+test a_live_deposed_primary_cannot_ack_or_impose_its_write ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests\post_prune_spend_window.rs (target\debug\deps\post_prune_spend_window-8de7bb0c9004421b.exe)
+
+running 1 test
+test post_prune_accept_expires_at_the_same_bucket_the_issuer_prunes_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.61s
+
+     Running tests\present_serving_gate.rs (target\debug\deps\present_serving_gate-e43457ccfee1790f.exe)
+
+running 1 test
+test serving_gate_requires_presentation_and_spend_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-7ed8e13c4b151eba.exe)
+
+running 3 tests
+test a_find_without_matches_issues_no_accept ... ok
+test an_accept_stops_working_after_its_ttl ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+     Running tests\response_verification_order.rs (target\debug\deps\response_verification_order-f2f8dce990c7b5c7.exe)
+
+running 1 test
+test response_checks_follow_the_named_sequence_and_refusals_stay_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests\restart_recovery.rs (target\debug\deps\restart_recovery-aef32f31b9a43cec.exe)
+
+running 1 test
+test restart_recovers_wal_snapshot_and_gc ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.04s
+
+     Running tests\rotation_present_serving.rs (target\debug\deps\rotation_present_serving-763fd072f9ef45aa.exe)
+
+running 1 test
+test serving_path_survives_rotation_and_error_masking_is_deterministic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-9c0a60c96fed1738.exe)
+
+running 7 tests
+test per_cluster_cap_is_three_policies_and_two_are_broken ... ok
+test changing_cluster_id_costs_no_new_pow ... ok
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ok
+test one_cell_grows_to_the_shard_cap ... ok
+test the_price_of_one_accepted_record ... ok
+test the_pow_gate_carries_difficulty_and_one_input_is_not_a_sample ... ok
+test find_scan_price_scales_with_cell_size_and_list_length has been running for over 60 seconds
+test find_scan_price_scales_with_cell_size_and_list_length ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 190.55s
+
+     Running tests\s15_authority_seam.rs (target\debug\deps\s15_authority_seam-6d69de8b3b2a37dc.exe)
+
+running 5 tests
+test genesis_accepts_a_signature_under_a_foreign_index ... ok
+test authority_threshold_lives_in_two_hands ... ok
+test transition_binds_the_index_that_genesis_ignores ... ok
+test doors_do_not_lend_signatures ... ok
+test genesis_threshold_is_exactly_three_of_five ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+
+     Running tests\s15_lean_correspondence.rs (target\debug\deps\s15_lean_correspondence-44a9a8867a0520de.exe)
+
+running 6 tests
+test two_threshold_sources_diverge_on_real_keys ... ok
+test a_signature_verifies_only_under_its_own_key ... ok
+test the_counterexample_counters_match_the_lean_model ... ok
+test the_lean_witness_is_reproduced_by_the_real_code ... ok
+test an_unbound_extra_signature_does_not_block_the_door ... ok
+test the_real_functions_agree_with_the_enumeration ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.52s
+
+     Running tests\s94_tail.rs (target\debug\deps\s94_tail-c4f7f0de6a66cd72.exe)
+
+running 5 tests
+test one_pull_heals_a_gap_but_the_response_is_unauthenticated ... ok
+test leaving_primary_hands_off_and_is_demoted ... ok
+test snapshot_offer_skews_seq_when_the_holder_has_moved_on ... ok
+test warm_lagging_replica_cannot_take_the_snapshot_and_stops ... ok
+test cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.28s
+
+     Running tests\s9_epoch_gap.rs (target\debug\deps\s9_epoch_gap-40c24b17b131e108.exe)
+
+running 1 test
+test epoch_gap_never_heals ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.46s
+
+     Running tests\slot_rebirth_double_spend.rs (target\debug\deps\slot_rebirth_double_spend-8ac74dc670827800.exe)
+
+running 1 test
+test a_pruned_slot_reissues_and_the_same_spend_consumes_the_second_lease_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.11s
+
+     Running tests\slot_request_accept_binding.rs (target\debug\deps\slot_request_accept_binding-852972623213b926.exe)
+
+running 1 test
+test request_slot_is_never_reconciled_with_the_spent_accept ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests\top_k_clamp_live.rs (target\debug\deps\top_k_clamp_live-6d168673e1135dc4.exe)
+
+running 1 test
+test live_find_clamps_top_k_to_64_and_issues_one_accept_per_match ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests\ttl_policy_order.rs (target\debug\deps\ttl_policy_order-4272ad30f76a1fdf.exe)
+
+running 1 test
+test ttl_policy_gate_and_check_order_match_the_spec_sequence ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests\utf8_last_gate.rs (target\debug\deps\utf8_last_gate-903178a63f666076.exe)
+
+running 1 test
+test utf8_is_the_last_gate_and_two_fields_pay_different_names ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\w2r3_stale_read.rs (target\debug\deps\w2r3_stale_read-7527f7b1b62d5807.exe)
+
+running 1 test
+test w2r3_stale_read ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+
+   Doc-tests vecdht_node
+
+running 1 test
+test crates\vecdht-node\src\lib.rs - (line 21) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+
+EXIT=0
+### ИТОГ ### 2026-10-23T05:01:24+03:00
+HEAD после прогонов: 9dd07af
+RAM СВОБОДНО, МБ: 5333
+ДИСК СВОБОДНО, МБ: 18314
+лог: lab/logs/e0079-all.log (2275 строк)
+HELPER_EXIT=0 (худший из кодов шагов; 0 = все шаги отработали; exit в блоке | tee не сработал бы — он вышел бы из подшелла)

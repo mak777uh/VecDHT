@@ -25,6 +25,10 @@
 переезд оказывается дырой в наивном cap'е (теорема `cap_exemption_leaks`).
 
 Пространство перебора расписаний: 4 ключа × 4 кластера × длина ≤ 4 = 83 521 расписание.
+Раздел (7) исчерпает другое пространство — **форм капа** (2^8 = 256) — и раздел (8) — множества
+полей `pow_input` (2^6 = 64): там, где кандидаты дискретны, перебор закрывает семейство вопросов
+одним утверждением вместо набора тестов по образцам (третье применение правила, владелец
+2026-10-23). Время отклика ядра на всё это — секунды, см. `LEAN_MS` в логе прогона.
 `CLUSTERS` и `CAP` уменьшены ради перебора; в коде это 16 кластеров и `max_live_per_shard`.
 Модель ничего не утверждает про Ed25519, blake3, WAL, сеть и время: цена записи здесь — символ
 (и токен), её число измеряется в Rust.
@@ -298,5 +302,149 @@ theorem door_current_reaches_total_cap :
 #eval cellAt (runFrom admitX base migrate) 1
 #eval cellAt (runFrom admitM base migrate) 1
 #eval cellAt (runFrom admitA base migrate) 1
+
+/-! ## (7) Поиск решения вместо сотни тестов: сколько вообще существует правильных форм капа
+
+Третье применение правила, принятое владельцем 2026-10-23: «найди лучший путь без сотни тестов, а
+закрой его одним». Оно применимо ровно там, где пространство кандидатов конечно и дискретно, и
+кап §14.4 (iv) — как раз такой случай: кап-часть решения выносит вердикт по трём булевам фактам,
+значит форм всего 2^8 = 256, и их можно исчерпать один раз вместо того, чтобы досочинять «ещё
+одну форму» трейсами по одному. Заодно это лечит ДИАГНОЗ-5 из `E-0079`: перебор по всему
+пространству не зависит от удачи выборки, в отличие от отношения двух времён на одном входе. -/
+
+/-- Три дискретных факта, из которых кап-часть делает вывод. Всё остальное модель уже объявила
+нечитаемым (`admit_ignores_distance`/`_vector`/`_signature`). -/
+def full (p : Profile) (c : Cluster) : Bool := maxCell ≤ cellAt p c
+def here (p : Profile) (k : Key) : Bool := has p k
+def same (p : Profile) (k : Key) (c : Cluster) : Bool := cellOf p k == some c
+
+/-- Тройка `(full, here, same)` не достижима, если `same` истинна, а ключа в профиле нет. Это не
+очевидность, а теорема: она опирается на единственный источник истины `ownerEntry`. -/
+theorem same_without_here_cannot_happen (p : Profile) (k : Key) (c : Cluster) :
+    same p k c = true → here p k = true := by
+  intro h
+  have hc : cellOf p k = some c := by
+    simpa [same] using h
+  exact has_of_cellOf p k c hc
+
+/-- Форма капа — число < 256, чьи биты есть ответы на восемь троек по индексу
+`4·full + 2·here + same`. -/
+def shapeBit (s i : Nat) : Bool := (s / 2 ^ i) % 2 == 1
+def shapeIdx (f h s : Bool) : Nat := 4 * f.toNat + 2 * h.toNat + s.toNat
+def decides (shape : Nat) (f h s : Bool) : Bool := shapeBit shape (shapeIdx f h s)
+
+/-- Четыре требования к форме. Живость: пока ячейка не полна, форма не отказывает. Кап: рост
+ячейки (новая запись или переезд) в полную ячейку запрещён. Продление: своя полная ячейка
+пускает. Зубы: свежая запись в полную ячейку всё-таки отвергнута. -/
+def ptLive (shape : Nat) : Bool := (List.range 4).all fun i => shapeBit shape i
+def ptCap (shape : Nat) : Bool := !shapeBit shape 4 && !shapeBit shape 6
+def ptRenew (shape : Nat) : Bool := shapeBit shape 7
+def ptTeeth (shape : Nat) : Bool := !shapeBit shape 4
+def goodShape (shape : Nat) : Bool := ptLive shape && ptCap shape && ptRenew shape
+
+/-- Зубы не отдельное требование: они следуют из капа. -/
+theorem teeth_follows_cap :
+    (List.range 256).all fun s => ptCap s = true → ptTeeth s = true := by
+  native_decide
+
+/-- **Классификация**: из 256 форм требованиям удовлетворяют ровно две — 143 и 175. Это одно
+исчерпывающее утверждение вместо построчной проверки «ещё одной формы» трейсами: ни одна другая
+форма не держит кап, не пропускает продление или не имеет зубов. -/
+theorem passing_shapes_exactly_two : (List.range 256).filter goodShape = [143, 175] := by
+  native_decide
+
+/-- Две прошедшие формы различаются одним битом — индекс 5, то есть тройкой
+`(full=true, here=false, same=true)`, которая не возникает (теорема выше). Значит **поведение**
+выбрано однозначно: спор «143 или 175» спором не является. -/
+theorem the_two_agree_everywhere_it_can_be_asked :
+    (List.range 8).all fun t =>
+      (((t % 2) == 1) → ((t / 2) % 2 == 1)) →
+        decides 143 ((t / 4) % 2 == 1) ((t / 2) % 2 == 1) (t % 2 == 1) =
+          decides 175 ((t / 4) % 2 == 1) ((t / 2) % 2 == 1) (t % 2 == 1) := by
+  native_decide
+
+/-! Мост к трём политикам, которые модель знала и раньше: они оказываются тремя конкретными
+числами из перебора. -/
+
+/-- Кап-часть трёх политик, выписанная отдельно от двери вместимости (`admit`), потому что
+классифицируется именно она. -/
+def partX (p : Profile) (r : Pub) : Bool := ! (full p r.cluster && ! here p r.key)
+def partA (p : Profile) (r : Pub) : Bool := ! (full p r.cluster)
+def partM (p : Profile) (r : Pub) : Bool := ! (! (same p r.key r.cluster) && full p r.cluster)
+
+/-- Профили для моста: всё, чего можно достичь из `base` расписаниями длины ≤ 2 при текущей двери
+(289 профилей × 16 запросов = 4 624 проверки на политику — исчерпание, а не выборка). -/
+def probeProfiles : List Profile := (schedules 2).map fun sc => runFrom admit base sc
+
+theorem partX_is_shape207 :
+    probeProfiles.all fun p => alphabet.all fun r =>
+      partX p r = decides 207 (full p r.cluster) (here p r.key) (same p r.key r.cluster) := by
+  native_decide
+
+theorem partA_is_shape15 :
+    probeProfiles.all fun p => alphabet.all fun r =>
+      partA p r = decides 15 (full p r.cluster) (here p r.key) (same p r.key r.cluster) := by
+  native_decide
+
+/-- Форма с учётом переезда — это 143, то есть **единственная допустимая форма классификации**.
+Оговорка про достижимость тройки здесь не косметика: ровно на ней 143 и 175 расходятся. -/
+theorem partM_is_shape143 :
+    probeProfiles.all fun p => alphabet.all fun r =>
+      partM p r = decides 143 (full p r.cluster) (here p r.key) (same p r.key r.cluster) := by
+  native_decide
+
+/-- Итог для решения владельца: две из трёх предложенных форм не проходят классификацию. -/
+theorem two_of_three_are_not_admissible :
+    goodShape 207 = false ∧ goodShape 15 = false ∧ goodShape 143 = true := by
+  native_decide
+
+/-! ## (8) Тот же приём на `pow_input`: какое множество полей обязано платить
+
+Вопрос §11.1/§14.4: правка какого поля должна стоить новой работы. Модель честна в абстракции:
+«правка поля меняет хеш-вход» здесь тождественно «за поле приходится платить заново», а каждое
+поле сведено к биту — для вопроса о **составе** множества этого довольно, и ничего про blake3
+или сложность тут не утверждается (цена в наносекундах — это `E-0079`, тест (5)).
+
+Порядок полей — как в `crypto/src/pow.rs:63…77`: 0 owner, 1 shard, 2 epoch, 3 slot_key
+(`intent_id`), 4 expires; поле 5 — `cluster_id`, которого там нет. -/
+
+/-- Дешичное представление кортежа полей и маски: биты числа. -/
+def digit (t i : Nat) : Nat := (t / 2 ^ i) % 2
+def setDigit (t i d : Nat) : Nat := (t / 2 ^ (i + 1)) * 2 ^ (i + 1) + d * 2 ^ i + (t % 2 ^ i)
+
+/-- Хеш-вход маски `mask` на кортеже `t`: проекция на связанные поля, порядок фиксирован. -/
+def powTup (mask t : Nat) : List Bool :=
+  (List.range 6).map fun i => if shapeBit mask i then digit t i == 1 else false
+
+/-- Маска платит за правку поля `i`: любая правка ровно этого поля меняет вход. -/
+def paysFor (mask i : Nat) : Bool :=
+  (List.range 64).all fun t => powTup mask t ≠ powTup mask (setDigit t i (1 - digit t i))
+
+/-- Платит за все шесть полей. -/
+def paysAll (mask : Nat) : Bool := (List.range 6).all fun i => paysFor mask i
+
+/-- **Поиск оптимального решения**: из 64 масок платит за все правки ровно одна — полная. То есть
+«добавить `cluster_id` в `pow_input`» не улучшательство, а единственный вариант в этом пространстве,
+и более дешёвой маски, которая тоже закрывает надувание, не существует. -/
+theorem passing_masks_exactly_one : (List.range 64).filter paysAll = [63] := by
+  native_decide
+
+/-- Нынешний набор полей (owner, shard, epoch, slot_key, expires) = 31. -/
+def currentMask : Nat := 31
+def F_CLUSTER : Nat := 5
+
+theorem current_mask_is_not_enough : paysFor currentMask F_CLUSTER = false := by native_decide
+theorem adding_cluster_is_enough : paysAll (currentMask + 2 ^ F_CLUSTER) = true := by native_decide
+/-- Единственный минимальный шаг: 32 маски, из которых правку кластера закрывают только те,
+что содержат бит 5 — и среди них минимальна ровно одна. -/
+theorem cluster_bit_is_necessary :
+    (List.range 64).filter (fun m => paysFor m F_CLUSTER) =
+      (List.range 64).filter (fun m => (m / 2 ^ F_CLUSTER) % 2 == 1) := by
+  native_decide
+
+#eval (List.range 256).filter goodShape
+#eval [207, 15, 143].map fun s => (s, ptLive s, ptCap s, ptRenew s, goodShape s)
+#eval (List.range 64).filter paysAll
+#eval (currentMask, currentMask + 2 ^ F_CLUSTER)
 
 end VecDHT.Admission
