@@ -13,6 +13,11 @@
 
 ## Проверка
 
+- [ ] `python lab/cycle-gate.py H-XXXX` — выход 0 (круг оформлен: боль, источники, рубрика Lean)
+- [ ] источники этого цикла есть в индексе: `python lab/library.py check` и `verify` — выход 0;
+      если чужую реализацию не читали — в карточке записана `prior_art_no_code` с причиной
+- [ ] если рубрика дала четыре «да»: модель `lab/lean/VecDHT/*.lean` добавлена и
+      `bash lab/lean-check.sh` зелёный (sorry=0); если нет — причина отказа записана в карточке
 - [ ] `cargo test --workspace` — зелёный (число тестов указано в PR)
 - [ ] `cargo clippy --workspace --all-targets -- -D warnings` — чисто
 - [ ] если затронуты admission/PoW/индекс — тяжёлый гейт запущен, команда и числа записаны
