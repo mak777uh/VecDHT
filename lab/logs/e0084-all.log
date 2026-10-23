@@ -1,0 +1,340 @@
+=== E-0084 · пре-регистрация: калибровка инструмента (append-only) ===
+2026-10-23T12:10:10+03:00 · HEAD 5d99f88 (до коммита пре-регистрации) · стенд: libp2p QUIC loopback, current_thread + LocalSet
+Оракул: crates/vecdht-net/tests/s19_find_e2e_price.rs (4 теста). Helper: lab/e0084-run.sh.
+Строка: §19.4 :1741 «find end-to-end, p50 / p95 | ≤ 1.5 с / ≤ 4 с».
+
+Ниже — блоки «КАЛИБРОВКА»: полный stdout release-прогонов n=1…n=3 и debug-прогона того же бинаря
+(sha256 6579bed9432a4fa463181067207f7f0432d66d29738cb5b68a5d08efb0cbe58b), снятый ДО коммита
+пре-регистрации. Пороги, замороженные по этим прогонам, перечислены в
+lab/hypotheses/H-0084-19-4-find-end-to-end-on-quic.md и в константах оракула; задним числом они не
+двигались. Замечание о честности журнала: самые первые пилоты этого цикла (правда инструмента,
+описана в ДИАГНОЗ-К ниже) печатали в stdout, не сохранённый в репозиторий; сохранены только прогоны
+откалиброванного инструмента, и именно их числа использованы для выбора окон.
+
+### ДИАГНОЗ-К (append, 2026-10-23; правка инструмента, пороги не двигались) — пять дефектов, найденных пилотом ###
+
+1. Симптом: пилот падал на «ячейка заполнена не ровно 1099/1100 записей». Причина (код, не замер):
+   `node_admits_per_s = 100` (`crates/vecdht-node/src/admission.rs`) — бюджет узла **общий для всех
+   его шардов**, ведро стартует полным и пополняется 100/с, а `handle_publish` при исчерпании отдаёт
+   `ProtocolError::BUSY`; 1100 фреймов закладки в одной виртуальной секунде не проходят. Правка:
+   тяжёлая ячейка закладывается первой, лёгкая — в следующую виртуальную секунду
+   (`base_sec + HEAVY/100 + 1`), и `put()` теперь **читает ответ узла**: любой `Kind::Error` в
+   ответе на Publish — паника с кодом и `retry_after_ms`, а не молчаливая нехватка записи.
+2. Симптом: «ответ не пришёл за 40s», `NOT_OWNER (без шарда)», «нет доступного держателя» на
+   фан-ауте 13, хотя узлов поднято 13. Причина: `handshake::verify`
+   (`crates/vecdht-net/src/handshake.rs:115`) сверяет `cert.owner_ed25519` с ключом, восстановленным
+   из `PeerId`, поэтому 13 узлов, построенных от трёх сидов, для агента — **три пира**. Правка:
+   `stand_seed(shard) = 30 + shard` и `stand_roster(shard)` (детерминированный перебор, при котором
+   `candidates::ordered(1, shard)[0]` — свой ключ), плюс структурная печать
+   `stand_seeds_distinct = 13` и assert порога (2б).
+3. Симптом: фан-аут отдаёт «не все записи нашлись: left 1, right 13». Причина:
+   `Agent::merge_matches` (`agent.rs:1358…1361`) дедуплицирует находки **по `owner_ed25519`** (§11.3.2:
+   живая запись у владельца одна), а все 13 узлов держали запись одного владельца (сид 77). Правка:
+   `owner_seed(shard) = 160 + shard` — 13 различных владельцев; диапазоны 30…42 (узлы) и 160…172
+   (владельцы) не пересекаются с сидами агентов замера.
+4. Симптом: «тяжёлая ячейка не отдала потолок top_k: left 0». Причина: `per_peer_find_rps = 5`
+   (§11.3.6) при превышении даёт `QUOTA_FIND`, а `find` отдаёт **пустой список match'ей, а не
+   ошибку**, то есть четвёртый и пятый заход той же секунды выглядели как «записей нет». Правка:
+   сетевая половина идёт парами (лёгкий/тяжёлый) с паузой `SCAN_PACE_MS = 500 мс`, и во всех путях
+   `find` добавлен assert `failures.is_empty()` — темп части стенда отделён от предмета замера.
+5. Симптом: раскладка по фазам абсурдна — `setup1 = 11,9…13,4 мс > cold1 = 8,5…9,1 мс`, а в первом
+   варианте оракула `setup1 > cold1` при `rel_spread_cold1 = 0,4398`. Причина: один узел на все
+   заходы накапливал мёртвые QUIC-соединения и провайдер-записи Kademlia, из-за чего «внешняя
+   discovery» платила за состояние теста, а не за строку спеки. Правка: узел стенда поднимается и
+   закрывается **на каждый заход** (`Episode::open/close`, `DirGuard` снимает каталог и при панике),
+   дрейф положения захода `cold1_drift_promil` = −6,6…+11,8 ‰, `warm1_drift_promil` = −13,5…+45,7 ‰
+   при пределе 200 ‰ (порог (13)). Отношение `setup1_to_cold1_x` = 1,38…1,52 осталось и печатается
+   как **асимметрия инструмента** (помпа грубее событийного цикла `find`): порогом оно не является,
+   порог (12) стоит для фан-аута 13, где `setup13/cold13` = 0,778…0,786.
+
+Мелочи того же класса: синтетические векторы тяжёлой ячейки повторялись каждые 200 записей
+(`(k+i) mod 200`) — сделаны инъективными по `v[0]`, `v[1]`, иначе «1 100 записей» были 5,5 разными
+векторами; в опечатках комментариев (`кадрProtocolError`, «не заняти», «узы стендаHave») правка
+текста, не чисел.
+
+### КАЛИБРОВКА · release n=1…n=3 и debug одного бинаря ###
+---- КАЛИБРОВКА release rel1 (полный stdout) ----
+=== КАЛИБРОВКА release n=1 === 2026-10-23T12:04:15+03:00
+    Finished `release` profile [optimized] target(s) in 0.78s
+     Running tests\s19_find_e2e_price.rs (target\release\deps\s19_find_e2e_price-252f6977af5719b3.exe)
+
+running 4 tests
+test s19_cold_and_warm_find_fanout1 ... МЕРЕНО cold1_p50_ms=9.034 cold1_p95_ms=10.424 cold1_min_ms=8.335 cold1_max_ms=87.858 cold1_spread_promil=8802.2 cold1_k=21 cold1_argmax=8
+МЕРЕНО find1_p50_ms=6.741 find1_p95_ms=8.528 find1_min_ms=6.426 find1_max_ms=85.779 find1_spread_promil=11771.4 find1_k=21 find1_argmax=8
+МЕРЕНО new1_p50_ms=2.037 new1_p95_ms=2.582 new1_min_ms=1.815 new1_max_ms=2.583 new1_spread_promil=377.1 new1_k=21 new1_argmax=7
+МЕРЕНО setup1_p50_ms=13.430 setup1_p95_ms=16.313 setup1_min_ms=12.251 setup1_max_ms=16.313 setup1_spread_promil=302.4 setup1_k=9 setup1_argmax=5
+МЕРЕНО phasewarm1_p50_ms=1.399 phasewarm1_p95_ms=1.777 phasewarm1_min_ms=1.357 phasewarm1_max_ms=1.777 phasewarm1_spread_promil=299.6 phasewarm1_k=9 phasewarm1_argmax=3
+МЕРЕНО warm1_p50_ms=0.548 warm1_p95_ms=0.752 warm1_min_ms=0.511 warm1_max_ms=1.162 warm1_spread_promil=1187.5 warm1_k=63 warm1_argmax=15
+МЕРЕНО cold1_first_half_p50_ms=9.050 cold1_second_half_p50_ms=8.990 cold1_drift_promil=-6.6 warm1_drift_promil=-17.7 setup1_drift_promil=64.8
+МЕРЕНО provider_seen_min=0 provider_seen_max=0 cold1_to_warm1_x=16.480 setup1_to_cold1_x=1.487 warm1_to_cold1_x=0.061 phasewarm1_to_cold1_x=0.155 new1_share_promil=225.4 rel_spread_cold1=8.8022 rel_spread_warm1=1.1875 rel_spread_setup1=0.3024
+МЕРЕНО cold1_margin_p50_x=165.032 cold1_margin_p95_x=382.737 row_p50_ms=1500 row_p95_ms=4000 margin_vs_spread_x=2 drift_promil_max=200
+МЕРЕНО gate_3_cold1_p50_le_row=1
+МЕРЕНО gate_4_cold1_p95_le_row=1
+МЕРЕНО gate_5a_cold1_margin_p50=1
+МЕРЕНО gate_5b_cold1_margin_p95=1
+МЕРЕНО gate_13a_drift_cold1=1
+МЕРЕНО gate_13b_drift_warm1=1
+МЕРЕНО gate_2a_provider_seen_zero=1
+ok
+test s19_fanout13_find_price ... МЕРЕНО stand_nodes=13 stand_seeds_distinct=13
+МЕРЕНО cold13_p50_ms=65.465 cold13_p95_ms=71.766 cold13_min_ms=61.590 cold13_max_ms=71.766 cold13_spread_promil=155.4 cold13_k=11 cold13_argmax=3
+МЕРЕНО find13_p50_ms=63.882 find13_p95_ms=70.231 find13_min_ms=59.940 find13_max_ms=70.231 find13_spread_promil=161.1 find13_k=11 find13_argmax=3
+МЕРЕНО warm13_p50_ms=5.655 warm13_p95_ms=7.084 warm13_min_ms=5.044 warm13_max_ms=7.676 warm13_spread_promil=465.3 warm13_k=33 warm13_argmax=8
+МЕРЕНО one13ref_p50_ms=7.154 one13ref_p95_ms=8.490 one13ref_min_ms=6.921 one13ref_max_ms=8.490 one13ref_spread_promil=219.2 one13ref_k=11 one13ref_argmax=0
+МЕРЕНО setup13_p50_ms=51.458 setup13_p95_ms=68.902 setup13_min_ms=45.604 setup13_max_ms=68.902 setup13_spread_promil=452.8 setup13_k=9 setup13_argmax=7
+МЕРЕНО cold13_first_half_p50_ms=67.922 cold13_second_half_p50_ms=63.781 cold13_drift_promil=-63.3 warm13_drift_promil=-112.9 one13_drift_promil=8.1 covered_shards_min=13 covered_shards_max=13
+МЕРЕНО answers_min=13 answers_max=13 fanout13_to_one_x=9.150 per_shard_marginal_ms=4.859 cold13_to_warm13_x=11.576 setup13_to_cold13_x=0.786 rel_spread_cold13=0.1554 rel_spread_warm13=0.4653 rel_spread_cold1_ref=0.2192 fanout13_p95_is_max=1
+МЕРЕНО cold13_margin_p50_x=21.913 cold13_margin_p95_x=54.737
+МЕРЕНО gate_2b_all_shards_answered=1
+МЕРЕНО gate_7_cold13_p50_le_row=1
+МЕРЕНО gate_8_cold13_p95_le_row=1
+МЕРЕНО gate_6a_cold13_margin_p50=1
+МЕРЕНО gate_6b_cold13_margin_p95=1
+МЕРЕНО gate_9_cold13_to_warm13_window=1
+МЕРЕНО gate_10_marginal_per_shard_window=1
+МЕРЕНО gate_11_fanout_ratio_window=1
+МЕРЕНО gate_12_setup_share_window=1
+МЕРЕНО gate_13a_drift_cold13=1
+МЕРЕНО gate_13b_drift_warm13=1
+МЕРЕНО gate_13c_drift_one_ref=1
+ok
+test s19_scan_share_in_end_to_end_time ... МЕРЕНО scanlight_p50_ms=0.954 scanlight_p95_ms=3.495 scanlight_min_ms=0.754 scanlight_max_ms=3.495 scanlight_spread_promil=2873.7 scanlight_k=15 scanlight_argmax=6
+МЕРЕНО scanheavy_p50_ms=1.816 scanheavy_p95_ms=11.572 scanheavy_min_ms=1.746 scanheavy_max_ms=11.572 scanheavy_spread_promil=5409.6 scanheavy_k=15 scanheavy_argmax=6
+МЕРЕНО scan_ratio_x=1.9042 scan_delta_ms=0.862 rel_spread_scanlight=2.8737 rel_spread_scanheavy=5.4096
+МЕРЕНО direct_search_light_p50_us=0.300 direct_search_heavy_p50_us=57.200 direct_search_ratio_x=190.7 heavy_cell=1100 direct_per_record_us=0.05200 direct_light_below_clock_us=1 net_heavy_p50_ms=1.816 search_share=0.03149
+МЕРЕНО gate_14_scan_ratio_window=1
+МЕРЕНО gate_15_search_share_le=1
+ok
+test s19_structural_shape_of_the_stand ... МЕРЕНО nlist=1024 shards=64 clusters_per_shard=16 top_k_max=64 nprobe_default=16 pow_bits_default=20 agent_poll_ms=25.0 agent_call_timeout_ms=40000.0 agent_request_timeout_ms=10000.0 node_poll_ms=5.0 node_request_timeout_ms=5000.0 stand_pow=8 k_cold=21 k_fanout=11 k_phase=9 k_warm=3 k_scan=15 heavy=1100 fanout=13
+МЕРЕНО query_clusters=13 query_shards_distinct=13
+МЕРЕНО per_peer_find_rps=5 per_peer_publish_rps=1 per_peer_publish_burst=20 node_admits_per_s=100 top_k_max_param=64 lease_buckets=6
+МЕРЕНО e2e_struct_ok=1
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 13.65s
+
+EXIT=0
+---- КАЛИБРОВКА release rel2 (полный stdout) ----
+=== КАЛИБРОВКА release n=2 === 2026-10-23T12:04:30+03:00
+    Finished `release` profile [optimized] target(s) in 0.69s
+     Running tests\s19_find_e2e_price.rs (target\release\deps\s19_find_e2e_price-252f6977af5719b3.exe)
+
+running 4 tests
+test s19_cold_and_warm_find_fanout1 ... МЕРЕНО cold1_p50_ms=9.077 cold1_p95_ms=11.708 cold1_min_ms=7.898 cold1_max_ms=12.159 cold1_spread_promil=469.5 cold1_k=21 cold1_argmax=14
+МЕРЕНО find1_p50_ms=6.957 find1_p95_ms=9.264 find1_min_ms=6.051 find1_max_ms=9.566 find1_spread_promil=505.3 find1_k=21 find1_argmax=14
+МЕРЕНО new1_p50_ms=2.166 new1_p95_ms=2.643 new1_min_ms=1.844 new1_max_ms=2.648 new1_spread_promil=371.1 new1_k=21 new1_argmax=6
+МЕРЕНО setup1_p50_ms=12.506 setup1_p95_ms=15.770 setup1_min_ms=12.080 setup1_max_ms=15.770 setup1_spread_promil=295.0 setup1_k=9 setup1_argmax=1
+МЕРЕНО phasewarm1_p50_ms=1.368 phasewarm1_p95_ms=1.545 phasewarm1_min_ms=1.347 phasewarm1_max_ms=1.545 phasewarm1_spread_promil=145.1 phasewarm1_k=9 phasewarm1_argmax=4
+МЕРЕНО warm1_p50_ms=0.555 warm1_p95_ms=0.765 warm1_min_ms=0.495 warm1_max_ms=0.879 warm1_spread_promil=690.0 warm1_k=63 warm1_argmax=2
+МЕРЕНО cold1_first_half_p50_ms=9.077 cold1_second_half_p50_ms=9.027 cold1_drift_promil=-5.5 warm1_drift_promil=45.7 setup1_drift_promil=6.3
+МЕРЕНО provider_seen_min=0 provider_seen_max=0 cold1_to_warm1_x=16.341 setup1_to_cold1_x=1.378 warm1_to_cold1_x=0.061 phasewarm1_to_cold1_x=0.151 new1_share_promil=238.7 rel_spread_cold1=0.4695 rel_spread_warm1=0.6900 rel_spread_setup1=0.2950
+МЕРЕНО cold1_margin_p50_x=164.246 cold1_margin_p95_x=340.641 row_p50_ms=1500 row_p95_ms=4000 margin_vs_spread_x=2 drift_promil_max=200
+МЕРЕНО gate_3_cold1_p50_le_row=1
+МЕРЕНО gate_4_cold1_p95_le_row=1
+МЕРЕНО gate_5a_cold1_margin_p50=1
+МЕРЕНО gate_5b_cold1_margin_p95=1
+МЕРЕНО gate_13a_drift_cold1=1
+МЕРЕНО gate_13b_drift_warm1=1
+МЕРЕНО gate_2a_provider_seen_zero=1
+ok
+test s19_fanout13_find_price ... МЕРЕНО stand_nodes=13 stand_seeds_distinct=13
+МЕРЕНО cold13_p50_ms=63.496 cold13_p95_ms=71.013 cold13_min_ms=60.125 cold13_max_ms=71.013 cold13_spread_promil=171.5 cold13_k=11 cold13_argmax=0
+МЕРЕНО find13_p50_ms=61.845 find13_p95_ms=69.004 find13_min_ms=58.493 find13_max_ms=69.004 find13_spread_promil=170.0 find13_k=11 find13_argmax=0
+МЕРЕНО warm13_p50_ms=5.796 warm13_p95_ms=6.761 warm13_min_ms=4.847 warm13_max_ms=6.822 warm13_spread_promil=340.8 warm13_k=33 warm13_argmax=22
+МЕРЕНО one13ref_p50_ms=6.287 one13ref_p95_ms=8.079 one13ref_min_ms=6.207 one13ref_max_ms=8.079 one13ref_spread_promil=297.8 one13ref_k=11 one13ref_argmax=0
+МЕРЕНО setup13_p50_ms=49.925 setup13_p95_ms=54.235 setup13_min_ms=44.662 setup13_max_ms=54.235 setup13_spread_promil=191.7 setup13_k=9 setup13_argmax=2
+МЕРЕНО cold13_first_half_p50_ms=65.370 cold13_second_half_p50_ms=62.090 cold13_drift_promil=-51.7 warm13_drift_promil=-151.7 one13_drift_promil=-6.2 covered_shards_min=13 covered_shards_max=13
+МЕРЕНО answers_min=13 answers_max=13 fanout13_to_one_x=10.100 per_shard_marginal_ms=4.767 cold13_to_warm13_x=10.955 setup13_to_cold13_x=0.786 rel_spread_cold13=0.1715 rel_spread_warm13=0.3408 rel_spread_cold1_ref=0.2978 fanout13_p95_is_max=1
+МЕРЕНО cold13_margin_p50_x=22.623 cold13_margin_p95_x=55.328
+МЕРЕНО gate_2b_all_shards_answered=1
+МЕРЕНО gate_7_cold13_p50_le_row=1
+МЕРЕНО gate_8_cold13_p95_le_row=1
+МЕРЕНО gate_6a_cold13_margin_p50=1
+МЕРЕНО gate_6b_cold13_margin_p95=1
+МЕРЕНО gate_9_cold13_to_warm13_window=1
+МЕРЕНО gate_10_marginal_per_shard_window=1
+МЕРЕНО gate_11_fanout_ratio_window=1
+МЕРЕНО gate_12_setup_share_window=1
+МЕРЕНО gate_13a_drift_cold13=1
+МЕРЕНО gate_13b_drift_warm13=1
+МЕРЕНО gate_13c_drift_one_ref=1
+ok
+test s19_scan_share_in_end_to_end_time ... МЕРЕНО scanlight_p50_ms=0.763 scanlight_p95_ms=1.160 scanlight_min_ms=0.674 scanlight_max_ms=1.160 scanlight_spread_promil=636.6 scanlight_k=15 scanlight_argmax=14
+МЕРЕНО scanheavy_p50_ms=1.797 scanheavy_p95_ms=2.990 scanheavy_min_ms=1.737 scanheavy_max_ms=2.990 scanheavy_spread_promil=696.9 scanheavy_k=15 scanheavy_argmax=14
+МЕРЕНО scan_ratio_x=2.3559 scan_delta_ms=1.034 rel_spread_scanlight=0.6366 rel_spread_scanheavy=0.6969
+МЕРЕНО direct_search_light_p50_us=0.300 direct_search_heavy_p50_us=58.700 direct_search_ratio_x=195.7 heavy_cell=1100 direct_per_record_us=0.05336 direct_light_below_clock_us=1 net_heavy_p50_ms=1.797 search_share=0.03266
+МЕРЕНО gate_14_scan_ratio_window=1
+МЕРЕНО gate_15_search_share_le=1
+ok
+test s19_structural_shape_of_the_stand ... МЕРЕНО nlist=1024 shards=64 clusters_per_shard=16 top_k_max=64 nprobe_default=16 pow_bits_default=20 agent_poll_ms=25.0 agent_call_timeout_ms=40000.0 agent_request_timeout_ms=10000.0 node_poll_ms=5.0 node_request_timeout_ms=5000.0 stand_pow=8 k_cold=21 k_fanout=11 k_phase=9 k_warm=3 k_scan=15 heavy=1100 fanout=13
+МЕРЕНО query_clusters=13 query_shards_distinct=13
+МЕРЕНО per_peer_find_rps=5 per_peer_publish_rps=1 per_peer_publish_burst=20 node_admits_per_s=100 top_k_max_param=64 lease_buckets=6
+МЕРЕНО e2e_struct_ok=1
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.94s
+
+EXIT=0
+---- КАЛИБРОВКА release rel3 (полный stdout) ----
+=== КАЛИБРОВКА release n=3 === 2026-10-23T12:04:44+03:00
+    Finished `release` profile [optimized] target(s) in 0.68s
+     Running tests\s19_find_e2e_price.rs (target\release\deps\s19_find_e2e_price-252f6977af5719b3.exe)
+
+running 4 tests
+test s19_cold_and_warm_find_fanout1 ... МЕРЕНО cold1_p50_ms=8.517 cold1_p95_ms=8.866 cold1_min_ms=8.139 cold1_max_ms=8.980 cold1_spread_promil=98.8 cold1_k=21 cold1_argmax=13
+МЕРЕНО find1_p50_ms=6.521 find1_p95_ms=6.792 find1_min_ms=6.267 find1_max_ms=6.984 find1_spread_promil=110.0 find1_k=21 find1_argmax=13
+МЕРЕНО new1_p50_ms=1.922 new1_p95_ms=2.335 new1_min_ms=1.758 new1_max_ms=2.349 new1_spread_promil=307.3 new1_k=21 new1_argmax=20
+МЕРЕНО setup1_p50_ms=12.970 setup1_p95_ms=13.606 setup1_min_ms=11.646 setup1_max_ms=13.606 setup1_spread_promil=151.1 setup1_k=9 setup1_argmax=5
+МЕРЕНО phasewarm1_p50_ms=1.365 phasewarm1_p95_ms=1.380 phasewarm1_min_ms=1.341 phasewarm1_max_ms=1.380 phasewarm1_spread_promil=28.7 phasewarm1_k=9 phasewarm1_argmax=1
+МЕРЕНО warm1_p50_ms=0.532 warm1_p95_ms=0.563 warm1_min_ms=0.502 warm1_max_ms=0.595 warm1_spread_promil=173.7 warm1_k=63 warm1_argmax=57
+МЕРЕНО cold1_first_half_p50_ms=8.438 cold1_second_half_p50_ms=8.538 cold1_drift_promil=11.8 warm1_drift_promil=-13.5 setup1_drift_promil=-62.4
+МЕРЕНО provider_seen_min=0 provider_seen_max=0 cold1_to_warm1_x=16.009 setup1_to_cold1_x=1.523 warm1_to_cold1_x=0.062 phasewarm1_to_cold1_x=0.160 new1_share_promil=225.6 rel_spread_cold1=0.0988 rel_spread_warm1=0.1737 rel_spread_setup1=0.1511
+МЕРЕНО cold1_margin_p50_x=175.122 cold1_margin_p95_x=450.146 row_p50_ms=1500 row_p95_ms=4000 margin_vs_spread_x=2 drift_promil_max=200
+МЕРЕНО gate_3_cold1_p50_le_row=1
+МЕРЕНО gate_4_cold1_p95_le_row=1
+МЕРЕНО gate_5a_cold1_margin_p50=1
+МЕРЕНО gate_5b_cold1_margin_p95=1
+МЕРЕНО gate_13a_drift_cold1=1
+МЕРЕНО gate_13b_drift_warm1=1
+МЕРЕНО gate_2a_provider_seen_zero=1
+ok
+test s19_fanout13_find_price ... МЕРЕНО stand_nodes=13 stand_seeds_distinct=13
+МЕРЕНО cold13_p50_ms=63.710 cold13_p95_ms=73.983 cold13_min_ms=58.843 cold13_max_ms=73.983 cold13_spread_promil=237.6 cold13_k=11 cold13_argmax=3
+МЕРЕНО find13_p50_ms=62.040 find13_p95_ms=72.221 find13_min_ms=57.260 find13_max_ms=72.221 find13_spread_promil=241.1 find13_k=11 find13_argmax=3
+МЕРЕНО warm13_p50_ms=5.591 warm13_p95_ms=9.201 warm13_min_ms=5.051 warm13_max_ms=9.839 warm13_spread_promil=856.4 warm13_k=33 warm13_argmax=5
+МЕРЕНО one13ref_p50_ms=6.869 one13ref_p95_ms=8.253 one13ref_min_ms=6.674 one13ref_max_ms=8.253 one13ref_spread_promil=229.9 one13ref_k=11 one13ref_argmax=0
+МЕРЕНО setup13_p50_ms=49.536 setup13_p95_ms=59.801 setup13_min_ms=47.146 setup13_max_ms=59.801 setup13_spread_promil=255.5 setup13_k=9 setup13_argmax=5
+МЕРЕНО cold13_first_half_p50_ms=68.681 cold13_second_half_p50_ms=62.986 cold13_drift_promil=-89.4 warm13_drift_promil=-113.3 one13_drift_promil=-12.1 covered_shards_min=13 covered_shards_max=13
+МЕРЕНО answers_min=13 answers_max=13 fanout13_to_one_x=9.275 per_shard_marginal_ms=4.737 cold13_to_warm13_x=11.395 setup13_to_cold13_x=0.778 rel_spread_cold13=0.2376 rel_spread_warm13=0.8564 rel_spread_cold1_ref=0.2299 fanout13_p95_is_max=1
+МЕРЕНО cold13_margin_p50_x=22.544 cold13_margin_p95_x=53.067
+МЕРЕНО gate_2b_all_shards_answered=1
+МЕРЕНО gate_7_cold13_p50_le_row=1
+МЕРЕНО gate_8_cold13_p95_le_row=1
+МЕРЕНО gate_6a_cold13_margin_p50=1
+МЕРЕНО gate_6b_cold13_margin_p95=1
+МЕРЕНО gate_9_cold13_to_warm13_window=1
+МЕРЕНО gate_10_marginal_per_shard_window=1
+МЕРЕНО gate_11_fanout_ratio_window=1
+МЕРЕНО gate_12_setup_share_window=1
+МЕРЕНО gate_13a_drift_cold13=1
+МЕРЕНО gate_13b_drift_warm13=1
+МЕРЕНО gate_13c_drift_one_ref=1
+ok
+test s19_scan_share_in_end_to_end_time ... МЕРЕНО scanlight_p50_ms=0.812 scanlight_p95_ms=1.193 scanlight_min_ms=0.725 scanlight_max_ms=1.193 scanlight_spread_promil=576.7 scanlight_k=15 scanlight_argmax=13
+МЕРЕНО scanheavy_p50_ms=1.907 scanheavy_p95_ms=2.933 scanheavy_min_ms=1.756 scanheavy_max_ms=2.933 scanheavy_spread_promil=617.4 scanheavy_k=15 scanheavy_argmax=3
+МЕРЕНО scan_ratio_x=2.3493 scan_delta_ms=1.095 rel_spread_scanlight=0.5767 rel_spread_scanheavy=0.6174
+МЕРЕНО direct_search_light_p50_us=0.300 direct_search_heavy_p50_us=57.600 direct_search_ratio_x=192.0 heavy_cell=1100 direct_per_record_us=0.05236 direct_light_below_clock_us=1 net_heavy_p50_ms=1.907 search_share=0.03020
+МЕРЕНО gate_14_scan_ratio_window=1
+МЕРЕНО gate_15_search_share_le=1
+ok
+test s19_structural_shape_of_the_stand ... МЕРЕНО nlist=1024 shards=64 clusters_per_shard=16 top_k_max=64 nprobe_default=16 pow_bits_default=20 agent_poll_ms=25.0 agent_call_timeout_ms=40000.0 agent_request_timeout_ms=10000.0 node_poll_ms=5.0 node_request_timeout_ms=5000.0 stand_pow=8 k_cold=21 k_fanout=11 k_phase=9 k_warm=3 k_scan=15 heavy=1100 fanout=13
+МЕРЕНО query_clusters=13 query_shards_distinct=13
+МЕРЕНО per_peer_find_rps=5 per_peer_publish_rps=1 per_peer_publish_burst=20 node_admits_per_s=100 top_k_max_param=64 lease_buckets=6
+МЕРЕНО e2e_struct_ok=1
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.93s
+
+EXIT=0
+---- КАЛИБРОВКА debug (полный stdout) ----
+=== КАЛИБРОВКА debug === 2026-10-23T12:04:58+03:00
+   Compiling vecdht-net v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-net)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.24s
+     Running tests\s19_find_e2e_price.rs (target\debug\deps\s19_find_e2e_price-6f804c62f5276aab.exe)
+
+running 4 tests
+test s19_cold_and_warm_find_fanout1 ... МЕРЕНО cold1_p50_ms=289.922 cold1_p95_ms=306.263 cold1_min_ms=286.050 cold1_max_ms=308.729 cold1_spread_promil=78.2 cold1_k=21 cold1_argmax=19
+МЕРЕНО find1_p50_ms=267.852 find1_p95_ms=274.935 find1_min_ms=264.052 find1_max_ms=285.578 find1_spread_promil=80.4 find1_k=21 find1_argmax=19
+МЕРЕНО new1_p50_ms=22.141 new1_p95_ms=23.724 new1_min_ms=21.532 new1_max_ms=31.328 new1_spread_promil=442.4 new1_k=21 new1_argmax=9
+МЕРЕНО setup1_p50_ms=329.984 setup1_p95_ms=338.808 setup1_min_ms=325.064 setup1_max_ms=338.808 setup1_spread_promil=41.7 setup1_k=9 setup1_argmax=0
+МЕРЕНО phasewarm1_p50_ms=111.256 phasewarm1_p95_ms=111.768 phasewarm1_min_ms=110.845 phasewarm1_max_ms=111.768 phasewarm1_spread_promil=8.3 phasewarm1_k=9 phasewarm1_argmax=5
+МЕРЕНО warm1_p50_ms=18.609 warm1_p95_ms=20.205 warm1_min_ms=18.154 warm1_max_ms=20.873 warm1_spread_promil=146.1 warm1_k=63 warm1_argmax=1
+МЕРЕНО cold1_first_half_p50_ms=288.332 cold1_second_half_p50_ms=292.937 cold1_drift_promil=15.9 warm1_drift_promil=-7.9 setup1_drift_promil=22.1
+МЕРЕНО provider_seen_min=0 provider_seen_max=0 cold1_to_warm1_x=15.579 setup1_to_cold1_x=1.138 warm1_to_cold1_x=0.064 phasewarm1_to_cold1_x=0.384 new1_share_promil=76.4 rel_spread_cold1=0.0782 rel_spread_warm1=0.1461 rel_spread_setup1=0.0417
+МЕРЕНО cold1_margin_p50_x=4.174 cold1_margin_p95_x=12.061 row_p50_ms=1500 row_p95_ms=4000 margin_vs_spread_x=2 drift_promil_max=200
+МЕРЕНО gate_3_cold1_p50_le_row=1
+МЕРЕНО gate_4_cold1_p95_le_row=1
+МЕРЕНО gate_5a_cold1_margin_p50=1
+МЕРЕНО gate_5b_cold1_margin_p95=1
+МЕРЕНО gate_13a_drift_cold1=1
+МЕРЕНО gate_13b_drift_warm1=1
+МЕРЕНО gate_2a_provider_seen_zero=1
+ok
+test s19_fanout13_find_price ... МЕРЕНО stand_nodes=13 stand_seeds_distinct=13
+МЕРЕНО cold13_p50_ms=3552.027 cold13_p95_ms=3630.344 cold13_min_ms=3507.998 cold13_max_ms=3630.344 cold13_spread_promil=34.4 cold13_k=11 cold13_argmax=5
+МЕРЕНО find13_p50_ms=3530.363 find13_p95_ms=3608.911 find13_min_ms=3486.256 find13_max_ms=3608.911 find13_spread_promil=34.7 find13_k=11 find13_argmax=5
+МЕРЕНО warm13_p50_ms=251.469 warm13_p95_ms=267.274 warm13_min_ms=232.594 warm13_max_ms=276.511 warm13_spread_promil=174.6 warm13_k=33 warm13_argmax=0
+МЕРЕНО one13ref_p50_ms=296.298 one13ref_p95_ms=313.149 one13ref_min_ms=290.079 one13ref_max_ms=313.149 one13ref_spread_promil=77.9 one13ref_k=11 one13ref_argmax=4
+МЕРЕНО setup13_p50_ms=3006.183 setup13_p95_ms=3258.959 setup13_min_ms=2052.220 setup13_max_ms=3258.959 setup13_spread_promil=401.4 setup13_k=9 setup13_argmax=6
+МЕРЕНО cold13_first_half_p50_ms=3520.005 cold13_second_half_p50_ms=3580.522 cold13_drift_promil=17.0 warm13_drift_promil=11.4 one13_drift_promil=-28.7 covered_shards_min=13 covered_shards_max=13
+МЕРЕНО answers_min=13 answers_max=13 fanout13_to_one_x=11.988 per_shard_marginal_ms=271.311 cold13_to_warm13_x=14.125 setup13_to_cold13_x=0.846 rel_spread_cold13=0.0344 rel_spread_warm13=0.1746 rel_spread_cold1_ref=0.0779 fanout13_p95_is_max=1
+МЕРЕНО cold13_margin_p50_x=-0.578 cold13_margin_p95_x=0.102
+МЕРЕНО gate_2b_all_shards_answered=1
+МЕРЕНО gate_7_cold13_p50_le_row=0
+МЕРЕНО gate_8_cold13_p95_le_row=1
+МЕРЕНО gate_6a_cold13_margin_p50=0
+МЕРЕНО gate_6b_cold13_margin_p95=1
+МЕРЕНО gate_9_cold13_to_warm13_window=1
+МЕРЕНО gate_10_marginal_per_shard_window=0
+МЕРЕНО gate_11_fanout_ratio_window=1
+МЕРЕНО gate_12_setup_share_window=1
+МЕРЕНО gate_13a_drift_cold13=1
+МЕРЕНО gate_13b_drift_warm13=1
+МЕРЕНО gate_13c_drift_one_ref=1
+ok
+test s19_scan_share_in_end_to_end_time ... МЕРЕНО scanlight_p50_ms=19.224 scanlight_p95_ms=23.381 scanlight_min_ms=18.721 scanlight_max_ms=23.381 scanlight_spread_promil=242.4 scanlight_k=15 scanlight_argmax=0
+МЕРЕНО scanheavy_p50_ms=152.937 scanheavy_p95_ms=173.999 scanheavy_min_ms=150.139 scanheavy_max_ms=173.999 scanheavy_spread_promil=156.0 scanheavy_k=15 scanheavy_argmax=0
+МЕРЕНО scan_ratio_x=7.9555 scan_delta_ms=133.713 rel_spread_scanlight=0.2424 rel_spread_scanheavy=0.1560
+МЕРЕНО direct_search_light_p50_us=14.900 direct_search_heavy_p50_us=13444.100 direct_search_ratio_x=902.3 heavy_cell=1100 direct_per_record_us=12.22191 direct_light_below_clock_us=0 net_heavy_p50_ms=152.937 search_share=0.08791
+МЕРЕНО gate_14_scan_ratio_window=0
+МЕРЕНО gate_15_search_share_le=0
+ok
+test s19_structural_shape_of_the_stand ... МЕРЕНО nlist=1024 shards=64 clusters_per_shard=16 top_k_max=64 nprobe_default=16 pow_bits_default=20 agent_poll_ms=25.0 agent_call_timeout_ms=40000.0 agent_request_timeout_ms=10000.0 node_poll_ms=5.0 node_request_timeout_ms=5000.0 stand_pow=8 k_cold=21 k_fanout=11 k_phase=9 k_warm=3 k_scan=15 heavy=1100 fanout=13
+МЕРЕНО query_clusters=13 query_shards_distinct=13
+МЕРЕНО per_peer_find_rps=5 per_peer_publish_rps=1 per_peer_publish_burst=20 node_admits_per_s=100 top_k_max_param=64 lease_buckets=6
+МЕРЕНО e2e_struct_ok=1
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 111.39s
+
+EXIT=0
+### КАЛИБРОВКА · сводка: предел воспроизводимости против замороженных окон (вычислено из блоков выше) ###
+ключ                          n=1        n=2        n=3        размах, %   замороженное окно
+cold1_p50_ms                    9.0340     9.0770     8.5170       6.20   (3) ≤ 1500
+cold1_p95_ms                   10.4240    11.7080     8.8660      27.26   (4) ≤ 4000
+cold13_p50_ms                  65.4650    63.4960    63.7100       3.09   (7) ≤ 1500
+cold13_p95_ms                  71.7660    71.0130    73.9830       4.14   (8) ≤ 4000
+one13ref_p50_ms                 7.1540     6.2870     6.8690      12.62   —
+setup13_p50_ms                 51.4580    49.9250    49.5360       3.85   —
+warm13_p50_ms                   5.6550     5.7960     5.5910       3.63   (9) знаменатель
+fanout13_to_one_x               9.1500    10.1000     9.2750      10.24   (11) [6; 13]
+per_shard_marginal_ms           4.8590     4.7670     4.7370       2.56   (10) [2,5; 10]
+cold13_to_warm13_x             11.5760    10.9550    11.3950       5.45   (9) [4; 30]
+setup13_to_cold13_x             0.7860     0.7860     0.7780       1.02   (12) [0,5; 1,0]
+scanlight_p50_ms                0.9540     0.7630     0.8120      23.52   (14) знаменатель
+scanheavy_p50_ms                1.8160     1.7970     1.9070       6.06   (14) числитель
+scan_ratio_x                    1.9042     2.3559     2.3493      19.23   (14) [1,4; 3,0] ← тонкий
+search_share                    0.0315     0.0327     0.0302       7.81   (15) ≤ 0,05
+direct_search_heavy_p50_us     57.2000    58.7000    57.6000       2.60   —
+rel_spread_cold1                8.8022     0.4695     0.0988    1853.76   (5а) множитель
+rel_spread_cold13               0.1554     0.1715     0.2376      47.93   (6а) множитель
+warm13_drift_promil          -112.9000  -151.7000  -113.3000     -34.25   (13b) ≤ 200 ‰
+
+Вывод калибровки, на котором стоят окна: p95 шумит сильнее p50 того же прогона
+(cold1: 27,3 % против 6,2 %; cold13: 4,1 % против 3,1 %) — правило 7 поэтому проверено
+отдельно для p50 и p95 (5а/5б, 6а/6б) и по межпрогонному расхождению (18). Единственное
+окно, чей запас меньше 2× межпрогонного разброса, — (14): 0,27 против 0,38; оно
+зарегистрировано как тонкое до замера, и его невыполнение читается как «окно не
+воспроизведено стендом», а не как опровержение физической части утверждения.
+
+### КАЛИБРОВКА · идентичность инструмента (проверено перед коммитом пре-регистрации) ###
+После заморозки порогов (в этом же коммите) таргет пересобран в обоих профилях:
+`cargo test -p vecdht-net --release --test s19_find_e2e_price --no-run` → exit 0, и sha256
+release-бинаря остался **6579bed9432a4fa463181067207f7f0432d66d29738cb5b68a5d08efb0cbe58b** —
+тем же, что и у трёх калибровочных прогонов выше (комментарские правки в исходнике на код не
+влияли). Debug-сборка — exit 0. `cargo clippy -j 2 -p vecdht-net --all-targets -- -D warnings` →
+CLIPPY_EXIT=0; `cargo clippy --workspace --all-targets -- -D warnings` → CLIPPY_EXIT=0;
+`bash lab/check-spec-mirror.sh` → OK (1895 строк, 37e3ec15cf1d). Helper-сверка подписей печати:
+102 ключа и 21 имя гейта сопоставлены с исходником скриптом до коммита, расхождений нет.
+Заморозка: RAM свободно 7 181 МБ, диск 20 826 МБ.
+
