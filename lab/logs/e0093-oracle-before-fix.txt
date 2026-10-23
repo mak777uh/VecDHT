@@ -1,0 +1,31 @@
+# PRE_FIX цикла E-0093 — прежний страж моделей на дереве с двумя настоящими нарушениями.
+# Прибор: `git show 9ecb326:lab/lean-check.sh` (bash + grep, версия до обёртки над python).
+# Исполнено 2026-10-24T01:18+03:00 на дереве HEAD=9ecb326 (модели не тронуты, правка только
+# посадочная): копии пяти моделей в временный каталог, поверх — (а) `BadAxiom.lean` с теоремой,
+# выведенной из объявленной аксиомы, (б) ослабленная формулировка `there_are_eight_names`
+# в `CertLadder.lean` (`= 8` -> `<= 8`). Команда повторяется шагом PRE_FIX в `lab/e0093-run.sh`.
+#
+# Смысл этого файла: оба нарушения прежний гейт ПРОПУСТИЛ. Выход 0 и `LEAN_ALL_OK=1` в обоих
+# случаях — то есть утверждение «модели проверены, аксиом и sorry нет» ничего не проверяло
+# ни в первом, ни во втором случае. Числа `LEAN_MS_TOTAL` (15,0 с и 14,7 с) — цена прежнего
+# прогона, снятая здесь же, чтобы новый прибор можно было сравнить с ним по деньгам.
+
+===== PRE_FIX_axiom =====
+LEAN_FILE=Admission.lean EXIT=0 ERRORS=0 SORRY=0 MS=4123 OK=1
+LEAN_FILE=Auth.lean EXIT=0 ERRORS=0 SORRY=0 MS=3808 OK=1
+LEAN_FILE=BadAxiom.lean EXIT=0 ERRORS=0 SORRY=0 MS=1021 OK=1
+LEAN_FILE=CertLadder.lean EXIT=0 ERRORS=0 SORRY=0 MS=1710 OK=1
+LEAN_FILE=Denylist.lean EXIT=0 ERRORS=0 SORRY=0 MS=1914 OK=1
+LEAN_FILE=Shard.lean EXIT=0 ERRORS=0 SORRY=0 MS=2503 OK=1
+LEAN_TOTAL=6 BROKEN=0 SORRY_TOTAL=0 LEAN_MS_TOTAL=15079
+LEAN_ALL_OK=1
+PRE_FIX_axiom_EXIT=0
+===== PRE_FIX_weaken =====
+LEAN_FILE=Admission.lean EXIT=0 ERRORS=0 SORRY=0 MS=4357 OK=1
+LEAN_FILE=Auth.lean EXIT=0 ERRORS=0 SORRY=0 MS=4011 OK=1
+LEAN_FILE=CertLadder.lean EXIT=0 ERRORS=0 SORRY=0 MS=1797 OK=1
+LEAN_FILE=Denylist.lean EXIT=0 ERRORS=0 SORRY=0 MS=1954 OK=1
+LEAN_FILE=Shard.lean EXIT=0 ERRORS=0 SORRY=0 MS=2545 OK=1
+LEAN_TOTAL=5 BROKEN=0 SORRY_TOTAL=0 LEAN_MS_TOTAL=14664
+LEAN_ALL_OK=1
+PRE_FIX_weaken_EXIT=0
