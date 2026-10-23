@@ -133,6 +133,19 @@ fn search_is_under_300_microseconds_at_1104_entries() {
         s.index.live,
     );
 
+    // Машинально извлекаемая копия тех же чисел: `МЕРЕНО ключ=число` (ascii), чтобы helper'у
+    // цикла `E-0083` не пришлось разбирать прозу (урок ДИАГНОЗ-4 из `E-0082`). Пороги теста при
+    // этом не двигались: ниже идёт ровно тот же assert p95 ≤ 300 мкс и тот же страж nprobe.
+    println!(
+        "МЕРЕНО search_p50_us={:.1} search_p95_us={:.1} search_p99_us={:.1} \
+         search_one_cluster_p50_us={:.1} search_row_limit_us=300.0 search_profile={}",
+        p50.as_secs_f64() * 1e6,
+        p95.as_secs_f64() * 1e6,
+        p99.as_secs_f64() * 1e6,
+        p50_one.as_secs_f64() * 1e6,
+        if cfg!(debug_assertions) { 0 } else { 1 },
+    );
+
     if cfg!(debug_assertions) {
         println!(
             "debug: временной гейт пропущен ({} мс — это профиль, а не алгоритм). \
