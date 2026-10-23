@@ -77,25 +77,41 @@ done
 
 # ---------------------------------------------------------------- SELFTEST
 echo "### шаг SELFTEST: новый прибор, восемь посадок + два контроля ###"
+# Осевшие каталоги прибора считаются ДО и ПОСЛЕ именно этой шага: `selftest` строит дерево-копию в
+# временном хранилище, и с первой версии сносил его только на удачной ветке.
+lg_count() { python -c 'import glob,os,tempfile;print(len(glob.glob(os.path.join(tempfile.gettempdir(),"leanguard-*"))))'; }
+LG_BEFORE=$(lg_count)
 t0=$(date +%s%N)
 python lab/lean-check.py selftest > "$TMP/selftest.txt" 2>&1
 SERC=$?
 t1=$(date +%s%N)
+LG_AFTER=$(lg_count)
 cat "$TMP/selftest.txt"
 echo "SELFTEST_EXIT=${SERC} SELFTEST_MS=$(( (t1 - t0 ) / 1000000 ))" | tee -a "$FACTS"
+echo "SELFTEST_осевших_каталогов_до=${LG_BEFORE} после=${LG_AFTER}" | tee -a "$FACTS"
 
 # ---------------------------------------------------------------- INVENTORY
 echo "### шаг INVENTORY: настоящий прибор на настоящем дереве, n=2 ###"
+# Вектор повторяемости сравнивается БЕЗ колонок времени (`MS=`, `LEAN_MS_TOTAL=`): окружение цикла
+# объявляет их ценой, а не гейтом (правило 7 пункт (е): время на этом хосте — снимок хоста, а не
+# свойство кода). Разброс времени при этом меряется и печатается числом, а не выбрасывается.
+strip_ms() { sed -E 's/[ ]MS=[0-9]+//g; s/[ ]LEAN_MS_TOTAL=[0-9]+//g' "$1"; }
+ms_total() { grep -o 'LEAN_MS_TOTAL=[0-9]*' "$1" | tail -1 | cut -d= -f2; }
 for i in 1 2; do
   python lab/lean-check.py check --quiet > "$TMP/inv-$i.txt"; rc=$?
   echo "VECTOR_${i}_EXIT=${rc}" | tee -a "$FACTS"
   grep -E "^(LEAN_FILE|LEAN_TOTAL|LEAN_ALL_OK)" "$TMP/inv-$i.txt"
 done
-if diff -q "$TMP/inv-1.txt" "$TMP/inv-2.txt" >/dev/null; then
+m1=$(ms_total "$TMP/inv-1.txt"); m2=$(ms_total "$TMP/inv-2.txt")
+if diff -q <(strip_ms "$TMP/inv-1.txt") <(strip_ms "$TMP/inv-2.txt") >/dev/null; then
   echo "repro_вектор=совпал" | tee -a "$FACTS"
 else
   echo "repro_вектор=РАЗОШЁЛСЯ" | tee -a "$FACTS"
-  diff "$TMP/inv-1.txt" "$TMP/inv-2.txt" | head -12
+  diff <(strip_ms "$TMP/inv-1.txt") <(strip_ms "$TMP/inv-2.txt") | head -12
+fi
+if [ -n "$m1" ] && [ -n "$m2" ] && [ "$m1" -gt 0 ]; then
+  d=$(( m2 - m1 )); [ "$d" -lt 0 ] && d=$(( -d ))
+  echo "repro_время_мс_1=${m1} repro_время_мс_2=${m2} repro_время_разброс_проц=$(( 100 * d / m1 ))" | tee -a "$FACTS"
 fi
 
 # ---------------------------------------------------------------- WRAPPER
@@ -109,14 +125,16 @@ echo "WRAPPER_EXIT=${WRC} WRAPPER_LEAN_FILE_COUNT=${wfiles}" | tee -a "$FACTS"
 echo "### шаг СВЕРКА: ожидания из $EXPECT против напечатанных фактов ###"
 # В сверку идут ТОЛЬКО печатные факты: строки шагов и сводные строки приборов. Дампы per-file
 # (`NATIVE_AXIOMS=30` по одной модели) в корпус не попадают, иначе ожидание суммы могло бы случайно
-# совпасть с одной строкой файла.
-grep -hE '^(LEAN_TOTAL=|LEANGUARD_SELFTEST )' "$TMP/selftest.txt" "$TMP/inv-1.txt" "$TMP/inv-2.txt" \
-  "$TMP/wrapper.txt" > "$TMP/summaries.txt" || true
+# совпасть с одной строкой файла. Строка `LEAN_ALL_OK=` берётся отдельно: прибор печатает её следующей
+# строкой после сводной, и первая версия фильтра её теряла — сверка честным образом сообщила «нет
+# такого ключа» вместо того, чтобы пройти молча (ДИАГНОЗ-7).
+grep -hE '^(LEAN_TOTAL=|LEAN_ALL_OK=|LEANGUARD_SELFTEST )' "$TMP/selftest.txt" "$TMP/inv-1.txt" \
+  "$TMP/inv-2.txt" "$TMP/wrapper.txt" > "$TMP/summaries.txt" || true
 cat "$FACTS" "$TMP/summaries.txt" > "$TMP/corpus.txt"
 python lab/expect.py "$EXPECT" "$TMP/corpus.txt"
 echo "СВЕРКА_EXIT=$?"
 
-echo "порог (13) временные_каталоги_при_сворачивания=$(find /tmp -maxdepth 1 -name 'tmp.*' -type d 2>/dev/null | wc -l)"
+echo "порог (13) осевшие_каталоги_прибора — см. строку SELFTEST_осевших_каталогов_до/после выше"
 echo "МЕРЕНО после: RAM_свободно_МБ=$(ram) ДИСК_свободно_ГБ=$(disk)"
 echo "########## E-0093 · конец блока ##########"
 } | tee -a "$LOG"

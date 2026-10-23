@@ -37,6 +37,7 @@
 """
 import argparse
 import glob
+import atexit
 import hashlib
 import os
 import re
@@ -48,7 +49,7 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_ROOT = os.path.dirname(HERE)
-# Каталог моделей для мутаторов и позитивных контролиров. Когда прибор лежит в репозитории как
+# Каталог моделей для мутаторов и позитивных контролей. Когда прибор лежит в репозитории как
 # `lab/lean-check.py`, это соседний `lab/lean/VecDHT` и ничего настраивать не надо; переменная
 # окруждения нужна только для отладки прибора вне репозитория (до пре-регистрации он живёт в
 # черновиках, и без неё самопроверка садила бы дефекты в пустой каталог).
@@ -408,6 +409,10 @@ def _run_check(root):
     return r.returncode, (r.stdout or "") + (r.stderr or "")
 
 
+def _rmtree(path):
+    shutil.rmtree(path, ignore_errors=True)
+
+
 def cmd_selftest(args):
     if toolchain_missing():
         print("SELFTEST=0 — нет компилятора Lean, страж сегодня не проверялся")
@@ -417,6 +422,10 @@ def cmd_selftest(args):
               "а позитивный контроль на пустом дереве был бы зелёным враньём")
         return 1
     base = tempfile.mkdtemp(prefix="leanguard-")
+    # Уборка обязана случиться и на аварийном выходе: первая версия сносила дерево-копию только в
+    # конце удачной ветки, поэтому любое исключение (а `selftest` их бросает намеренно — пустой
+    # каталог моделей, не нашедшийся мутатор) оставляло после себя осевший каталог.
+    atexit.register(_rmtree, base)
     defects = [
         ("аксиома в модели", {"Axiom.lean": BAD_AXIOM}, "пользовательской аксиомы"),
         ("sorry в модели", {"Sorry.lean": BAD_SORRY}, "SORRY:"),
