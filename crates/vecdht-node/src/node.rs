@@ -762,9 +762,40 @@ impl ShardNode {
         // месте. Поэтому вместимость шарда её не касается — иначе полный шард замёрз бы навсегда:
         // M записей не смогли бы даже обновиться, а TTL у них общий, и обновление продлевало бы
         // жизнь записи, не занимая нового slot'а.
-        let replacing = self.store.index.owner_slot(&msg.owner_ed25519).is_some();
+        let owner_slot = self.store.index.owner_slot(&msg.owner_ed25519);
+        let replacing = owner_slot.is_some();
         let mut victim = None;
-        if !replacing && (self.store.len() as u64) >= self.params.max_live_per_shard {
+        // §14.4 (iv), `ADR-0044` решение 5: per-cluster cap. Форма относительная —
+        // `⌈c·m/n⌉` от средней загрузки шарда (`L-0001`), а не константа, иначе предел пришлось
+        // бы перенастраивать под каждый размер корпуса. Проверяется **только смена ячейки**:
+        // это единственная из 256 форм, которую `E-0079` оставила допустимой (143 = `partM`) —
+        // льгота переезду (207) пробивает кап, а проверка без льготы (15) ломает §11.3.2,
+        // отказывая честному продлению в своей полной ячейке.
+        let old_cell = owner_slot.and_then(|s| self.store.index.entry(s)).map(|e| e.cluster_id);
+        let grows_cell = old_cell != Some(msg.cluster_id);
+        let limit = self.params.cell_cap_limit(self.store.len() as u64);
+        if grows_cell && (self.store.index.cluster_len(msg.cluster_id) as u64) >= limit {
+            let newcomer = Candidate::newcomer(bits, msg.published_bucket);
+            victim = self.evictor.cell_victim(
+                newcomer,
+                |s| self.store.index.is_live(s),
+                |s| matches!(self.store.index.entry(s), Some(e) if e.cluster_id == msg.cluster_id),
+            );
+            match victim {
+                Some(_) => self.admission.borrow_mut().stats.cell_cap_moves += 1,
+                None => {
+                    // Дешевле новичка в этой ячейке никого знакомого — наружу тот же coarse-код
+                    // (`ADR-0044` решение 3: отдельного кода на проводе не заводим), различает
+                    // их счётчик [`Stats::cell_cap_rejections`].
+                    self.admission.borrow_mut().stats.cell_cap_rejections += 1;
+                    return self.err(from, err_code::SHARD_FULL, 10_000);
+                }
+            }
+        }
+        if !replacing
+            && victim.is_none()
+            && (self.store.len() as u64) >= self.params.max_live_per_shard
+        {
             let newcomer = Candidate::newcomer(bits, msg.published_bucket);
             victim = self.evictor.victim(newcomer, |s| self.store.index.is_live(s));
             if victim.is_none() {

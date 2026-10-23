@@ -117,6 +117,12 @@ pub struct Params {
     /// Потолок живых записей на шард (§13.2 `admission.max_live_per_shard`) — по нему primary
     /// отвечает `SHARD_FULL`, а не начинает вытеснять чужие записи.
     pub max_live_per_shard: u64,
+    /// Пол относительного капа ячейки (§14.4 (iv), `ADR-0044` решение 5). Параметр узла, а не
+    /// поле манифеста: кап — локальная политика приёма (§11.3), её решения не попадают в WAL и
+    /// не обязаны совпадать между узлами. Дефолт — [`crate::admission::CELL_CAP_MIN`], число,
+    /// выведенное из измеренной цены ячейки (см. её документацию); тесты и оператор lowering'ом
+    /// этого поля двигают пол, не трогая форму `⌈c·m/n⌉`.
+    pub cell_cap_min: u64,
     /// `preprocessing_version` артефакта (§6.6): её обязан объявить каждый `Publish` и `Find`.
     ///
     /// Handshake сверяет версии между узлами (§6.7), но `Publish`/`Find` приходят и от агентов;
@@ -240,7 +246,16 @@ impl Params {
             node_admits_per_s: ad.node_admits_per_s,
             top_k_max: m.query.top_k_max,
             rendezvous_ttl: m.query.rendezvous_ttl_sec as u16,
+            cell_cap_min: crate::admission::CELL_CAP_MIN,
         })
+    }
+
+    /// Предел живых записей одной ячейки этого шарда (§14.4 (iv)): относительная форма
+    /// `⌈c·m/n⌉` с полом [`crate::admission::CELL_CAP_MIN`]-по-параметру. Живёт на `Params`,
+    /// потому что и пол, и `max_live_per_shard` — числа узла, а форма одна на всех.
+    #[inline]
+    pub fn cell_cap_limit(&self, live_in_shard: u64) -> u64 {
+        crate::admission::cell_cap_limit(live_in_shard, self.cell_cap_min)
     }
 
     /// Сколько ack нужно собрать реплике, чтобы primary считал запись подтверждённой.
