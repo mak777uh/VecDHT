@@ -18,6 +18,7 @@ LOG="lab/logs/e0079-all.log"
 ORACLE=s14_cluster_bloat_price
 MODEL=lab/lean/VecDHT/Admission.lean
 
+WORST_RC=0
 run_step() { # $1=label; rest=полная команда
   local label="$1"; shift
   local rc out; out=$(mktemp)
@@ -25,14 +26,20 @@ run_step() { # $1=label; rest=полная команда
   "$@" >"$out" 2>&1; rc=$?
   cat "$out" | tee -a "$LOG"; rm -f "$out"
   echo "EXIT=$rc" | tee -a "$LOG"
+  # ДИАГНОЗ-3 (первый прогон): helper печатал HELPER_EXIT=0 при EXIT=101 внутри — код шага
+  # терялся, и «прогон зелёный» не означал «оракул зелёный». Худший код собирается здесь и
+  # возвращается из скрипта. Пороги оракула при этом не двигались.
+  if [ "$rc" -gt "$WORST_RC" ]; then WORST_RC=$rc; fi
   return $rc
 }
 free_ram_mb() {
-  powershell -NoProfile -Command "(Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1KB" 2>/dev/null \
+  # Округляем на стороне PowerShell: локаль печатает дробь с запятой, а значение с запятой в
+  # логе нельзя сравнивать глазами — единица подписана как МБ, значит число обязано быть целым.
+  powershell -NoProfile -Command "[int][Math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1KB)" 2>/dev/null \
     | tr -d '\r' | tail -1
 }
 free_disk_mb() {
-  powershell -NoProfile -Command "(Get-PSDrive C).Free / 1MB" 2>/dev/null | tr -d '\r' | tail -1
+  powershell -NoProfile -Command "[int][Math]::Round((Get-PSDrive C).Free / 1MB)" 2>/dev/null | tr -d '\r' | tail -1
 }
 
 { echo "=== E-0079 прогон $(date +%FT%T%:z) ==="
@@ -116,4 +123,6 @@ run_step "КОНТРОЛЬ vecdht-node" cargo test -j 2 -p vecdht-node
   echo "RAM СВОБОДНО, МБ: $(free_ram_mb)"
   echo "ДИСК СВОБОДНО, МБ: $(free_disk_mb)"
   echo "лог: $LOG ($(wc -l < "$LOG") строк)"
+  echo "HELPER_EXIT=$WORST_RC (худший из кодов шагов; 0 = все шаги отработали; exit в блоке | tee не сработал бы — он вышел бы из подшелла)"
 } | tee -a "$LOG"
+exit "$WORST_RC"
