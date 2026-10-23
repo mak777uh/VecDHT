@@ -5,6 +5,7 @@ claim: "одно проверяемое утверждение"
 falsifier: "наблюдение, которое сделает claim ложным"
 oracle: "тест/гейт/бенчмарк, который это наблюдение производит"
 experiments: []             # ["E-XXXX"]
+prior_art: []               # ["L-NNNN"] из lab/library/index.jsonl, либо ["не искали — <причина>"]
 supersedes: null
 ---
 
