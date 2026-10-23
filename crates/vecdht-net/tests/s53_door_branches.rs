@@ -69,6 +69,7 @@ fn cfg(listen: Multiaddr) -> NetConfig {
         idle_timeout: Duration::from_secs(60),
         provider_republish: Duration::from_secs(180),
         poll_interval: Duration::from_millis(5),
+        revoked_dir: None,
     }
 }
 

@@ -53,7 +53,14 @@ rv_g4_fresh_dir_knows rv_g4_fresh_dir_count rv_g4_fresh_file
 rv_g5_self_revoked rv_g5_silent_send rv_g5_count rv_g5_file_before
 rv_g6_self_revoked_after rv_g6_serves_after_restart rv_g6_peer_agrees rv_g6_count_after
 rv_g6_file_after rv_g6_load_errors rv_g7_fresh_control_serves rv_g7_control_self_revoked
-rv_g7_control_file"
+rv_g7_control_file
+rv_g8_bound_accepted rv_g8_bound_refused rv_g8_bound_len rv_g8_oldest_kept
+rv_g8_file_at_bound rv_g8_refused_counter rv_g8_save_errors
+rv_g9_truncated_refused rv_g9_tampered_refused rv_g9_empty_ok rv_g9_empty_count
+rv_g10_none_service_starts rv_g10_none_still_revokes rv_g10_none_dir_file
+rv_g11_second_apply_count rv_g11_second_apply_file rv_g11_duplicates
+rv_g11_refused_counter rv_g11_save_errors rv_g11b_control_second_nonce
+rv_g11b_file_at_two"
 
 ram_mb() { powershell -NoProfile -Command "[int][Math]::Round((Get-CimInstance Win32_OperatingSystem).FreePhysicalMemory / 1KB)" 2>/dev/null | tr -d '\r' | tail -1; }
 disk_mb() { powershell -NoProfile -Command "[int][Math]::Round((Get-PSDrive C).Free / 1MB)" 2>/dev/null | tr -d '\r' | tail -1; }
@@ -153,7 +160,10 @@ echo "reg_node_failed=$(grep -oE '[0-9]+ failed' "$REGD" | awk '{s+=$1} END {pri
 # Шаг 4 — сверка печатных фактов с замороженной таблицей. В корпус идут оба вывода оракула и
 # строки контроля helper'а: ключ ищется токеном, поэтому чужая строка ожидание не удовлетворит.
 CORP=$(mktemp)
-grep -hE '^(RV_|run1_exit|run2_exit|repro_вектор|reg_net_failed|reg_node_failed)' "$R1" "$R2" > "$CORP" 2>/dev/null || true
+# Корпус — оба вывода оракула целиком: cargo печатает «test …» и первую строку stdout на одной
+# строке, поэтому якорь `^RV_` терял бы ровно те факты, которые печатаются первыми в каждом тесте
+# (замечено на дыме после фикса). `lab/expect.py` ищет ключ токеном, лишние строки ему не помеха.
+cat "$R1" "$R2" > "$CORP" 2>/dev/null || true
 block >> "$CORP"
 { echo "### ШАГ 4 СВЕРКА: $EXPECT против напечатанных фактов ###"
   python lab/expect.py "$EXPECT" "$CORP"

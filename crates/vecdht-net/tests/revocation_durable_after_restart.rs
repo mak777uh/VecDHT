@@ -27,19 +27,23 @@
 //!   исполненного отзыва.
 //!
 //! Исполнимость на дереве ДО правки. Гейты (1)…(4) этого файла используют только существующий API,
-//! поэтому PRE_FIX доходит до всех четырёх и печатает вектор дыры. Гейты переживаемости, предела и
-//! битого файла приходят вместе с фиксом: параметра каталога состояния ещё нет, и попытка их
-//! написать — ошибка компиляции, а не красный тест; этот факт helper снимает как
-//! `pre_fix_compile=1` и складывает в `lab/logs/e0094-oracle-before-fix.txt`.
+//! поэтому PRE_FIX доходит до всех четырёх и печатает вектор дыры. Гейты предела, битого файла,
+//! «каталога нет» и идемпотентности приходят вместе с фиксом: параметра каталога состояния ещё не
+//! было, и попытка их написать — ошибка компиляции, а не красный тест; этот факт записан в
+//! `lab/logs/e0094-oracle-before-fix.txt` и в карточку цикла.
 
+use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use libp2p::Multiaddr;
 use vecdht_artifact::reference_manifest;
 use vecdht_crypto::cert::sign_revoke_identity;
-use vecdht_net::{keys, NetConfig, NetService};
-use vecdht_node::{candidates, testing, ShardNode};
+use vecdht_net::{keys, NetConfig, NetError, NetService};
+use vecdht_node::revocation::{encode, path as revocation_path};
+use vecdht_node::{
+    candidates, testing, RevocationInsert, Revocations, ShardNode, MAX_REVOCATIONS,
+};
 use vecdht_wire::frame::Kind;
 use vecdht_wire::messages::{domain, CertRevoke, Codec, Role};
 
@@ -112,8 +116,9 @@ fn quic_addr() -> Multiaddr {
 }
 
 /// Конфигурация стенда: тот же набор, что у `E-0085`, с коротким `poll_interval` — он входит в
-/// цену ожидания, но не в пороги.
-fn cfg(listen: Multiaddr) -> NetConfig {
+/// цену ожидания, но не в пороги. `revoked_dir` — предмет цикла: `Some` значит «множество
+/// отзывов обязано пережить перезапуск», `None` — поведение до фикса (гейт (6)).
+fn cfg(listen: Multiaddr, revoked_dir: Option<PathBuf>) -> NetConfig {
     NetConfig {
         listen: vec![listen],
         bootstrap: Vec::new(),
@@ -125,12 +130,19 @@ fn cfg(listen: Multiaddr) -> NetConfig {
         idle_timeout: Duration::from_secs(60),
         provider_republish: Duration::from_secs(180),
         poll_interval: Duration::from_millis(5),
+        revoked_dir,
     }
 }
 
-/// Узел шарда, у которого состояние отзыва ищется в каталоге `dir`: тот же харнес, что у стенда
-/// отзывов `E-0085` (genesis-эпоха, кредашиал `0..u32::MAX`, один держимый шард).
-fn index_service_shard(seed: u8, shard: u16, dir: &Path, listen: Multiaddr) -> NetService {
+/// Узел шарда с выбором носителя состояния отзыва. Возвращает `Result`, а не паникует: гейт (5)
+/// состоит именно в том, что при битом файле сервис НЕ поднимается.
+fn try_service(
+    seed: u8,
+    shard: u16,
+    dir: &Path,
+    listen: Multiaddr,
+    revoked_dir: Option<PathBuf>,
+) -> Result<NetService, NetError> {
     let id = testing::identity(seed);
     let peer = keys::peer_id(&id);
     let mut node = ShardNode::open(
@@ -156,10 +168,21 @@ fn index_service_shard(seed: u8, shard: u16, dir: &Path, listen: Multiaddr) -> N
         Some(cert),
         vec![node],
         testing::authority_set(),
-        cfg(listen),
+        cfg(listen, revoked_dir),
     )
-    .expect("сервис узла")
 }
+
+/// Узел шарда, у которого состояние отзыва живёт в каталоге узла — так, как это делает фикс.
+fn index_service_shard(seed: u8, shard: u16, dir: &Path, listen: Multiaddr) -> NetService {
+    try_service(seed, shard, dir, listen, Some(dir.to_path_buf())).expect("сервис узла")
+}
+
+/// Тот же узел, но с `revoked_dir = None` — гейт (6): совместимость с поведением «до» и отсутствие
+/// файла состояния там, где его никто не просил.
+fn inmemory_service(seed: u8, shard: u16, dir: &Path, listen: Multiaddr) -> NetService {
+    try_service(seed, shard, dir, listen, None).expect("сервис без каталога состояния")
+}
+
 
 async fn wait_listen(s: &mut NetService) -> Multiaddr {
     let deadline = tokio::time::Instant::now() + Duration::from_secs(10);
@@ -202,8 +225,31 @@ async fn settle(a: &mut NetService, b: &mut NetService, secs: u64) {
     }
 }
 
-fn revoke_for(nonce: [u8; 16]) -> CertRevoke {
-    let mut r = CertRevoke {
+/// `nonce` по номеру для гейтов, где нужен длинный список отзывов (предел) или второй, чужой
+/// отзыв (контроль доставки). Форма — `[211, 0…] + LE(u64)`: значение не совпадает ни с одним
+/// тестовым сидам `testing::node_cert` (`[seed; 16]`), поэтому такой отзыв не может ненароком
+/// отозвать узел стенда.
+fn nonce_of(i: usize) -> [u8; 16] {
+    let mut k = [0u8; 16];
+    k[0] = 211;
+    k[8..].copy_from_slice(&(i as u64).to_le_bytes());
+    k
+}
+
+fn set_of(n: usize) -> BTreeSet<[u8; 16]> {
+    (0..n).map(nonce_of).collect()
+}
+
+/// Токеновский рантайм в одну нить — тот же, что у двух стендов выше; нужен и гейтам, которые
+/// ничего не ждут (битый файл), потому что `NetService::new` поднимает tokio-транспорт.
+fn rt() -> tokio::runtime::Runtime {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .unwrap()
+}
+
+fn revoke_for(nonce: [u8; 16]) -> CertRevoke {    let mut r = CertRevoke {
         nonce,
         revoked_at: now_sec() as u32,
         reason: "E-0094: переживаемость отзыва".to_string(),
@@ -497,5 +543,283 @@ fn self_revoked_silence_survives_restart() {
         drop(fresh);
         drop(watcher);
         assert!(bad.is_empty(), "гейты не выполнены: {bad:?}");
+    });
+}
+
+// --- гейты, которые появляются вместе с фиксом -------------------------------------------------
+//
+// Имена ключей фактов заморожены в `lab/expectations/e0094.tsv` до замера; здесь появляется только
+// их исполнение. Единственное добавленное после заморозки число — `rv_g11b_control_second_nonce`,
+// и оно является контролем годности гейта (7), а не новым порогом: без него «ничего не выросло»
+// неотличимо от «ничего не дошло» (тот же дефект прибора, что ДИАГНОЗ-1 у `E-0092`).
+
+#[test]
+fn the_bound_refuses_new_revocations_without_amnesty() {
+    let mut bad: Vec<String> = Vec::new();
+    let d = Tmp::new("bound", true);
+    let mut r = Revocations::open(Some(d.0.clone())).expect("пустой каталог поднимается");
+    let mut applied = 0usize;
+    for i in 0..MAX_REVOCATIONS {
+        if r.insert(nonce_of(i)).expect("вставка до предела не падает")
+            == RevocationInsert::Applied
+        {
+            applied += 1;
+        }
+    }
+    let file_at_4096 = r.file_bytes();
+    // 4097-й отзыв: отказ, множество не выросло, файл не переписан.
+    let extra = r.insert(nonce_of(MAX_REVOCATIONS + 1));
+    let file_after_refusal = r.file_bytes();
+    let oldest_kept = r.contains(&nonce_of(0));
+    println!(
+        "RV_G8: rv_g8_bound_accepted={applied} rv_g8_bound_refused={} rv_g8_bound_len={} \
+         rv_g8_oldest_kept={} rv_g8_file_at_bound={file_at_4096} \
+         rv_g8_refused_counter={} rv_g8_save_errors={}",
+        if extra == Ok(RevocationInsert::RefusedAtBound) { 1 } else { 0 },
+        r.len(),
+        if oldest_kept { 1 } else { 0 },
+        r.refused_at_bound,
+        r.save_errors,
+    );
+    if applied != MAX_REVOCATIONS {
+        bad.push(format!("(4) не выполнен: принято {applied}, предел {MAX_REVOCATIONS}"));
+    }
+    if extra != Ok(RevocationInsert::RefusedAtBound) {
+        bad.push(format!(
+            "(4) не выполнен: отзыв №{} принял себя вместо отказа",
+            MAX_REVOCATIONS + 1
+        ));
+    }
+    if r.len() != MAX_REVOCATIONS || !oldest_kept {
+        bad.push("(4) не выполнен: предел вытеснил старый отзыв — это амнистия, а не отказ".to_string());
+    }
+    if file_at_4096 != HEADER + 16 * MAX_REVOCATIONS as u64 {
+        bad.push(format!(
+            "(4) не выполнен: цена полного списка {file_at_4096}, ожидалось {}",
+            HEADER + 16 * MAX_REVOCATIONS as u64
+        ));
+    }
+    if file_after_refusal != file_at_4096 {
+        bad.push(format!(
+            "(4) не выполнен: отказ по пределу переписал файл: было {file_at_4096}, стало {file_after_refusal}"
+        ));
+    }
+    if r.refused_at_bound != 1 || r.save_errors != 0 {
+        bad.push(format!(
+            "(4) наблюдение не ведётся: refused_at_bound={} save_errors={}",
+            r.refused_at_bound, r.save_errors
+        ));
+    }
+    assert!(bad.is_empty(), "гейты не выполнены: {bad:?}");
+}
+
+#[test]
+fn a_corrupt_state_file_refuses_to_start_the_service() {
+    let rt = rt();
+    rt.block_on(async {
+        let mut bad: Vec<String> = Vec::new();
+        let d = Tmp::new("corrupt", true);
+        // Настоящий файл состояния: один применённый отзыв, 34 байта.
+        let bytes = encode(&set_of(1));
+        std::fs::write(revocation_path(&d.0), &bytes).expect("записать состояние");
+        assert_eq!(bytes.len() as u64, HEADER + 16, "(О10) предсказание цены формата");
+
+        // (а) обрезанный файл: сервис обязан НЕ подняться.
+        let mut truncated = bytes.clone();
+        truncated.truncate(bytes.len() - 3);
+        std::fs::write(revocation_path(&d.0), &truncated).expect("обрезать");
+        let trunc = try_service(WATCHER_SEED, SHARD_B, &d.0, quic_addr(), Some(d.0.clone()));
+        let truncated_refused = matches!(trunc, Err(NetError::RevokedState(_)));
+        println!("RV_G9: rv_g9_truncated_refused={}", if truncated_refused { 1 } else { 0 });
+        drop(trunc);
+
+        // (б) подправленный байт внутри nonce: tag не сходится.
+        let mut tampered = bytes.clone();
+        tampered[20] ^= 0x01;
+        std::fs::write(revocation_path(&d.0), &tampered).expect("подправить");
+        let tamp = try_service(WATCHER_SEED, SHARD_B, &d.0, quic_addr(), Some(d.0.clone()));
+        let tampered_refused = matches!(tamp, Err(NetError::RevokedState(_)));
+        println!("RV_G9: rv_g9_tampered_refused={}", if tampered_refused { 1 } else { 0 });
+        drop(tamp);
+
+        // (в) корректный пустой список легален: отказ только нечитаемому.
+        let empty = encode(&BTreeSet::new());
+        std::fs::write(revocation_path(&d.0), &empty).expect("записать пустой список");
+        assert_eq!(empty.len() as u64, HEADER, "(О10) пустой список стоит 18 байт");
+        let ok = try_service(WATCHER_SEED, SHARD_B, &d.0, quic_addr(), Some(d.0.clone()));
+        let empty_ok = ok.is_ok();
+        let count_of_empty = ok.as_ref().map(|s| s.revocation_count()).unwrap_or(usize::MAX);
+        println!(
+            "RV_G9: rv_g9_empty_ok={} rv_g9_empty_count={count_of_empty}",
+            if empty_ok { 1 } else { 0 }
+        );
+        drop(ok);
+
+        if !truncated_refused {
+            bad.push("(5) не выполнен: обрезанный файл поднял сервис — отзывы сняты молча".to_string());
+        }
+        if !tampered_refused {
+            bad.push("(5) не выполнен: подправка байта не замечена — контрольная сумма не работает".to_string());
+        }
+        if !empty_ok || count_of_empty != 0 {
+            bad.push("(5) не выполнен: корректный пустой список отвергнут — отказ стал слишком широким".to_string());
+        }
+        assert!(bad.is_empty(), "гейты не выполнены: {bad:?}");
+    });
+}
+
+#[test]
+fn without_a_directory_the_service_keeps_the_old_behaviour() {
+    let rt = rt();
+    rt.block_on(async {
+        let mut bad: Vec<String> = Vec::new();
+        let nonce = [CARRIER_SEED; 16];
+        let dw = Tmp::new("none-watcher", true);
+        let dp = Tmp::new("none-publisher", true);
+
+        // Оба узла — без каталога состояния: отзыв обязан применяться в памяти, файла обязано не быть.
+        let mut watcher = inmemory_service(WATCHER_SEED, SHARD_B, &dw.0, quic_addr());
+        let mut publisher = inmemory_service(FRESH_SEED, SHARD, &dp.0, quic_addr());
+        let wa = wait_listen(&mut watcher).await;
+        wait_listen(&mut publisher).await;
+        publisher.dial(wa).expect("dial наблюдателя");
+        let (pp, wp) = (publisher.peer_id(), watcher.peer_id());
+        pump_until(&mut publisher, &mut watcher, |x, y| {
+            x.is_authenticated(&wp) && y.is_authenticated(&pp)
+        })
+        .await;
+        let revoke = revoke_for(nonce);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(40);
+        while watcher.revocation_count() != 1 {
+            assert!(tokio::time::Instant::now() < deadline, "(О10) отзыв не дошёл за 40 с");
+            let _ = publisher.publish_revoke(&revoke);
+            publisher.step().await;
+            watcher.step().await;
+        }
+        let starts = 1usize;
+        let still_revokes = watcher.is_revoked_nonce(&nonce) && !watcher.is_self_revoked();
+        let dir_file = state_file_bytes(&dw.0);
+        println!(
+            "RV_G10: rv_g10_none_service_starts={starts} rv_g10_none_still_revokes={} \
+             rv_g10_none_dir_file={dir_file}",
+            if still_revokes { 1 } else { 0 }
+        );
+        if dir_file != 0 {
+            bad.push(format!("(6) не выполнен: без каталога состояния появился файл ({dir_file} байт)"));
+        }
+        if !still_revokes {
+            bad.push("(6) не выполнен: отзыв в памяти не применён — фикс сломал прежнее поведение".to_string());
+        }
+        drop(watcher);
+        drop(publisher);
+        assert!(bad.is_empty(), "гейты не выполнены: {bad:?}");
+    });
+}
+
+#[test]
+fn a_replayed_revoke_after_restart_does_not_grow_the_state() {
+    let rt = rt();
+    rt.block_on(async {
+        let mut bad: Vec<String> = Vec::new();
+        let nonce = [CARRIER_SEED; 16];
+        let dw = Tmp::new("dup-watcher", true);
+        let dp = Tmp::new("dup-publisher", true);
+        let dp2 = Tmp::new("dup-publisher-2", true);
+
+        // Первый эпизод: издатель доносит отзыв, наблюдатель кладёт его на диск.
+        let mut watcher = index_service_shard(WATCHER_SEED, SHARD_B, &dw.0, quic_addr());
+        let mut publisher = index_service_shard(FRESH_SEED, SHARD, &dp.0, quic_addr());
+        let wa = wait_listen(&mut watcher).await;
+        wait_listen(&mut publisher).await;
+        publisher.dial(wa).expect("dial наблюдателя");
+        let (pp, wp) = (publisher.peer_id(), watcher.peer_id());
+        pump_until(&mut publisher, &mut watcher, |x, y| {
+            x.is_authenticated(&wp) && y.is_authenticated(&pp)
+        })
+        .await;
+        let revoke = revoke_for(nonce);
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(40);
+        while watcher.revocation_count() != 1 {
+            assert!(tokio::time::Instant::now() < deadline, "(О10) отзыв не дошёл за 40 с");
+            let _ = publisher.publish_revoke(&revoke);
+            publisher.step().await;
+            watcher.step().await;
+        }
+        drop(watcher);
+
+        // Второй эпизод: тот же каталог, множество поднято с диска. Издатель — новой личности,
+        // чтобы его собственный gossip-кэш дубликатов не подавил переотправку: иначе гейт мерил бы
+        // молчание транспорта, а не идемпотентность множества.
+        let mut watcher2 = index_service_shard(WATCHER_SEED, SHARD_B, &dw.0, quic_addr());
+        let wa2 = wait_listen(&mut watcher2).await;
+        let mut publisher2 = index_service_shard(FRESH2_SEED, SHARD, &dp2.0, quic_addr());
+        wait_listen(&mut publisher2).await;
+        publisher2.dial(wa2).expect("dial наблюдателя после рестарта");
+        let (pp2, wp2) = (publisher2.peer_id(), watcher2.peer_id());
+        pump_until(&mut publisher2, &mut watcher2, |x, y| {
+            x.is_authenticated(&wp2) && y.is_authenticated(&pp2)
+        })
+        .await;
+        // Ожидалось не время, а классификацию: счётчик дубликатов доказывает, что переотправленный
+        // отзыв действительно пришёл и был опознан как уже применённый. Фиксированное окно здесь
+        // было бы временем-вердиктом — то, что запрещает правило 7 пункт (е).
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(40);
+        while watcher2.revocation_counters().2 < 1 {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "(О10) дубликат не доставлен за 40 с; ошибки {:?}",
+                watcher2.take_errors()
+            );
+            let _ = publisher2.publish_revoke(&revoke);
+            publisher2.step().await;
+            watcher2.step().await;
+        }
+        let count = watcher2.revocation_count();
+        let file = state_file_bytes(&dw.0);
+        let (refused, save_errors, dups) = watcher2.revocation_counters();
+        println!(
+            "RV_G11: rv_g11_second_apply_count={count} rv_g11_second_apply_file={file} \
+             rv_g11_duplicates={dups} rv_g11_refused_counter={refused} \
+             rv_g11_save_errors={save_errors}"
+        );
+
+        // Контроль годности: тот же канал доставляет ДРУГОЙ nonce — значит окно выше было живым,
+        // и «не выросло» означает «идемпотентно», а не «не дошло».
+        let other = revoke_for(nonce_of(4242));
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(40);
+        while watcher2.revocation_count() != 2 {
+            assert!(
+                tokio::time::Instant::now() < deadline,
+                "(О10) второй nonce не дошёл за 40 с; ошибки {:?}",
+                watcher2.take_errors()
+            );
+            let _ = publisher2.publish_revoke(&other);
+            publisher2.step().await;
+            watcher2.step().await;
+        }
+        let file_after_control = state_file_bytes(&dw.0);
+        println!("RV_G11: rv_g11b_control_second_nonce=1 rv_g11b_file_at_two={file_after_control}");
+
+        if count != 1 {
+            bad.push(format!("(7) не выполнен: повторная рассылка выросла в множество до {count}"));
+        }
+        if file != HEADER + 16 {
+            bad.push(format!(
+                "(7) не выполнен: файл после повтора {file} байт, ожидалось {}",
+                HEADER + 16
+            ));
+        }
+        if refused != 0 || save_errors != 0 {
+            bad.push(format!(
+                "(7) не выполнен: на идемпотентном стенде потеряны отзывы — refused={refused} save_errors={save_errors}"
+            ));
+        }
+        if file_after_control != HEADER + 32 {
+            bad.push(format!("(7) контроль: второй nonce должен был стоить ровно +16 байт, файл {file_after_control}"));
+        }
+        assert!(bad.is_empty(), "гейты не выполнены: {bad:?}");
+        drop(watcher2);
+        drop(publisher2);
+        drop(publisher);
     });
 }

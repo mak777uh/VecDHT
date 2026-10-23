@@ -15,7 +15,8 @@
 //! потому что admission — локальная политика процесса, и запирать её мьютексом ради
 //! многопоточности значило бы платить за то, чего у узла нет. Сервис поэтому `!Send`.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::collections::{BTreeMap, HashMap};
+use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use libp2p::futures::StreamExt;
@@ -27,7 +28,7 @@ use libp2p::swarm::{Swarm, SwarmEvent};
 use libp2p::{identify, noise, tcp, yamux, Multiaddr, PeerId, StreamProtocol, SwarmBuilder};
 use thiserror::Error;
 use vecdht_crypto::{verify_body, verify_revoke, AuthoritySet, Identity};
-use vecdht_node::{Clock, Envelope, ShardNode};
+use vecdht_node::{Clock, Envelope, RevocationInsert, Revocations, ShardNode};
 use vecdht_wire::cert::NodeCert;
 use vecdht_wire::constants::{shard_of, shard_provider_key, SHARDS};
 use vecdht_wire::frame::{decode_frame, Kind};
@@ -74,6 +75,8 @@ pub enum NetError {
     CertDoesNotCover(u16),
     #[error("своё приветствие не собирается: {0}")]
     Greeting(#[from] HandshakeError),
+    #[error("состояние отзывов (§4.2) не поднимается: {0}")]
+    RevokedState(String),
 }
 
 /// Что делает сервис в одном шаге. Нужен тестам и CLI: событие сети и тик различаются по
@@ -99,6 +102,11 @@ pub struct NetConfig {
     pub provider_republish: Duration,
     /// Период пробуждения event loop. Тик узла всё равно не чаще секунды.
     pub poll_interval: Duration,
+    /// Каталог, где живёт `revocation.bin` (§4.2, `ADR-0050`). `None` — поведение до цикла
+    /// `H-0094`: множество отзывов только в памяти, перезапуск процесса обнуляет его. Заданный
+    /// каталог создаётся при первой записи; битый файл означает «сервис не стартует», а не
+    /// «отзывов нет».
+    pub revoked_dir: Option<PathBuf>,
 }
 
 impl Default for NetConfig {
@@ -114,6 +122,7 @@ impl Default for NetConfig {
             idle_timeout: Duration::from_secs(60),
             provider_republish: Duration::from_secs(180),
             poll_interval: Duration::from_millis(25),
+            revoked_dir: None,
         }
     }
 }
@@ -139,8 +148,10 @@ pub struct NetService {
     /// знает только `PeerId`.
     owners: HashMap<[u8; 32], PeerId>,
     /// Отзывы §4.2 по `nonce` кредашиала. Множество переживает смену эпохи: отзыв — это
-    /// свойство ключа, а не эпизода членства (§11.4).
-    revoked: BTreeSet<[u8; 16]>,
+    /// свойство ключа, а не эпизода членства (§11.4). С `ADR-0050` то же множество живёт ещё и
+    /// в `revocation.bin`: `E-0094` измерил, что RAM-форма обнулялась перезапуском и отозванный
+    /// пир снова проходил handshake (`rv_g3_accepted_after_restart=1`).
+    revoked: Revocations,
     /// Свой `nonce` — чтобы узнать в потоке отзывов собственный и замолчать.
     own_cert_nonce: Option<[u8; 16]>,
     self_revoked: bool,
@@ -190,6 +201,15 @@ impl NetService {
             cert.as_ref(),
         )?;
         let own_cert_nonce = cert.as_ref().map(|c| c.nonce);
+        // `ADR-0050`: множество отзывов поднимается из каталога до того, как открыт транспорт.
+        // Отказ здесь — единственная честная ветка для битого файла: `Revocations::open` обязан
+        // не вернуть пустое множество, иначе испорченный файл снял бы все отзывы разом
+        // (`L-0013`, RFC 5280 различает «не отозван» и «не определён»).
+        let revoked = Revocations::open(cfg.revoked_dir.clone())
+            .map_err(|e| NetError::RevokedState(e.to_string()))?;
+        // Молчание отозванного узла следует из файла, а не из одного эпизода: если собственный
+        // `nonce` уже в списке, сервис стартует уже молча (`E-0094`, гейм (3)).
+        let self_revoked = own_cert_nonce.is_some_and(|n| revoked.contains(&n));
         let keypair = keys::keypair(&local);
         let local_peer = keypair.public().to_peer_id();
         let is_server = !nodes.is_empty();
@@ -274,9 +294,9 @@ impl NetService {
             nodes: nodes.into_iter().map(|n| (n.shard, n)).collect(),
             peers: HashMap::new(),
             owners: HashMap::new(),
-            revoked: BTreeSet::new(),
+            revoked,
             own_cert_nonce,
-            self_revoked: false,
+            self_revoked,
             pending: HashMap::new(),
             inbox: Vec::new(),
             providers: ProviderCache::product(cfg.provider_republish.as_secs()),
@@ -358,6 +378,30 @@ impl NetService {
 
     pub fn revocation_count(&self) -> usize {
         self.revoked.len()
+    }
+
+    /// Байт файла состояния отзывов на диске; 0 — файла нет (каталог не задан или в него ещё
+    /// ничего не записывалось). Гейт цены переживаемости в `E-0094` меряет именно это число,
+    /// потому что «множество в памяти» и «множество, переживающее рестарт» — разные обещания.
+    pub fn revocation_file_bytes(&self) -> u64 {
+        self.revoked.file_bytes()
+    }
+
+    /// Сколько отзывов отвергнуто из-за предела, сколько записей не удалось и сколько пришедших
+    /// отзывов уже были в множестве. Первые две ветки — потеря необратимости, а не штатный
+    /// исход, поэтому они наблюдаемы (`ADR-0050`); третья нужна оракулу, чтобы отличить
+    /// «дубликат доставлен» от «дубликат не пришёл».
+    pub fn revocation_counters(&self) -> (u64, u64, u64) {
+        (
+            self.revoked.refused_at_bound,
+            self.revoked.save_errors,
+            self.revoked.duplicates,
+        )
+    }
+
+    /// Каталог, из которого поднято множество отзывов (`None` — только память).
+    pub fn revocation_dir(&self) -> Option<PathBuf> {
+        self.revoked.dir()
     }
 
     /// Свой кредашиал отозван: сервис перестал отвечать, подписывать и объявлять шарды.
@@ -635,7 +679,7 @@ impl NetService {
             model_version: &self.model_version,
             preprocessing_version: self.preprocessing_version,
             now_sec: now,
-            revoked_nonces: &self.revoked,
+            revoked_nonces: self.revoked.set(),
         };
         let who = handshake::verify(&hs, peer, &v)?;
         self.owners.insert(who.owner, peer);
@@ -829,9 +873,27 @@ impl NetService {
     /// если отозван собственный кредашиал, замолчать целиком.
     fn apply_revoke(&mut self, revoke: CertRevoke) {
         let nonce = revoke.nonce;
-        if !self.revoked.insert(nonce) {
-            // Повторная рассылка — штатный retry gossip; отзыв идемпотентен по nonce.
-            return;
+        // `ADR-0050`: отзыв применяется только вместе с его записью. Не удалось записать —
+        // вставка откатана, `nonce` остаётся неприменённым, и `errors` получает причину;
+        // молча запомнить в RAM и не дописать в файл значило бы обещать переживаемость,
+        // которой нет.
+        match self.revoked.insert(nonce) {
+            // Повторная рассылка — штатный retry gossip: отзыв идемпотентен по `nonce`, ни
+            // множество, ни файл не изменились, побочных эффектов быть не должно.
+            Ok(RevocationInsert::Duplicate) => return,
+            Ok(RevocationInsert::Applied) => {}
+            Ok(RevocationInsert::RefusedAtBound) => {
+                self.errors.push(format!(
+                    "отзыв не применён: множество отзывов упёрлось в предел {}",
+                    vecdht_node::MAX_REVOCATIONS
+                ));
+                return;
+            }
+            Err(e) => {
+                self.errors
+                    .push(format!("отзыв не записан и откатан, nonce не применён: {e}"));
+                return;
+            }
         }
         if self.own_cert_nonce == Some(nonce) && !self.self_revoked {
             self.self_revoked = true;

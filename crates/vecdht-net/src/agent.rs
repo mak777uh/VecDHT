@@ -369,6 +369,7 @@ impl Agent {
             idle_timeout: cfg.idle_timeout,
             provider_republish: Duration::from_secs(180),
             poll_interval: cfg.poll_interval,
+            revoked_dir: None,
         };
         let net = NetService::new(
             id.clone(),
