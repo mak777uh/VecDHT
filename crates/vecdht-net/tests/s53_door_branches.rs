@@ -484,6 +484,7 @@ fn eleven_refusal_causes_all_speak_cert_invalid() {
 // --- (О5), порог (6): ветка `valid_from` на живой двери ---------------------------------------
 
 #[test]
+#[ignore = "поведение дерева до ADR-0043: блок gate6d_stored=1 теперь обязан быть 0; живой контракт — crates/vecdht-net/tests/gossip_door_parity.rs (E-0087)"]
 fn a_cert_that_is_not_valid_yet_is_refused_and_its_publish_still_lands() {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     rt.block_on(async {

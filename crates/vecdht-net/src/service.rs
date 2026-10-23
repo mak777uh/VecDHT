@@ -737,6 +737,24 @@ impl NetService {
                     .push(format!("gossip {propagation_source}: CertRevoke вне control-темы"));
                 return;
             }
+            // ADR-0043: parity между двумя путями одного кадра. Прямой путь требует
+            // аутентифицированности пира (`on_request`: «кадр до handshake: отправитель не
+            // аутентифицирован» ⇒ `DENIED`), а gossip-путь эту проверку не делал: пир, которому
+            // дверь отказала, клал `Publish` в индекс шарда и получал на свой `Find` ответы
+            // (`E-0076`, `E-0085` гейт (6d): `gate6d_stored=1` при `gate6a_refused=1`).
+            // Граничим по пересылающему, а не по автору: подпись автора проверяется ниже и
+            // остаётся единственным, что пересылка не подделывает (§5.3). Кадры членства и
+            // отзыва под этот фильтр не попадают — они самовалидируются порогом авторитетов
+            // (§15.2) и обязаны доходить даже от пира, с которым двери ещё не было.
+            if matches!(f.header.kind, Kind::Publish | Kind::Find)
+                && !self.peers.contains_key(&propagation_source)
+            {
+                self.errors.push(format!(
+                    "gossip {propagation_source}: {:?} без пройденной двери — кадр отброшен",
+                    f.header.kind
+                ));
+                return;
+            }
             let Some(owner) = keys::owner(&propagation_source) else { return };
             if matches!(f.header.kind, Kind::Publish | Kind::Find) && f.signature.is_none() {
                 self.errors

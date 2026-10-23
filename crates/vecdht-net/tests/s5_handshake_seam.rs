@@ -487,6 +487,7 @@ fn the_authentication_cache_outlives_valid_until() {
 
 /// (5) Вторая дверь: gossip-путь уходит в шард, не спрашивая таблицу handshake.
 #[test]
+#[ignore = "поведение дерева до ADR-0043: «gossip-дверь открыта отказанному пиру» — зафиксированная фикция (E-0076); живой контракт — crates/vecdht-net/tests/gossip_door_parity.rs (E-0087)"]
 fn the_gossip_door_is_open_to_a_peer_the_handshake_refused() {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     rt.block_on(async {
