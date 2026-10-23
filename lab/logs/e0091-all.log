@@ -1,0 +1,257 @@
+
+########## E-0091 · таблица провайдеров шарда конечна · прогон 2026-10-23T21:54:28+03:00 ##########
+HEAD: d72c86b
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+oracle: crates/vecdht-net/tests/s74_provider_cache_finite.rs
+RAM_FREE_MB_BEFORE=5628 DISK_FREE_MB_BEFORE=27259
+### ШАГ 0 PRE_FIX (дерево до правки, lab/logs/e0091-oracle-before-fix.txt) ###
+prefix_test_result=test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.64s
+prefix_dead_after=1
+prefix_len_after=2
+prefix_live=1
+prefix_exit=EXIT=101
+prefix_g6=1
+### ШАГ 0а диск и RAM до замера ###
+DISK_FREE_MB=27259 TARGET_SIZE_MB=6413
+### ШАГ 1 оракул, прогон n=1 ### 2026-10-23T21:55:06+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
+     Running tests\s74_provider_cache_finite.rs (target\debug\deps\s74_provider_cache_finite-8e4f9e73bfb75281.exe)
+
+running 2 tests
+test a_provider_that_dies_leaves_the_shard_provider_table ... MERE g1_setup=1 g1_cache_len=2 g1_kad_peers=2 g1_announce_a=1 g1_announce_b=2
+MERE g2_dead_gone_from_handshake=1 g3_has_dead_at_death=0 g3_has_dead_after=0 g4_live_present=1 g5_len_at_death=1 g5_len_after=1 g5_kad_peers=2 g5_errors_total=0 g5_dial_errors=0 ##
+ok
+test re_asking_the_dht_can_bring_the_dead_provider_back ... MERE g6_after_prune=0 g6_after_requery=0 g6_dead_back=0
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.49s
+
+EXIT=0
+### ВЕКТОР ПОРОГОВ n=1 ###
+g1_cache_len_r1=2
+g1_kad_peers_r1=2
+g1_announce_a_r1=1
+g1_announce_b_r1=2
+g3_has_dead_at_death_r1=0
+g3_has_dead_after_r1=0
+g4_live_present_r1=1
+g5_len_at_death_r1=1
+g5_len_after_r1=1
+g5_kad_peers_r1=2
+g5_errors_total_r1=0
+g5_dial_errors_r1=0
+g6_after_prune_r1=0
+g6_after_requery_r1=0
+g6_dead_back_r1=0
+### ШАГ 2 оракул, прогон n=2 (порог (11): вектор фактов обязан совпасть) ### 2026-10-23T21:55:24+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.60s
+     Running tests\s74_provider_cache_finite.rs (target\debug\deps\s74_provider_cache_finite-8e4f9e73bfb75281.exe)
+
+running 2 tests
+test a_provider_that_dies_leaves_the_shard_provider_table ... MERE g1_setup=1 g1_cache_len=2 g1_kad_peers=2 g1_announce_a=2 g1_announce_b=1
+MERE g2_dead_gone_from_handshake=1 g3_has_dead_at_death=0 g3_has_dead_after=0 g4_live_present=1 g5_len_at_death=1 g5_len_after=1 g5_kad_peers=2 g5_errors_total=1 g5_dial_errors=1 ##
+ok
+test re_asking_the_dht_can_bring_the_dead_provider_back ... MERE g6_after_prune=0 g6_after_requery=0 g6_dead_back=0
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.84s
+
+EXIT=0
+### ВЕКТОР ПОРОГОВ n=2 ###
+g1_cache_len_r2=2
+g1_kad_peers_r2=2
+g1_announce_a_r2=2
+g1_announce_b_r2=1
+g3_has_dead_at_death_r2=0
+g3_has_dead_after_r2=0
+g4_live_present_r2=1
+g5_len_at_death_r2=1
+g5_len_after_r2=1
+g5_kad_peers_r2=2
+g5_errors_total_r2=1
+g5_dial_errors_r2=1
+g6_after_prune_r2=0
+g6_after_requery_r2=0
+g6_dead_back_r2=0
+### ШАГ 3 регрессия: весь vecdht-net (--no-fail-fast) ### 2026-10-23T21:55:43+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-502162b5780742df.exe)
+
+running 28 tests
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test provider_cache::tests::a_republishing_provider_never_expires ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test provider_cache::tests::expiry_takes_only_what_is_older_than_the_deadline ... ok
+test provider_cache::tests::the_two_numbers_are_the_ones_the_spec_names ... ok
+test provider_cache::tests::one_death_clears_the_peer_from_every_shard ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test provider_cache::tests::the_limit_drops_the_oldest_and_never_the_newcomer ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test provider_cache::tests::a_peer_proved_dead_is_not_taken_back_from_the_dht ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-5cee7e68d1cbde1d.exe)
+
+running 1 test
+test egress_bytes_per_query has been running for over 60 seconds
+test egress_bytes_per_query ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 118.56s
+
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-ef356aaada758ffd.exe)
+
+running 4 tests
+test an_agent_without_a_credential_still_lands ... ok
+test the_same_identity_lands_once_the_door_is_passed ... ok
+test membership_style_gossip_is_not_gated ... ok
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.67s
+
+     Running tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+
+running 5 tests
+test a_node_accepts_a_find_with_a_pad_tail ... ok
+test a_lying_node_can_fabricate_a_distance_and_nobody_checks_it ... ok
+test a_find_frame_has_a_fixed_overhead_and_carries_no_pad ... ok
+test a_full_scan_is_sixteen_frames_not_one_long_one ... ok
+test a_missing_owner_drops_the_next_groups_find_off_the_wire ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.62s
+
+     Running tests\s163_shard_without_owner.rs (target\debug\deps\s163_shard_without_owner-86d702f193c5bec8.exe)
+
+running 9 tests
+test a_shard_without_an_epoch_answers_reads_and_refuses_writes ... ok
+test an_epochless_holder_produces_no_protocol_action_at_all ... ok
+test only_the_matching_genesis_opens_an_epoch_and_the_mismatch_is_silent ... ok
+test an_epochless_holder_still_answers_the_dht_as_a_provider_of_the_shard ... ok
+test the_four_local_states_name_which_one_takes_a_write ... ok
+test publishing_to_an_epochless_shard_ends_in_not_owner_not_in_an_empty_answer ... ok
+test the_agent_pays_pow_for_an_epoch_nobody_serves ... ok
+test a_second_candidate_doubles_the_price_and_not_the_outcome ... ok
+test not_owner_ends_the_attempt_while_a_temporary_code_repeats_it ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.52s
+
+     Running tests\s19_find_e2e_price.rs (target\debug\deps\s19_find_e2e_price-6f804c62f5276aab.exe)
+
+running 4 tests
+test s19_structural_shape_of_the_stand ... ok
+test s19_cold_and_warm_find_fanout1 ... ok
+test s19_scan_share_in_end_to_end_time ... ok
+test s19_fanout13_find_price has been running for over 60 seconds
+test s19_fanout13_find_price ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 77.29s
+
+     Running tests\s53_door_branches.rs (target\debug\deps\s53_door_branches-88b807059943f7dd.exe)
+
+running 5 tests
+test a_cert_that_is_not_valid_yet_is_refused_and_its_publish_still_lands ... ignored, поведение дерева до ADR-0043: блок gate6d_stored=1 теперь обязан быть 0; живой контракт — crates/vecdht-net/tests/gossip_door_parity.rs (E-0087)
+test the_sum_capacity_rule_of_9_2_has_no_mechanism ... ok
+test a_cert_with_zero_capacity_is_refused_on_the_door_too ... ok
+test eleven_refusal_causes_all_speak_cert_invalid ... ok
+test a_live_revoke_forgets_the_peer_but_not_the_provider_cache ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 34.11s
+
+     Running tests\s5_handshake_seam.rs (target\debug\deps\s5_handshake_seam-544b85b042daa41e.exe)
+
+running 5 tests
+test the_gossip_door_is_open_to_a_peer_the_handshake_refused ... ignored, поведение дерева до ADR-0043: «gossip-дверь открыта отказанному пиру» — зафиксированная фикция (E-0076); живой контракт — crates/vecdht-net/tests/gossip_door_parity.rs (E-0087)
+test a_foreign_network_is_refused_and_the_reason_never_reaches_the_peer ... ok
+test a_normal_handshake_binds_both_sides ... ok
+test the_refusal_speaks_cert_invalid_and_keeps_the_old_identity ... ok
+test the_authentication_cache_outlives_valid_until ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.37s
+
+     Running tests\s74_provider_cache_finite.rs (target\debug\deps\s74_provider_cache_finite-8e4f9e73bfb75281.exe)
+
+running 2 tests
+test re_asking_the_dht_can_bring_the_dead_provider_back ... ok
+test a_provider_that_dies_leaves_the_shard_provider_table ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.53s
+
+     Running tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-f40c74591c2c28ad.exe)
+
+running 3 tests
+test a_manifest_with_other_geometry_is_refused_today ... ok
+test the_two_implementations_agree_on_every_cluster_at_protocol_geometry ... ok
+test rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\transport.rs (target\debug\deps\transport-0c7fb6bb4a5d446d.exe)
+
+running 10 tests
+test quic_handshake_binds_the_cert_to_the_transport_key ... ok
+test gossip_delivers_a_signed_publish_to_the_primary ... ok
+test an_agent_discovers_the_shard_provider_through_kademlia ... ok
+test a_valid_revoke_on_a_shard_topic_is_refused ... ok
+test a_closed_connection_reaches_peer_lost_in_the_shard ... ok
+test publish_and_find_travel_over_the_real_transport ... ok
+test a_revoke_below_threshold_is_rejected_before_it_can_revoke ... ok
+test an_agent_publishes_finds_and_opens_a_direct_session ... ok
+test a_threshold_revoke_drops_connections_and_blocks_reconnect ... ok
+test a_cert_whose_owner_is_not_the_transport_key_is_rejected ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.29s
+
+   Doc-tests vecdht_net
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+### РЕГРЕССИЯ ###
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 118.56s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.67s
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.62s
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.52s
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 77.29s
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 34.11s
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 10.37s
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.53s
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.29s
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+reg_failed=0
+reg_ignored=2
+reg_passed=74
+reg_s53=     Running tests\s53_door_branches.rs (target\debug\deps\s53_door_branches-88b807059943f7dd.exe)
+### КОНТРОЛЬ ПОРОГОВ ###
+порог (4) оракул зелёный: n1=test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.49s | n2=test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.84s
+порог (5) bound: g5_len_after=1 ожидание=1 ok=1
+порог (3) дыра до правки: prefix_exit=EXIT=101 prefix_dead_after=1
+порог (3) дыра закрыта после правки: g3_has_dead_after=0 g4_live_present=1
+порог (6) граница переспроса (только факт): g6_after_prune=0 g6_after_requery=0 g6_dead_back=0
+порог (10) регрессия: failed=0 ignored=2
+порог (11) repro_fact_keys=0
+порог (13) осевшие_каталоги=0 disk_ok=1
+порог (14) contour=LIBVALUE closed=6 changed=6 minutes=72 window=5 verdict=ok
+RAM_FREE_MB_AFTER=6360 DISK_FREE_MB_AFTER=27214
+TARGET_SIZE_MB=6413

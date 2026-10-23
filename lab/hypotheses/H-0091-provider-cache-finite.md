@@ -1,6 +1,6 @@
 ---
 id: H-0091
-status: pre-registered
+status: measured
 date: 2026-10-23
 spec: "docs/VecDHT-SPEC-v8.md §7.4 (`provider_record_ttl = 420 с`, `provider_publication_interval = 180 с`), §P5 («DHT — только provider records, и их конечное число», `S = 64` ключа), §4.2 (`:185…190` — измеренная монотонность таблицы провайдеров), §9.8 (смерть пира доказывается событием транспорта), Приложение (строка `:1883`: `max_providers_per_key=K_VALUE=20`), §18.2 (`< 5k provider-записей`)"
 plan: "lab/PLAN.md п. 8б, «Batch A — релиз-блокер (3)», часть A"
