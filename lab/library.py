@@ -462,32 +462,43 @@ def cmd_verify(args):
                       f"path={str(r.get('path'))[:40]})")
                 continue
             owner_repo, ref, path = target
+            # `path` — список файлов через запятую (его печатает `sources.py code --paths a,b`),
+            # а сверка резала всю строку как один путь и получала 404 на валидной записи: прибор
+            # противоречил собственному форматеру, и ловушка выглядела как «кода нет» (ДИАГНОЗ
+            # 2026-10-23, первый же прогон `verify` по первому же классу «реализация»).
+            files = [p.strip() for p in path.split(",") if p.strip()]
             try:
                 code_c, body_c = _gh_json(
                     f"https://api.github.com/repos/{owner_repo}/commits/{ref}", args.timeout)
-                code_p, body_p = _gh_json(
-                    f"https://api.github.com/repos/{owner_repo}/contents/"
-                    f"{quote(path, safe='')}?ref={quote(ref, safe='')}", args.timeout)
+                codes = []
+                for one in files:
+                    code_p, _ = _gh_json(
+                        f"https://api.github.com/repos/{owner_repo}/contents/"
+                        f"{quote(one, safe='')}?ref={quote(ref, safe='')}", args.timeout)
+                    codes.append(code_p)
             except Exception as e:
                 inet += 1
                 print(f"  СЕТЬ {r.get('id')}: сверка кода не выполнена ({type(e).__name__})")
                 continue
-            if code_c in (404, 422) or code_p in (404, 422):
+            if code_c in (404, 422) or any(c in (404, 422) for c in codes):
                 iw += 1
-                print(f"  НЕТ КОДА {r.get('id')}: {owner_repo} отдаёт commit={code_c} path={code_p} "
-                      f"(ждали {ref[:12]}:{path[:44]})")
+                missed = [f for f, c in zip(files, codes) if c in (404, 422)]
+                print(f"  НЕТ КОДА {r.get('id')}: {owner_repo} отдаёт commit={code_c} "
+                      f"path={','.join(str(c) for c in codes)} (не найдено "
+                      f"{ref[:12]}:{','.join(missed)[:44]})")
                 continue
-            if code_c >= 500 or code_p >= 500 or (body_c is None and code_c != 200):
+            if code_c >= 500 or any(c >= 500 for c in codes) or (body_c is None and code_c != 200):
                 inet += 1
-                print(f"  СЕТЬ {r.get('id')}: github api ответил {code_c}/{code_p}, сверка не выполнена")
+                print(f"  СЕТЬ {r.get('id')}: github api ответил {code_c}/{codes}, сверка не выполнена")
                 continue
-            if code_c == 200 and code_p == 200:
+            if code_c == 200 and all(c == 200 for c in codes):
                 im += 1
                 when = str((body_c or {}).get("commit", {}).get("committer", {}).get("date", "?"))[:10]
-                print(f"  ЕСТЬ КОД {r.get('id')}: {owner_repo} {ref[:12]} ({when}) -> {path[:52]}")
+                print(f"  ЕСТЬ КОД {r.get('id')}: {owner_repo} {ref[:12]} ({when}) -> "
+                      f"{len(files)} файл(ов), {path[:44]}")
             else:
                 iw += 1
-                print(f"  НЕ ТОТ ПИН {r.get('id')}: commit={code_c} path={code_p}")
+                print(f"  НЕ ТОТ ПИН {r.get('id')}: commit={code_c} path={codes}")
             continue
         m = re.match(r"^arXiv:(\d{4}\.\d{4,5})", cite)
         if not m:

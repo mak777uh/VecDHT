@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Гейт круга: боль -> источники -> решение по рубрике Lean -> только потом оракул.
 
-Причина появления. Контур источников (`ADR-0045`) и Lean (`lab/lean/`) existed, но держались
+Причина появления. Контур источников (`ADR-0045`) и Lean (`lab/lean/`) существовали, но держались
 на памяти агента: за пять циклов `H-0085`…`H-0091` не добавлено ни одной формальной модели,
 в индексе не появилось ни одной записи о чужой кодовой реализации, а `lab/lean/` не проверялся
 с момента его создания. Слово владельца 2026-10-23: механизм обязан применяться автоматически,
@@ -10,7 +10,7 @@
 
 Команды:
   python lab/cycle-gate.py H-XXXX         — жёсткая проверка карточки перед пре-регистрацией
-  python lab/cycle-gate.py --audit [N]    — отчёт по последним N карточкам (кто под правилом)
+  python lab/cycle-gate.py audit -n N     — отчёт по последним N карточкам (кто под правилом)
   python lab/cycle-gate.py --selftest     — посаженные карточки: механизм обязан их отбить
 
 Выход: 0 — круг оформлен, 1 — нарушено правило, 2 — карточка не найдена или прибор негоден.
@@ -186,8 +186,14 @@ def check_lean(fm, hid, bad, say, skip_lean):
         say(f"LEAN {hid}: компиляция пропущена по --skip-lean (в отчёте это НЕ проверка)")
         return
     env = dict(os.environ)
-    env["PATH"] = "/c/Users/Admin/.elan/bin" + os.pathsep + \
-                  "/c/Users/Admin/mingw64/bin" + os.pathsep + env.get("PATH", "")
+    # Пути тулчейна добавляем только если они есть: жёстко приписанный домашний каталог одного
+    # хоста превращал бы проверку чужой машины в «нет Lean», а это другой отказ, чем «модель
+    # не компилируется». Если `lean` уже в PATH — ничего не добавляем.
+    if shutil.which("lean", path=env.get("PATH", "")) is None:
+        extra = [p for p in ("/c/Users/Admin/.elan/bin", os.path.expanduser("~/.elan/bin"),
+                             "/c/Users/Admin/mingw64/bin") if os.path.isdir(p)]
+        if extra:
+            env["PATH"] = os.pathsep.join(extra) + os.pathsep + env.get("PATH", "")
     try:
         p = subprocess.run(["lean", path], capture_output=True, text=True, env=env, timeout=600)
     except FileNotFoundError:
@@ -268,6 +274,21 @@ GOOD_CARD = {
              "для_всех": "да", "дешевле_стенда": "нет"},
 }
 
+# Четыре «да» + «применён»: ветка, в которой гейт обязан потребовать модель и скомпилировать её.
+def _lean_applied(модель="lab/lean/VecDHT/Selftest.lean"):
+    return {"решение": "применён", "причина": "конечное пространство, ∀-инвариант без времени",
+            "модель": модель, "пространство": "да", "без_времени": "да",
+            "для_всех": "да", "дешевле_стенда": "да"}
+
+
+GOOD_MODEL = ("import Std\n\ndef f (n : Nat) : Nat := n + 1\n"
+              "def ltB (a b : Nat) : Bool := if a < b then true else false\n\n"
+              "theorem up : ((List.range 4).all (fun n => ltB n (f n))) = true := "
+              "by native_decide\n")
+SORRY_MODEL = ("import Std\n\ntheorem whatever : 1 = 1 := by sorry\n")
+BROKEN_MODEL = ("import Std\n\ndef f (n : Nat) : Nat := n +\n")
+
+
 # (название, мутация карточки, подстрока, по которой узнаём нужную причину отказа)
 DEFECTS = [
     ("prior_art пуст", dict(prior_art=[]), "не сделан"),
@@ -283,6 +304,16 @@ DEFECTS = [
      "`lean.модель` не названа"),
     ("нет ключа lean", {"__del__": "lean"}, "нет ключа `lean:`"),
     ("только статьи, код не читали", dict(prior_art=["L-0001"]), "ни одной записи класса"),
+    # Модель — самая дорогая ветка гейта (она зовёт компилятор), и до 2026-10-23 ни один
+    # посаженный дефект её не касался: «все дефекты отбиты» мог обеспечить и гейт, который
+    # отвергает всё подряд. Ниже — три дефекта модели плюс позитивный контроль компиляции.
+    ("модель названа, но её нет", dict(lean=_lean_applied(модель="lab/lean/VecDHT/Netu.lean")),
+     "не найдена на диске"),
+    ("модель с sorry", {"lean": _lean_applied(), "__model__": SORRY_MODEL},
+     "содержит sorry"),
+    ("модель не компилируется", {"lean": _lean_applied(), "__model__": BROKEN_MODEL,
+                                 "__compile__": True},
+     "не компилируется"),
 ]
 
 
@@ -301,6 +332,7 @@ def _temp_lab():
     root = tempfile.mkdtemp(prefix="cycle-gate-selftest-")
     os.makedirs(os.path.join(root, "lab", "hypotheses"))
     os.makedirs(os.path.join(root, "lab", "library"))
+    os.makedirs(os.path.join(root, "lab", "lean", "VecDHT"))
     extra = {"id": "L-0000", "title": "самопроверка гейта", "url": "https://github.com/libp2p/specs",
              "cite": "github:libp2p/specs", "verified": "2026-10-23", "depth": "текст выборочно",
              "kind": "спека", "gives": "годная строка для позитивного контроля",
@@ -314,14 +346,14 @@ def _temp_lab():
     return root
 
 
-def _gate(root, hid):
+def _gate(root, hid, skip_lean=True):
     saved = ROOT
     _use_root(root)
     buf = io.StringIO()
     real = sys.stdout
     try:
         sys.stdout = buf
-        rc = cmd_gate(type("A", (), {"hid": hid, "skip_lean": True})())
+        rc = cmd_gate(type("A", (), {"hid": hid, "skip_lean": skip_lean})())
     finally:
         sys.stdout = real
         _use_root(saved)
@@ -338,11 +370,20 @@ def cmd_selftest(_args):
         return 2
     path = os.path.join(root, "lab", "hypotheses", "H-0000-selftest.md")
 
+    model_file = os.path.join(root, "lab", "lean", "VecDHT", "Selftest.lean")
+
     def write(fm):
         fm = dict(fm)
         drop = fm.pop("__del__", None)
         if drop:
             fm.pop(drop, None)
+        body = fm.pop("__model__", None)
+        if body is None:
+            if os.path.isfile(model_file):
+                os.remove(model_file)
+        else:
+            io.open(model_file, "w", encoding="utf-8").write(body)
+        fm.pop("__compile__", None)
         with io.open(path, "w", encoding="utf-8") as fh:
             fh.write("---\n" + yaml.safe_dump(fm, allow_unicode=True, sort_keys=False) +
                      "\n---\n# посадка\n")
@@ -355,8 +396,10 @@ def cmd_selftest(_args):
         print("".join("    | " + l + "\n" for l in text.splitlines()))
     ok = 1 if good_rc == 0 else 0
     for name, mutation, reason in DEFECTS:
+        mutation = dict(mutation)
+        compile_it = bool(mutation.get("__compile__", False))
         write(dict(GOOD_CARD, **mutation))
-        rc, text = _gate(root, "H-0000")
+        rc, text = _gate(root, "H-0000", skip_lean=not compile_it)
         if rc == 0:
             mark = "СЕЛ"
         elif reason in text:
@@ -368,8 +411,17 @@ def cmd_selftest(_args):
             print("    | " + " | ".join(l.strip() for l in text.splitlines()
                                         if "НАРУШЕНИЕ" in l)[:220])
         ok += 1 if (rc == 1 and reason in text) else 0
+    # Позитивный контроль дорогой ветки: годная модель при четырёх «да» обязана ПРОЙТИ
+    # компиляцию. Без него «все дефекты отбиты» удовлетворяет и гейт, который валит всё подряд.
+    write(dict(GOOD_CARD, lean=_lean_applied(), __model__=GOOD_MODEL))
+    rc_ok, text_ok = _gate(root, "H-0000", skip_lean=False)
+    print(f"  КОНТРОЛЬ годная модель при четырёх «да»: rc={rc_ok} "
+          f"{'ПРОЙДЕН' if rc_ok == 0 else 'СЕЛ — гейт валит заведомо годный круг'}")
+    if rc_ok != 0:
+        print("    | " + " | ".join(l.strip() for l in text_ok.splitlines())[:240])
+    ok += 1 if rc_ok == 0 else 0
     shutil.rmtree(root, ignore_errors=True)
-    total = len(DEFECTS) + 1
+    total = len(DEFECTS) + 2
     print(f"SELFTEST годный_круг={'пропущен' if good_rc == 0 else 'заблокирован'} "
           f"отбито={ok} из {total}")
     print(f"CYCLEGATE_SELFTEST total={total} passed={ok} good_card_rc={good_rc}")
@@ -381,6 +433,10 @@ def main():
     # угадать команду с первой попытки; argparse иначе съедает позиционный аргумент как выбор.
     if len(sys.argv) > 1 and re.match(r"^H-\d{4}$", sys.argv[1]):
         sys.argv.insert(1, "gate")
+    # `--audit` вместо `audit`: докстринг долго обещал именно такую форму, и агент, который
+    # читал только её, получал «invalid choice» — переводим ошибку в работу, а не в отказ.
+    if len(sys.argv) > 1 and sys.argv[1] in ("--audit", "-a"):
+        sys.argv[1] = "audit"
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd")

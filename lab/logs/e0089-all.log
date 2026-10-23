@@ -783,3 +783,163 @@ TARGET_MB=8036 LOG_MB=1
 ВНМАНИЕ: cargo clean не исполнялся; продуктовый код, wire и docs этого цикла не тронуты (см. МЕРЕНО diff_crates_docs_strok)
 ИТОГ 2026-10-23T23:08:11+03:00: HELPER_EXIT=0
 HELPER_EXIT=0
+
+########## E-0089 · контур источников · прогон 2026-10-23T23:30:58+03:00 ##########
+HEAD: afc201a
+python: Python 3.13.11
+RAM_FREE_MB_BEFORE=5845 DISK_FREE_MB_BEFORE=25412
+ГЕЙТ (0) help=OK (rc=0)
+ГЕЙТ (0) py_compile=OK (rc=0)
+МЕРЕНО subcommands_mrtvye=0
+МЕРЕНО diff_crates_docs_strok=0
+ПРОВЕРКА записей=10 прочитано=10 ошибок=0 предупреждений=0
+LIBCHECK records=10 read=10 errors=0 warns=0
+EXIT=0
+ГЕЙТ (1) check=OK (rc=0)
+МЕРЕНО LIBCHECK records=10 read=10 errors=0
+  СОВПАЛО L-0001 (1.00) -> Consistent Hashing with Bounded Loads
+  СОВПАЛО L-0002 (1.00) -> Can You Trust the Vectors in Your Vector Database? Black-Hole Attack from Embedd
+  СОВПАЛО L-0003 (1.00) -> Incremental IVF Index Maintenance for Streaming Vector Search
+  СОВПАЛО L-0004 (1.00) -> Certified Robustness of Nearest Neighbors against Data Poisoning and Backdoor At
+  СОВПАЛО L-0005 (1.00) -> scikit-hubness: Hubness Reduction and Approximate Neighbor Search
+  ЕСТЬ КОД L-0006: libp2p/specs c750236de43c (2026-10-09) -> 1 файл(ов), kad-dht/README.md
+  ЕСТЬ КОД L-0007: bitcoin/bitcoin df0dc1e2d205 (2026-10-23) -> 1 файл(ов), src/banman.cpp
+  ЕСТЬ КОД L-0008: haproxy/haproxy 86119aad3b44 (2026-10-23) -> 1 файл(ов), src/stick_table.c
+  ЕСТЬ КОД L-0009: fail2ban/fail2ban 6c88de71d201 (2026-10-10) -> 2 файл(ов), fail2ban/server/banmanager.py,fail2ban/serve
+  СОВПАЛО L-0010 (1.00) -> Understanding Community-Level Blocklists in Decentralized Social Media
+СВЕРКА проверено=6 совпало=6 не_то=0 пропущено=0 сеть_недоступна=0
+LIBVERIFY checked=6 matched=6 wrong=0 skipped=0 net_unavailable=0
+LIBVERIFY_IMPL checked=4 matched=4 wrong=0 skipped=0 net_unavailable=0
+EXIT=0
+ГЕЙТ (1) verify=OK (rc=0)
+МЕРЕНО LIBVERIFY checked=6 matched=6 wrong=0 skipped=0 net_unavailable=0
+МЕРЕНО LIBVERIFY_IMPL checked=4 matched=4 wrong=0 skipped=0 net_unavailable=0
+МЕРЕНО порог1 arxiv_записей=6 ссылок_на_код=4 проверено_всего=10
+ГЕЙТ (1) каждое arXiv-подтверждение совпало=OK
+ГЕЙТ (1) каждое совпадение подтверждено=OK
+ГЕЙТ (1) ни одного подлога (статьи)=OK
+ГЕЙТ (1) каждая ссылка на код проверена машинно=OK
+ГЕЙТ (1) ни одного битого пина=OK
+ГЕЙТ (1) не менее двух машинных сверок=OK (10)
+### ШАГ 2 девять посаженных дефектов (рабочий индекс не трогается: VEC_DHT_LIBRARY) ###
+  ДЕФЕКТ нет_поля: rc=1 ОТБИТ
+  ДЕФЕКТ id_вне_формата: rc=1 ОТБИТ
+  ДЕФЕКТ дубль_id: rc=1 ОТБИТ
+  ДЕФЕКТ статус_вне_списка: rc=1 ОТБИТ
+  ДЕФЕКТ несуществующая_цель: rc=1 ОТБИТ
+  ДЕФЕКТ изменено_без_ссылки: rc=1 ОТБИТ
+  ДЕФЕКТ не_повлияло_без_причины: rc=1 ОТБИТ
+  ДЕФЕКТ cost_вне_бюджета: rc=1 ОТБИТ
+  ДЕФЕКТ в_работе_слишком_долго: rc=1 ОТБИТ
+МЕРЕНО defects_total=9 defects_отбито=9
+МЕРЕНО МЕРЕНО defects_total=9 defects_отбито=9
+ГЕЙТ (2) все девять отбиты=OK
+### ШАГ 3 запись с чужим arXiv-id (схема верна, ссылки нет) ###
+ГЕЙТ (3) схема у ловушки верна=OK (rc=0)
+  НЕ ТА СТАТЬЯ L-9001 (0.00): ждали «Eclipse Attacks on Peer-to-Peer Networks», arXiv отдаёт «The recoil correction to the proton-finite-size contribution»
+СВЕРКА проверено=1 совпало=0 не_то=1 пропущено=0 сеть_недоступна=0
+LIBVERIFY checked=1 matched=0 wrong=1 skipped=0 net_unavailable=0
+LIBVERIFY_IMPL checked=0 matched=0 wrong=0 skipped=0 net_unavailable=0
+EXIT=1
+ГЕЙТ (3) verify поймал не ту статью=OK (rc=1)
+ГЕЙТ (3) метка=OK
+### ШАГ 4 сеть недоступна (timeout 0.001 с) ###
+  СЕТЬ L-0001: сверка не выполнена (URLError)
+  СЕТЬ L-0002: сверка не выполнена (URLError)
+  СЕТЬ L-0003: сверка не выполнена (URLError)
+  СЕТЬ L-0004: сверка не выполнена (URLError)
+  СЕТЬ L-0005: сверка не выполнена (URLError)
+  СЕТЬ L-0006: сверка кода не выполнена (URLError)
+  СЕТЬ L-0007: сверка кода не выполнена (URLError)
+  СЕТЬ L-0008: сверка кода не выполнена (URLError)
+  СЕТЬ L-0009: сверка кода не выполнена (URLError)
+  СЕТЬ L-0010: сверка не выполнена (URLError)
+СВЕРКА проверено=0 совпало=0 не_то=0 пропущено=0 сеть_недоступна=6
+LIBVERIFY checked=0 matched=0 wrong=0 skipped=0 net_unavailable=6
+LIBVERIFY_IMPL checked=4 matched=0 wrong=0 skipped=0 net_unavailable=4
+EXIT=0
+МЕРЕНО offline LIBVERIFY checked=0 matched=0 wrong=0 skipped=0 net_unavailable=6
+МЕРЕНО offline LIBVERIFY_IMPL checked=4 matched=0 wrong=0 skipped=0 net_unavailable=4
+МЕРЕНО offline недоступно_всего=10 (статей 6 + кода 4), проверимо было 10
+ГЕЙТ (4) пустое множество не притворяется проверкой=OK
+ГЕЙТ (4) недоступность помечена по всем строкам класса бумага=OK
+ГЕЙТ (4) недоступность помечена по всем ссылкам на код=OK
+ГЕЙТ (4) недоступность не молчит=OK (10)
+ГЕЙТ (4) тишины=OK
+### ШАГ 5 дайджест: неиспользованное и § без сверки ###
+ГЕЙТ (5) digest=OK (rc=0)
+ДАЙДЖЕСТ 2026-10-23: всего=10 не_использовано=0 в_работе=4 закрыто=6 с_действием_изменение=6
+LIBDIGEST total=10 unused=0 wip=4 closed=6 changed=6
+КЛАССЫ источников: бумага=6 спека=1 реализация=3
+LIBCLASSES paper=6 spec=1 impl=3 unknown=0
+  В РАБОТЕ L-0007 открыт 2026-10-23 цели=H-0092
+  В РАБОТЕ L-0008 открыт 2026-10-23 цели=H-0092
+  В РАБОТЕ L-0009 открыт 2026-10-23 цели=H-0092
+  В РАБОТЕ L-0010 открыт 2026-10-23 цели=H-0092
+ТРИГГЕРЫ строк=13 разделов=11 без_литературной_сверки=9 сверено_разделов=2
+LIBTRIGGERS lines=13 sections=11 uncovered=9 covered=2
+  СПРОСИ §11.1: Стоимость. Первая редакция v8 обещала «≈84 мс CPU на один publish» из предположения «blake3 ≈ 200 MH/s на ядро
+  СПРОСИ §13.1: v7.5 утверждала «zero-retention: index-node не хранит embedding» и одновременно требовала `recall@10 > 95%`. Э
+  СПРОСИ §17.2: * Фичи `libp2p` в текущей сборке — пересечение whitelist и реально поднятого транспорта: `request-response` не
+  СПРОСИ §20.5: **Порядок величин vs обещание.** После этих двух правок правило для спеки сформулировано явно: абсолютные thro
+  СПРОСИ §5.3: Подпись автора — необходимое, но не достаточное условие: `Publish`/`Find` в gossip-потоке
+  СПРОСИ §7.5.2: Цена этого выбора измерена на P0(ii) дважды: на 50 000 MS MARCO queries (`E-0004`) те же 14.3 владельца дают r
+  СПРОСИ §8.1: При 1M интентов на всю сеть скан int8 по зондируемым кластерам стоит **меньше**, чем поддержание PQ-кодов: ~0.
+  СПРОСИ §8.6: неверным: обещание 0.95 «при том же бюджете, что и пересечение кластеров» — оно опровергнуто
+  СПРОСИ §9.8: дельта, иначе часы реплики решают, когда lease истёк. Каждый WAL-фрейм несёт `epoch` и подпись primary. Реплик
+БЮДЖЕТ: один шаг сверки <= 30 мин, выход — строка «не повлияло» с причиной или правка гипотезы/порога ДО пре-регистрации
+МЕРЕНО LIBTRIGGERS lines=13 sections=11 uncovered=9 covered=2
+ГЕЙТ (5а)=OK
+ГЕЙТ (5б)=OK: строка «Векторы атак» отнесена к §14.4
+ГЕЙТ (5в)=OK: §9.2 не приписан строке §14.4
+МЕРЕНО plan_ссылок=1 openquestions_ссылок=1
+ГЕЙТ (6) PLAN получил форму капа=OK
+ГЕЙТ (6) OPEN-QUESTIONS получил вектор=OK
+### ШАГ 7 критерий: три состояния индекса на временных копиях ###
+ПОЛЕЗНОСТЬ прочитано_до_конца=6 изменено=6 не_повлияло=0 суммарно_минут=72 цена_за_находку=12
+ВЕРДИКТ по критерию (>= 5 закрытых записей): КОНТУР ГОДЕН
+LIBVALUE closed=6 changed=6 minutes=72 window=5 verdict=ok
+МЕРЕНО живой_индекс_как_есть=LIBVALUE closed=6 changed=6 minutes=72 window=5 verdict=ok
+ПОЛЕЗНОСТЬ прочитано_до_конца=2 изменено=2 не_повлияло=0 суммарно_минут=24 цена_за_находку=12
+ВЕРДИКТ не готов: закрытых записей 2 < 5
+LIBVALUE closed=2 changed=2 minutes=24 window=5 verdict=not_ready
+ГЕЙТ (7а) при 2 из 5 закрытых вердикт молчит=OK
+ПОЛЕЗНОСТЬ прочитано_до_конца=5 изменено=5 не_повлияло=0 суммарно_минут=60 цена_за_находку=12
+ВЕРДИКТ по критерию (>= 5 закрытых записей): КОНТУР ГОДЕН
+LIBVALUE closed=5 changed=5 minutes=60 window=5 verdict=ok
+ГЕЙТ (7б) при 5 закрытых с изменением=OK
+ПОЛЕЗНОСТЬ прочитано_до_конца=5 изменено=0 не_повлияло=5 суммарно_минут=60 цена_за_находку=н/д
+ВЕРДИКТ по критерию (>= 5 закрытых записей): КОНТУР ДЕКОРАТИВЕН — снять обязательность (ADR-0045)
+LIBVALUE closed=5 changed=0 minutes=60 window=5 verdict=decorative
+ГЕЙТ (7в) пять прочитанных без действия=OK
+ПРОВЕРКА записей=10 прочитано=10 ошибок=0 предупреждений=0
+LIBCHECK records=10 read=10 errors=0 warns=0
+ГЕЙТ (8) финальный check=OK (rc=0)
+OK: зеркало спеки совпадает с оригиналом (1949 строк, 9f1c025466e5)
+ГЕЙТ (8) зеркало спеки=OK (rc=0)
+YAML lab/hypotheses/H-0089-prior-art-contour.md: ключей=15 пропущено=[]
+YAML lab/decisions/ADR-0045-prior-art-contour.md: ключей=7 пропущено=[]
+ГЕЙТ (8) YAML карточек=OK (rc=0)
+### ШАГ 8б текстура текста (гейт (9)) ###
+МЕРЕНО текстовых_файлов_цикла=1
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+EXIT=0
+ГЕЙТ (9) check-text-clean=OK (rc=0)
+RAM_FREE_MB_AFTER=6941 DISK_FREE_MB_AFTER=25411
+TARGET_MB=8036 LOG_MB=1
+ВНМАНИЕ: cargo clean не исполнялся; продуктовый код, wire и docs этого цикла не тронуты (см. МЕРЕНО diff_crates_docs_strok)
+ИТОГ 2026-10-23T23:31:27+03:00: HELPER_EXIT=0
+HELPER_EXIT=0
+
+### ПОПРАВКА 2026-10-23T23:58+03:00 (после E-0089, чинит приборы, а не его историю) ###
+ГРЯЗЬ_В_ЭТОМ_ЛОГЕ: строки 449 и 585 содержат гибрид алфавитов в написании имени arXiv,
+  пойманный `lab/check-text-clean.sh`. Строки не переписываются: лог append-only, а гибрид
+  остался от формулировки гейта (4). В карточках и индексе имя пишется латиницей: arXiv.
+ЧТО_ПЕРЕПРОВЕРЕНО: `sources.py selftest` (5 офлайн-проверок, включая посимвольный запрос arXiv),
+  `library.py verify` на строках L-0007…L-0010 (4 реализационные пины, сверка commit+file через
+  GitHub API), `cycle-gate.py selftest` (11 посаженных дефектов + позитивный контроль компиляции
+  Lean), `e0092-run.sh` добавлен как helper следующего цикла.
+DEFECTS_FOUND=4 (запрос к arXiv собирался посимвольно; -n и --timeout были только у корня
+  парсера; черновик класса «реализация» выходил без пина и файла; verify падал 404 на строке
+  с перечнем путей) + 1 пробел в покрытии selftest: не было позитивного контроля компиляции
+  Lean-модели, поэтому гейт, отвергающий всё, считался бы зелёным

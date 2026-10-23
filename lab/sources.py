@@ -58,17 +58,25 @@ def gh_json(url, timeout=25.0):
         return code, None
 
 
-def draft(title, url, cite, kind, depth, note):
+def draft(title, url, cite, kind, depth, note, **extra):
     today = dt.date.today().isoformat()
     row = {"id": "L-NNNN", "title": title, "url": url, "cite": cite, "verified": today,
            "depth": depth, "kind": kind, "gives": note, "targets": [],
            "status": "не использован", "action": "", "cost_min": 0, "opened": today}
+    row.update(extra)
     return row
 
 
+def arxiv_query(terms):
+    # `terms` — одна строка, а не список: обход её как `for w in args.terms` давал посимвольный
+    # запрос (`I P   b l o c k...`), на который arXiv отвечал физикой и квериками. Инструмент
+    # выглядел работающим и при этом гарантировал «в литературе ничего нет» (ДИАГНОЗ 2026-10-23).
+    # Слово берётся как есть; точная фраза — через `--query`.
+    return "all:" + " ".join(w for w in terms.split() if w)
+
+
 def cmd_arxiv(args):
-    q = "all:" + " ".join(f'"{w}"' if " " in w else w for w in args.terms) \
-        if not args.query else args.query
+    q = arxiv_query(args.terms) if not args.query else args.query
     url = ("http://export.arxiv.org/api/query?search_query=" + urllib.parse.quote(q) +
            f"&start=0&max_results={args.n}")
     try:
@@ -145,21 +153,60 @@ def cmd_code(args):
         print(line + (" файлы=" + " ".join(found) if found else ""))
         if not sha:
             continue
+        # Черновик обязан сам проходить схему `library.py check`: класс «реализация» требует
+        # `ref` и `path`, и до 2026-10-23 инструмент печатал строку, которую его же `add`
+        # отклонял — агенту приходилось дописывать пин руками по памяти о выводе выше.
         print(json.dumps(draft(f"{repo} ({branch} @ {sha[:12]})",
                                f"https://github.com/{repo}/", f"github:{repo}@{sha[:12]}",
                                "реализация", "аннотация",
-                               args.gives or "<что именно даёт этот код нашему решению>"),
+                               args.gives or "<что именно даёт этот код нашему решению>",
+                               ref=sha, path=",".join(paths) if paths
+                               else "<какой файл этого репозитория читали>"),
                          ensure_ascii=False))
     return 0
+
+
+def cmd_selftest(args):
+    """Офлайновая проверка самого инструмента: запрос, черновик, схема.
+
+    Смысл в том, чтобы посимвольный запрос и черновик без пина ловились здесь, а не в
+    рабочем круге: у обоих дефектов внешний вид был «инструмент отработал».
+    """
+    ok = True
+
+    def chk(name, cond, detail=""):
+        nonlocal ok
+        print(("ХОРОШО " if cond else "ПЛОХО ") + name + (f" — {detail}" if detail else ""))
+        ok = ok and cond
+
+    q = arxiv_query("blocklist churn ban expiry")
+    chk("запрос arXiv собирается по словам", q == "all:blocklist churn ban expiry", f"q={q!r}")
+    chk("в запросе нет посимвольной нарезки", " b l " not in q and "l o c k" not in q, f"q={q!r}")
+    row = draft("t", "https://github.com/a/b/", "github:a/b@0123456789ab", "реализация",
+                "текст выборочно", "g", ref="0123456789abcdef0123456789abcdef01234567",
+                path="src/x.cpp")
+    need = ("id", "title", "url", "cite", "verified", "depth", "kind", "gives", "targets",
+            "status", "action", "cost_min", "opened")
+    chk("черновик реализации содержит все поля схемы", all(k in row for k in need),
+        "нет " + ",".join(k for k in need if k not in row))
+    chk("черновик реализации несёт пин и файл", bool(row.get("ref")) and bool(row.get("path")),
+        f"ref={row.get('ref', '')[:12]!r} path={row.get('path')!r}")
+    chk("черновик без пина не годится", "ref" not in draft("t", "https://github.com/a/b/",
+        "c", "реализация", "аннотация", "g"))
+    print(f"SOURCES_SELFTEST {'OK' if ok else 'FAIL'}")
+    return 0 if ok else 1
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--timeout", type=float, default=25.0)
-    p.add_argument("-n", type=int, default=6)
+    # `-n` и `--timeout` живут в общем родителе: только на верхнем уровне их не передать после
+    # подкоманды, а именно так их показывал докстринг инструмента (ДИАГНОЗ 2026-10-23).
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--timeout", type=float, default=25.0)
+    common.add_argument("-n", type=int, default=6)
     sub = p.add_subparsers(dest="cmd", required=True)
-    h = sub.add_parser("hunt")
+    h = sub.add_parser("hunt", parents=[common])
     h.add_argument("terms")
     h.add_argument("--github", action="store_true")
     h.add_argument("--github-only", action="store_true")
@@ -167,21 +214,24 @@ def main():
     h.add_argument("--repo", default="")
     h.add_argument("--query", default="")
     h.add_argument("--gives", default="")
-    a = sub.add_parser("arxiv")
+    a = sub.add_parser("arxiv", parents=[common])
     a.add_argument("terms")
     a.add_argument("--query", default="")
-    c = sub.add_parser("code")
+    c = sub.add_parser("code", parents=[common])
     c.add_argument("terms")
     c.add_argument("--paths", default="")
     c.add_argument("--pinned", action="store_true")
     c.add_argument("--repo", default="")
     c.add_argument("--gives", default="")
+    s = sub.add_parser("selftest", parents=[common])
     args = p.parse_args()
     args.timeout = getattr(args, "timeout", 25.0)
     if args.cmd == "hunt":
         return cmd_hunt(args)
     if args.cmd == "arxiv":
         return cmd_arxiv(args)
+    if args.cmd == "selftest":
+        return cmd_selftest(args)
     return cmd_code(args)
 
 
