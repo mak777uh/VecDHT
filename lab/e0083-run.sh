@@ -167,7 +167,7 @@ run_oracles() { # $1 = метка прогона
 KEYS="assign_full_p50_us assign_full_per_row_us ratio_to_scan_lo ratio_to_scan_hi
 full_spread_promil reference_to_full_x ref_spread_promil assign_api_p50_us rows_overhead_x
 top16_to_assign_x assign_margin_x assign_rel_spread_x assign_gate7_ok distinct_rows_reference
-distinct_rows_full pred_from_scan_lo_us pred_from_scan_hi_us
+distinct_rows_full pred_from_scan_lo_us pred_from_scan_hi_us assign_cache_gate6_x
 wal_solo_per_op_us solo_ops_per_s solo_spread_promil solo_ratio_to_195_x
 wal_group_per_op_us group_ops_per_s group_spread_promil speedup_vs_solo_x group_ratio_to_195_x
 wal_append_per_op_us wal_append_bytes wal_publish_per_op_us publish_to_solo_x
@@ -244,6 +244,11 @@ GMARGIN=$(awk -v g="$GO2" 'BEGIN { if (g=="" || g+0==0) { print ""; exit } print
   echo "-- ПРАВИЛО 7 по МЕЖПРОГОННОМУ пределу воспроизводимости (ДИАГНОЗ-1; пороги не двигались):"
   echo "   assign  (граница 150 мкс):  $(rule7 "$AMARGIN" "$AREL")  [внутрипрогонный разброс оракула: $(get assign_rel_spread_x_2 "$N2_FILE")]"
   echo "   WAL     (граница 6 400 опсов/с): $(rule7 "$GMARGIN" "$GREL")  [внутрипрогонный: $(get wal_rel_spread_x_2 "$N2_FILE")]"
+  echo "-- ПОРОГ (6) как отчёт (ДИАГНОЗ-2: assert снят, граница 0,90 заморожена и не менялась):"
+  awk -v r="$(get reference_to_full_x_2 "$N2_FILE")" -v g="$(get assign_cache_gate6_x_2 "$N2_FILE")" 'BEGIN {
+    if (r=="" || g=="") { print "   нет чисел"; exit }
+    printf "   reference/full = %s и gate6-печать = %s при границе 0,90 → вердикт=%s\n",
+      r, g, (r+0 <= 0.90 ? "выполнен" : "НЕ ВЫПОЛНЕН (опровержение находки о фикстуре)") }'
   echo "   assign linearity межпрогонно, 256/1024 = $(awk -v a="$(get line256_1 "$N1_FILE")" -v b="$(get line1024_1 "$N1_FILE")" -v c="$(get line256_2 "$N2_FILE")" -v d="$(get line1024_2 "$N2_FILE")" 'BEGIN{ if(a==""||b==""||c==""||d==""){print "нет чисел";exit} printf "%.3f/%.3f", a/b, c/d }')"
   echo "   межпрогонный разброс assign, %: $(pct_diff "$A50_1" "$A50_2")"
   echo "   межпрогонный разброс WAL solo, %: $(pct_diff "$WS1" "$WS2")"

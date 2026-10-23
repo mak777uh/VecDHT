@@ -536,3 +536,517 @@ ratio_to_scan = 0,744/0,804, линейность 0,246 и 0,458, reference/full
 подряд удерживает опровержение (6) в окне 0,996…1,020. Отдельно зарегистрировано: `rows_overhead`
 по трём наблюдениям (1,013 / 1,011 / 1,101) сидит в 4 % от замороженной границы 1,15 — это не
 нарушение, но ближайший к границе гейт цикла, и при n=2 за ним надо смотреть.
+=== E-0083 прогон 2026-10-23T10:15:33+03:00 — §19.4: assign, WAL group commit, search margin ===
+HEAD: 873e186
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 7787
+ДИСК СВОБОДНО до прогона, МБ: 22101
+### ДОПУСК ### 2026-10-23T10:15:36+03:00
+диск 22101 МБ, RAM 7817 МБ
+### СТОИМОСТЬ ### 2026-10-23T10:15:36+03:00
+-- таргет s19_assign_row_price: строк 396, тестов 2
+-- таргет s19_wal_group_commit_price: строк 408, тестов 2
+-- таргет search_latency: строк 165, тестов 1
+-- продуктовый код (crates/*/src) и спека этим циклом не тронуты (пусто = ок):
+-- тронутые тесты:
+ crates/vecdht-index/tests/s19_assign_row_price.rs  | 396 ++++++++++++++++++++
+ .../tests/s19_wal_group_commit_price.rs            | 408 +++++++++++++++++++++
+ crates/vecdht-index/tests/search_latency.rs        |  13 +
+ 3 files changed, 817 insertions(+)
+-- зависимостей добавлено не было (пусто = ок):
+### RELEASE BUILD --no-run (три таргета) ### 2026-10-23T10:15:36+03:00
+    Finished `release` profile [optimized] target(s) in 0.19s
+  Executable tests\s19_assign_row_price.rs (target\release\deps\s19_assign_row_price-539636956df1f03c.exe)
+  Executable tests\s19_wal_group_commit_price.rs (target\release\deps\s19_wal_group_commit_price-e1c8536fad11fb28.exe)
+  Executable tests\search_latency.rs (target\release\deps\search_latency-2ed03c2c1cff9899.exe)
+EXIT=0
+BUILD_MS=515
+### БИНАРЬ s19_assign_row_price ### 2026-10-23T10:15:37+03:00
+путь: target/release/deps/s19_assign_row_price-539636956df1f03c.exe
+sha256: cb8ad33b6c12d9aced03f5459326af350c89d4cf223d158f1b981b8c4168a13f
+размер, МБ: 2
+### БИНАРЬ s19_wal_group_commit_price ### 2026-10-23T10:15:37+03:00
+путь: target/release/deps/s19_wal_group_commit_price-e1c8536fad11fb28.exe
+sha256: 2715772ea5cf0c4462d45966678ed30deeede4ecb07d5b2a30f2619cdbeaab1b
+размер, МБ: 2
+### БИНАРЬ search_latency ### 2026-10-23T10:15:37+03:00
+путь: target/release/deps/search_latency-2ed03c2c1cff9899.exe
+sha256: a5fd843b895745254970573cecff49e80886d5fd317f62ac985ae57ff90d4ce7
+размер, МБ: 2
+### ORACLE s19_assign_row_price RUN 1 (release, --nocapture, --test-threads=1) ### 2026-10-23T10:15:37+03:00
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests\s19_assign_row_price.rs (target\release\deps\s19_assign_row_price-539636956df1f03c.exe)
+
+running 2 tests
+test assign_row_arithmetic_and_fixture_degeneracy ... МЕРЕНО assign_struct_ok=1 row_target_us=150 pred_from_scan_lo_us=56.750 pred_from_scan_hi_us=61.251 margin_lo_x=2.449 margin_hi_x=2.643 distinct_rows_reference=85 distinct_rows_full=1024 row_bytes=384
+ok
+test assign_row_price_in_release ... === §19.4 строка «cluster assign», профиль release, выбросок 2000 ===
+МЕРЕНО assign_full_p50_us=49.400 assign_full_per_row_us=0.04824 ratio_to_scan_lo=0.807 ratio_to_scan_hi=0.870 full_spread_promil=0.0
+МЕРЕНО assign_reference_p50_us=45.400 reference_to_full_x=0.919 ref_spread_promil=0.0
+МЕРЕНО assign_api_p50_us=46.200 rows_overhead_x=0.935 api_spread_promil=0.0
+МЕРЕНО top16_p50_us=61.200 top16_to_assign_x=1.239 top_spread_promil=0.0
+МЕРЕНО assign_line_rows=256 assign_line_p50_us=11.200 assign_line_per_row_us=0.04375
+МЕРЕНО assign_line_rows=512 assign_line_p50_us=23.600 assign_line_per_row_us=0.04609
+МЕРЕНО assign_line_rows=1024 assign_line_p50_us=45.400 assign_line_per_row_us=0.04434
+МЕРЕНО assign_margin_x=2.036 assign_rel_spread_x=0.0000 assign_gate7_ok=1
+
+thread 'assign_row_price_in_release' (21820) panicked at crates\vecdht-index\tests\s19_assign_row_price.rs:384:9:
+эталонная сетка не дешевле боевой: reference/full = 0.919 при замороженном ≤ 0,90 — вывод «строка assign — свойство вырожденной фикстуры» опровергнут
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    assign_row_price_in_release
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.64s
+
+error: test failed, to rerun pass `-p vecdht-index --test s19_assign_row_price`
+EXIT=101
+### ORACLE s19_wal_group_commit_price RUN 1 (release, --nocapture, --test-threads=1) ### 2026-10-23T10:15:38+03:00
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests\s19_wal_group_commit_price.rs (target\release\deps\s19_wal_group_commit_price-e1c8536fad11fb28.exe)
+
+running 2 tests
+test wal_row_arithmetic_and_group_commit_is_only_a_predicate ... МЕРЕНО wal_arith_ok=1 ops_per_fsync=32 window_ms=5 row_ops_per_s=6400 window_1ms_ops_per_s=32000 frame_bytes=441 snapshot_ops=50000 segment_max_ops=100000
+ok
+test wal_row_price_in_release ... === §19.4 строка «WAL append, group commit», профиль release ===
+МЕРЕНО wal_append_per_op_us=4.850 wal_append_bytes=8820000
+МЕРЕНО wal_solo_per_op_us=1050.000 solo_ops_per_s=952 solo_spread_promil=0.5 solo_ratio_to_195_x=1.169
+МЕРЕНО wal_group_per_op_us=40.931 group_ops_per_s=24431 group_spread_promil=38.9 speedup_vs_solo_x=25.65 group_ratio_to_195_x=1.152
+МЕРЕНО wal_publish_per_op_us=1060.500 publish_ops_per_s=943 publish_to_solo_x=1.010 publish_spread_promil=0.5
+МЕРЕНО wal_productgroup_per_op_us=42.278 productgroup_ops_per_s=23653 publish_to_productgroup_x=25.08 productgroup_spread_promil=9.5
+МЕРЕНО row_margin_x=2.817 wal_rel_spread_x=0.0389 wal_gate7_ok=1
+МЕРЕНО wal_release_gates=ok
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.86s
+
+EXIT=0
+### ORACLE search_latency RUN 1 (release, --nocapture, --test-threads=1) ### 2026-10-23T10:15:41+03:00
+    Finished `release` profile [optimized] target(s) in 0.21s
+     Running tests\search_latency.rs (target\release\deps\search_latency-2ed03c2c1cff9899.exe)
+
+running 1 test
+test search_is_under_300_microseconds_at_1104_entries ... search nprobe=16 при 1104 записях [release]: p50 0.063 мс, p95 0.068 мс, p99 0.099 мс, один кластер p50 0.004 мс, порог §19.1 0.300 мс, живых на шарде 0: 1104
+МЕРЕНО search_p50_us=62.9 search_p95_us=68.0 search_p99_us=98.8 search_one_cluster_p50_us=4.3 search_row_limit_us=300.0 search_profile=1
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+EXIT=0
+### ЧИСЛА ПРОГОНА 1 ### 2026-10-23T10:15:44+03:00
+assign_full_p50_us_1=49.400
+assign_full_per_row_us_1=0.04824
+ratio_to_scan_lo_1=0.807
+ratio_to_scan_hi_1=0.870
+full_spread_promil_1=0.0
+reference_to_full_x_1=0.919
+ref_spread_promil_1=0.0
+assign_api_p50_us_1=46.200
+rows_overhead_x_1=0.935
+top16_to_assign_x_1=1.239
+assign_margin_x_1=2.036
+assign_rel_spread_x_1=0.0000
+assign_gate7_ok_1=1
+distinct_rows_reference_1=85
+distinct_rows_full_1=1024
+pred_from_scan_lo_us_1=56.750
+pred_from_scan_hi_us_1=61.251
+wal_solo_per_op_us_1=1050.000
+solo_ops_per_s_1=952
+solo_spread_promil_1=0.5
+solo_ratio_to_195_x_1=1.169
+wal_group_per_op_us_1=40.931
+group_ops_per_s_1=24431
+group_spread_promil_1=38.9
+speedup_vs_solo_x_1=25.65
+group_ratio_to_195_x_1=1.152
+wal_append_per_op_us_1=4.850
+wal_append_bytes_1=8820000
+wal_publish_per_op_us_1=1060.500
+publish_to_solo_x_1=1.010
+publish_spread_promil_1=0.5
+wal_productgroup_per_op_us_1=42.278
+publish_to_productgroup_x_1=25.08
+row_margin_x_1=2.817
+wal_rel_spread_x_1=0.0389
+wal_gate7_ok_1=1
+search_p50_us_1=62.9
+search_p95_us_1=68.0
+search_p99_us_1=98.8
+search_one_cluster_p50_us_1=4.3
+line256_1=11.200
+line512_1=23.600
+line1024_1=45.400
+RAM СВОБОДНО, МБ: 7765
+ДИСК СВОБОДНО, МБ: 22101
+осевших каталогов s19-wal в %TEMP%: 0
+### ORACLE s19_assign_row_price RUN 2 (release, --nocapture, --test-threads=1) ### 2026-10-23T10:15:45+03:00
+    Finished `release` profile [optimized] target(s) in 0.21s
+     Running tests\s19_assign_row_price.rs (target\release\deps\s19_assign_row_price-539636956df1f03c.exe)
+
+running 2 tests
+test assign_row_arithmetic_and_fixture_degeneracy ... МЕРЕНО assign_struct_ok=1 row_target_us=150 pred_from_scan_lo_us=56.750 pred_from_scan_hi_us=61.251 margin_lo_x=2.449 margin_hi_x=2.643 distinct_rows_reference=85 distinct_rows_full=1024 row_bytes=384
+ok
+test assign_row_price_in_release ... === §19.4 строка «cluster assign», профиль release, выбросок 2000 ===
+МЕРЕНО assign_full_p50_us=49.200 assign_full_per_row_us=0.04805 ratio_to_scan_lo=0.803 ratio_to_scan_hi=0.867 full_spread_promil=0.0
+МЕРЕНО assign_reference_p50_us=49.300 reference_to_full_x=1.002 ref_spread_promil=0.0
+МЕРЕНО assign_api_p50_us=46.400 rows_overhead_x=0.943 api_spread_promil=0.0
+МЕРЕНО top16_p50_us=62.800 top16_to_assign_x=1.276 top_spread_promil=1.6
+МЕРЕНО assign_line_rows=256 assign_line_p50_us=11.200 assign_line_per_row_us=0.04375
+МЕРЕНО assign_line_rows=512 assign_line_p50_us=24.300 assign_line_per_row_us=0.04746
+МЕРЕНО assign_line_rows=1024 assign_line_p50_us=47.900 assign_line_per_row_us=0.04678
+МЕРЕНО assign_margin_x=2.049 assign_rel_spread_x=0.0000 assign_gate7_ok=1
+
+thread 'assign_row_price_in_release' (13556) panicked at crates\vecdht-index\tests\s19_assign_row_price.rs:384:9:
+эталонная сетка не дешевле боевой: reference/full = 1.002 при замороженном ≤ 0,90 — вывод «строка assign — свойство вырожденной фикстуры» опровергнут
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    assign_row_price_in_release
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.66s
+
+error: test failed, to rerun pass `-p vecdht-index --test s19_assign_row_price`
+EXIT=101
+### ORACLE s19_wal_group_commit_price RUN 2 (release, --nocapture, --test-threads=1) ### 2026-10-23T10:15:46+03:00
+    Finished `release` profile [optimized] target(s) in 0.20s
+     Running tests\s19_wal_group_commit_price.rs (target\release\deps\s19_wal_group_commit_price-e1c8536fad11fb28.exe)
+
+running 2 tests
+test wal_row_arithmetic_and_group_commit_is_only_a_predicate ... МЕРЕНО wal_arith_ok=1 ops_per_fsync=32 window_ms=5 row_ops_per_s=6400 window_1ms_ops_per_s=32000 frame_bytes=441 snapshot_ops=50000 segment_max_ops=100000
+ok
+test wal_row_price_in_release ... === §19.4 строка «WAL append, group commit», профиль release ===
+МЕРЕНО wal_append_per_op_us=4.863 wal_append_bytes=8820000
+МЕРЕНО wal_solo_per_op_us=1009.200 solo_ops_per_s=991 solo_spread_promil=9.9 solo_ratio_to_195_x=1.216
+МЕРЕНО wal_group_per_op_us=42.756 group_ops_per_s=23388 group_spread_promil=0.8 speedup_vs_solo_x=23.60 group_ratio_to_195_x=1.103
+МЕРЕНО wal_publish_per_op_us=1017.700 publish_ops_per_s=983 publish_to_solo_x=1.008 publish_spread_promil=2.4
+МЕРЕНО wal_productgroup_per_op_us=38.494 productgroup_ops_per_s=25978 publish_to_productgroup_x=26.44 productgroup_spread_promil=22.8
+МЕРЕНО row_margin_x=2.654 wal_rel_spread_x=0.0008 wal_gate7_ok=1
+МЕРЕНО wal_release_gates=ok
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.71s
+
+EXIT=0
+### ORACLE search_latency RUN 2 (release, --nocapture, --test-threads=1) ### 2026-10-23T10:15:48+03:00
+    Finished `release` profile [optimized] target(s) in 0.22s
+     Running tests\search_latency.rs (target\release\deps\search_latency-2ed03c2c1cff9899.exe)
+
+running 1 test
+test search_is_under_300_microseconds_at_1104_entries ... search nprobe=16 при 1104 записях [release]: p50 0.063 мс, p95 0.069 мс, p99 0.092 мс, один кластер p50 0.004 мс, порог §19.1 0.300 мс, живых на шарде 0: 1104
+МЕРЕНО search_p50_us=62.7 search_p95_us=69.1 search_p99_us=91.7 search_one_cluster_p50_us=4.3 search_row_limit_us=300.0 search_profile=1
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+EXIT=0
+### ЧИСЛА ПРОГОНА 2 (воспроизводимость) ### 2026-10-23T10:15:52+03:00
+assign_full_p50_us_2=49.200
+assign_full_per_row_us_2=0.04805
+ratio_to_scan_lo_2=0.803
+ratio_to_scan_hi_2=0.867
+full_spread_promil_2=0.0
+reference_to_full_x_2=1.002
+ref_spread_promil_2=0.0
+assign_api_p50_us_2=46.400
+rows_overhead_x_2=0.943
+top16_to_assign_x_2=1.276
+assign_margin_x_2=2.049
+assign_rel_spread_x_2=0.0000
+assign_gate7_ok_2=1
+distinct_rows_reference_2=85
+distinct_rows_full_2=1024
+pred_from_scan_lo_us_2=56.750
+pred_from_scan_hi_us_2=61.251
+wal_solo_per_op_us_2=1009.200
+solo_ops_per_s_2=991
+solo_spread_promil_2=9.9
+solo_ratio_to_195_x_2=1.216
+wal_group_per_op_us_2=42.756
+group_ops_per_s_2=23388
+group_spread_promil_2=0.8
+speedup_vs_solo_x_2=23.60
+group_ratio_to_195_x_2=1.103
+wal_append_per_op_us_2=4.863
+wal_append_bytes_2=8820000
+wal_publish_per_op_us_2=1017.700
+publish_to_solo_x_2=1.008
+publish_spread_promil_2=2.4
+wal_productgroup_per_op_us_2=38.494
+publish_to_productgroup_x_2=26.44
+row_margin_x_2=2.654
+wal_rel_spread_x_2=0.0008
+wal_gate7_ok_2=1
+search_p50_us_2=62.7
+search_p95_us_2=69.1
+search_p99_us_2=91.7
+search_one_cluster_p50_us_2=4.3
+line256_2=11.200
+line512_2=24.300
+line1024_2=47.900
+-- расхождение двух release-прогонов одного бинаря, %:
+   assign_full_p50_us: 0.40
+   reference_to_full_x: 8.28
+   assign_api_p50_us: 0.43
+   top16_to_assign_x: 2.90
+   wal_solo_per_op_us: 3.89
+   wal_group_per_op_us: 4.27
+   wal_publish_per_op_us: 4.04
+   publish_to_solo_x: 0.20
+   wal_productgroup_per_op_us: 8.95
+   publish_to_productgroup_x: 5.14
+   search_p50_us: 0.32
+   search_p95_us: 1.59
+   search_one_cluster_p50_us: 0.00
+-- ПРАВИЛО 7 для строки search (запас p95 до 300 мкс против межпрогонного разброса):
+   запас=3.342 2x_разброс=0.0318 вердикт=выполнен
+   межпрогонный разброс search p95, долях: 0.0159
+-- ПРАВИЛО 7 по МЕЖПРОГОННОМУ пределу воспроизводимости (ДИАГНОЗ-1; пороги не двигались):
+   assign  (граница 150 мкс):  запас=2.049 2x_разброс=0.008 вердикт=выполнен  [внутрипрогонный разброс оракула: 0.0000]
+   WAL     (граница 6 400 опсов/с): запас=2.654 2x_разброс=0.0854 вердикт=выполнен  [внутрипрогонный: 0.0008]
+   assign linearity межпрогонно, 256/1024 = 0.247/0.234
+   межпрогонный разброс assign, %: 0.40
+   межпрогонный разброс WAL solo, %: 3.89
+   межпрогонный разброс WAL group, %: 4.27
+RAM СВОБОДНО, МБ: 7736
+ДИСК СВОБОДНО, МБ: 22108
+осевших каталогов s19-wal в %TEMP%: 0
+sha256 s19_assign_row_price после прогонов (обязан совпасть): cb8ad33b6c12d9aced03f5459326af350c89d4cf223d158f1b981b8c4168a13f
+sha256 s19_wal_group_commit_price после прогонов (обязан совпасть): 2715772ea5cf0c4462d45966678ed30deeede4ecb07d5b2a30f2619cdbeaab1b
+sha256 search_latency после прогонов (обязан совпасть): a5fd843b895745254970573cecff49e80886d5fd317f62ac985ae57ff90d4ce7
+RUST_MS_1=3940 RUST_MS_2=3841
+### КОНТРОЛЬ --release -p vecdht-index --lib ### 2026-10-23T10:15:57+03:00
+    Finished `release` profile [optimized] target(s) in 0.21s
+     Running unittests src\lib.rs (target\release\deps\vecdht_index-545288d3a586d6f8.exe)
+
+running 81 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test wal::tests::rotation_thresholds ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+EXIT=0
+### DEBUG SMOKE s19_assign_row_price ### 2026-10-23T10:15:58+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\s19_assign_row_price.rs (target\debug\deps\s19_assign_row_price-4c1a73b24718fc46.exe)
+
+running 2 tests
+test assign_row_arithmetic_and_fixture_degeneracy ... МЕРЕНО assign_struct_ok=1 row_target_us=150 pred_from_scan_lo_us=56.750 pred_from_scan_hi_us=61.251 margin_lo_x=2.449 margin_hi_x=2.643 distinct_rows_reference=85 distinct_rows_full=1024 row_bytes=384
+ok
+test assign_row_price_in_release ... === §19.4 строка «cluster assign», профиль debug, выбросок 40 ===
+МЕРЕНО assign_full_p50_us=11979.100 assign_full_per_row_us=11.69834 ratio_to_scan_lo=195.575 ratio_to_scan_hi=211.085 full_spread_promil=2.2
+МЕРЕНО assign_reference_p50_us=11954.300 reference_to_full_x=0.998 ref_spread_promil=1.6
+МЕРЕНО assign_api_p50_us=12097.600 rows_overhead_x=1.010 api_spread_promil=6.1
+МЕРЕНО top16_p50_us=12453.400 top16_to_assign_x=1.040 top_spread_promil=0.7
+МЕРЕНО assign_line_rows=256 assign_line_p50_us=2979.000 assign_line_per_row_us=11.63672
+МЕРЕНО assign_line_rows=512 assign_line_p50_us=5969.700 assign_line_per_row_us=11.65957
+МЕРЕНО assign_line_rows=1024 assign_line_p50_us=11930.200 assign_line_per_row_us=11.65059
+debug: временные гейты (4)…(8) пропущены по профилю; проверка — cargo test --release -p vecdht-index --test s19_assign_row_price
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.09s
+
+EXIT=0
+### DEBUG SMOKE s19_wal_group_commit_price ### 2026-10-23T10:16:03+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running tests\s19_wal_group_commit_price.rs (target\debug\deps\s19_wal_group_commit_price-5409b0a86ff14a98.exe)
+
+running 2 tests
+test wal_row_arithmetic_and_group_commit_is_only_a_predicate ... МЕРЕНО wal_arith_ok=1 ops_per_fsync=32 window_ms=5 row_ops_per_s=6400 window_1ms_ops_per_s=32000 frame_bytes=441 snapshot_ops=50000 segment_max_ops=100000
+ok
+test wal_row_price_in_release ... === §19.4 строка «WAL append, group commit», профиль debug ===
+МЕРЕНО wal_append_per_op_us=22.868 wal_append_bytes=882000
+МЕРЕНО wal_solo_per_op_us=1063.200 solo_ops_per_s=941 solo_spread_promil=29.6 solo_ratio_to_195_x=1.154
+МЕРЕНО wal_group_per_op_us=49.794 group_ops_per_s=20083 group_spread_promil=84.2 speedup_vs_solo_x=21.35 group_ratio_to_195_x=0.947
+МЕРЕНО wal_publish_per_op_us=1053.500 publish_ops_per_s=949 publish_to_solo_x=0.991 publish_spread_promil=14.8
+МЕРЕНО wal_productgroup_per_op_us=60.869 productgroup_ops_per_s=16429 publish_to_productgroup_x=17.31 productgroup_spread_promil=2190.7
+debug: временные гейты (11)…(14) пропущены по профилю; проверка — cargo test --release -p vecdht-index --test s19_wal_group_commit_price
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+EXIT=0
+### DEBUG SMOKE search_latency ### 2026-10-23T10:16:04+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests\search_latency.rs (target\debug\deps\search_latency-6678254e936f761d.exe)
+
+running 1 test
+test search_is_under_300_microseconds_at_1104_entries ... search nprobe=16 при 1104 записях [debug]: p50 12.995 мс, p95 13.439 мс, p99 16.059 мс, один кластер p50 0.818 мс, порог §19.1 0.300 мс, живых на шарде 0: 1104
+МЕРЕНО search_p50_us=12995.4 search_p95_us=13438.6 search_p99_us=16059.0 search_one_cluster_p50_us=817.8 search_row_limit_us=300.0 search_profile=0
+debug: временной гейт пропущен (13.438600000000001 мс — это профиль, а не алгоритм). Проверка §19.1: cargo test --release -p vecdht-index --test search_latency
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.79s
+
+EXIT=0
+### DEBUG ЧИСЛА (профиль-зависимая половина) ### 2026-10-23T10:16:14+03:00
+assign_full_p50_us debug: 11979.100
+wal_solo_per_op_us debug: 1063.200
+search_p95_us debug: 13438.6
+-- КРОСС-ПРОФИЛЬ assign debug/release (окно заморожено из фактора скана E-0081: [150; 280]):
+   debug=11979.100 release=49.200 отношение=243.5 вердикт=ок
+-- КРОСС-ПРОФИЛЬ search p95 debug/release (репорт, окно не замораживалось):
+   debug=13438.6 release=69.1 отношение=194.5
+-- КРОСС-ПРОФИЛЬ WAL solo (fsync-доминированный путь; отношение обязано быть близко к 1):
+   debug=1063.200 release=1009.200 отношение=1.054
+### ИТОГ ### 2026-10-23T10:16:15+03:00
+HEAD после прогонов: 873e186
+RAM СВОБОДНО, МБ: 7639
+ДИСК СВОБОДНО, МБ: 22108
+target/, МБ: 7431
+осевших каталогов s19-wal в %TEMP% (порог (13) требует 0): 0
+лог: lab/logs/e0083-all.log (986 строк)
+HELPER_EXIT=101 (худший из кодов шагов; 0 = все шаги отработали)
+
+### РАЗБОР n=2 (append, 2026-10-23; пороги не двигались) ###
+Прогон n=2 (10:15:36…10:16:15, HEAD 873e186, инструмент после ДИАГНОЗ-1, `HELPER_EXIT=101`).
+101 — ровно и только из-за порога (6): он теперь стоит последним assert'ом, и все предыдущие
+исполнились (`assign_release_gates=ok` не напечатан ни разу за шесть release-прогонов цикла —
+красным каждый раз был именно (6)). Допуск: диск 22 101 МБ, RAM 7 817 МБ; в ИТОГЕ RAM 7 639 МБ,
+диск 22 108 МБ, target/ 7 431 МБ; осевших каталогов 0; sha256 `s19_wal_group_commit_price` и
+`search_latency` совпали с n=1, у перепорядоченного `s19_assign_row_price` новый хеш (cb8ad33b…)
+и он совпал до и после прогонов; КОНТРОЛЬ — 81 passed.
+
+(0)…(4) выполнены как в n=1; (2) в обоих профилях: 85 различных строк против 1024, четыре пути
+присваивания сходятся; (3) 56,750…61,251 мкс и 2,449…2,643×; (4) p50 = 49,400 и 49,200 мкс.
+(5) **исполнился и зелёный** — в отличие от n=1, где его отменила паника: запас 2,036 и 2,049 при
+внутреннем разбросе 0,0000, `p50 < 150` выполнено (49 мкс). Межпрогонная форма того же правила
+(helper, ДИАГНОЗ-1): запас 2,049 против 2×0,004 — выполнено.
+(6) **НЕ ВЫПОЛНЕН снова**: `reference/full = 0,919` и `1,002`, то есть пять release-наблюдений
+цикла (1,020; 1,000; 0,996; 0,919; 1,002) и два debug-наблюдения (1,051 и 0,998) держат отношение выше
+границы 0,90. Находка «строка assign — свойство вырожденной фикстуры» опровергнута, и опровержение
+стабильно. Ближайшее к границе наблюдение (0,919) отделено от неё на 2,1 % — при межпрогонной
+повторяемости инструмента 0,40 %, но внутри того же процесса цена той же операции дважды замерялась
+как 49,4 и 45,4…47,9 мкс (разброс до 8,8 %), поэтому 0,919 читается как «разницы нет», а не как
+«почти выполнено».
+(7) выполнено: `rows_overhead = 0,935` и `0,943` (API не дороже прямого вызова скана — в пределах
+шума), `top16/assign = 1,239` и `1,276` ∈ [1,0; 1,5].
+(8) выполнено: `ratio_to_scan = 0,807/0,870` и `0,803/0,867` ∈ [0,6; 1,6]; линейность
+`256/1024 = 0,247` и `0,234`, `512/1024 = 0,520` и `0,507`.
+(9) выполнено: кросс-профиль `debug/release = 243,5` ∈ [150; 280] — второе наблюдение подряд рядом
+с первым (242,5), окно `E-0081` переносится на assign без правки.
+(10)…(14) выполнены в обоих прогонах: `solo/group = 25,65×` и `23,60×`; `solo_ops = 952` и `991`
+(1,169 и 1,216 от 815); `group_ops = 24 431` и `23 388` (> 6 400, запас 2,817 и 2,654, оба шире
+2× внутреннего разброса и шире 2× межпрогонного: helper вынес вердикт «выполнен»);
+`publish/solo = 1,010` и `1,008` — главный гейт (11) подтверждён вторым независимым прогоном:
+продуктовый путь платит один `fsync` на опс; `publish/stage32+commit = 25,08×` и `26,44×`.
+(15) выполнено: 0 осевших каталогов, `last_snapshot_seq = 0`, sha256 совпали.
+(16) **в этот раз выполнено**: `p95 = 68,0` и `69,1` мкс (строка держится), межпрогонный разброс
+1,59 %, запас `300/69,1 − 1 = 3,342` ≥ 2×0,0159. То есть за два зачётных прогона порог (16) дал
+противоположные вердикты: НЕ ВЫПОЛНЕН в n=1 (запас 0,197 при разбросе 71,6 %) и ВЫПОЛНЕН в n=2.
+Четыре наблюдения p95 одного бинаря — 71,2; 250,7; 68,0; 69,1 мкс, а p50 за то же время —
+62,8; 84,6; 62,9; 62,7 (межпрогонно 0,32 % против 1,59…71,60 % у хвоста). Вывод не «гейт сломан» и
+не «гейт надёжен», а ровно то, что формулирует правило 7: на тихом окне стенда запас p95 в 209 раз
+шире разброса, на загрязнённом — в 7,3 раза уже. Единственный честный вердикт строки: она
+выполняется 4/4, а её односторонний хвостовой гейт не может фиксировать вердикт на этом стенде
+без межпрогонного снятия.
+(17) выполнено: КОНТРОЛЬ 81/81, RAM и диск на пяти точках.
+
+### ДИАГНОЗ-2 (append, 2026-10-23, после n=2) — правка инструмента без движения порогов ###
+(1) Порог (6) остаётся проваленным и записанным как проваленный, но assert, проверяющий мёртвую
+гипотезу, в инструменте оставлявать нельзя: он делает таргет красным на любом будущём прогоне и
+маскирует настоящий сигнал. (6) переведён в отчёт — граница 0,90 в сравнении та же дословно,
+печатается `МЕРЕНО assign_cache_gate6_x=<отношение> assign_cache_gate6_verdict=refuted|holds`,
+и провал по-прежнему бросается в глаза, но не отменяет исполнение остальных гейтов. Это ровно
+предцедент `E-0082` (ДИАГНОЗ-4), где пост-фактум зонды были сняты, а замороженные пороги (6) и (11)
+остались в реестре цикла с вердиктом «не выполнен/не определён».
+(2) Структурное наблюдение цикла, не ценовое: 85 различных строк из 1024 — это арифметическая
+причина эффекта, который `E-0033` («stand grid degeneracy») измерил как геометрию: тот цикл застал
+ноль столкновений на 256 запросах сетки и случайные строки как контраст, но не вывел, *почему*
+сетка вырождена. Здесь выведено: строка центроида задаётся сдвигом `384c mod 255`, `НОД(384,255)=3`,
+следовательно различных строк `255/3 = 85`. То есть находка `E-0083` про фикстуру верна в
+геометрии и опровергнута в цене — и это разные утверждения, которые цикл до прогона смешивал в
+заголовке вопроса.
+(3) Уточнение правила 7 для `lab/PLAN.md`: предел воспроизводимости надо мерить по той статистике,
+против которой стоит гейт. p50 assign и search повторяется на стенде до 0,3…0,4 %, p95 — до 1,6 %
+на тихом окне и до 71,6 % на загрязнённом. Односторонний гейт по хвосту обязан сниматься не менее
+чем двумя прогонами и формулироваться отношением запаса к межпрогонному разбросу именно хвоста.
