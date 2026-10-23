@@ -1,0 +1,38 @@
+### PRE_FIX E-0094 · дерево до правки · HEAD f8a97b7 · 2026-10-24T02:26:29+03:00
+### команда: cargo test -p vecdht-net --test revocation_durable_after_restart --no-fail-fast -- --nocapture --test-threads=1
+   Compiling vecdht-net v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-net)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.57s
+     Running tests\revocation_durable_after_restart.rs (target\debug\deps\revocation_durable_after_restart-80888eb391819b9d.exe)
+
+running 2 tests
+test revoked_peer_is_refused_before_restart_and_accepted_after_it ... RV_G0: rv_g0_primary_shard7=3 rv_g0_primary_shard9=2 rv_g0_carrier=2 rv_g0_watcher=3
+RV_G1: rv_g1_count_before=1 rv_g1_file_before=0 rv_g1_carrier_knows=0
+RV_G1b: rv_g1b_denied_before_restart=1
+RV_G2: rv_g2_count_after=0 rv_g2_knows_after=false rv_g2_file_after=0 rv_g2_addr_changed=1
+RV_G3: rv_g3_accepted_after_restart=1 rv_g3_carrier_self_revoked=0 rv_g3_watcher2_count=0
+RV_G4: rv_g4_fresh_dir_knows=0 rv_g4_fresh_dir_count=0 rv_g4_fresh_file=0
+
+thread 'revoked_peer_is_refused_before_restart_and_accepted_after_it' (40804) panicked at crates\vecdht-net\tests\revocation_durable_after_restart.rs:378:9:
+гейты не выполнены: ["(1) состояние отзыва до рестарта: ожидалось count=1 file=34 получено count=1 file=0", "(2) не выполнен: перезапущенный наблюдитель принял отозванный кредашиал", "(2) не выполнен: множество отзывов не поднято с диска"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test self_revoked_silence_survives_restart ... RV_G5: rv_g5_self_revoked=1 rv_g5_silent_send=1 rv_g5_count=1 rv_g5_file_before=0
+RV_G6: rv_g6_self_revoked_after=0 rv_g6_serves_after_restart=1 rv_g6_peer_agrees=1 rv_g6_count_after=0 rv_g6_file_after=0 rv_g6_load_errors=0
+RV_G7: rv_g7_fresh_control_serves=1 rv_g7_control_self_revoked=0 rv_g7_control_file=0
+
+thread 'self_revoked_silence_survives_restart' (35520) panicked at crates\vecdht-net\tests\revocation_durable_after_restart.rs:499:9:
+гейты не выполнены: ["(3) не выполнен: молчание не пережило перезапуск — self_revoked сброшен", "(3) не выполнен: возобновивший работу узел аутентифицируется и обслуживает"]
+FAILED
+
+failures:
+
+failures:
+    revoked_peer_is_refused_before_restart_and_accepted_after_it
+    self_revoked_silence_survives_restart
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 31.20s
+
+error: test failed, to rerun pass `-p vecdht-net --test revocation_durable_after_restart`
+error: 1 target failed:
+    `-p vecdht-net --test revocation_durable_after_restart`
+EXIT=101
