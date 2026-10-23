@@ -1,0 +1,286 @@
+=== E-0081 прогон 2026-10-23T07:13:00+03:00 — профиль release, оракул E-0079 без правок ===
+HEAD: 2d4331d
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 11393
+ДИСК СВОБОДНО до прогона, МБ: 22349
+ДОПУСК: диск 22349 МБ — ок 2026-10-23T07:13:02+03:00
+### СТОИМОСТЬ ### 2026-10-23T07:13:02+03:00
+-- оракул Rust (тот же файл, что в E-0079): строк / тестов:
+   строк: 749
+   тестов: 7
+-- правок оракула с момента закрытия E-0079 (пусто = ок):
+-- продуктовый код, wire, спека и узел этим циклом не тронуты (пусто = ок):
+-- зависимостей добавлено не было (пусто = ок):
+### DEBUG-БАЗА (E-0079, замерный прогон; переснято в логе lab/logs/e0079-all.log) ### 2026-10-23T07:13:02+03:00
+## (4) скан: медианы [188, 762, 2954, 11978, 47792] мкс при лестнице [16, 64, 256, 1024, 4096]; п95 [207, 770, 3040, 19541, 48533]; мкс/запись [11.75, 11.90625, 11.5390625, 11.697265625, 11.66796875]; 256 копий одной ячейки: 48318 → 12409921 мкс (усиление 256.8×); живой Find: [("пустая", 369, 1), ("горячая 4096", 59438, 65)] ##
+## (5в) зонд: A) принятых nonce из 100000 при [8,10,12,14] битах — [(8, 423, 390), (10, 100, 97), (12, 19, 24), (14, 5, 6)] (ожидание ~100000/2^bits); B) шесть независимых входов, сумма мкс и сумма nonce по уровням [(18, 745730, 1275772), (20, 3229595, 5420364), (22, 7081410, 12044322)], отношения соседних уровней [4.330783259356604, 2.192661928198427] (ожидаемое ~4.0) ##
+## (5а) один вход, min-of-3: [(18, 34698, 59218), (20, 34290, 59218), (22, 34118, 59218)] мкс (бит, мкс, nonce); попытки/цена [(18, 59219, 585.9268140292811), (20, 59219, 579.0371333524713), (22, 59219, 576.1326601259731)]; отношения [0.9882413971986858, 0.9949839603382911] — ДИАГНОЗ-5, не гейт; цена записи по измеренному хешрейту (бит, с CPU на одну запись в среднем) [(18, 0.156574416896), (20, 0.626297667584), (24, 10.020762681344)] ##
+## (5) цена записи. ЗАМОРОЖЕННЫЙ ПОРОГ (5): холодный одиночный прогон 18 бит = 36 мс, 20 бит = 36 мс, nonce 59218 и 59218, отношение 1.00× при интервале [1.6, 3.2] → НЕ ВЫПОЛНЕН (ДИАГНОЗ-2 и ДИАГНОЗ-5: один вход — одна выборка геометрического распределения с СКО, равным среднему; порог не двигался и не выполнен). Хешрейт 597.3 нс/попытка — debug-профиль, абсолютные секунды не являются ценой в бою. Приём узлом (полный путь с fsync): медиана 1516 мкс, п95 2079 мкс, 200 кадров за 350 мс ##
+-- константы фикстуры, которые цикл обязан сохранить: DIM, POW, ladder, top_k, max_live_per_shard
+45:const BASE: u16 = SHARD * 16;
+48:const POW: u32 = 8;
+49:const TTL: u16 = 225;
+221:    p.max_live_per_shard = 8;
+284:/// (3) Потолок надувания = вместимость шарда, а не размер ячейки: при `max_live_per_shard = 240`
+291:    p.max_live_per_shard = cap;
+319:        "## (3) потолок: cluster_len = {cell} = max_live_per_shard ({cap}), отказов {refused}, \
+334:    p.max_live_per_shard = 6_000;
+337:    let ladder = [16u64, 64, 256, 1_024, 4_096];
+### RELEASE BUILD --no-run ### 2026-10-23T07:13:02+03:00
+    Finished `release` profile [optimized] target(s) in 0.24s
+  Executable tests\s14_cluster_bloat_price.rs (target\release\deps\s14_cluster_bloat_price-1d8017020f5dce3f.exe)
+EXIT=0
+BUILD_MS=526 BUILD_S=0
+### БИНАРЬ ### 2026-10-23T07:13:03+03:00
+путь: target/release/deps/s14_cluster_bloat_price-1d8017020f5dce3f.exe
+sha256: 32ecc904d70adefc12fa93f869ae8c9e58c9fae950d0e29949fda8b4c560cde3
+размер, МБ: 2
+### ORACLE RUN 1 (release, --nocapture, --test-threads=1) ### 2026-10-23T07:13:03+03:00
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests\s14_cluster_bloat_price.rs (target\release\deps\s14_cluster_bloat_price-1d8017020f5dce3f.exe)
+
+running 7 tests
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ## (1) подмена прошла: принято чужих кадров в бакет жертвы = 20 из 25, отказ жертвы = QUOTA_PUBLISH, запись восстановлена на следующий токен ##
+ok
+test changing_cluster_id_costs_no_new_pow ... ## (2) переезд: 4 записи в одной ячейке при total 4, evicted 0; смена cluster_id в оплаченном кадре прошла без нового nonce ##
+ok
+test find_scan_price_scales_with_cell_size_and_list_length ... ## (4) скан: медианы [1, 4, 14, 57, 227] мкс при лестнице [16, 64, 256, 1024, 4096]; п95 [3, 4, 15, 75, 313]; мкс/запись [0.0625, 0.0625, 0.0546875, 0.0556640625, 0.055419921875]; 256 копий одной ячейки: 214 → 45634 мкс (усиление 213.2×); живой Find: [("пустая", 44, 1), ("горячая 4096", 1534, 65)] ##
+ok
+test one_cell_grows_to_the_shard_cap ... ## (3) потолок: cluster_len = 200 = max_live_per_shard (200), отказов 0, коды []; 210 кадров живым путём за 233 мс (evicted 10) ##
+ok
+test per_cluster_cap_is_three_policies_and_two_are_broken ... ## (6) три политики на трейсе 264 кадров: льготa 0 → горячая ячейка 41, продлений отвергнуто 0; строгая 1 → 8, 8; с учётом переезда 2 → 8, продлений 0, переездов 33. Боевая ячейка (свежие + продления в ней): [8, 8, 8]. Профиль: [68, 68, 68] записей. Соответствие модели: admitX/admitA/admitM в Admission.lean ##
+ok
+test the_pow_gate_carries_difficulty_and_one_input_is_not_a_sample ... ## (5в) зонд: A) принятых nonce из 100000 при [8,10,12,14] битах — [(8, 423, 390), (10, 100, 97), (12, 19, 24), (14, 5, 6)] (ожидание ~100000/2^bits); B) шесть независимых входов, сумма мкс и сумма nonce по уровням [(18, 172770, 1275772), (20, 677080, 5420364), (22, 1521314, 12044322)], отношения соседних уровней [3.9189674133240726, 2.2468748153837064] (ожидаемое ~4.0) ##
+ok
+test the_price_of_one_accepted_record ... ## (5а) один вход, min-of-3: [(18, 7013, 59218), (20, 7097, 59218), (22, 7479, 59218)] мкс (бит, мкс, nonce); попытки/цена [(18, 59219, 118.42482986879212), (20, 59219, 119.84329353754707), (22, 59219, 126.29392593593272)]; отношения [1.0119777555967489, 1.053825560095815] — ДИАГНОЗ-5, не гейт; цена записи по измеренному хешрейту (бит, с CPU на одну запись в среднем) [(18, 0.03417473024), (20, 0.13669892096), (24, 2.18718273536)] ##
+## (5) цена записи. ЗАМОРОЖЕННЫЙ ПОРОГ (5): холодный одиночный прогон 18 бит = 7 мс, 20 бит = 7 мс, nonce 59218 и 59218, отношение 1.00× при интервале [1.6, 3.2] → НЕ ВЫПОЛНЕН (ДИАГНОЗ-2 и ДИАГНОЗ-5: один вход — одна выборка геометрического распределения с СКО, равным среднему; порог не двигался и не выполнен). Хешрейт 130.4 нс/попытка — debug-профиль, абсолютные секунды не являются ценой в бою. Приём узлом (полный путь с fsync): медиана 1038 мкс, п95 1208 мкс, 200 кадров за 226 мс ##
+ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.23s
+
+EXIT=0
+RUST_MS_1=10793 RUST_S_1=10
+### РЕСУРСЫ ПОСЛЕ ПРОГОНА 1 ### 2026-10-23T07:13:14+03:00
+RAM СВОБОДНО, МБ: 11376
+ДИСК СВОБОДНО, МБ: 22348
+target/, МБ: 7298
+осевших тестовых каталогов bloat в %TEMP%: 0
+### ORACLE RUN 2 (release, --nocapture, --test-threads=1) ### 2026-10-23T07:13:17+03:00
+    Finished `release` profile [optimized] target(s) in 0.21s
+     Running tests\s14_cluster_bloat_price.rs (target\release\deps\s14_cluster_bloat_price-1d8017020f5dce3f.exe)
+
+running 7 tests
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ## (1) подмена прошла: принято чужих кадров в бакет жертвы = 20 из 25, отказ жертвы = QUOTA_PUBLISH, запись восстановлена на следующий токен ##
+ok
+test changing_cluster_id_costs_no_new_pow ... ## (2) переезд: 4 записи в одной ячейке при total 4, evicted 0; смена cluster_id в оплаченном кадре прошла без нового nonce ##
+ok
+test find_scan_price_scales_with_cell_size_and_list_length ... ## (4) скан: медианы [1, 4, 15, 60, 245] мкс при лестнице [16, 64, 256, 1024, 4096]; п95 [5, 4, 24, 67, 278]; мкс/запись [0.0625, 0.0625, 0.05859375, 0.05859375, 0.059814453125]; 256 копий одной ячейки: 224 → 48572 мкс (усиление 216.8×); живой Find: [("пустая", 43, 1), ("горячая 4096", 1547, 65)] ##
+ok
+test one_cell_grows_to_the_shard_cap ... ## (3) потолок: cluster_len = 200 = max_live_per_shard (200), отказов 0, коды []; 210 кадров живым путём за 295 мс (evicted 10) ##
+ok
+test per_cluster_cap_is_three_policies_and_two_are_broken ... ## (6) три политики на трейсе 264 кадров: льготa 0 → горячая ячейка 41, продлений отвергнуто 0; строгая 1 → 8, 8; с учётом переезда 2 → 8, продлений 0, переездов 33. Боевая ячейка (свежие + продления в ней): [8, 8, 8]. Профиль: [68, 68, 68] записей. Соответствие модели: admitX/admitA/admitM в Admission.lean ##
+ok
+test the_pow_gate_carries_difficulty_and_one_input_is_not_a_sample ... ## (5в) зонд: A) принятых nonce из 100000 при [8,10,12,14] битах — [(8, 423, 390), (10, 100, 97), (12, 19, 24), (14, 5, 6)] (ожидание ~100000/2^bits); B) шесть независимых входов, сумма мкс и сумма nonce по уровням [(18, 170013, 1275772), (20, 692573, 5420364), (22, 1511055, 12044322)], отношения соседних уровней [4.0736473093234045, 2.181798886182395] (ожидаемое ~4.0) ##
+ok
+test the_price_of_one_accepted_record ... ## (5а) один вход, min-of-3: [(18, 7202, 59218), (20, 7100, 59218), (22, 7235, 59218)] мкс (бит, мкс, nonce); попытки/цена [(18, 59219, 121.61637312349077), (20, 59219, 119.89395295428832), (22, 59219, 122.1736267076445)]; отношения [0.9858372674257151, 1.0190140845070423] — ДИАГНОЗ-5, не гейт; цена записи по измеренному хешрейту (бит, с CPU на одну запись в среднем) [(18, 0.032634948812800005), (20, 0.13053979525120002), (24, 2.0886367240192003)] ##
+## (5) цена записи. ЗАМОРОЖЕННЫЙ ПОРОГ (5): холодный одиночный прогон 18 бит = 7 мс, 20 бит = 7 мс, nonce 59218 и 59218, отношение 1.00× при интервале [1.6, 3.2] → НЕ ВЫПОЛНЕН (ДИАГНОЗ-2 и ДИАГНОЗ-5: один вход — одна выборка геометрического распределения с СКО, равным среднему; порог не двигался и не выполнен). Хешрейт 124.5 нс/попытка — debug-профиль, абсолютные секунды не являются ценой в бою. Приём узлом (полный путь с fsync): медиана 1060 мкс, п95 1239 мкс, 200 кадров за 222 мс ##
+ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.32s
+
+EXIT=0
+RUST_MS_2=10851 RUST_S_2=10
+### РЕСУРСЫ ПОСЛЕ ПРОГОНА 2 ### 2026-10-23T07:13:28+03:00
+RAM СВОБОДНО, МБ: 11266
+ДИСК СВОБОДНО, МБ: 22348
+sha256 бинаря после второго прогона (обязан совпасть): 32ecc904d70adefc12fa93f869ae8c9e58c9fae950d0e29949fda8b4c560cde3
+### КОНТРОЛЬ --release -p vecdht-node --lib ### 2026-10-23T07:13:29+03:00
+   Compiling vecdht-node v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-node)
+    Finished `release` profile [optimized] target(s) in 18.29s
+     Running unittests src\lib.rs (target\release\deps\vecdht_node-79ad180b31d08614.exe)
+
+running 74 tests
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test lease::tests::a_lease_from_the_future_is_not_adopted ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+
+test result: ok. 74 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+EXIT=0
+### ИТОГ ### 2026-10-23T07:13:48+03:00
+HEAD после прогонов: 2d4331d
+RAM СВОБОДНО, МБ: 11371
+ДИСК СВОБОДНО, МБ: 22345
+target/, МБ: 7300
+лог: lab/logs/e0081-all.log (189 строк)
+HELPER_EXIT=0 (худший из кодов шагов; 0 = все шаги отработали)
+
+### ДИАГНОЗ-1 (замороженный порог (4): нижняя граница не выполнена, линейность выполнена) ### 2026-10-23T07:20:00+03:00
+Порог (4) состоит из четырёх клауз, замер отвечает по каждой, порог НЕ переписан:
+  (4а) `мкс/запись` при 4096 ∈ [0,3; 5,83] — НЕ ВЫПОЛНЕН: факт 0,05542 (прогон 1) и 0,059815
+       (прогон 2) при 11,66796875 в debug. Скан ускорился в 210,5× и 195,1×, то есть в 5,4 раза
+       сильнее, чем требовал пол интервала. Пол 0,3 я выбрал из ожидания «ускорение скана
+       порядка величины», недооценив автопетелизацию и векторизацию цикла `i8`-MAC'ов; нижняя
+       граница была гипотезой о величине, а не утверждением о протоколе.
+  (4б) медианы лестницы [16, 64, 256, 1024, 4096] строго растут — ВЫПОЛНЕН (1 → 4 → 14 → 57 → 227
+       и 1 → 4 → 15 → 60 → 245 мкс).
+  (4в) slope 4096/1024 ∈ [2, 8] — ВЫПОЛНЕН: 3,98× и 4,08× при 3,99× в debug, то есть скан линеен
+       по размеру ячейки в обоих профилях; фальсификатор оракула (`s14_cluster_bloat_price.rs:390…393`)
+       не сработал.
+  (4г) разброс `мкс/запись` по трём верхним точкам ≤ 1,5× — ВЫПОЛНЕН: 1,018× и 1,021× (debug 1,032×
+       по всем пяти точкам).
+Вывод: из порога (4) не выполнена ровно одна клауза, и она про абсолютную шкалу, а не про линейность.
+«Скан линеен» остаётся свойством протокола; «11,7 мкс на запись» — артефакт debug-профиля, причём
+сильным (в ~200 раз), а не скромным. Отдельная оговорка к (4б): нижняя точка лестницы в release
+дала 1 мкс — это упор в разрешение таймера (`16` записей сканируется быстрее микросекунды),
+поэтому отношение 16-й точки между профилями (188×) не является измерением, в отличие от 1024/4096.
+
+### ДИАГНОЗ-2 (замороженный порог (8): порядок величин не пережил профиль) ### 2026-10-23T07:20:00+03:00
+`r = (цена принятой записи при 20 битах) / (цена скана ячейки 4096)` ∈ [3,3; 52,4] — НЕ ВЫПОЛНЕН:
+факт 602,2× (прогон 1) и 532,8× (прогон 2) против 13,10× в debug; сдвиг в 46,0× и 40,7×, то есть
+за пределами верхней границы в 11,4× и 10,2×. Это риск, названный в пре-регистрации как «равный
+вероятности успеха», и он реализовался именно в той ветке, которую я считал менее вероятной:
+ускорение скана (210,5×/195,1×) оказалось в 45,9× и 40,6× сильнее ускорения майнинга (4,58×/4,80×).
+Следствие по направлению: атакующий в боевом профиле платит за одну подменённую запись не «в 13 раз
+больше, чем узел тратит на один `Find` по надутой ячейке», а в 533–602 раза. Формулировка
+«атака дешевле защиты в ~13 раз» была артефактом debug-профиля; в release перевес в 46 раз, но
+**не в сторону атаки, а в сторону защиты**. Порог (8) остаётся зарегистрированным как невыполненный,
+текст пре-регистрации не правится; что из этого следует для §20.2 строки 4 — пункт 31 в
+`lab/decisions/OPEN-QUESTIONS.md`.
+
+### ДИАГНОЗ-3 (инструментальный: оракул печатает «debug-профиль» в release-логе) ### 2026-10-23T07:20:00+03:00
+Печать (5) в обоих release-прогонах содержит строку «Хешрейт 130,4 нс/попытка — debug-профиль,
+абсолютные секунды не являются ценой в бою» (прогон 2: «124,5 нс/попытка»). Текст зашит в оракул
+`E-0079` (`crates/vecdht-node/tests/s14_cluster_bloat_price.rs`, печать порога (5)) и относится к
+профилю прогона, а не к замеру: в этом цикле он неверен как атрибуция. Оракул намеренно НЕ правился
+— порог (0) требует «файл оракула не тронут с `759b29b`», и любая правка обнулила бы сопоставимость с
+debug-базой. Исправление оформлено здесь, как атрибуция в логе: оба значения хешрейта в этом файле
+сняты в профиле `release` (`[optimized]`), debug-значения — только в блоке DEBUG-БАЗА выше.
+Второе следствие: предложение «абсолютные секунды не являются ценой в бою» в release-прогоне
+описывает сам себя как ложь — это цена в бою; полезна же прежняя оговорка в обратную сторону:
+debug-секунды ею не были.
+
+### РАЗБОР (межпрофильные отношения; единицы подписаны) ### 2026-10-23T07:20:00+03:00
+Отношение debug / release по одной и той же работе, два прогона одного бинаря
+(sha256 `32ecc904d70adefc12fa93f869ae8c9e58c9fae950d0e29949fda8b4c560cde3` до и после прогона 2 — совпали):
+  PoW, нс/попытка:            597,3 → 130,4 / 124,5        ускорение 4,58× / 4,80×
+  скан, мкс/запись при 4096:   11,66796875 → 0,05542 / 0,059815   210,5× / 195,1×
+  медиана скана при 4096, мкс: 47 792 → 227 / 245           210,5× / 195,1×
+  усиление 256 копий (gain):   256,8× → 213,2× / 216,8×     в 0,830 / 0,844 раза (то есть слабее)
+  цена записи при 20 битах, с CPU: 0,6263 → 0,13670 / 0,13054     4,58× / 4,80× (= ускорение PoW, по построению)
+  приём узла с fsync, медиана мкс: 1516 → 1038 / 1060      1,46× / 1,43×
+  приём узла, 200 кадров, мс:  350 → 226 / 222              1,55× / 1,58×
+  живой Find по ячейке 4096, мкс: 59 438 → 1534 / 1547      38,7× / 38,4×
+  живой Find по пустой ячейке, мкс: 369 → 44 / 43           8,4× / 8,6×
+  остаток живого Find (Find минус чистый скан), мкс: 11 646 → 1307 / 1302   8,9× / 8,9×
+  r = цена записи / цена скана ячейки: 13,10 → 602,2 / 532,8   сдвиг 46,0× / 40,7× (порог (8) не выполнен)
+Главный вывод цикла: **ускорение `--release` — не один множитель, а четыре разных** (4,6× для
+blake3 на коротком входе, ~200× для векторизуемого скана, 8,9× для смешанного пути `Find`, 1,45× для
+fsync). Поэтому любое утверждение, сформулированное как отношение величин из разных шагов,
+профиль-зависимо ровно в той мере, в какой различны эти множители: у нас разошлись (3) и (4) — и
+унесли (8). Утверждения внутри одного шага пережили профиль: цена записи = 2^бит × нс/попытка
+осталась точным тождеством (0,13670 / 0,6263 = 4,58 = 597,3 / 130,4), линейность скана осталась
+линейностью (slope 3,99 → 3,98 / 4,08), 2-битный шаг цены остался 4,00× и 16,00× на 4 бита.
+Доля оверхеда в живом `Find` выросла с 19,6 % (debug) до 85,2 % / 84,2 % (release): в бою узел
+тратит на `Find` по надутой ячейке почти всё время вне самого скана — сериализация, дедупликация,
+WAL-путь и 65 ответов, а не арифметику. Это новый, не заявленный заранее результат, и он меняет
+то, что именно стоит оптимизировать защитой.
+Воспроизводимость двух прогонов одного бинаря (порог (10)): 4,7 % по нс/попытка, 7,9 % по
+мкс/запись и медиане 4096, 2,1 % по медиане приёма, 0,8 % по живому `Find`, 1,7 % по gain — все под
+замороженными половинами (25 % и 50 %), и заметно плотнее debug-разброса `E-0079` (медиана 16-й
+точки гуляла 172 → 188 → 201 мкс — разброс 16,9 %, хешрейт 597,3 → 656,7 нс — 9,9 %). Побочное ожидание пре-регистрации
+подтверждено: в release шум доминируется измеряемой работой, абсолютные числа этого цикла годятся
+в спеку как боевая шкала.
+
+### ВЕРИФИКАЦИЯ + РЕСУРСЫ ПОСЛЕ НЕЁ ### 2026-10-23T07:34:35+03:00
+`bash lab/workspace-verify.sh E-0081` (append-блок `########## E-0081 · workspace-verify ·
+07:21:45 ##########` в `lab/logs/workspace-verify-2026-10-22.log`, строки 32 694…33 887):
+`cargo test -j 2 --workspace` — **620 ok / 0 failed / 5 ignored**, 93 среза (84 бинаря + 9
+doc-тестов), `TEST_EXIT=0`, длительность 12,6 мин (07:21:45 → 07:34:21);
+`cargo clippy -j 2 --workspace --all-targets -- -D warnings` — `CLIPPY_EXIT=0`.
+Прироста против верификации `E-0080` (620 ok / 93 среза) нет и быть не должно: цикл не добавлял
+тестов, оракул `E-0079` не правился, продуктовый код не тронут — совпало ровно то, что должно
+совпадать. Ни один прежде зелёный срез не стал красным в новом профиле (верификация идёт в debug,
+что отдельно показывает: 74 юнита `vecdht-node` зелёные и в `--release`, порог (1)).
+Ресурсы после верификации: RAM свободно 11 162 МБ, диск 22 333 МБ, `target/` 7 300 МБ debug +
+release-артефакты того же `target/`; осевших тестовых каталогов `vecdht-index-*bloat*` — 0 (один
+каталог `vecdht-index-33956-0-bloat-scan` наблюдался во время верификации и пропал сам — индекс
+снимает свой temp-каталог при выгрузке, правок не потребовалось).
+Локальные черновики прогона (`/tmp/e0081-build.log`, `/tmp/e0081-stdout.log`, `/tmp/e0081-verify.log`)
+удаляются после push, как требует правило; `pagefile.sys` в этом цикле не раздувался (свободный
+ диск держался 22 333…22 349 МБ во всех замерах цикла).
