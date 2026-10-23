@@ -216,12 +216,21 @@ WG1=$(get wal_group_per_op_us_1 "$N1_FILE")
 WG2=$(get wal_group_per_op_us_2 "$N2_FILE")
 SMARGIN=$(margin_of "$S95_2" 300)
 SREL=$(rel_diff "$S95_1" "$S95_2")
+# ДИАГНОЗ-1 (2): внутренний разброс одно-прогонной выборки насыщается снизу (медианы половин
+# совпадают при разрешении таймера ~0,1 мкс), поэтому правило 7 надо проверять и по межпрогонному
+# пределу воспроизводимости. Пороги от этого не двигались: добавлен более строгий контроль.
+AMARGIN=$(margin_of "$A50_2" 150)
+AREL=$(rel_diff "$A50_1" "$A50_2")
+GO2=$(get group_ops_per_s_2 "$N2_FILE")
+GREL=$(rel_diff "$(get wal_group_per_op_us_1 "$N1_FILE")" "$WG2")
+GMARGIN=$(awk -v g="$GO2" 'BEGIN { if (g=="" || g+0==0) { print ""; exit } printf "%.3f", g/6400-1 }')
 { echo "### ЧИСЛА ПРОГОНА 2 (воспроизводимость) ### $(date +%FT%T%:z)"
   cat "$N2_FILE"
   echo "-- расхождение двух release-прогонов одного бинаря, %:"
   for k in assign_full_p50_us reference_to_full_x assign_api_p50_us top16_to_assign_x \
-           wal_solo_per_op_us wal_group_per_op_us wal_publish_per_op_us \
-           wal_productgroup_per_op_us search_p50_us search_p95_us search_one_cluster_p50_us; do
+           wal_solo_per_op_us wal_group_per_op_us wal_publish_per_op_us publish_to_solo_x \
+           wal_productgroup_per_op_us publish_to_productgroup_x search_p50_us search_p95_us \
+           search_one_cluster_p50_us; do
     echo "   $k: $(pct_diff "$(get "${k}_1" "$N1_FILE")" "$(get "${k}_2" "$N2_FILE")")"
   done
   check_nums "assign_full_p50_us=$A50_2" "group_ops_per_s=$(get group_ops_per_s_2 "$N2_FILE")" \
@@ -232,6 +241,9 @@ SREL=$(rel_diff "$S95_1" "$S95_2")
   echo "-- ПРАВИЛО 7 для строки search (запас p95 до 300 мкс против межпрогонного разброса):"
   echo "   $(rule7 "$SMARGIN" "$SREL")"
   echo "   межпрогонный разброс search p95, долях: $SREL"
+  echo "-- ПРАВИЛО 7 по МЕЖПРОГОННОМУ пределу воспроизводимости (ДИАГНОЗ-1; пороги не двигались):"
+  echo "   assign  (граница 150 мкс):  $(rule7 "$AMARGIN" "$AREL")  [внутрипрогонный разброс оракула: $(get assign_rel_spread_x_2 "$N2_FILE")]"
+  echo "   WAL     (граница 6 400 опсов/с): $(rule7 "$GMARGIN" "$GREL")  [внутрипрогонный: $(get wal_rel_spread_x_2 "$N2_FILE")]"
   echo "   assign linearity межпрогонно, 256/1024 = $(awk -v a="$(get line256_1 "$N1_FILE")" -v b="$(get line1024_1 "$N1_FILE")" -v c="$(get line256_2 "$N2_FILE")" -v d="$(get line1024_2 "$N2_FILE")" 'BEGIN{ if(a==""||b==""||c==""||d==""){print "нет чисел";exit} printf "%.3f/%.3f", a/b, c/d }')"
   echo "   межпрогонный разброс assign, %: $(pct_diff "$A50_1" "$A50_2")"
   echo "   межпрогонный разброс WAL solo, %: $(pct_diff "$WS1" "$WS2")"
