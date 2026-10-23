@@ -57,8 +57,8 @@ free_disk_mb() {
 # Числа оракулов вытаскиваются из логов по подписям печати — единицы те же, что в порогах.
 pow_ns()      { grep -o 'verify: медиана [0-9]* нс' "$LOG" | tail -1 | grep -o '[0-9]*'; }
 est_default() { grep -o 'gen bits=20:.*' "$LOG" | tail -1 | sed -n 's/.*ожидаемая цена \([0-9.]*\) мс.*/\1/p'; }
-stream_ms()   { grep -o 'стриминг: [0-9]* Б за [0-9]* мс' "$LOG" | tail -1 | awk '{print $4}'; }
-barrier_ms()  { grep -o 'барьер: [0-9]* Б за [0-9]* мс' "$LOG" | tail -1 | awk '{print $4}'; }
+stream_ms()   { grep -o 'стриминг: [0-9]* Б за [0-9]* мс' "$LOG" | tail -1 | awk '{print $5}'; }
+barrier_ms()  { grep -o 'барьер: [0-9]* Б за [0-9]* мс' "$LOG" | tail -1 | awk '{print $5}'; }
 permille()    { grep -o '→ [0-9]*‰ цели' "$LOG" | tail -1 | grep -o '[0-9]*'; }
 pct_diff() { # $1=a $2=b → |a-b|/max ×100, два знака
   awk -v a="$1" -v b="$2" 'BEGIN { if (a=="" || b=="") { print "нет чисел"; exit } m = (a>b)?a:b; if (m==0) { print "0,00"; exit } printf "%.2f", (a>b?a-b:b-a)*100/m }'
@@ -141,10 +141,19 @@ run_oracles 2
 run2_t1=$(date +%s%N)
 echo "RUST_MS_2=$(( (run2_t1 - run2_t0) / 1000000 ))" | tee -a "$LOG"
 V2=$(pow_ns); E2=$(est_default); S2=$(stream_ms); B2=$(barrier_ms); P2=$(permille)
-{ echo "### ЧИСЛА ПРОГОНА 2 (порог (11) — воспроизводимость) ### $(date +%FT%T%:z)"
+{ echo "### ЧИСЛА ПРОГОНА 2 (порог (12) — воспроизводимость) ### $(date +%FT%T%:z)"
   echo "verify нс/вызов: $V2"; echo "ожидаемая цена default, мс: $E2"
   echo "стриминг, мс: $S2"; echo "барьер, мс: $B2"; echo "пик аллокаций, ‰: $P2"
   echo "-- расхождение двух прогонов одного бинаря, %: verify $(pct_diff "$V1" "$V2"), цена default $(pct_diff "$E1" "$E2"), стриминг $(pct_diff "$S1" "$S2"), барьер $(pct_diff "$B1" "$B2"), пик ‰ $(pct_diff "$P1" "$P2")"
+  # Самопроверка экстракторов (ДИАГНОЗ-2): в n=1 `stream_ms`/`barrier_ms` вернули слово «за»,
+  # потому что awk-поле было сдвинуто, и расхождение по двум единственным дисковым числам цикла
+  # пришлось считать руками. Экстрактор обязан вернуть число, иначе блок чисел невалиден.
+  for pair in "verify=$V2" "цена default=$E2" "стриминг=$S2" "барьер=$B2" "пик ‰=$P2"; do
+    v=${pair#*=}
+    case "$v" in
+      ''|*[!0-9.]*) echo "ВНИМАНИЕ: экстрактор «${pair%%*=*}» вернул не число («$v») — единицы helper'а сверять до пре-регистрации";;
+    esac
+  done
   echo "RAM СВОБОДНО, МБ: $(free_ram_mb)"; echo "ДИСК СВОБОДНО, МБ: $(free_disk_mb)"
   echo "осевших тестовых каталогов snap1m в %TEMP%: $(ls -d "$TEMP"/vecdht-index-*snap1m* 2>/dev/null | wc -l)"
   for i in "${!ORACLES[@]}"; do
@@ -164,6 +173,7 @@ run_step "DEBUG SMOKE s19_snapshot_1m_price" cargo test -p "$CRATE" --test "${OR
   echo "RAM СВОБОДНО, МБ: $(free_ram_mb)"
   echo "ДИСК СВОБОДНО, МБ: $(free_disk_mb)"
   echo "target/, МБ: $(du -sm target 2>/dev/null | cut -f1)"
+  echo "осевших тестовых каталогов snap1m в %TEMP% (порог (13) требует 0): $(ls -d "$TEMP"/vecdht-index-*snap1m* 2>/dev/null | wc -l)"
   echo "лог: $LOG ($(wc -l < "$LOG") строк)"
   echo "HELPER_EXIT=$WORST_RC (худший из кодов шагов; 0 = все шаги отработали)"
 } | tee -a "$LOG"

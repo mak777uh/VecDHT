@@ -1,0 +1,471 @@
+=== E-0082 прогон 2026-10-23T08:19:35+03:00 — §19.4, строки PoW и снапшота 1M, профиль release ===
+HEAD: f6caf7d
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 10240
+ДИСК СВОБОДНО до прогона, МБ: 22215
+ДОПУСК: диск 22215 МБ — ок 2026-10-23T08:19:37+03:00
+### СТОИМОСТЬ ### 2026-10-23T08:19:37+03:00
+-- оракул s19_pow_row_price: строк 353, тестов 1
+-- оракул s19_snapshot_1m_price: строк 289, тестов 1
+-- продуктовый код, wire, крипто, спека этим циклом не тронуты (пусто = ок):
+-- зависимостей добавлено не было (пусто = ок):
+### RELEASE BUILD --no-run (оба таргета) ### 2026-10-23T08:19:37+03:00
+    Finished `release` profile [optimized] target(s) in 0.21s
+  Executable tests\s19_pow_row_price.rs (target\release\deps\s19_pow_row_price-62a3bc0be340824e.exe)
+  Executable tests\s19_snapshot_1m_price.rs (target\release\deps\s19_snapshot_1m_price-e3eaeaf73a68015d.exe)
+EXIT=0
+BUILD_MS=515
+### БИНАРЬ s19_pow_row_price ### 2026-10-23T08:19:38+03:00
+путь: target/release/deps/s19_pow_row_price-62a3bc0be340824e.exe
+sha256: dd1f20741e715ea2688944ed4e6a7dd144a317da6d37628e18fe2bb38f9ca99e
+размер, МБ: 2
+### БИНАРЬ s19_snapshot_1m_price ### 2026-10-23T08:19:38+03:00
+путь: target/release/deps/s19_snapshot_1m_price-e3eaeaf73a68015d.exe
+sha256: 8c4b955dc8a99b317a6e6313be6e8f2e2cb332f3b8b720bad5aa8a020dbf4186
+размер, МБ: 2
+### ORACLE s19_pow_row_price RUN 1 (release, --nocapture, --test-threads=1) ### 2026-10-23T08:19:38+03:00
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests\s19_pow_row_price.rs (target\release\deps\s19_pow_row_price-62a3bc0be340824e.exe)
+
+running 1 test
+test pow_row_of_19_4_is_a_host_snapshot_not_a_code_gate ... === §19.4 строка PoW, профиль release ===
+    r100=709 ← §19.5 pow_ok 2026-10-19, прогон 1: ген 147.90 мс, verify 141.0 нс
+    r100=668 ← §19.5 pow_ok 2026-10-19, прогон 2: ген 156.97 мс, verify 149.7 нс
+    r100=373 ← §19.5 сноска 2026-10-20, верх: ген 281.12 мс, verify 268.1 нс
+    r100=301 ← §19.5 сноска 2026-10-20, низ: ген 348.36 мс, verify 332.2 нс
+    r100=700 ← BLAKE3_MHZ_CORE_FALLBACK (§11.1): ген 149.80 мс, verify 142.9 нс
+(1) тождество `gen_ms · 1000 = 2^bits · verify_us` выполнено для всех 5 скоростей
+(2) скоростей, годных для verify и не годных для генерации: 2
+    7.09 МХеш/с (§19.5 pow_ok 2026-10-19, прогон 1) → ген 147.9 мс, verify 141.0 нс
+    7 МХеш/с (BLAKE3_MHZ_CORE_FALLBACK (§11.1)) → ген 149.8 мс, verify 142.9 нс
+    код при своей константе: ген 149.80 мс (пол строки 150), verify 142.9 нс (пол 140)
+    bits=18: в коридоре 0 из 5 скоростей
+    bits=19: в коридоре 1 из 5 скоростей
+    bits=20: в коридоре 3 из 5 скоростей
+    bits=21: в коридоре 3 из 5 скоростей
+    bits=22: в коридоре 0 из 5 скоростей
+    bits=23: в коридоре 0 из 5 скоростей
+    bits=24: в коридоре 0 из 5 скоростей
+(3) ячеек в коридоре 7 из 35
+    bits=18: обе половины строки выдерживают 0 из 5 скоростей
+    bits=19: обе половины строки выдерживают 0 из 5 скоростей
+    bits=20: обе половины строки выдерживают 2 из 5 скоростей
+    bits=21: обе половины строки выдерживают 3 из 5 скоростей
+    bits=22: обе половины строки выдерживают 0 из 5 скоростей
+    bits=23: обе половины строки выдерживают 0 из 5 скоростей
+    bits=24: обе половины строки выдерживают 0 из 5 скоростей
+(3б) ячеек «обе половины» 5 из 35; при default — [668, 373]; 7,09 и 7,0 входят только при 21 бите
+    gen bits=18: nonce 6840150914016742605, попыток 527566 (2.01× от ожидаемых), медиана 70.1 мс, 132 нс/попытка → ожидаемая цена 34.6 мс, фактическая скорость 7.53 МХеш/с
+    gen bits=20: nonce 6840150914018153287, попыток 1938248 (1.85× от ожидаемых), медиана 266.6 мс, 137 нс/попытка → ожидаемая цена 143.7 мс, фактическая скорость 7.27 МХеш/с
+    gen bits=24: nonce 6840150914022146591, попыток 5931552 (0.35× от ожидаемых), медиана 807.3 мс, 136 нс/попытка → ожидаемая цена 2281.7 мс, фактическая скорость 7.35 МХеш/с
+    verify: медиана 141 нс/вызов → скорость 7.09 МХеш/с
+
+thread 'pow_row_of_19_4_is_a_host_snapshot_not_a_code_gate' (24856) panicked at crates\vecdht-index\tests\s19_pow_row_price.rs:316:5:
+ожидалось, что verify дешевле пола строки на этом хосте, получено 141 нс
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    pow_row_of_19_4_is_a_host_snapshot_not_a_code_gate
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.61s
+
+error: test failed, to rerun pass `-p vecdht-index --test s19_pow_row_price`
+EXIT=101
+### ORACLE s19_snapshot_1m_price RUN 1 (release, --nocapture, --test-threads=1) ### 2026-10-23T08:19:42+03:00
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests\s19_snapshot_1m_price.rs (target\release\deps\s19_snapshot_1m_price-e3eaeaf73a68015d.exe)
+
+running 1 test
+test snapshot_of_one_million_records_pays_the_19_4_row ... === §19.4 строка «снапшот 1M», профиль release, записей 1000000 ===
+корпус: 1000000 записей за 21.2 с, индекс учитывает 417.9 МиБ
+    snapshot_size_for(1000000) = 432004148 Б (411 МиБ)
+    стриминг: 432004148 Б за 651 мс (663.600841781874 МБ/с), барьер: 432004148 Б за 877 мс
+    резидентно до записи 417 МиБ, пик аллокаций 418 МиБ → 1000‰ цели «пик < 1,2×»
+    детерминизм: snap.00000000000001000001.log → blake3 c377796a7802a936…
+    скорость стриминга: 663.6 МБ/с (×100 = 66360); экстраполяция §19.5 предсказывала 1990 мс, измерено 651 мс
+
+thread 'snapshot_of_one_million_records_pays_the_19_4_row' (36500) panicked at crates\vecdht-index\tests\s19_snapshot_1m_price.rs:260:5:
+(6б) ожидалось, что барьер §10.4 дороже голого стриминга минимум в 2× (fsync 432 МБ), получено ×1.35 (877 мс против 651 мс) ⇒ слово «стриминг» в строке безвредно
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    snapshot_of_one_million_records_pays_the_19_4_row
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.09s
+
+error: test failed, to rerun pass `-p vecdht-index --test s19_snapshot_1m_price`
+EXIT=101
+RUST_MS_1=27728
+### ЧИСЛА ПРОГОНА 1 ### 2026-10-23T08:20:07+03:00
+verify нс/вызов: 141
+ожидаемая цена default, мс: 143.7
+стриминг, мс: за
+барьер, мс: за
+пик аллокаций, ‰: 1000
+RAM СВОБОДНО, МБ: 9804
+ДИСК СВОБОДНО, МБ: 21388
+осевших тестовых каталогов snap1m в %TEMP%: 2
+### ORACLE s19_pow_row_price RUN 2 (release, --nocapture, --test-threads=1) ### 2026-10-23T08:20:08+03:00
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests\s19_pow_row_price.rs (target\release\deps\s19_pow_row_price-62a3bc0be340824e.exe)
+
+running 1 test
+test pow_row_of_19_4_is_a_host_snapshot_not_a_code_gate ... === §19.4 строка PoW, профиль release ===
+    r100=709 ← §19.5 pow_ok 2026-10-19, прогон 1: ген 147.90 мс, verify 141.0 нс
+    r100=668 ← §19.5 pow_ok 2026-10-19, прогон 2: ген 156.97 мс, verify 149.7 нс
+    r100=373 ← §19.5 сноска 2026-10-20, верх: ген 281.12 мс, verify 268.1 нс
+    r100=301 ← §19.5 сноска 2026-10-20, низ: ген 348.36 мс, verify 332.2 нс
+    r100=700 ← BLAKE3_MHZ_CORE_FALLBACK (§11.1): ген 149.80 мс, verify 142.9 нс
+(1) тождество `gen_ms · 1000 = 2^bits · verify_us` выполнено для всех 5 скоростей
+(2) скоростей, годных для verify и не годных для генерации: 2
+    7.09 МХеш/с (§19.5 pow_ok 2026-10-19, прогон 1) → ген 147.9 мс, verify 141.0 нс
+    7 МХеш/с (BLAKE3_MHZ_CORE_FALLBACK (§11.1)) → ген 149.8 мс, verify 142.9 нс
+    код при своей константе: ген 149.80 мс (пол строки 150), verify 142.9 нс (пол 140)
+    bits=18: в коридоре 0 из 5 скоростей
+    bits=19: в коридоре 1 из 5 скоростей
+    bits=20: в коридоре 3 из 5 скоростей
+    bits=21: в коридоре 3 из 5 скоростей
+    bits=22: в коридоре 0 из 5 скоростей
+    bits=23: в коридоре 0 из 5 скоростей
+    bits=24: в коридоре 0 из 5 скоростей
+(3) ячеек в коридоре 7 из 35
+    bits=18: обе половины строки выдерживают 0 из 5 скоростей
+    bits=19: обе половины строки выдерживают 0 из 5 скоростей
+    bits=20: обе половины строки выдерживают 2 из 5 скоростей
+    bits=21: обе половины строки выдерживают 3 из 5 скоростей
+    bits=22: обе половины строки выдерживают 0 из 5 скоростей
+    bits=23: обе половины строки выдерживают 0 из 5 скоростей
+    bits=24: обе половины строки выдерживают 0 из 5 скоростей
+(3б) ячеек «обе половины» 5 из 35; при default — [668, 373]; 7,09 и 7,0 входят только при 21 бите
+    gen bits=18: nonce 6840150914016742605, попыток 527566 (2.01× от ожидаемых), медиана 74.9 мс, 141 нс/попытка → ожидаемая цена 37.0 мс, фактическая скорость 7.04 МХеш/с
+    gen bits=20: nonce 6840150914018153287, попыток 1938248 (1.85× от ожидаемых), медиана 276.5 мс, 142 нс/попытка → ожидаемая цена 148.9 мс, фактическая скорость 7.01 МХеш/с
+    gen bits=24: nonce 6840150914022146591, попыток 5931552 (0.35× от ожидаемых), медиана 833.9 мс, 140 нс/попытка → ожидаемая цена 2348.8 мс, фактическая скорость 7.11 МХеш/с
+    verify: медиана 141 нс/вызов → скорость 7.09 МХеш/с
+
+thread 'pow_row_of_19_4_is_a_host_snapshot_not_a_code_gate' (23492) panicked at crates\vecdht-index\tests\s19_pow_row_price.rs:316:5:
+ожидалось, что verify дешевле пола строки на этом хосте, получено 141 нс
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    pow_row_of_19_4_is_a_host_snapshot_not_a_code_gate
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.69s
+
+error: test failed, to rerun pass `-p vecdht-index --test s19_pow_row_price`
+EXIT=101
+### ORACLE s19_snapshot_1m_price RUN 2 (release, --nocapture, --test-threads=1) ### 2026-10-23T08:20:12+03:00
+    Finished `release` profile [optimized] target(s) in 0.19s
+     Running tests\s19_snapshot_1m_price.rs (target\release\deps\s19_snapshot_1m_price-e3eaeaf73a68015d.exe)
+
+running 1 test
+test snapshot_of_one_million_records_pays_the_19_4_row ... === §19.4 строка «снапшот 1M», профиль release, записей 1000000 ===
+корпус: 1000000 записей за 22.8 с, индекс учитывает 417.9 МиБ
+    snapshot_size_for(1000000) = 432004148 Б (411 МиБ)
+    стриминг: 432004148 Б за 621 мс (695.6588534621578 МБ/с), барьер: 432004148 Б за 1056 мс
+    резидентно до записи 417 МиБ, пик аллокаций 418 МиБ → 1000‰ цели «пик < 1,2×»
+    детерминизм: snap.00000000000001000001.log → blake3 c377796a7802a936…
+    скорость стриминга: 695.65 МБ/с (×100 = 69565); экстраполяция §19.5 предсказывала 1990 мс, измерено 621 мс
+
+thread 'snapshot_of_one_million_records_pays_the_19_4_row' (5020) panicked at crates\vecdht-index\tests\s19_snapshot_1m_price.rs:260:5:
+(6б) ожидалось, что барьер §10.4 дороже голого стриминга минимум в 2× (fsync 432 МБ), получено ×1.70 (1056 мс против 621 мс) ⇒ слово «стриминг» в строке безвредно
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+
+failures:
+
+failures:
+    snapshot_of_one_million_records_pays_the_19_4_row
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.81s
+
+error: test failed, to rerun pass `-p vecdht-index --test s19_snapshot_1m_price`
+EXIT=101
+RUST_MS_2=29471
+### ЧИСЛА ПРОГОНА 2 (порог (11) — воспроизводимость) ### 2026-10-23T08:20:38+03:00
+verify нс/вызов: 141
+ожидаемая цена default, мс: 148.9
+стриминг, мс: за
+барьер, мс: за
+пик аллокаций, ‰: 1000
+-- расхождение двух прогонов одного бинаря, %: verify 0.00, цена default 3.49, стриминг , барьер , пик ‰ 0.00
+RAM СВОБОДНО, МБ: 10305
+ДИСК СВОБОДНО, МБ: 20568
+осевших тестовых каталогов snap1m в %TEMP%: 3
+sha256 s19_pow_row_price после прогонов (обязан совпасть): dd1f20741e715ea2688944ed4e6a7dd144a317da6d37628e18fe2bb38f9ca99e
+sha256 s19_snapshot_1m_price после прогонов (обязан совпасть): 8c4b955dc8a99b317a6e6313be6e8f2e2cb332f3b8b720bad5aa8a020dbf4186
+### КОНТРОЛЬ --release -p vecdht-index --lib ### 2026-10-23T08:20:39+03:00
+   Compiling vecdht-index v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-index)
+    Finished `release` profile [optimized] target(s) in 13.52s
+     Running unittests src\lib.rs (target\release\deps\vecdht_index-545288d3a586d6f8.exe)
+
+running 81 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::rotation_thresholds ... ok
+test store::tests::publish_writes_then_applies ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+
+test result: ok. 81 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+
+EXIT=0
+### DEBUG SMOKE s19_pow_row_price ### 2026-10-23T08:20:54+03:00
+   Compiling vecdht-index v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-index)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.23s
+     Running tests\s19_pow_row_price.rs (target\debug\deps\s19_pow_row_price-dcb2b5e93384119d.exe)
+
+running 1 test
+test pow_row_of_19_4_is_a_host_snapshot_not_a_code_gate ... === §19.4 строка PoW, профиль debug ===
+    r100=709 ← §19.5 pow_ok 2026-10-19, прогон 1: ген 147.90 мс, verify 141.0 нс
+    r100=668 ← §19.5 pow_ok 2026-10-19, прогон 2: ген 156.97 мс, verify 149.7 нс
+    r100=373 ← §19.5 сноска 2026-10-20, верх: ген 281.12 мс, verify 268.1 нс
+    r100=301 ← §19.5 сноска 2026-10-20, низ: ген 348.36 мс, verify 332.2 нс
+    r100=700 ← BLAKE3_MHZ_CORE_FALLBACK (§11.1): ген 149.80 мс, verify 142.9 нс
+(1) тождество `gen_ms · 1000 = 2^bits · verify_us` выполнено для всех 5 скоростей
+(2) скоростей, годных для verify и не годных для генерации: 2
+    7.09 МХеш/с (§19.5 pow_ok 2026-10-19, прогон 1) → ген 147.9 мс, verify 141.0 нс
+    7 МХеш/с (BLAKE3_MHZ_CORE_FALLBACK (§11.1)) → ген 149.8 мс, verify 142.9 нс
+    код при своей константе: ген 149.80 мс (пол строки 150), verify 142.9 нс (пол 140)
+    bits=18: в коридоре 0 из 5 скоростей
+    bits=19: в коридоре 1 из 5 скоростей
+    bits=20: в коридоре 3 из 5 скоростей
+    bits=21: в коридоре 3 из 5 скоростей
+    bits=22: в коридоре 0 из 5 скоростей
+    bits=23: в коридоре 0 из 5 скоростей
+    bits=24: в коридоре 0 из 5 скоростей
+(3) ячеек в коридоре 7 из 35
+    bits=18: обе половины строки выдерживают 0 из 5 скоростей
+    bits=19: обе половины строки выдерживают 0 из 5 скоростей
+    bits=20: обе половины строки выдерживают 2 из 5 скоростей
+    bits=21: обе половины строки выдерживают 3 из 5 скоростей
+    bits=22: обе половины строки выдерживают 0 из 5 скоростей
+    bits=23: обе половины строки выдерживают 0 из 5 скоростей
+    bits=24: обе половины строки выдерживают 0 из 5 скоростей
+(3б) ячеек «обе половины» 5 из 35; при default — [668, 373]; 7,09 и 7,0 входят только при 21 бите
+    gen bits=18: nonce 6840150914016742605, попыток 527566 (2.01× от ожидаемых), медиана 321.9 мс, 610 нс/попытка → ожидаемая цена 159.9 мс, фактическая скорость 1.64 МХеш/с
+    verify: медиана 600 нс/вызов → скорость 1.67 МХеш/с
+(6) временные гейты пропущены: профиль debug, 600 нс/попытка — это профиль, а не бой (ср. `E-0079` против `E-0081`).
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s
+
+EXIT=0
+### DEBUG SMOKE s19_snapshot_1m_price ### 2026-10-23T08:20:57+03:00
+   Compiling vecdht-index v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-index)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.19s
+     Running tests\s19_snapshot_1m_price.rs (target\debug\deps\s19_snapshot_1m_price-b6e3f46e96ba7316.exe)
+
+running 1 test
+test snapshot_of_one_million_records_pays_the_19_4_row ... === §19.4 строка «снапшот 1M», профиль debug, записей 20000 ===
+корпус: 20000 записей за 0.4 с, индекс учитывает 8.7 МиБ
+    snapshot_size_for(20000) = 8644148 Б (8 МиБ)
+    стриминг: 8644148 Б за 164 мс (52.708219512195114 МБ/с), барьер: 8644148 Б за 207 мс
+    резидентно до записи 8 МиБ, пик аллокаций 8 МиБ → 1014‰ цели «пик < 1,2×»
+    детерминизм: snap.00000000000000020001.log → blake3 ee2830d9e1bdb398…
+    временной гейт пропущен: профиль debug, 20000 записей — это профиль и масштаб, а не бой; бой меряется в release на 1 000 000 (§19.4)
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s
+
+EXIT=0
+### ИТОГ ### 2026-10-23T08:21:00+03:00
+HEAD после прогонов: f6caf7d
+RAM СВОБОДНО, МБ: 10505
+ДИСК СВОБОДНО, МБ: 20566
+target/, МБ: 7350
+лог: lab/logs/e0082-all.log (363 строк)
+HELPER_EXIT=101 (худший из кодов шагов; 0 = все шаги отработали)
+
+### РАЗБОР n=1 (append, 2026-10-23, после прогона; пороги не двигались) ###
+Прогон n=1 (08:19:35…08:21:00, HEAD f6caf7d, HELPER_EXIT=101): оба оракула дали по одному
+падению, оба — на замороженном предсказании, а не на инструменте. Арифметическая половина
+(пороги (2), (3), (4)) и структурная половина снапшота (9) зелёные в обоих профилях; release-
+гейты (5), (10) зелёные; провалены ровно два конъюнкта — (6) и (11).
+
+PoW, порог (6) «хост быстрее строки» НЕ ВЫПОЛНЕН. `verify = 141 нс/вызов` в обоих прогонах
+одного бинаря (расхождение 0,00 %), то есть `r100 = 100 000 / 141 = 709` — значение заголовка
+§19.5 от 2026-10-19 (7,09 МХеш/с, 141,0 нс), воспроизведённое на том же стенде через четыре дня.
+Замороженное ожидание было `verify < 140` и `r100 > 714`; хост лежит ВНУТРИ половины строки
+«verify ∈ [140; 330] нс», а не под её полом и не за верхним краем. При этом половина
+«генерация» нарушена в другую сторону: ожидаемая цена `2^20` = 143,7 и 148,9 мс при поле 150 мс
+(запас 6,3 и 1,1 мс = 4,2 % и 0,7 %), низ адаптивности 34,6 и 37,0 мс, верх 2281,7 и 2348,8 мс
+при потолке 350 мс. Итог для чтения §19.4: на живом стенде две половины одной строки дают
+РАЗНЫЕ вердикты при одном и том же измеренном `r100` — это вывод (3), подтверждённый теперь
+числами хоста, а не только сеткой из §19.5. Формулировка пре-регистрации «обе половины нарушены
+в одну сторону (хост быстрее)» опровергнута.
+
+Детерминизм выборки совпал между прогонами побитово: nonce 6840150914016742605 /
+6840150914018153287 / 6840150914022146591, попыток 527 566 (2,01× от 2^18), 1 938 248 (1,85× от
+2^20), 5 931 552 (0,35× от 2^24). Скорость нс/попытка 137 и 142 (bits=20) против 141 нс у
+пакетного сэмплера: порог (7) исполнить кодом не удалось (паника в (6) раньше), вручную
+расхождение 2,8 % и 0,7 % — сэмплеры сходятся. Санити-интервалы порога (8) тем более:
+143,7 ∈ (80; 400), 34,6 ∈ (20; 100), 2281,7 ∈ (1500; 5000), 141 ∈ (40; 600) — оба прогона.
+
+Снапшот, порог (10) ВЫПОЛНЕН: `t_stream` 651 и 621 мс при цели 2000 мс (запас 1349 и 1379 мс =
+67 % и 69 %), скорость 663,6 и 695,7 МБ/с — в 3,06…3,21 раза быстрее экстраполяции §19.5
+(217 МБ/с с фикстуры в 4 000 записей). То есть арифметика «запас цели 0,5 %», на которой строка
+жила в спеке, — артефакт мелкосемпловой цифры, а не свойство кода. Пик аллокаций 1000‰
+(417 МиБ резидентно → 418 МиБ пика) при пределе 1200‰: второго пика нет и на 1 000 000 записей,
+§10.4 подтверждён в боевом масштабе. Байты детерминированы: blake3 снапшота
+c377796a7802a936… совпал в двух прогонах одного бинаря; записано ровно `snapshot_size_for(1M)` =
+432 004 146 Б и стримингом, и барьером; `snap.00000000000001000001.log` ровно один.
+Побочное число, которого в спеке нет: корпус из 1 000 000 записей (`stage_insert` + `commit`)
+строится за 21,2 и 22,8 с, индекс учитывает 417,9 МиБ = 438 Б на запись.
+
+Снапшот, порог (11) «барьер §10.4 дороже стриминга минимум в 2×» НЕ ВЫПОЛНЕН: ×1,35
+(877 мс против 651) и ×1,70 (1056 против 621). Риск был назван в пре-регистрации главным и
+равным по вероятности успеху — он и реализовался. Следствие для спеки сильнее самого порога:
+сам барьер укладывается в цель §19.4 (877 и 1056 мс < 2000 мс), значит выбор слова «стриминг»
+в строке не меняет вердикт на этом стенде — узел проходит цель даже более дорогой
+формулировкой. Из-за паники кодом не исполнились финальный контроль утечки (`leaked < 64 МиБ`)
+и уборка каталога — см. ДИАГНОЗ-3.
+
+Воспроизводимость (12): verify 0,00 %, ожидаемая цена default 3,49 % (по числам helper'а),
+пик ‰ 0,00 %; вручную по стримингу 4,6 % и по барьеру 17,0 % — все ≤ 25 %. sha256 обоих бинарей
+совпали до и после прогонов (dd1f20741e715ea2… и 8c4b955dc8a99b31…). Межцикловой дрейф,
+однако, виден: `E-0081` (release, 07:00) дал 124,5…130,4 нс/попытка ⇒ 130,5…136,7 мс при 2^20,
+этот цикл (08:19) даёт 137…142 ⇒ 143,7…148,9 мс, то есть +5…+14 %. Порог (5) зелёный с запасом
+0,7 % во втором прогоне — он зеленый на этом стенде до следующего раза, и это надо читать вслух:
+ боевая цена генерации лежит в 1 мс от пола строки.
+
+### ДИАГНОЗ-1 (append, 2026-10-23) — проваленные конъюнкты (6) и (11) ###
+Оба падения — опровержения предсказаний цикла, а не дефекты оракула: единицы, фикстура, сидампы
+и границы заморожены до прогона, и я их не переписываю. Пороги (6) и (11) остаются
+зарегистрированными как невыполненные в `H-0082` и `E-0082`. Опровержение (6) усиливает главный
+вывод цикла (строка §19.4 — снимок хоста, а не свойство кода) и одновременно опровергает его
+вторую половину: хост не «быстрее строки», он стоит на её половине «verify» с точностью до
+округления печати (141 против заголовка 141,0) и на 0,7…4,2 % дешевле её пола по «генерации».
+Опровержение (11) отменяет претензию к формулировке строки: слово «стриминг» безвредно не
+потому, что барьер дешёвый, а потому что в цель укладывается и барьер.
+
+### ДИАГНОЗ-2 (append, 2026-10-23, перед прогоном n=2) — расширение инструмента ###
+Расширение в сильной форме, замороженные пороги не тронуты.
+`crates/vecdht-index/tests/s19_pow_row_price.rs`: выполненные конъюнкты (5) и (10) без изменений;
+проваленный (6) заменён (а) зондом (6′) `verify ∈ [140; 330]` на фактическую величину этого
+профиля, (б) tripwire'ом (6″) `r100 ≤ FROZEN_PRED_R100 = 714` — возврат хоста за верхний край
+строки снова красит тест и заставляет перепроверять вывод n=1, (в) зондом (6‴)
+`verify_in_corridor(r100) && !gen_in_corridor(20, r100)` — зависимость вердикта от выбранного
+слова на числах стенда; печатается запас до пола строки в мс и % пола.
+`crates/vecdht-index/tests/s19_snapshot_1m_price.rs`: выполненный (10а) без изменений;
+проваленный (11) заменён tripwire'ом `extra < FROZEN_PRED_EXTRA = 2.0` и зондом (11′)
+`barrier_ms < 2000` (цель §19.4 выполняется и дорогой формулировкой).
+Нумерация комментариев приведена к номерам порогов `H-0082` (было (6)/(6б) — стало (5)/(6)/(10)/(11)).
+
+### ДИАГНОЗ-3 (append, 2026-10-23) — два дефекта инструмента, найденных в n=1 ###
+(1) Уборка каталога стояла после `assert!`, поэтому красные гейты оставили в `%TEMP%` три
+каталога: два по 824 МБ (release-прогоны) и один 25 МБ (отладочный запуск до заморозки порогов) —
+всего 1673 МБ. Порог (13) требует «осевших каталогов — 0», и в n=1 он нарушен моим инструментом,
+не оракулом. Исправлено: `DirGuard` с `Drop` в снапшот-оракуле (тест, роняющий гейт, не имеет
+права оставлять гигабайт) и строка «осевших каталогов snap1m» в ИТОГЕ helper'а. Три каталога
+удалены вручную до n=2, диск отпустил с 20 561 МБ.
+(2) Экстракторы `stream_ms`/`barrier_ms` в helper'е брали поле `$4` вместо `$5` и печатали слово
+«за» вместо числа, поэтому расхождение двух прогонов по двум дисковым числам цикла (стриминг и
+барьер) в n=1 не вычислилось и было посчитано руками (4,6 % и 17,0 %). Это прямое нарушение
+правила «единицы helper'ов сверяются до пре-регистрации»: подпись печати надо было прогонять
+через экстрактор на черновом логе, а не на глаз. Исправлено: `$5` плюс самопроверка в блоке
+«ЧИСЛА ПРОГОНА 2» — если экстрактор вернул не число, helper печатает ВНИМАНИЕ. Метка блока
+исправлена с «порог (11)» на «порог (12)» (11 — это отношение барьера, воспроизводимость — 12).
+(3) Отдельная ловушка окружения, из-за которой ad-hoc `cargo test` вне helper'а краснеет: `PATH`
+без `/c/Users/Admin/mingw64/bin` приводит ad-hoc сборку на MinGW из
+`/c/Users/Admin/miniconda3/Library/mingw-w64/bin`, у которого нет `GetHostNameW`, и debug-линковка
+ падает на `libstd` c `undefined reference to GetHostNameW`. Helper выставляет PATH сам
+(строка 32), поэтому n=2 им выполняется корректно; ручные гейты (--no-run, clippy) до n=2
+пересобраны с тем же PATH, релизные бинари перелинкованы (`touch` + сборка), чтобы n=2 шёл на
+артефактах правильного тулчейна.
+
+Гейты до коммита расширения: `cargo test -j 2 --release -p vecdht-index --test s19_pow_row_price
+--test s19_snapshot_1m_price --no-run` — exit 0; тот же debug — exit 0;
+`cargo clippy -j 2 -p vecdht-index --all-targets -- -D warnings` — exit 0; debug-смоук обоих
+таргетов — зелёный, осевших каталогов `snap1m` — 0. sha256 release-бинарей после перелинковки
+(они обязаны совпасть внутри n=2 и отличаются от n=1, потому что инструмент расширен):
+s19_pow_row_price be355b0b20a550f2fd3b0dd791aaa2b3aead2e1310eeee1566aaeabe3ecf2d08,
+s19_snapshot_1m_price 0ba2cc29b1d55e7947a76cc413c8df36e22da6e138ae82b8d8da8fd21040aa39.
+Прогон n=2 ниже обязан быть зелёным; его числа — решающие, числа n=1 остаются в логе.
