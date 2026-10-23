@@ -68,7 +68,7 @@ note "МЕРЕНО diff_crates_docs_strok=$DIFF_CODE"
 # --- порог (1): положительные контроли на рабочем индексе ------------------------------------
 $LIB_PY check >"$T1" 2>&1; RC=$?; cat "$T1" | tee -a "$LOG"; note "EXIT=$RC"
 gate "(1) check" 0 $RC
-CR=$(grep -oE "LIBCHECK records=[0-9]+ errors=[0-9]+" "$T1" | tail -1)
+CR=$(grep -oE "LIBCHECK records=[0-9]+.*errors=[0-9]+[^ ]*" "$T1" | tail -1)
 note "МЕРЕНО $CR"
 $LIB_PY verify >"$T2" 2>&1; RC=$?; cat "$T2" | tee -a "$LOG"; note "EXIT=$RC"
 gate "(1) verify" 0 $RC
@@ -101,7 +101,11 @@ env = dict(os.environ)
 tmp = os.environ.get("TMPDIR", "/tmp") + "/e0089_defect.jsonl"
 lines, ok = [], 0
 for name, r in defects:
-    io.open(tmp, "w", encoding="utf-8").write(json.dumps(r, ensure_ascii=False) + "\n")
+    # Дубликат id сажается ДВУМЯ строками: в файле из одной строки дубликата не существует,
+    # и «СЕЛ» в первом прогоне был дефектом посадки, а не checker'а (ДИАГНОЗ-1 прогона).
+    pair = [rows[1], r] if name == "дубль_id" else [r]
+    io.open(tmp, "w", encoding="utf-8").write(
+        "".join(json.dumps(x, ensure_ascii=False) + "\n" for x in pair))
     env["VEC_DHT_LIBRARY"] = tmp
     rc = subprocess.call(["python", "lab/library.py", "check"], env=env,
                          stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
