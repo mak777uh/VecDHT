@@ -124,7 +124,12 @@ run_to "$REG" "ШАГ 3 регрессия: весь vecdht-node (--no-fail-fast
   echo "порог (5) bound относительный: g5_cell_eq_limit=$(eq "$(get g5_cell_r1 "$F1")" "$(get g5_limit_r1 "$F1")") g5_limit_gt_floor=$( [ "$(get g5_limit_r1 "$F1")" -gt "$FLOOR" ] 2>/dev/null && echo 1 || echo 0)"
   echo "порог (6) ровно-один g3: evicted=$(get g3_evicted_r1 "$F1") refused=$(get g3_refused_r1 "$F1")"
   echo "порог (7) цена: g1_scanned=$(get g1_scanned_r1 "$F1") g5_scanned=$(get g5_scanned_r1 "$F1") g7_scanned=$(get g7_scanned_r1 "$F1")"
-  echo "порог (9) repro_fact_keys=$( [ -s "$F1" ] && cmp -s "$F1" "$F2" && echo 1 || echo 0)"
+  echo "порог (9) repro_fact_keys=$( [ -s "$F1" ] && cmp -s <(sed 's/_r1=/=/' "$F1") <(sed 's/_r2=/=/' "$F2") && echo 1 || echo 0)"
+  # ^ ПОПРАВКА (ДИАГНОЗ-1), внесена после прогона: `grab` вшивает метку прогона в имя ключа
+  # (`g1_cell_r1=` против `g1_cell_r2=`), поэтому сырое `cmp` F1/F2 различалось ВСЕГДА и пород (9)
+  # был невыполним по построению — тот же класс дефекта, что ДИАГНОЗ-1 из `E-0087` (проверка,
+  # которая не может быть пройдена). Сверяется значение, метка снимается перед сравнением;
+  # пересчёт порога по уже закоммиченному логу — в блоке «ПОПРАВКА после прогона» ниже.
   echo "порог (8) осевшие_каталоги=$(ls "${TMPDIR:-/tmp}" 2>/dev/null | grep -c 'vecdht-index-.*cap-')"
   echo "порог (12) contour=$(python lab/library.py value --cycles 5 2>/dev/null | grep LIBVALUE | tail -1)"
   echo "RAM_FREE_MB_AFTER=$(free_ram_mb) DISK_FREE_MB_AFTER=$(free_disk_mb)"
