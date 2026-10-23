@@ -503,3 +503,520 @@ BadAnswer(«исчерпаны повторы»); break }` и **затем** `at
 Гейты до коммита: `cargo test -p vecdht-net --test s163_shard_without_owner --no-run` — exit 0,
 `cargo clippy -p vecdht-net --all-targets -- -D warnings` — exit 0. Прогон n=2 ниже обязан быть
 зелёным; его числа — решающие, числа n=1 остаются в логе.
+=== E-0080 прогон 2026-10-23T06:32:05+03:00 ===
+HEAD: d9ad787
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+lean: Lean (version 4.36.0-rc1, x86_64-w64-windows-gnu, commit c9afcddf514a6772bd4d649f7cfc04eff0b9f15e, Release)
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 4090
+ДИСК СВОБОДНО до прогона, МБ: 11794
+### СТОИМОСТЬ ### 2026-10-23T06:32:09+03:00
+-- модель Lean: строк всего / без комментариев / теорем / определений / native_decide:
+   всего: 399
+   без комментариев и пустых: 260
+   теорем: 25
+   определений: 49
+   native_decide: 25
+   sorry (обязан быть 0): 0
+   import Mathlib (обязан быть 0): 0
+-- оракул Rust: строк / тестов:
+   строк: 896
+   тестов: 9
+-- зависимостей добавлено не было:
+-- продуктовый код, wire, спека и узел этим циклом не тронуты (пусто = ок):
+### LEAN CHECK lab/lean/VecDHT/Shard.lean ### 2026-10-23T06:32:10+03:00
+32
+[]
+[0, 1]
+[24, 25, 26, 27, 28, 29, 30, 31, 56, 57, 58, 59, 60, 61, 62, 63]
+64
+[VecDHT.Shard.Principal.authorities]
+[0, 1]
+false
+[24, 25, 26, 27, 28, 29, 30, 31, 56, 57, 58, 59, 60, 61, 62, 63]
+([3, 6, 9, 12, 15, 18], 18, 6, 18)
+([6, 18], 18, 2, 81)
+([2, 4, 6, 8, 10, 12, 14, 16, 18], 18, 9, 9)
+[(1, 1, 19, 19, 0), (2, 1, 18, 9, 9), (3, 1, 18, 6, 18), (6, 1, 18, 3, 45), (6, 2, 18, 2, 81)]
+0
+[(1, 1, 19, 19, 0),
+ (2, 1, 18, 9, 9),
+ (3, 1, 18, 6, 18),
+ (3, 2, 9, 2, 18),
+ (4, 1, 16, 4, 24),
+ (4, 2, 12, 2, 34),
+ (5, 1, 15, 3, 30),
+ (5, 2, 15, 2, 55),
+ (5, 3, 5, 1, 10),
+ (6, 1, 18, 3, 45),
+ (6, 2, 18, 2, 81),
+ (6, 3, 6, 1, 15),
+ (7, 1, 14, 2, 42),
+ (7, 2, 7, 1, 21),
+ (7, 3, 7, 1, 21),
+ (8, 1, 16, 2, 56),
+ (8, 2, 8, 1, 28),
+ (8, 3, 8, 1, 28)]
+18
+17
+[{ cert := false, mem := VecDHT.Shard.Mem.some [7, 9], lease := true, authKeys := 0 },
+ { cert := false, mem := VecDHT.Shard.Mem.some [7, 9], lease := true, authKeys := 3 },
+ { cert := true, mem := VecDHT.Shard.Mem.some [7, 9], lease := true, authKeys := 0 },
+ { cert := true, mem := VecDHT.Shard.Mem.some [7, 9], lease := true, authKeys := 3 }]
+EXIT=0
+LEAN_MS=58036 LEAN_S=58
+### ИНВЕНТАРЬ ### 2026-10-23T06:33:08+03:00
+-- обещание спеки (§16.3, строка 1470):
+### 16.3 Emergency
+
+Удалён. Режим «точное совпадение 64-битного LSH-префикса без индекс-узлов» в v7.5 был бы практически бесполезен; корректная замена — «шард без живого владельца»: агент видит пустой DHT-ответ по ключу шарда, повторяет lookup с backoff и, если шард пуст, пишет интент первому узлу, готовому взять эпизоду (§9.3). Никакого отдельного протокола для деградации нет.
+
+-- гейт записи: primary раньше эпохи, эпоха раньше nonce (node.rs:721…741):
+            return self.err(from, err_code::SHARD_MISMATCH, 0);
+        }
+        // Publish принимает только primary: реплика, у которой тоже активный lease и подтверждённый
+        // `grant_epoch`, иначе ответила бы агенту `PublishAck`, не имея возможности разослать опс
+        // (§9.4 — кворум собирает пишущая сторона). Агенту нужен адрес держателя, а не нам,
+        // поэтому `NOT_OWNER` (§12.1).
+        if !self.is_primary() {
+            return self.err(from, err_code::NOT_OWNER, 1_000);
+        }
+        let epoch = match self.serving_epoch(now.bucket) {
+            Some(e) => e,
+            None => return self.err(from, err_code::EPOCH_STALE, 1_000),
+        };
+        // §11.3: локальный приём — до работы, которую отказ делает бессмысленной. Denylist и
+        // бакет ключа стоят поиска в двух BTreeMap, а PoW — один blake3, поэтому бакет идёт
+        // раньше проверки nonce: иначе узел верифицировал бы работу, которую заведомо не примет.
+        // Платит и `from`, и заявленный owner: подпись в Publish опциональна (§5.3), поэтому
+        // бакет только по owner обнулялся бы сменой литерала (см. `Admission::check_publish`).
+        let verdict = self.admission.borrow_mut().check_publish(&from, &msg.owner_ed25519, now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
+        // `slot_key` из §11.1 — это `intent_id`: слот узел назначает сам и агент узнать его
+        // не может (спека, §11.1: привязка к identity, которую доприём вычисляет клиент).
+        let expires = msg.published_bucket.saturating_add(msg.ttl_buckets as u32);
+        let input = pow_input(&msg.owner_ed25519, self.shard, epoch, &msg.intent_id, expires);
+        let bits = msg.pow_bits as u32;
+        if bits < self.pow_bits as u32 {
+            return self.err(from, err_code::POW_BITS_LOW, 1_000);
+-- чтение обслуживается без эпизоды и называет нулевую эпоху (node.rs:1027):
+            return self.err(from, err_code::SHARD_MISMATCH, 0);
+        }
+        let epoch = self.epoch().unwrap_or(0);
+        let top_k = (q.top_k as usize).min(self.params.top_k_max as usize);
+        let hits = self.store.search(&q.query_vector, &q.clusters, top_k);
+        let res = MatchResult {
+            shard: self.shard,
+            epoch,
+            query_id: q.query_id,
+            responder_ed25519: self.me(),
+            matches: self.store.index.matches(&hits),
+-- молчание тика: требуется принятый непустой состав с собой (node.rs:299…317, 333…339):
+        let empty = self.membership.as_ref().map(|m| m.is_empty()).unwrap_or(false);
+        if self.is_member() && !empty {
+            if self.lease_active(now_bucket) && self.is_primary() {
+                let due =
+                    self.lease.map(|l| l.remaining(now_bucket) <= self.params.renew_buckets).unwrap_or(false);
+                if due {
+                    out.extend(self.grant_lease(now_bucket));
+                }
+                out.extend(self.maybe_time_mark(now_bucket)?);
+                out.extend(self.maybe_gc(now_bucket)?);
+            }
+            // Отдельно от ветки выше: состав мог сузиться, пока primary жив и lease активен
+            // (ушёл репликант). Ждать чистки чужого lease, чтобы убрать объявленного ушедшего,
+            // незачем — кворум до конца эпохи держался бы на мёртвом узле.
+            if self.should_propose(now_bucket) {
+                out.extend(self.propose_next(now_bucket)?);
+            }
+        }
+        Ok(out)
+    }
+        let cur = match self.membership.as_ref() {
+            Some(m) => m,
+            None => return false,
+        };
+        if cur.is_empty() || !cur.is_member(&self.me()) {
+            return false;
+        }
+        let next = self.next_list(now_bucket);
+-- четвёртый случай «шов молчит»: Err(_) => Ok(Vec::new()) (node.rs:530…538):
+            // Порог предыдущей эпохи и переход уже проверены; сверка с кандидатами требует
+            // чужого live-roster, которого у нас нет. Цепочка, содержащая нас, по-прежнему
+            // обязана совпасть с кандидатами: иначе кворум мог бы переставить наши слоты.
+            Err(MembershipError::MembersOutOfOrder)
+                if prev.is_some()
+                    && !upd.members.iter().any(|x| x.owner_ed25519 == self.me()) =>
+            {
+                match self.chain.validate(prev.as_ref(), &upd) {
+                    Ok(m) => {
+                        self.persist(&m.update)?;
+                        self.adopt(m, now_bucket)
+                    }
+                    Err(_) => Ok(Vec::new()),
+                }
+            }
+            // Порога ещё нет: черновик живой, рассылаем его с нашей подписью дальше.
+            Err(MembershipError::BelowThreshold { .. }) => {
+                self.proposal = Some(upd.clone());
+                Ok(self.broadcast_membership(&upd))
+            }
+            Err(_) => Ok(Vec::new()),
+        }
+    }
+
+-- агент: кандидатов дают провайдеры И аутентифицированные пиры по кредашиалу (agent.rs:1079…1110):
+    async fn candidates(&mut self, shard: u16, deadline: tokio::time::Instant) -> Result<Vec<PeerId>, AgentError> {
+        let mut last_query: Option<tokio::time::Instant> = None;
+        loop {
+            let providers = self.net.provider_peers(shard);
+            let mut usable: Vec<PeerId> = providers
+                .iter()
+                .copied()
+                .filter(|p| self.covers(*p, shard))
+                .collect();
+            // Провайдер-запись — не полный список держателей: primary мог быть соединён до того,
+            // как объявление дошло до таблицы, а `FIND_PROVIDER` мог ответить только частью
+            // состава. Ограничиваться провайдерами значило бы, например, знать реплику и не
+            // попробовать primary, получив `NOT_OWNER` при живой записи. Аутентифицированный
+            // узел с кредашиалом на шард — такой же законный кандидат; порядок сохраняет
+            // предпочтение DHT.
+            for p in self.net.authenticated_peers() {
+                if self.covers(p, shard) && !usable.contains(&p) {
+                    usable.push(p);
+                }
+            }
+            if !usable.is_empty() {
+                return Ok(usable);
+            }
+            for p in &providers {
+                if !self.net.is_authenticated(p) {
+                    // Адрес приходит из Kademlia/identify; ошибка здесь — состояние таблицы
+                    // маршрутизации, и ждать его исправления честнее, чем выдумывать адрес.
+                    let _ = self.net.dial_peer(*p);
+                }
+            }
+            let authenticated = self.net.authenticated_peers();
+            if !authenticated.is_empty()
+                && last_query.map(|t| t.elapsed() >= Duration::from_secs(3)).unwrap_or(true)
+            {
+-- шаг повтора lookup фиксирован, ≥ 3 с (agent.rs:1111):
+                && last_query.map(|t| t.elapsed() >= Duration::from_secs(3)).unwrap_or(true)
+            {
+                let _ = self.net.find_providers(shard);
+                last_query = Some(tokio::time::Instant::now());
+            }
+-- NOT_OWNER обрывает без паузы (agent.rs:545…552), временный код зовёт wait() (agent.rs:560…573):
+                    }
+                    Err(AgentError::Refused { code, retry_after_ms, .. })
+                        if code == err_code::NOT_OWNER =>
+                    {
+                        // Реплика ответила честно: она не primary. Это не ошибка PoW и не повод
+                        // пересчитывать nonce — просто следующий кандидат.
+                        last = Some(AgentError::Refused { code, shard, retry_after_ms });
+                        break;
+                    }
+                    Err(AgentError::Refused { code, retry_after_ms, .. })
+                        if code == err_code::POW_BITS_LOW =>
+                    {
+                        // Адаптивная сложность §11.2: узел не сообщает число при отказе, но
+                        // «ниже порога» означает, что текущая не подходит. Шаг на единицу —
+                        // единственный честный вывод; при исчерпании диапазона — отказ.
+                        if bits >= self.network.pow_bits_max {
+                            return Err(AgentError::Refused { code, shard, retry_after_ms });
+                        }
+                        bits += 1;
+                        last = Some(AgentError::Refused { code, shard, retry_after_ms });
+                        continue;
+                    }
+                    Err(AgentError::Refused { code, retry_after_ms, .. }) => {
+                        // BUSY/QUOTA_PUBLISH/WAL_FAILED/EPOCH_STALE — временные; ждём названный
+                        // узел срок и повторяем с той же эпохи заново. Остальные коды
+                        // (`MODEL_MISMATCH`, `DENIED`, `SHARD_FULL`, ...) не лечатся повтором.
+                        let permanent = matches!(
+                            code.as_str(),
+                            err_code::MODEL_MISMATCH
+                                | err_code::SHARD_MISMATCH
+                                | err_code::DENIED
+                                | err_code::SHARD_FULL
+-- пауза, названная узлом (agent.rs:1313…1321):
+    async fn wait(&mut self, retry_after_ms: u32, deadline: tokio::time::Instant) {
+        let now = tokio::time::Instant::now();
+        if now >= deadline {
+            return;
+        }
+        let pause = Duration::from_millis(u64::from(retry_after_ms.max(50)))
+            .min(deadline.saturating_duration_since(now));
+        tokio::time::sleep(pause).await;
+    }
+}
+-- PoW майнится до отправки, вход — owner, shard, epoch, intent, expires (agent.rs:477…492):
+                        last = Some(e);
+                        break;
+                    }
+                };
+
+                let bucket = Clock::bucket_now();
+                let expires = bucket.saturating_add(req.ttl_buckets as u32);
+                let input = pow_input(&self.owner(), shard, epoch, &req.intent_id, expires);
+                let bits32 = bits.min(self.network.pow_bits_max);
+                let nonce = match mine_pow(&input, bits32, 0, self.cfg.pow_max_attempts) {
+                    Ok(n) => n,
+                    Err(PowError::Exhausted(n)) => {
+                        return Err(AgentError::PowExhausted { bits: bits32, attempts: n })
+                    }
+                    Err(e) => return Err(AgentError::Pow(e)),
+                };
+                let msg = Publish {
+-- провайдинг объявляется без гейта членства (service.rs:933…942):
+        }
+        if now.saturating_sub(self.last_provide_sec) >= self.cfg.provider_republish.as_secs() {
+            self.last_provide_sec = now;
+            for shard in self.nodes.keys().copied().collect::<Vec<_>>() {
+                let key = RecordKey::new(&shard_provider_key(shard));
+                if let Err(e) = self.swarm.behaviour_mut().kad.start_providing(key) {
+                    self.errors.push(format!("start_providing шарда {shard}: {e}"));
+                }
+            }
+        }
+    }
+-- covers — по кредашиалу, не по членству (handshake.rs:70…75):
+
+impl PeerIdentity {
+    pub fn covers_shard(&self, shard: u16) -> bool {
+        match &self.cert {
+            Some(c) => c.covers_shard(shard),
+            None => false,
+        }
+    }
+}
+-- тесты оракула:
+202:#[test]
+203-fn a_shard_without_an_epoch_answers_reads_and_refuses_writes() {
+--
+242:#[test]
+243-fn an_epochless_holder_produces_no_protocol_action_at_all() {
+--
+274:#[test]
+275-fn only_the_matching_genesis_opens_an_epoch_and_the_mismatch_is_silent() {
+--
+312:#[test]
+313-fn the_four_local_states_name_which_one_takes_a_write() {
+--
+623:#[test]
+624-fn publishing_to_an_epochless_shard_ends_in_not_owner_not_in_an_empty_answer() {
+--
+659:#[test]
+660-fn an_epochless_holder_still_answers_the_dht_as_a_provider_of_the_shard() {
+--
+771:#[test]
+772-fn the_agent_pays_pow_for_an_epoch_nobody_serves() {
+--
+805:#[test]
+806-fn not_owner_ends_the_attempt_while_a_temporary_code_repeats_it() {
+--
+865:#[test]
+866-fn a_second_candidate_doubles_the_price_and_not_the_outcome() {
+### ORACLE BUILD --no-run ### 2026-10-23T06:33:08+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+  Executable tests\s163_shard_without_owner.rs (target\debug\deps\s163_shard_without_owner-86d702f193c5bec8.exe)
+EXIT=0
+### ORACLE RUN --nocapture ### 2026-10-23T06:33:09+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.59s
+     Running tests\s163_shard_without_owner.rs (target\debug\deps\s163_shard_without_owner-86d702f193c5bec8.exe)
+
+running 9 tests
+test a_second_candidate_doubles_the_price_and_not_the_outcome ... ## publish: исход=узел отказал: `NOT_OWNER` (шард 7, retry 50 мс), кадров 1, время 677 мс ##
+## publish: исход=узел отказал: `NOT_OWNER` (шард 7, retry 50 мс), кадров 2, время 958 мс ##
+## (8) 1 кандидат: узел отказал: `NOT_OWNER` (шард 7, retry 50 мс) (кадров 1); 2 кандидата: узел отказал: `NOT_OWNER` (шард 7, retry 50 мс) (кадров 2) ##
+ok
+test a_shard_without_an_epoch_answers_reads_and_refuses_writes ... ## (0) узел без эпизоды: чтение → MatchResult{epoch=0, matches=0}, запись → NOT_OWNER (retry 1000 мс, шард 7) ##
+ok
+test an_epochless_holder_produces_no_protocol_action_at_all ... ## (1) узел без эпизоды: tick → 0 кадров, is_member=false, чужой genesis → 0 кадров, epoch=None ##
+ok
+test an_epochless_holder_still_answers_the_dht_as_a_provider_of_the_shard ... ## (5) холодный держатель: epoch=None, объявлений=1, найден как провайдер=true, провайдеров=1 ##
+ok
+test not_owner_ends_the_attempt_while_a_temporary_code_repeats_it ... ## publish: исход=узел отказал: `NOT_OWNER` (шард 7, retry 9000 мс), кадров 1, время 607 мс ##
+## publish: исход=ответ не сходится с протоколом: 12D3KooWSfMx5BpXVMrzyfMGHVLQe6UWNWX13ZBPLDmVoAKZ4oun: исчерпаны повторы publish на шарде 7, кадров 4, время 1525 мс ##
+## (7) NOT_OWNER: кадров 1, время 607 мс, отказ «узел отказал: `NOT_OWNER` (шард 7, retry 9000 мс)»; BUSY: кадров 4, отказ «ответ не сходится с протоколом: 12D3KooWSfMx5BpXVMrzyfMGHVLQe6UWNWX13ZBPLDmVoAKZ4oun: исчерпаны повторы publish на шарде 7» ##
+ok
+test only_the_matching_genesis_opens_an_epoch_and_the_mismatch_is_silent ... ## (2) genesis не своего состава: ответов 0, epoch=None; genesis своего состава: ответов 3, epoch=Some(1) ##
+ok
+test publishing_to_an_epochless_shard_ends_in_not_owner_not_in_an_empty_answer ... ## publish: исход=узел отказал: `NOT_OWNER` (шард 7, retry 9000 мс), кадров 1, время 605 мс ##
+## (4) чем закончился publish: узел отказал: `NOT_OWNER` (шард 7, retry 9000 мс) ##
+## (4) Refused{code=NOT_OWNER, shard=7, retry=9000} ##
+ok
+test the_agent_pays_pow_for_an_epoch_nobody_serves ... ## publish: исход=узел отказал: `NOT_OWNER` (шард 7, retry 9000 мс), кадров 1, время 640 мс ##
+## (6) пойман Publish: pow_bits=20, nonce=268353, бакет=112045399, TTL=225, intent_id под версию 1; pow_ok(эпоха 0)=true, pow_ok(эпоха 1)=false ##
+ok
+test the_four_local_states_name_which_one_takes_a_write ... ## (3) сертификат, без состава: отказ="NOT_OWNER", retry=1000 мс, ответов=1 ##
+## (3) член, не primary: отказ="NOT_OWNER", retry=1000 мс, ответов=1 ##
+## (3) primary, lease истёк: отказ="EPOCH_STALE", retry=1000 мс, ответов=1 ##
+## (3) primary, lease активен: отказ="", retry=0 мс, ответов=2 ##
+## (3) виды кадров в принимающем состоянии: [ReplicateOp, ReplicateOp] ##
+ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.22s
+
+EXIT=0
+RUST_MS=11668 RUST_S=11
+### РЕСУРСЫ ПОСЛЕ ОРАКУЛА ### 2026-10-23T06:33:20+03:00
+RAM СВОБОДНО, МБ: 7790
+ДИСК СВОБОДНО, МБ: 11794
+target/, МБ: 7288
+лог, МБ: 1
+осевших тестовых каталогов s163 в %TEMP%: 0
+### КОНТРОЛЬ vecdht-net ### 2026-10-23T06:33:33+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-502162b5780742df.exe)
+
+running 22 tests
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-5cee7e68d1cbde1d.exe)
+
+running 1 test
+test egress_bytes_per_query has been running for over 60 seconds
+test egress_bytes_per_query ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 119.19s
+
+     Running tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-f8f82f75b320ea2e.exe)
+
+running 5 tests
+test a_node_accepts_a_find_with_a_pad_tail ... ok
+test a_find_frame_has_a_fixed_overhead_and_carries_no_pad ... ok
+test a_lying_node_can_fabricate_a_distance_and_nobody_checks_it ... ok
+test a_full_scan_is_sixteen_frames_not_one_long_one ... ok
+test a_missing_owner_drops_the_next_groups_find_off_the_wire ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.66s
+
+     Running tests\s163_shard_without_owner.rs (target\debug\deps\s163_shard_without_owner-86d702f193c5bec8.exe)
+
+running 9 tests
+test a_shard_without_an_epoch_answers_reads_and_refuses_writes ... ok
+test an_epochless_holder_produces_no_protocol_action_at_all ... ok
+test only_the_matching_genesis_opens_an_epoch_and_the_mismatch_is_silent ... ok
+test an_epochless_holder_still_answers_the_dht_as_a_provider_of_the_shard ... ok
+test the_four_local_states_name_which_one_takes_a_write ... ok
+test the_agent_pays_pow_for_an_epoch_nobody_serves ... ok
+test publishing_to_an_epochless_shard_ends_in_not_owner_not_in_an_empty_answer ... ok
+test a_second_candidate_doubles_the_price_and_not_the_outcome ... ok
+test not_owner_ends_the_attempt_while_a_temporary_code_repeats_it ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.13s
+
+     Running tests\s5_handshake_seam.rs (target\debug\deps\s5_handshake_seam-544b85b042daa41e.exe)
+
+running 5 tests
+test a_foreign_network_is_refused_and_the_reason_never_reaches_the_peer ... ok
+test a_normal_handshake_binds_both_sides ... ok
+test the_refusal_speaks_cert_invalid_and_keeps_the_old_identity ... ok
+test the_gossip_door_is_open_to_a_peer_the_handshake_refused ... ok
+test the_authentication_cache_outlives_valid_until ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.69s
+
+     Running tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-f40c74591c2c28ad.exe)
+
+running 3 tests
+test the_two_implementations_agree_on_every_cluster_at_protocol_geometry ... ok
+test rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics ... ok
+test a_manifest_with_other_geometry_is_refused_today ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\transport.rs (target\debug\deps\transport-0c7fb6bb4a5d446d.exe)
+
+running 10 tests
+test quic_handshake_binds_the_cert_to_the_transport_key ... ok
+test gossip_delivers_a_signed_publish_to_the_primary ... ok
+test an_agent_discovers_the_shard_provider_through_kademlia ... ok
+test a_valid_revoke_on_a_shard_topic_is_refused ... ok
+test a_closed_connection_reaches_peer_lost_in_the_shard ... ok
+test publish_and_find_travel_over_the_real_transport ... ok
+test a_revoke_below_threshold_is_rejected_before_it_can_revoke ... ok
+test an_agent_publishes_finds_and_opens_a_direct_session ... ok
+test a_threshold_revoke_drops_connections_and_blocks_reconnect ... ok
+test a_cert_whose_owner_is_not_the_transport_key_is_rejected ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.30s
+
+   Doc-tests vecdht_net
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+### ИТОГ ### 2026-10-23T06:36:05+03:00
+HEAD после прогонов: d9ad787
+RAM СВОБОДНО, МБ: 9880
+ДИСК СВОБОДНО, МБ: 11791
+лог: lab/logs/e0080-all.log (984 строк)
+HELPER_EXIT=0 (худший из кодов шагов; 0 = все шаги отработали)
+
+### РЕСУРСЫ: ЗАМЕТКА (append, 2026-10-23, после n=2) ###
+Между n=1 (06:15) и n=2 (06:32) свободный диск C: упал с 24 099 МБ до 11 791 МБ, свободная RAM
+перед n=2 — 4090 МБ (против 8175 МБ перед n=1). Причина видна по файлу подкачки:
+`C:\pagefile.sys` = 29 271 255 040 Б с изменённой меткой 06:29, то есть Windows расширил файл
+подкачки на ~12 ГБ во время прогона — система работала в дефиците RAM, а не на диске. Сам цикл
+ничего не писал кроме `target/` (7288 МБ) и репозитория: осевших тестовых каталогов `s163` — 0,
+копия helper'а в `mktemp` удалена самим скриптом, stdout-черновики — 27 КБ.
+Числа n=2 при этом надёжны: оракул и КОНТРОЛЬ прошли без единого падения, падение порога (8) в
+n=1 было детерминированным (дважды 4 кадра), а не следствием нехватки памяти; абсолютные
+микросекунды в этом цикле порогом не являются (единственный временны́й порог — «пауза 9000 мс не
+выдержана», наблюдено 607 мс — шестикратный запас).
+Действие на будущее: при свободном диске < 12 ГБ следующий тяжёлый прогон надо начинать только
+после `cargo clean` (~7,3 ГБ) или после того, как владелец разгрузит диск; `cargo clean` без
+объявления не делается (правило в `lab/PLAN.md`, «Ритм»).
+
+### ВЕРИФИКАЦИЯ + РЕСУРСЫ ПОСЛЕ НЕЁ (append, 2026-10-23) ###
+Блок `########## E-0080 · workspace-verify · 2026-10-23T06:43:22+03:00 ##########`
+в `lab/logs/workspace-verify-2026-10-22.log` (начат сразу после ИТОГА n=2):
+  cargo test --workspace — 620 ok / 0 failed / 5 ignored, 93 среза (84 бинаря + 9 doc-тестов),
+    TEST_EXIT=0, 12,9 мин стенного времени (06:43:22 → 06:56:19);
+  cargo clippy --all-targets -- -D warnings — CLIPPY_EXIT=0 (0,86 с, кэш после теста).
+Прирост против E-0079 (611 ok / 92 среза) = ровно 9 тестов `s163_shard_without_owner`,
+ничего не пропало: ни один ранее зелёный срез не стал красным.
+
+Свободно сразу после верификации: RAM 10 624 МБ, диск C: 21 239 МБ.
+Диск отпустило на ~9,4 ГБ по сравнению с ИТОГОМ n=2 (11 791 МБ), и причина — снова файл
+подкачки: `C:\pagefile.sys` теперь 19 364 335 616 Б (18,05 ГБ) с меткой 06:57 против
+29 271 255 040 Б с меткой 06:29. Управление файлом подкачки автоматическое
+(`AutomaticManagedPagefile=True`), `Win32_PageFileUsage` показывает выделенные 18 467 МБ при
+текущем использовании 4 228 МБ. То есть расширение на ~12 ГБ в ЗАМЕТКЕ выше было откликом
+системы на пиковый дефицит во время КОНТРОЛЯ, а не утечкой цикла; после завершения прогонов
+файл сжался сам.
+Действие из той же ЗАМЕТКИ («при диске < 12 ГБ — только после `cargo clean` или разгрузки
+владельцем») на текущий момент не требуется: свободно 21 239 МБ, `target/` 7 287 МБ, осевших
+тестовых каталогов `vecdht-net-s163-*` в %TEMP% — 0. `cargo clean` не делался.
