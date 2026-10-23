@@ -1,0 +1,27 @@
+### E-0091 PRE_FIX · дерево до правки (HEAD bcca731) · 2026-10-23T21:25:04+03:00 ###
+SHAPE: oracle = crates/vecdht-net/tests/s74_provider_cache_finite.rs, 2 таргета
+DISK_FREE_MB_BEFORE=30293  RAM_FREE_MB_BEFORE=7078
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running tests\s74_provider_cache_finite.rs (target\debug\deps\s74_provider_cache_finite-8e4f9e73bfb75281.exe)
+
+running 2 tests
+test a_provider_that_dies_leaves_the_shard_provider_table ... MERE g1_setup=1 g1_cache_len=2 g1_kad_peers=2 g1_announce_a=2 g1_announce_b=2
+MERE g2_dead_gone_from_handshake=1 g3_has_dead_at_death=1 g3_has_dead_after=1 g4_live_present=1 g5_len_at_death=2 g5_len_after=2 g5_kad_peers=2 g5_errors_total=0 g5_dial_errors=0 ##
+
+thread 'a_provider_that_dies_leaves_the_shard_provider_table' (40044) panicked at crates\vecdht-net\tests\s74_provider_cache_finite.rs:242:9:
+(3) мёртвый провайдер остался в таблице: `provider_peers` монотонен (2)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test re_asking_the_dht_can_bring_the_dead_provider_back ... MERE g6_after_prune=1 g6_after_requery=1 g6_dead_back=1
+ok
+
+failures:
+
+failures:
+    a_provider_that_dies_leaves_the_shard_provider_table
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.64s
+
+error: test failed, to rerun pass `-p vecdht-net --test s74_provider_cache_finite`
+EXIT=101
+DISK_FREE_MB_AFTER=30295
