@@ -104,7 +104,13 @@ def load():
 
 
 def check_row(row, today, errors, warnings, seen_ids):
-    rid = row.get("id", f"строка {row['_line']}")
+    # `_line` есть только у строк, прочитанных из индекса (`load` его подставляет). У записи,
+    # которую проверяют до записи на диск (`add`), его нет — и f-string в аргументе `dict.get`
+    # вычисляется всегда, поэтому первая же попытка добавить запись роняла механизм с KeyError
+    # (ДИАГНОЗ прогона: девять посаженных дефектов не включали «у строки нет `_line`», потому что
+    # дефект «нет поля» сажался как пустое `gives`, а не как отсутствующий `id`).
+    line = row.get("_line", "новый вход")
+    rid = row.get("id") or f"строка {line}"
     if "_error" in row:
         fail(f"{rid}: разобран не как JSON ({row['_error']})", errors)
         return
@@ -114,8 +120,8 @@ def check_row(row, today, errors, warnings, seen_ids):
     if not ID_RE.match(str(row.get("id", ""))):
         fail(f"{rid}: id вне формата L-NNNN", errors)
     if row.get("id") in seen_ids:
-        fail(f"{rid}: id повторяется (строки {seen_ids.get(row.get('id'))} и {row['_line']})", errors)
-    seen_ids[row.get("id")] = row["_line"]
+        fail(f"{rid}: id повторяется (строки {seen_ids.get(row.get('id'))} и {line})", errors)
+    seen_ids[row.get("id")] = line
     url = str(row.get("url", ""))
     if not url.startswith("https://"):
         fail(f"{rid}: ссылка обязана быть https (правило «ссылка важнее пересказа»)", errors)

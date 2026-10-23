@@ -1,0 +1,50 @@
+test above_the_floor_the_cap_is_the_mean_and_not_a_constant ... 
+thread 'above_the_floor_the_cap_is_the_mean_and_not_a_constant' (36580) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:349:5:
+  left: 4287
+ right: 4286
+test migrating_into_a_full_cell_is_capped ... 
+thread 'migrating_into_a_full_cell_is_capped' (31312) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:282:5:
+test renewal_in_a_full_cell_never_costs_a_record ... ## (2) продление в полной ячейке: 25 кадров, evicted=0, cell=4096 ##
+test shard_cap_and_cell_cap_together_evict_exactly_once ... ## (7) max_live=пол: total=4096, evicted=1 ##
+test the_cell_cap_binds_far_below_the_shard_capacity ... 
+thread 'the_cell_cap_binds_far_below_the_shard_capacity' (39404) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:189:5:
+  left: 4097
+ right: 4096
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 77.78s
+
+########## E-0088 PRE_FIX: оракул на дереве БЕЗ правки продукта (git stash crates/vecdht-node/src) ##########
+HEAD базы: 1d31ea0 + тот же оракул, что ниже
+КОМАНДА: cargo test -p vecdht-node --test s14_cell_cap_enforced --no-fail-fast -- --nocapture --test-threads=1
+thread 'above_the_floor_the_cap_is_the_mean_and_not_a_constant' (14404) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:371:5:
+assertion `left == right` failed: кап выше пола не связан: live=34286, limit=4286, cell=4287
+  left: 4287
+thread 'migrating_into_a_full_cell_is_capped' (40868) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:298:5:
+MERE g2_frames=25 g2_evicted=0 g2_cell=4096 g2_total=4096
+MERE g7_total=4096 g7_cell=4096 g7_evicted=1 g7_scanned=0
+thread 'the_cell_cap_binds_far_below_the_shard_capacity' (40928) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:189:5:
+assertion `left == right` failed: кап пропущен: ячейка выросла
+  left: 4097
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 80.86s
+PREFIX_EXIT=101
+
+########## E-0088 PRE_FIX, второй срез: тот же набор с Drop-гардом каталогов (порог (8) helper'а) ##########
+Смысл среза: до гарда прогон на дереве без правки оставил 14 каталогов (61 МБ, du -sm по vecdht-index-*cap-*); после гарда Tmp — ноль при тех же трёх паниках.
+thread 'above_the_floor_the_cap_is_the_mean_and_not_a_constant' (35964) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:384:5:
+assertion `left == right` failed: кап выше пола не связан: live=34286, limit=4286, cell=4287
+  left: 4287
+thread 'migrating_into_a_full_cell_is_capped' (38376) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:311:5:
+переезд пробил кап: cell=4097 > 4096
+thread 'the_cell_cap_binds_far_below_the_shard_capacity' (40364) panicked at crates\vecdht-node\tests\s14_cell_cap_enforced.rs:202:5:
+assertion `left == right` failed: кап пропущен: ячейка выросла
+  left: 4097
+test result: FAILED. 2 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 79.38s
+EXIT=101
+STRAYS_AFTER_PANIC=0
+
+########## E-0088 ПОРОГ (1)-(2) на дереве пре-регистрации (оракул + lab, правка продукта в stash) ##########
+КОМАНДА: git stash push -- crates/vecdht-node/src/ ; cargo test -p vecdht-node --test s14_cell_cap_enforced --no-run ; cargo clippy -p vecdht-node --all-targets -- -D warnings
+ORACLE_COMPILE_EXIT=0 (собран выше, до PRE_FIX-срезов)
+    Checking vecdht-node v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.93s
+CLIPPY_PREFIX_EXIT=0
+git stash pop — правка возвращена в рабочее дерево перед коммитом фикса
