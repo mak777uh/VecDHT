@@ -41,6 +41,7 @@ use crate::behaviour::{Behaviour, BehaviourEvent};
 use crate::codec::FrameCodec;
 use crate::handshake::{self, HandshakeError, PeerIdentity};
 use crate::keys;
+use crate::provider_cache::ProviderCache;
 
 /// Имя gossip-темы шарда. Семантика та же, что у ключа провайдера §7.4: один шард — одна
 /// тема, без band-суффиксов, которые в v7.5 умножали записи без пользы.
@@ -147,7 +148,10 @@ pub struct NetService {
     /// Кадры, которые не принадлежат ни одному локальному шарду: ответы агента (`PublishAck`,
     /// `MatchResult`, `RendezvousAccept`, `Error`) и чужой gossip. Агент забирает их отсюда.
     inbox: Vec<(PeerId, Vec<u8>)>,
-    providers: BTreeMap<u16, BTreeSet<PeerId>>,
+    /// Конечная таблица «шард → провайдеры» (§7.4, §P5; `E-0091`). До того цикла это был
+    /// `BTreeMap<u16, BTreeSet<PeerId>>` с одним пополнением и нулём удалений — монотонный кэш,
+    /// измеренный `E-0085` гейтом (в) и перенесённый `E-0086` в спеку.
+    providers: ProviderCache,
     listen_addrs: Vec<Multiaddr>,
     errors: Vec<String>,
     /// Сколько provider-запросов §7.4 завершилось успехом. Наблюдаемость для гейтов: «узел
@@ -275,7 +279,7 @@ impl NetService {
             self_revoked: false,
             pending: HashMap::new(),
             inbox: Vec::new(),
-            providers: BTreeMap::new(),
+            providers: ProviderCache::product(cfg.provider_republish.as_secs()),
             listen_addrs: Vec::new(),
             errors: Vec::new(),
             provider_announcements: 0,
@@ -321,7 +325,20 @@ impl NetService {
     }
 
     pub fn provider_peers(&self, shard: u16) -> Vec<PeerId> {
-        self.providers.get(&shard).map(|s| s.iter().copied().collect()).unwrap_or_default()
+        self.providers.peers(shard)
+    }
+
+    /// Сколько записей держит таблица провайдеров (§7.4, `E-0091`). Наблюдаемость для гейтов:
+    /// «кэш конечен» — утверждение о длине, а не о наличии кода удаления.
+    pub fn provider_cache_len(&self) -> usize {
+        self.providers.len()
+    }
+
+    /// Три числа конечности кэша по трём причинам снятия (`E-0091`): смерть пира по событию
+    /// транспорта или отзыва, истечение дедлайна §7.4, предел на шард. Смешивать их нельзя —
+    /// у каждой свой лимит и своя цена.
+    pub fn provider_cache_stats(&self) -> (u64, u64, u64) {
+        (self.providers.pruned_dead, self.providers.expired, self.providers.evicted)
     }
 
     /// Все пиры, прошедшие handshake. Агенту это нужно, чтобы отличить «провайдер найден, но
@@ -623,6 +640,10 @@ impl NetService {
         let who = handshake::verify(&hs, peer, &v)?;
         self.owners.insert(who.owner, peer);
         self.peers.insert(peer, who.clone());
+        // §9.8 симметрично: событие транспорта доказало не только смерть, но и возвращение. С этим
+        // доказательством окно недоверия кэша снимается, и ответ DHT об этом пире снова принимается
+        // (`E-0091`, превью-прогон: без снятия окна легитимно перезапущенный провайдер терялся).
+        self.providers.prove_alive(&peer);
         Ok(who)
     }
 
@@ -674,7 +695,10 @@ impl NetService {
                     providers,
                 })) => {
                     if let Some(shard) = shard_from_provider_key(key.as_ref()) {
-                        self.providers.entry(shard).or_default().extend(providers);
+                        // Не `extend`, а `see`: ответ DHT — подтверждение записи, у которого есть
+                        // дата. Без даты нельзя ни снять истёкшее (§7.4 `provider_record_ttl`), ни
+                        // вытеснить старое при переборе предела (`E-0091`).
+                        self.providers.see(shard, providers, now_sec());
                     }
                 }
                 QueryResult::GetProviders(Err(e)) => {
@@ -855,6 +879,11 @@ impl NetService {
     /// `peer_lost` принимает вызывающий, потому что у отзыва нет события транспорта, на
     /// которое можно было бы опереться.
     fn forget_peer(&mut self, peer: PeerId) -> Option<PeerIdentity> {
+        // Провайдер-запись снимается до проверки handshake-таблицы: доказательство смерти
+        // (§9.8 — событие транспорта, §4.2 — проверенный отзыв) не зависит от того, успели ли мы
+        // аутентифицировать пира. Именно здесь `E-0091` закрывает монотонность: раньше у поля
+        // `providers` не было ни одного удаляющего вызова.
+        self.providers.forget_peer(&peer, now_sec());
         let who = self.peers.remove(&peer)?;
         self.owners.retain(|_, p| *p != peer);
         Some(who)
@@ -934,6 +963,10 @@ impl NetService {
             return;
         }
         self.last_tick_sec = now;
+        // §7.4 `provider_record_ttl = 420 с`: подстраховка для записей, чью смерть транспорт не
+        // успел доказать (`E-0091`). Проход по таблице не чаще раза в секунду, её размер ограничен
+        // пределом на шард × число шардов (статический ассерт в `provider_cache`).
+        self.providers.expire(now);
         let clock = Clock::at(now);
         let mut out = Vec::new();
         for node in self.nodes.values_mut() {

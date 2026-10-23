@@ -8,6 +8,7 @@
 //! * [`keys`] связывает прикладной Ed25519-ключ с libp2p-идентичностью, не вводя собственной
 //!   деривации `PeerId` (§4.1);
 //! * [`handshake`] проверяет `NodeCert` и его привязку к транспорту (§4.2);
+//! * [`provider_cache`] держит конечную таблицу провайдеров шарда (§7.4, §P5; `E-0091`);
 //! * [`service`] владеет `ShardNode`'ами, Kademlia-провайдерами шардов (§7.4), gossip-темами
 //!   и event loop'ом; вся протокольная логика остаётся в `vecdht-node`;
 //! * [`agent`] — клиентская половина §12: publish/find/session поверх того же транспорта, чтобы
@@ -28,6 +29,7 @@ pub mod behaviour;
 pub mod codec;
 pub mod handshake;
 pub mod keys;
+pub mod provider_cache;
 pub mod service;
 
 pub use agent::{
