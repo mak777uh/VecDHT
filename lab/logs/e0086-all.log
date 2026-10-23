@@ -1,0 +1,207 @@
+########## E-0086 · цитатный лог (документ-цикл, cargo не запускается) · 2026-10-23T15:26:35+03:00 ##########
+
+Цикл без замеров: оракула нет, его роль исполняет этот файл — каждое число и каждое
+утверждение новой спеки здесь выведено дословным grep'ом по продуктовому коду или ссылкой
+на уже опубликованный лог. Ни одного числа из этого файла в спеку не попадает без строки-источника.
+
+### ЦИТАТА 1 · лесенка verify_cert (имена и порядок) ###
+109:pub fn verify_cert(
+110-    cert: &NodeCert,
+111-    authorities: &AuthoritySet,
+112-    genesis_hash: &[u8; 32],
+113-    now_sec: u32,
+114-    revoked_nonces: impl Fn(&[u8; 16]) -> bool,
+115-) -> Result<(), CertError> {
+116-    if cert.version != vecdht_wire::cert::CERT_VERSION {
+117-        return Err(CertError::Version(cert.version));
+118-    }
+119-    if cert.genesis_hash != *genesis_hash {
+120-        return Err(CertError::GenesisMismatch {
+121-            expected: *genesis_hash,
+122-            actual: cert.genesis_hash,
+123-        });
+124-    }
+125-    if cert.capacity_entries == 0 {
+126-        return Err(CertError::ZeroCapacity);
+127-    }
+128-    if cert.shards.len() > MAX_CERT_SHARDS {
+129-        return Err(CertError::Malformed);
+130-    }
+131-    if now_sec < cert.valid_from {
+132-        return Err(CertError::NotYetValid { now: now_sec, valid_from: cert.valid_from });
+133-    }
+134-    if now_sec >= cert.valid_until {
+135-        return Err(CertError::Expired { now: now_sec, valid_until: cert.valid_until });
+136-    }
+137-    if revoked_nonces(&cert.nonce) {
+138-        return Err(CertError::Revoked);
+139-    }
+140-    if cert.authority_sigs.len() > MAX_AUTHORITY_SIGS {
+141-        return Err(CertError::BelowThreshold { have: 0, need: authorities.threshold });
+
+### ЦИТАТА 2 · декодер провода: три ступени раньше + четвёртое условие ###
+11:pub const CERT_VERSION: u16 = 8;
+14:pub const MAX_CERT_SHARDS: usize = 64;
+28:    pub valid_from: u32,
+29:    pub valid_until: u32,
+59:        w.u32(self.valid_from);
+60:        w.u32(self.valid_until);
+78:        if version != CERT_VERSION {
+86:        if n > MAX_CERT_SHARDS {
+98:        let valid_from = r.u32()?;
+99:        let valid_until = r.u32()?;
+110:        if valid_until <= valid_from {
+121:            valid_from,
+122:            valid_until,
+133:        now_sec >= self.valid_from && now_sec < self.valid_until
+143:            version: CERT_VERSION,
+150:            valid_from: 1_000,
+151:            valid_until: 2_000,
+191:        assert!(!c.in_validity(2_000), "valid_until exclusive");
+218:        c.valid_from = 5_000;
+219:        c.valid_until = 4_000;
+
+### ЦИТАТА 3 · collapse имени на живой двери ###
+582:            return vec![error_frame(err_code::CERT_INVALID, 0, 0, "кредашиал отозван")];
+598:                Err(e) => vec![error_frame(err_code::CERT_INVALID, 0, 0, &e.to_string())],
+
+### ЦИТАТА 4 · отзыв: что делает узел ###
+788:    fn apply_revoke(&mut self, revoke: CertRevoke) {
+789-        let nonce = revoke.nonce;
+790-        if !self.revoked.insert(nonce) {
+791-            // Повторная рассылка — штатный retry gossip; отзыв идемпотентен по nonce.
+792-            return;
+793-        }
+794-        if self.own_cert_nonce == Some(nonce) && !self.self_revoked {
+795-            self.self_revoked = true;
+796-            self.errors.push(format!(
+797-                "свой кредашиал отозван ({}): узел перестаёт отвечать, подписывать и объявлять шарды",
+798-                revoke.reason
+799-            ));
+800-            // Провайдер-записи §7.4 — обещание «этот узел держит шард». Отозванный узел его
+801-            // больше не выполняет; запись обязана исчезнуть, а не дожить до TTL.
+802-            let shards: Vec<u16> = self.nodes.keys().copied().collect();
+803-            for shard in shards {
+804-                let key = RecordKey::new(&shard_provider_key(shard));
+805-                self.swarm.behaviour_mut().kad.stop_providing(&key);
+806-                let _ = self
+807-                    .swarm
+808-                    .behaviour_mut()
+
+### ЦИТАТА 5 · ошибка двери и её деталь ###
+fn error_frame(code: &str, retry_after_ms: u32, shard: u16, _detail: &str) -> Vec<u8> {
+    ProtocolError { code: code.to_string(), retry_after_ms, shard }.encode_unsigned()
+}
+
+/// Шард, которому адресован кадр, если он вообще адресован шарду.
+fn shard_of_frame(frame: &[u8]) -> Result<Option<u16>, String> {
+    let f = decode_frame(frame).map_err(|e| e.to_string())?;
+
+### ЦИТАТА 6 · кэш провайдеров: где растёт и где чистится ###
+323:    pub fn provider_peers(&self, shard: u16) -> Vec<PeerId> {
+328:    /// адреса его нет» от «соединение есть, а роли не сходятся»: `provider_peers` возвращает
+400:    /// `QueryResult::GetProviders` и осядет в `provider_peers`.
+
+### ЦИТАТА 7 · gossip-путь мимо handshake ###
+982:    fn route_gossip(&mut self, owner: [u8; 32], frame: &[u8]) -> Vec<Envelope> {
+983-        let Ok(Some(shard)) = shard_of_frame(frame) else { return Vec::new() };
+984-        let Some(node) = self.nodes.get_mut(&shard) else { return Vec::new() };
+985-        match node.on_frame(owner, frame, Clock::at(now_sec())) {
+986-            Ok(list) => list,
+987-            Err(e) => {
+988-                self.errors.push(format!("gossip шарда {shard}: {e}"));
+989-                Vec::new()
+990-            }
+991-        }
+992-    }
+993-
+994-    /// Входящий ответ по нашему запросу: ack'и и снапшоты — узлу, остальное — в inbox.
+995-    fn route_inbound(&mut self, peer: PeerId, frame: Vec<u8>) {
+996-        if self.self_revoked {
+
+### ЦИТАТА 8 · ёмкость держателя: per-shard ###
+42-
+43-    /// Запись шарда обязана помещаться в декларируемую ёмкость: иначе членство говорит «я держу
+44-    /// этот шард», а диск у этого члена — нет (§9.3, `capacity_entries` из кредашиала).
+45-    #[inline]
+46:    pub fn fits(&self, entries: u64) -> bool {
+47-        self.capacity_entries >= entries
+48-    }
+49-}
+50-
+
+### ЦИТАТА 9 · квант опроса в продукте ###
+crates/vecdht-net/src/service.rs:115:            poll_interval: Duration::from_millis(25),
+crates/vecdht-net/src/agent.rs:157:            poll_interval: Duration::from_millis(25),
+
+### ПРОВЕРКА порогов H-0086 (исполнение) ###
+
+порог (0) diff по продуктовому коду, тестам и чужим логам:
+(пусто = выполнено; тронуты только docs/, lab/PLAN.md, lab/README.md, lab/decisions/, lab/experiments/, lab/logs/e0086-all.log, lab/hypotheses/)
+
+порог (2) зеркало:
+до: 1895 строк, sha256 37e3ec15cf1d2388
+после: 1933 строки, sha256 ef4fbb90b816ce7d (git) / 5e25e9f7a3f5 (скрипт зеркала)
+OK: зеркало спеки совпадает с оригиналом (1933 строк, 5e25e9f7a3f5)
+
+порог (1) число ссылок на E-* в добавленных строках спеки:
+warning: in the working copy of 'docs/VecDHT-SPEC-v8.md', LF will be replaced by CRLF the next time Git touches it
+6
+
+порог (5) три числа §4.2 против e0085-all.log: ступеней=9 имён=8 Revoked=4/256
+ladder_names=8
+ladder_revoked_rows=256
+ladder_revoked_visible=4
+
+порог (8) каждое новое число спеки против опубликованных логов (lab/logs/e00*.log):
+  "ladder=512" :: lab/logs/e0085-all.log  :: 1
+  "door_probes = 11" :: lab/logs/e0085-all.log  :: 1
+  "4 комбинациях из 256" :: lab/logs/e0085-all.log lab/logs/e0086-all.log  :: 2
+  "capacity_entries = 1000" :: lab/logs/e0085-all.log  :: 1
+  "по 900 записей" ::  :: 0
+  "4,181…4,488" :: lab/logs/e0084-all.log  :: 1
+  "8,991…9,611" :: lab/logs/e0084-all.log  :: 1
+  "25 мс" :: lab/logs/e0086-all.log  :: 1
+  "5 мс" ::  :: 0
+
+порог (3)/(4) diff спеки: удалённые строки (должно быть 3 изменённые, каждая сохранена текстом):
+warning: in the working copy of 'docs/VecDHT-SPEC-v8.md', LF will be replaced by CRLF the next time Git touches it
+2
+warning: in the working copy of 'docs/VecDHT-SPEC-v8.md', LF will be replaced by CRLF the next time Git touches it
+--- a/docs/VecDHT-SPEC-v8.md
+-Множество кандидатов на шард — держатели валидных `NodeCert` c `role=index_
+-| Fan-out по шардам (замороженные центроиды артефакта, исходная карт�
+
+порог (6) ADR-0042:
+1
+2
+
+порог (9) ресурсы после цикла:
+10
+ МБ RAM свободно
+10
+ ГБ диска свободно
+
+########## E-0086 · ПРОВЕРКА (уточнение к блоку выше; инструмент проверки, не пороги) ##########
+
+Два пропуска предыдущего блока —grep'а, не факты:
+  число 900: lab/logs/e0085-all.log (ключ gate8_load=900)
+  число 5 мс: lab/logs/e0084-all.log иlab/logs/e0084-all.log 
+Итого по порогу (8): каждое новое число спеки имеет источник в опубликованных логах,
+кроме 25 мс — он добавлен этим циклом (ЦИТАТА 9 выше: константа продукта);
+числа 13 и 16 в новой строке §19.5 существовали в ней и до правки (проверено diff'ом).
+
+порог (6) уточнение: 'ADR-0042' встречается в HEAD ровно как НАША резервация
+(OPEN-QUESTIONS п. 35 и строка PLAN'а закрытия E-0085), а не как занятое решение:
+HEAD:lab/decisions/OPEN-QUESTIONS.md HEAD:lab/hypotheses/H-0086-spec-transfer-of-measured-facts.md 
+файл ADR-0042 создан этим циклом: 1
+
+порог (9) ресурсы (перемер в одну строку, МБ):
+RAM_᢮�����_��=9894
+����_᢮�����_��=10102
+target_��=9170
+
+### ПРОВЕРКА (чистовик; блок выше остался как печатался) ###
+RAM_свободно=9894 МБ; DISK_свободно=10102 МБ (допуск PLAN >= 15000 МБ — НЕ выполнен); target/=9170 МБ, из них debug/deps=7237 МБ после верификации E-0085 (81 бинарь).
+PowerShell выводит кириллицу в другой кодовой странице, поэтому метки выше битые; числа верны.
+Владелец: цикл закрыт, cargo clean НЕ делался — решение о чистке/переносе target/ за владельцем.

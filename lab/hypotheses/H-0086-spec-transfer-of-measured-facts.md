@@ -1,6 +1,6 @@
 ---
 id: H-0086
-status: proposed
+status: completed
 date: 2026-10-23
 spec: "docs/VecDHT-SPEC-v8.md:148…159 (§4.2 правила проверки и отзыв), :985 (§9.3 выбор кандидатов), :1766 (§19.5 фан-аут), :430/§12.1:1214 (обещанный MODEL_MISMATCH)"
 plan: "lab/PLAN.md п. 8а"
