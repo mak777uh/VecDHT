@@ -338,3 +338,672 @@ CLIPPY_EXIT=0; `cargo clippy --workspace --all-targets -- -D warnings` → CLIPP
 102 ключа и 21 имя гейта сопоставлены с исходником скриптом до коммита, расхождений нет.
 Заморозка: RAM свободно 7 181 МБ, диск 20 826 МБ.
 
+=== E-0084 прогон 2026-10-23T12:12:02+03:00 — §19.4: find end-to-end на QUIC-стенде ===
+HEAD: 6141f03
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+gcc: gcc.exe (x86_64-posix-seh-rev1, Built by MinGW-Builds project) 16.2.0
+cargo: cargo 1.99.1 (5f94df478 2026-08-27)
+RAYON_NUM_THREADS=2
+ЯДЕР: 16
+RAM СВОБОДНО до прогона, МБ: 7005
+ДИСК СВОБОДНО до прогона, МБ: 20821
+### ДОПУСК ### 2026-10-23T12:12:04+03:00
+диск 20821 МБ, RAM 7026 МБ
+### СТОИМОСТЬ ### 2026-10-23T12:12:04+03:00
+-- таргет s19_find_e2e_price: строк 1019, тестов 4
+-- продуктовый код (crates/*/src) и спека этим циклом не тронуты (пусто = ок):
+-- тронутые тесты:
+ crates/vecdht-net/tests/s19_find_e2e_price.rs | 1019 +++++++++++++++++++++++++
+ 1 file changed, 1019 insertions(+)
+-- зависимостей добавлено не было (пусто = ок):
+-- пороги, замороженные в исходнике (константы, не строки отчёта):
+   const ROW_P50_MS: f64 = 1_500.0;
+   const ROW_P95_MS: f64 = 4_000.0;
+   const MARGIN_VS_SPREAD_X: f64 = 2.0;
+   const COLD_TO_WARM_MIN_X: f64 = 4.0;
+   const COLD_TO_WARM_MAX_X: f64 = 30.0;
+   const MARGINAL_MIN_MS: f64 = 2.5;
+   const MARGINAL_MAX_MS: f64 = 10.0;
+   const FANOUT_RATIO_MIN_X: f64 = 6.0;
+   const FANOUT_RATIO_MAX_X: f64 = 13.0;
+   const SETUP_SHARE_MIN: f64 = 0.5;
+   const SETUP_SHARE_MAX: f64 = 1.0;
+   const SEARCH_SHARE_MAX: f64 = 0.05;
+   const SCAN_RATIO_MIN_X: f64 = 1.4;
+   const SCAN_RATIO_MAX_X: f64 = 3.0;
+   const DRIFT_PROMIL_MAX: f64 = 200.0;
+### RELEASE BUILD --no-run ### 2026-10-23T12:12:05+03:00
+    Finished `release` profile [optimized] target(s) in 0.70s
+  Executable tests\s19_find_e2e_price.rs (target\release\deps\s19_find_e2e_price-252f6977af5719b3.exe)
+EXIT=0
+BUILD_MS=974
+### БИНАРЬ s19_find_e2e_price ### 2026-10-23T12:12:06+03:00
+путь: target/release/deps/s19_find_e2e_price-252f6977af5719b3.exe
+sha256: 6579bed9432a4fa463181067207f7f0432d66d29738cb5b68a5d08efb0cbe58b
+размер, МБ: 10
+### ORACLE s19_find_e2e_price RUN 1 (release, --nocapture, --test-threads=1) ### 2026-10-23T12:12:06+03:00
+    Finished `release` profile [optimized] target(s) in 0.55s
+     Running tests\s19_find_e2e_price.rs (target\release\deps\s19_find_e2e_price-252f6977af5719b3.exe)
+
+running 4 tests
+test s19_cold_and_warm_find_fanout1 ... МЕРЕНО cold1_p50_ms=7.162 cold1_p95_ms=7.887 cold1_min_ms=6.827 cold1_max_ms=8.478 cold1_spread_promil=230.5 cold1_k=21 cold1_argmax=4
+МЕРЕНО find1_p50_ms=5.302 find1_p95_ms=5.873 find1_min_ms=5.102 find1_max_ms=6.101 find1_spread_promil=188.4 find1_k=21 find1_argmax=4
+МЕРЕНО new1_p50_ms=1.830 new1_p95_ms=2.176 new1_min_ms=1.605 new1_max_ms=2.377 new1_spread_promil=422.1 new1_k=21 new1_argmax=4
+МЕРЕНО setup1_p50_ms=9.699 setup1_p95_ms=10.028 setup1_min_ms=9.344 setup1_max_ms=10.028 setup1_spread_promil=70.5 setup1_k=9 setup1_argmax=1
+МЕРЕНО phasewarm1_p50_ms=1.297 phasewarm1_p95_ms=1.398 phasewarm1_min_ms=1.286 phasewarm1_max_ms=1.398 phasewarm1_spread_promil=85.9 phasewarm1_k=9 phasewarm1_argmax=7
+МЕРЕНО warm1_p50_ms=0.508 warm1_p95_ms=0.532 warm1_min_ms=0.489 warm1_max_ms=0.623 warm1_spread_promil=264.5 warm1_k=63 warm1_argmax=1
+МЕРЕНО cold1_first_half_p50_ms=7.188 cold1_second_half_p50_ms=7.106 cold1_drift_promil=-11.4 warm1_drift_promil=-18.3 setup1_drift_promil=-35.3
+МЕРЕНО provider_seen_min=0 provider_seen_max=0 cold1_to_warm1_x=14.092 setup1_to_cold1_x=1.354 warm1_to_cold1_x=0.071 phasewarm1_to_cold1_x=0.181 new1_share_promil=255.5 rel_spread_cold1=0.2305 rel_spread_warm1=0.2645 rel_spread_setup1=0.0705
+МЕРЕНО cold1_margin_p50_x=208.445 cold1_margin_p95_x=506.189 row_p50_ms=1500 row_p95_ms=4000 margin_vs_spread_x=2 drift_promil_max=200
+МЕРЕНО gate_3_cold1_p50_le_row=1
+МЕРЕНО gate_4_cold1_p95_le_row=1
+МЕРЕНО gate_5a_cold1_margin_p50=1
+МЕРЕНО gate_5b_cold1_margin_p95=1
+МЕРЕНО gate_13a_drift_cold1=1
+МЕРЕНО gate_13b_drift_warm1=1
+МЕРЕНО gate_2a_provider_seen_zero=1
+ok
+test s19_fanout13_find_price ... МЕРЕНО stand_nodes=13 stand_seeds_distinct=13
+МЕРЕНО cold13_p50_ms=56.452 cold13_p95_ms=63.048 cold13_min_ms=53.863 cold13_max_ms=63.048 cold13_spread_promil=162.7 cold13_k=11 cold13_argmax=6
+МЕРЕНО find13_p50_ms=54.812 find13_p95_ms=61.096 find13_min_ms=52.289 find13_max_ms=61.096 find13_spread_promil=160.7 find13_k=11 find13_argmax=6
+МЕРЕНО warm13_p50_ms=5.059 warm13_p95_ms=6.488 warm13_min_ms=4.570 warm13_max_ms=7.115 warm13_spread_promil=503.1 warm13_k=33 warm13_argmax=6
+МЕРЕНО one13ref_p50_ms=6.279 one13ref_p95_ms=7.454 one13ref_min_ms=6.226 one13ref_max_ms=7.454 one13ref_spread_promil=195.5 one13ref_k=11 one13ref_argmax=0
+МЕРЕНО setup13_p50_ms=44.839 setup13_p95_ms=49.093 setup13_min_ms=41.143 setup13_max_ms=49.093 setup13_spread_promil=177.3 setup13_k=9 setup13_argmax=0
+МЕРЕНО cold13_first_half_p50_ms=58.748 cold13_second_half_p50_ms=55.260 cold13_drift_promil=-61.8 warm13_drift_promil=-96.4 one13_drift_promil=-34.7 covered_shards_min=13 covered_shards_max=13
+МЕРЕНО answers_min=13 answers_max=13 fanout13_to_one_x=8.991 per_shard_marginal_ms=4.181 cold13_to_warm13_x=11.158 setup13_to_cold13_x=0.794 rel_spread_cold13=0.1627 rel_spread_warm13=0.5031 rel_spread_cold1_ref=0.1955 fanout13_p95_is_max=1
+МЕРЕНО cold13_margin_p50_x=25.571 cold13_margin_p95_x=62.443
+МЕРЕНО gate_2b_all_shards_answered=1
+МЕРЕНО gate_7_cold13_p50_le_row=1
+МЕРЕНО gate_8_cold13_p95_le_row=1
+МЕРЕНО gate_6a_cold13_margin_p50=1
+МЕРЕНО gate_6b_cold13_margin_p95=1
+МЕРЕНО gate_9_cold13_to_warm13_window=1
+МЕРЕНО gate_10_marginal_per_shard_window=1
+МЕРЕНО gate_11_fanout_ratio_window=1
+МЕРЕНО gate_12_setup_share_window=1
+МЕРЕНО gate_13a_drift_cold13=1
+МЕРЕНО gate_13b_drift_warm13=1
+МЕРЕНО gate_13c_drift_one_ref=1
+ok
+test s19_scan_share_in_end_to_end_time ... МЕРЕНО scanlight_p50_ms=1.329 scanlight_p95_ms=2.594 scanlight_min_ms=0.803 scanlight_max_ms=2.594 scanlight_spread_promil=1347.4 scanlight_k=15 scanlight_argmax=1
+МЕРЕНО scanheavy_p50_ms=3.091 scanheavy_p95_ms=7.132 scanheavy_min_ms=1.703 scanheavy_max_ms=7.132 scanheavy_spread_promil=1756.2 scanheavy_k=15 scanheavy_argmax=1
+МЕРЕНО scan_ratio_x=2.3256 scan_delta_ms=1.762 rel_spread_scanlight=1.3474 rel_spread_scanheavy=1.7562
+МЕРЕНО direct_search_light_p50_us=0.300 direct_search_heavy_p50_us=61.100 direct_search_ratio_x=203.7 heavy_cell=1100 direct_per_record_us=0.05555 direct_light_below_clock_us=1 net_heavy_p50_ms=3.091 search_share=0.01977
+МЕРЕНО gate_14_scan_ratio_window=1
+МЕРЕНО gate_15_search_share_le=1
+ok
+test s19_structural_shape_of_the_stand ... МЕРЕНО nlist=1024 shards=64 clusters_per_shard=16 top_k_max=64 nprobe_default=16 pow_bits_default=20 agent_poll_ms=25.0 agent_call_timeout_ms=40000.0 agent_request_timeout_ms=10000.0 node_poll_ms=5.0 node_request_timeout_ms=5000.0 stand_pow=8 k_cold=21 k_fanout=11 k_phase=9 k_warm=3 k_scan=15 heavy=1100 fanout=13
+МЕРЕНО query_clusters=13 query_shards_distinct=13
+МЕРЕНО per_peer_find_rps=5 per_peer_publish_rps=1 per_peer_publish_burst=20 node_admits_per_s=100 top_k_max_param=64 lease_buckets=6
+МЕРЕНО e2e_struct_ok=1
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.67s
+
+EXIT=0
+### ЧИСЛА ПРОГОНА 1 ### 2026-10-23T12:12:28+03:00
+nlist_1=1024
+shards_1=64
+clusters_per_shard_1=16
+top_k_max_1=64
+nprobe_default_1=16
+pow_bits_default_1=20
+agent_poll_ms_1=25.0
+agent_call_timeout_ms_1=40000.0
+agent_request_timeout_ms_1=10000.0
+node_poll_ms_1=5.0
+node_request_timeout_ms_1=5000.0
+stand_pow_1=8
+k_cold_1=21
+k_fanout_1=11
+k_phase_1=9
+k_warm_1=3
+k_scan_1=15
+heavy_1=1100
+fanout_1=13
+query_clusters_1=13
+query_shards_distinct_1=13
+per_peer_find_rps_1=5
+per_peer_publish_rps_1=1
+per_peer_publish_burst_1=20
+node_admits_per_s_1=100
+top_k_max_param_1=64
+lease_buckets_1=6
+e2e_struct_ok_1=1
+stand_nodes_1=13
+stand_seeds_distinct_1=13
+cold1_p50_ms_1=7.162
+cold1_p95_ms_1=7.887
+cold1_min_ms_1=6.827
+cold1_max_ms_1=8.478
+cold1_spread_promil_1=230.5
+cold1_argmax_1=4
+find1_p50_ms_1=5.302
+new1_p50_ms_1=1.830
+setup1_p50_ms_1=9.699
+phasewarm1_p50_ms_1=1.297
+warm1_p50_ms_1=0.508
+warm1_p95_ms_1=0.532
+cold1_first_half_p50_ms_1=7.188
+cold1_second_half_p50_ms_1=7.106
+cold1_drift_promil_1=
+warm1_drift_promil_1=
+setup1_drift_promil_1=
+provider_seen_min_1=0
+provider_seen_max_1=0
+cold1_to_warm1_x_1=14.092
+setup1_to_cold1_x_1=1.354
+warm1_to_cold1_x_1=0.071
+phasewarm1_to_cold1_x_1=0.181
+new1_share_promil_1=255.5
+rel_spread_cold1_1=0.2305
+rel_spread_warm1_1=0.2645
+rel_spread_setup1_1=0.0705
+cold1_margin_p50_x_1=208.445
+cold1_margin_p95_x_1=506.189
+scanlight_p50_ms_1=1.329
+scanlight_p95_ms_1=2.594
+scanheavy_p50_ms_1=3.091
+scanheavy_p95_ms_1=7.132
+scan_ratio_x_1=2.3256
+scan_delta_ms_1=1.762
+rel_spread_scanlight_1=1.3474
+rel_spread_scanheavy_1=1.7562
+direct_search_light_p50_us_1=0.300
+direct_search_heavy_p50_us_1=61.100
+direct_search_ratio_x_1=203.7
+direct_per_record_us_1=0.05555
+direct_light_below_clock_us_1=1
+net_heavy_p50_ms_1=3.091
+search_share_1=0.01977
+cold13_p50_ms_1=56.452
+cold13_p95_ms_1=63.048
+cold13_min_ms_1=53.863
+cold13_max_ms_1=63.048
+cold13_spread_promil_1=162.7
+cold13_argmax_1=6
+find13_p50_ms_1=54.812
+warm13_p50_ms_1=5.059
+one13ref_p50_ms_1=6.279
+setup13_p50_ms_1=44.839
+cold13_first_half_p50_ms_1=58.748
+cold13_second_half_p50_ms_1=55.260
+cold13_drift_promil_1=
+warm13_drift_promil_1=
+one13_drift_promil_1=
+covered_shards_min_1=13
+covered_shards_max_1=13
+answers_min_1=13
+answers_max_1=13
+fanout13_to_one_x_1=8.991
+per_shard_marginal_ms_1=4.181
+cold13_to_warm13_x_1=11.158
+setup13_to_cold13_x_1=0.794
+rel_spread_cold13_1=0.1627
+rel_spread_warm13_1=0.5031
+rel_spread_cold1_ref_1=0.1955
+cold13_margin_p50_x_1=25.571
+cold13_margin_p95_x_1=62.443
+gate_2a_provider_seen_zero_1=1
+gate_3_cold1_p50_le_row_1=1
+gate_4_cold1_p95_le_row_1=1
+gate_5a_cold1_margin_p50_1=1
+gate_5b_cold1_margin_p95_1=1
+gate_13a_drift_cold1_1=1
+gate_13b_drift_warm1_1=1
+gate_2b_all_shards_answered_1=1
+gate_7_cold13_p50_le_row_1=1
+gate_8_cold13_p95_le_row_1=1
+gate_6a_cold13_margin_p50_1=1
+gate_6b_cold13_margin_p95_1=1
+gate_9_cold13_to_warm13_window_1=1
+gate_10_marginal_per_shard_window_1=1
+gate_11_fanout_ratio_window_1=1
+gate_12_setup_share_window_1=1
+gate_13a_drift_cold13_1=1
+gate_13b_drift_warm13_1=1
+gate_13c_drift_one_ref_1=1
+gate_14_scan_ratio_window_1=1
+gate_15_search_share_le_1=1
+RAM СВОБОДНО, МБ: 6898
+ДИСК СВОБОДНО, МБ: 20820
+осевших каталогов e0084 в %TEMP%: 0
+### ORACLE s19_find_e2e_price RUN 2 (release, --nocapture, --test-threads=1 — тот же бинарь, воспроизводимость) ### 2026-10-23T12:12:29+03:00
+    Finished `release` profile [optimized] target(s) in 0.61s
+     Running tests\s19_find_e2e_price.rs (target\release\deps\s19_find_e2e_price-252f6977af5719b3.exe)
+
+running 4 tests
+test s19_cold_and_warm_find_fanout1 ... МЕРЕНО cold1_p50_ms=7.977 cold1_p95_ms=8.372 cold1_min_ms=7.596 cold1_max_ms=8.742 cold1_spread_promil=143.6 cold1_k=21 cold1_argmax=19
+МЕРЕНО find1_p50_ms=6.072 find1_p95_ms=6.211 find1_min_ms=5.901 find1_max_ms=6.324 find1_spread_promil=69.7 find1_k=21 find1_argmax=17
+МЕРЕНО new1_p50_ms=1.988 new1_p95_ms=2.111 new1_min_ms=1.604 new1_max_ms=2.566 new1_spread_promil=483.7 new1_k=21 new1_argmax=19
+МЕРЕНО setup1_p50_ms=11.512 setup1_p95_ms=22.445 setup1_min_ms=11.021 setup1_max_ms=22.445 setup1_spread_promil=992.3 setup1_k=9 setup1_argmax=2
+МЕРЕНО phasewarm1_p50_ms=1.309 phasewarm1_p95_ms=2.122 phasewarm1_min_ms=1.272 phasewarm1_max_ms=2.122 phasewarm1_spread_promil=648.8 phasewarm1_k=9 phasewarm1_argmax=2
+МЕРЕНО warm1_p50_ms=0.504 warm1_p95_ms=0.532 warm1_min_ms=0.489 warm1_max_ms=0.637 warm1_spread_promil=293.7 warm1_k=63 warm1_argmax=2
+МЕРЕНО cold1_first_half_p50_ms=7.905 cold1_second_half_p50_ms=8.103 cold1_drift_promil=24.8 warm1_drift_promil=-17.9 setup1_drift_promil=-4.1
+МЕРЕНО provider_seen_min=0 provider_seen_max=0 cold1_to_warm1_x=15.831 setup1_to_cold1_x=1.443 warm1_to_cold1_x=0.063 phasewarm1_to_cold1_x=0.164 new1_share_promil=249.2 rel_spread_cold1=0.1436 rel_spread_warm1=0.2937 rel_spread_setup1=0.9923
+МЕРЕНО cold1_margin_p50_x=187.031 cold1_margin_p95_x=476.800 row_p50_ms=1500 row_p95_ms=4000 margin_vs_spread_x=2 drift_promil_max=200
+МЕРЕНО gate_3_cold1_p50_le_row=1
+МЕРЕНО gate_4_cold1_p95_le_row=1
+МЕРЕНО gate_5a_cold1_margin_p50=1
+МЕРЕНО gate_5b_cold1_margin_p95=1
+МЕРЕНО gate_13a_drift_cold1=1
+МЕРЕНО gate_13b_drift_warm1=1
+МЕРЕНО gate_2a_provider_seen_zero=1
+ok
+test s19_fanout13_find_price ... МЕРЕНО stand_nodes=13 stand_seeds_distinct=13
+МЕРЕНО cold13_p50_ms=56.490 cold13_p95_ms=59.475 cold13_min_ms=52.262 cold13_max_ms=59.475 cold13_spread_promil=127.7 cold13_k=11 cold13_argmax=9
+МЕРЕНО find13_p50_ms=54.874 find13_p95_ms=57.977 find13_min_ms=50.925 find13_max_ms=57.977 find13_spread_promil=128.5 find13_k=11 find13_argmax=9
+МЕРЕНО warm13_p50_ms=5.064 warm13_p95_ms=9.527 warm13_min_ms=4.542 warm13_max_ms=10.106 warm13_spread_promil=1098.9 warm13_k=33 warm13_argmax=25
+МЕРЕНО one13ref_p50_ms=5.971 one13ref_p95_ms=7.412 one13ref_min_ms=5.823 one13ref_max_ms=7.412 one13ref_spread_promil=266.1 one13ref_k=11 one13ref_argmax=0
+МЕРЕНО setup13_p50_ms=45.482 setup13_p95_ms=48.063 setup13_min_ms=40.664 setup13_max_ms=48.063 setup13_spread_promil=162.7 setup13_k=9 setup13_argmax=1
+МЕРЕНО cold13_first_half_p50_ms=56.268 cold13_second_half_p50_ms=57.194 cold13_drift_promil=16.4 warm13_drift_promil=5.2 one13_drift_promil=16.1 covered_shards_min=13 covered_shards_max=13
+МЕРЕНО answers_min=13 answers_max=13 fanout13_to_one_x=9.461 per_shard_marginal_ms=4.210 cold13_to_warm13_x=11.156 setup13_to_cold13_x=0.805 rel_spread_cold13=0.1277 rel_spread_warm13=1.0989 rel_spread_cold1_ref=0.2661 fanout13_p95_is_max=1
+МЕРЕНО cold13_margin_p50_x=25.553 cold13_margin_p95_x=66.255
+МЕРЕНО gate_2b_all_shards_answered=1
+МЕРЕНО gate_7_cold13_p50_le_row=1
+МЕРЕНО gate_8_cold13_p95_le_row=1
+МЕРЕНО gate_6a_cold13_margin_p50=1
+МЕРЕНО gate_6b_cold13_margin_p95=1
+МЕРЕНО gate_9_cold13_to_warm13_window=1
+МЕРЕНО gate_10_marginal_per_shard_window=1
+МЕРЕНО gate_11_fanout_ratio_window=1
+МЕРЕНО gate_12_setup_share_window=1
+МЕРЕНО gate_13a_drift_cold13=1
+МЕРЕНО gate_13b_drift_warm13=1
+МЕРЕНО gate_13c_drift_one_ref=1
+ok
+test s19_scan_share_in_end_to_end_time ... МЕРЕНО scanlight_p50_ms=2.308 scanlight_p95_ms=2.936 scanlight_min_ms=0.732 scanlight_max_ms=2.936 scanlight_spread_promil=955.5 scanlight_k=15 scanlight_argmax=0
+МЕРЕНО scanheavy_p50_ms=4.025 scanheavy_p95_ms=7.488 scanheavy_min_ms=1.713 scanheavy_max_ms=7.488 scanheavy_spread_promil=1434.6 scanheavy_k=15 scanheavy_argmax=0
+МЕРЕНО scan_ratio_x=1.7443 scan_delta_ms=1.718 rel_spread_scanlight=0.9555 rel_spread_scanheavy=1.4346
+МЕРЕНО direct_search_light_p50_us=0.200 direct_search_heavy_p50_us=51.600 direct_search_ratio_x=258.0 heavy_cell=1100 direct_per_record_us=0.04691 direct_light_below_clock_us=1 net_heavy_p50_ms=4.025 search_share=0.01282
+МЕРЕНО gate_14_scan_ratio_window=1
+МЕРЕНО gate_15_search_share_le=1
+ok
+test s19_structural_shape_of_the_stand ... МЕРЕНО nlist=1024 shards=64 clusters_per_shard=16 top_k_max=64 nprobe_default=16 pow_bits_default=20 agent_poll_ms=25.0 agent_call_timeout_ms=40000.0 agent_request_timeout_ms=10000.0 node_poll_ms=5.0 node_request_timeout_ms=5000.0 stand_pow=8 k_cold=21 k_fanout=11 k_phase=9 k_warm=3 k_scan=15 heavy=1100 fanout=13
+МЕРЕНО query_clusters=13 query_shards_distinct=13
+МЕРЕНО per_peer_find_rps=5 per_peer_publish_rps=1 per_peer_publish_burst=20 node_admits_per_s=100 top_k_max_param=64 lease_buckets=6
+МЕРЕНО e2e_struct_ok=1
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.72s
+
+EXIT=0
+### ЧИСЛА ПРОГОНА 2 (воспроизводимость) ### 2026-10-23T12:12:51+03:00
+nlist_2=1024
+shards_2=64
+clusters_per_shard_2=16
+top_k_max_2=64
+nprobe_default_2=16
+pow_bits_default_2=20
+agent_poll_ms_2=25.0
+agent_call_timeout_ms_2=40000.0
+agent_request_timeout_ms_2=10000.0
+node_poll_ms_2=5.0
+node_request_timeout_ms_2=5000.0
+stand_pow_2=8
+k_cold_2=21
+k_fanout_2=11
+k_phase_2=9
+k_warm_2=3
+k_scan_2=15
+heavy_2=1100
+fanout_2=13
+query_clusters_2=13
+query_shards_distinct_2=13
+per_peer_find_rps_2=5
+per_peer_publish_rps_2=1
+per_peer_publish_burst_2=20
+node_admits_per_s_2=100
+top_k_max_param_2=64
+lease_buckets_2=6
+e2e_struct_ok_2=1
+stand_nodes_2=13
+stand_seeds_distinct_2=13
+cold1_p50_ms_2=7.977
+cold1_p95_ms_2=8.372
+cold1_min_ms_2=7.596
+cold1_max_ms_2=8.742
+cold1_spread_promil_2=143.6
+cold1_argmax_2=19
+find1_p50_ms_2=6.072
+new1_p50_ms_2=1.988
+setup1_p50_ms_2=11.512
+phasewarm1_p50_ms_2=1.309
+warm1_p50_ms_2=0.504
+warm1_p95_ms_2=0.532
+cold1_first_half_p50_ms_2=7.905
+cold1_second_half_p50_ms_2=8.103
+cold1_drift_promil_2=24.8
+warm1_drift_promil_2=
+setup1_drift_promil_2=
+provider_seen_min_2=0
+provider_seen_max_2=0
+cold1_to_warm1_x_2=15.831
+setup1_to_cold1_x_2=1.443
+warm1_to_cold1_x_2=0.063
+phasewarm1_to_cold1_x_2=0.164
+new1_share_promil_2=249.2
+rel_spread_cold1_2=0.1436
+rel_spread_warm1_2=0.2937
+rel_spread_setup1_2=0.9923
+cold1_margin_p50_x_2=187.031
+cold1_margin_p95_x_2=476.800
+scanlight_p50_ms_2=2.308
+scanlight_p95_ms_2=2.936
+scanheavy_p50_ms_2=4.025
+scanheavy_p95_ms_2=7.488
+scan_ratio_x_2=1.7443
+scan_delta_ms_2=1.718
+rel_spread_scanlight_2=0.9555
+rel_spread_scanheavy_2=1.4346
+direct_search_light_p50_us_2=0.200
+direct_search_heavy_p50_us_2=51.600
+direct_search_ratio_x_2=258.0
+direct_per_record_us_2=0.04691
+direct_light_below_clock_us_2=1
+net_heavy_p50_ms_2=4.025
+search_share_2=0.01282
+cold13_p50_ms_2=56.490
+cold13_p95_ms_2=59.475
+cold13_min_ms_2=52.262
+cold13_max_ms_2=59.475
+cold13_spread_promil_2=127.7
+cold13_argmax_2=9
+find13_p50_ms_2=54.874
+warm13_p50_ms_2=5.064
+one13ref_p50_ms_2=5.971
+setup13_p50_ms_2=45.482
+cold13_first_half_p50_ms_2=56.268
+cold13_second_half_p50_ms_2=57.194
+cold13_drift_promil_2=16.4
+warm13_drift_promil_2=5.2
+one13_drift_promil_2=16.1
+covered_shards_min_2=13
+covered_shards_max_2=13
+answers_min_2=13
+answers_max_2=13
+fanout13_to_one_x_2=9.461
+per_shard_marginal_ms_2=4.210
+cold13_to_warm13_x_2=11.156
+setup13_to_cold13_x_2=0.805
+rel_spread_cold13_2=0.1277
+rel_spread_warm13_2=1.0989
+rel_spread_cold1_ref_2=0.2661
+cold13_margin_p50_x_2=25.553
+cold13_margin_p95_x_2=66.255
+gate_2a_provider_seen_zero_2=1
+gate_3_cold1_p50_le_row_2=1
+gate_4_cold1_p95_le_row_2=1
+gate_5a_cold1_margin_p50_2=1
+gate_5b_cold1_margin_p95_2=1
+gate_13a_drift_cold1_2=1
+gate_13b_drift_warm1_2=1
+gate_2b_all_shards_answered_2=1
+gate_7_cold13_p50_le_row_2=1
+gate_8_cold13_p95_le_row_2=1
+gate_6a_cold13_margin_p50_2=1
+gate_6b_cold13_margin_p95_2=1
+gate_9_cold13_to_warm13_window_2=1
+gate_10_marginal_per_shard_window_2=1
+gate_11_fanout_ratio_window_2=1
+gate_12_setup_share_window_2=1
+gate_13a_drift_cold13_2=1
+gate_13b_drift_warm13_2=1
+gate_13c_drift_one_ref_2=1
+gate_14_scan_ratio_window_2=1
+gate_15_search_share_le_2=1
+-- расхождение двух release-прогонов одного бинаря, %:
+   cold1_p50_ms: 10.22
+   cold1_p95_ms: 5.79
+   cold13_p50_ms: 0.07
+   cold13_p95_ms: 5.67
+   one13ref_p50_ms: 4.91
+   setup13_p50_ms: 1.41
+   warm13_p50_ms: 0.10
+   fanout13_to_one_x: 4.97
+   per_shard_marginal_ms: 0.69
+   cold13_to_warm13_x: 0.02
+   setup13_to_cold13_x: 1.37
+   cold1_to_warm1_x: 10.98
+   setup1_to_cold1_x: 6.17
+   scanlight_p50_ms: 42.42
+   scanheavy_p50_ms: 23.20
+   scan_ratio_x: 25.00
+   direct_search_heavy_p50_us: 15.55
+   search_share: 35.15
+-- ПРАВИЛО 7 по межпрогонному пределу воспроизводимости (границы строки §19.4):
+   cold1 p50  (граница 1500 мс):  запас=187.041 2x_разброс=0.2044 вердикт=выполнен  [внутрипрогонный разброс оракула: 0.1436]
+   cold1 p95  (граница 4000 мс):  запас=476.783 2x_разброс=0.1158 вердикт=выполнен
+   cold13 p50 (граница 1500 мс):  запас=25.553 2x_разброс=0.0014 вердикт=выполнен  [внутрипрогонный: 0.1277]
+   cold13 p95 (граница 4000 мс):  запас=66.255 2x_разброс=0.1134 вердикт=выполнен
+-- ВЕКТОР ГЕЙТОВ (1 = выполнен), n=1 / n=2:
+   gate_2a_provider_seen_zero: 1 / 1
+   gate_3_cold1_p50_le_row: 1 / 1
+   gate_4_cold1_p95_le_row: 1 / 1
+   gate_5a_cold1_margin_p50: 1 / 1
+   gate_5b_cold1_margin_p95: 1 / 1
+   gate_13a_drift_cold1: 1 / 1
+   gate_13b_drift_warm1: 1 / 1
+   gate_2b_all_shards_answered: 1 / 1
+   gate_7_cold13_p50_le_row: 1 / 1
+   gate_8_cold13_p95_le_row: 1 / 1
+   gate_6a_cold13_margin_p50: 1 / 1
+   gate_6b_cold13_margin_p95: 1 / 1
+   gate_9_cold13_to_warm13_window: 1 / 1
+   gate_10_marginal_per_shard_window: 1 / 1
+   gate_11_fanout_ratio_window: 1 / 1
+   gate_12_setup_share_window: 1 / 1
+   gate_13a_drift_cold13: 1 / 1
+   gate_13b_drift_warm13: 1 / 1
+   gate_13c_drift_one_ref: 1 / 1
+   gate_14_scan_ratio_window: 1 / 1
+   gate_15_search_share_le: 1 / 1
+RAM СВОБОДНО, МБ: 7044
+ДИСК СВОБОДНО, МБ: 20819
+осевших каталогов e0084 в %TEMP%: 0
+sha256 s19_find_e2e_price после прогонов (обязан совпасть с блоком БИНАРЬ): 6579bed9432a4fa463181067207f7f0432d66d29738cb5b68a5d08efb0cbe58b
+RUST_MS_1=13526 RUST_MS_2=13628
+### КОНТРОЛЬ --release -p vecdht-net --lib ### 2026-10-23T12:12:59+03:00
+   Compiling vecdht-net v0.1.0 (C:\Users\Admin\AppData\Local\Temp\vecdht-review\crates\vecdht-net)
+    Finished `release` profile [optimized] target(s) in 16.08s
+     Running unittests src\lib.rs (target\release\deps\vecdht_net-e34bec41eb2ed020.exe)
+
+running 22 tests
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+EXIT=0
+### DEBUG SMOKE s19_find_e2e_price ### 2026-10-23T12:13:16+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running tests\s19_find_e2e_price.rs (target\debug\deps\s19_find_e2e_price-6f804c62f5276aab.exe)
+
+running 4 tests
+test s19_cold_and_warm_find_fanout1 ... МЕРЕНО cold1_p50_ms=264.390 cold1_p95_ms=280.254 cold1_min_ms=249.509 cold1_max_ms=285.720 cold1_spread_promil=137.0 cold1_k=21 cold1_argmax=17
+МЕРЕНО find1_p50_ms=244.165 find1_p95_ms=259.680 find1_min_ms=230.524 find1_max_ms=266.214 find1_spread_promil=146.2 find1_k=21 find1_argmax=17
+МЕРЕНО new1_p50_ms=20.648 new1_p95_ms=21.462 new1_min_ms=18.800 new1_max_ms=21.771 new1_spread_promil=143.9 new1_k=21 new1_argmax=19
+МЕРЕНО setup1_p50_ms=299.787 setup1_p95_ms=309.210 setup1_min_ms=285.383 setup1_max_ms=309.210 setup1_spread_promil=79.5 setup1_k=9 setup1_argmax=0
+МЕРЕНО phasewarm1_p50_ms=99.154 phasewarm1_p95_ms=107.660 phasewarm1_min_ms=95.554 phasewarm1_max_ms=107.660 phasewarm1_spread_promil=122.1 phasewarm1_k=9 phasewarm1_argmax=8
+МЕРЕНО warm1_p50_ms=16.330 warm1_p95_ms=18.185 warm1_min_ms=15.237 warm1_max_ms=19.048 warm1_spread_promil=233.4 warm1_k=63 warm1_argmax=37
+МЕРЕНО cold1_first_half_p50_ms=269.022 cold1_second_half_p50_ms=260.063 cold1_drift_promil=-33.9 warm1_drift_promil=-110.0 setup1_drift_promil=3.1
+МЕРЕНО provider_seen_min=0 provider_seen_max=0 cold1_to_warm1_x=16.190 setup1_to_cold1_x=1.134 warm1_to_cold1_x=0.062 phasewarm1_to_cold1_x=0.375 new1_share_promil=78.1 rel_spread_cold1=0.1370 rel_spread_warm1=0.2334 rel_spread_setup1=0.0795
+МЕРЕНО cold1_margin_p50_x=4.673 cold1_margin_p95_x=13.273 row_p50_ms=1500 row_p95_ms=4000 margin_vs_spread_x=2 drift_promil_max=200
+МЕРЕНО gate_3_cold1_p50_le_row=1
+МЕРЕНО gate_4_cold1_p95_le_row=1
+МЕРЕНО gate_5a_cold1_margin_p50=1
+МЕРЕНО gate_5b_cold1_margin_p95=1
+МЕРЕНО gate_13a_drift_cold1=1
+МЕРЕНО gate_13b_drift_warm1=1
+МЕРЕНО gate_2a_provider_seen_zero=1
+ok
+test s19_fanout13_find_price ... МЕРЕНО stand_nodes=13 stand_seeds_distinct=13
+МЕРЕНО cold13_p50_ms=3273.943 cold13_p95_ms=3432.864 cold13_min_ms=3133.677 cold13_max_ms=3432.864 cold13_spread_promil=91.4 cold13_k=11 cold13_argmax=10
+МЕРЕНО find13_p50_ms=3253.686 find13_p95_ms=3411.538 find13_min_ms=3114.399 find13_max_ms=3411.538 find13_spread_promil=91.3 find13_k=11 find13_argmax=10
+МЕРЕНО warm13_p50_ms=225.995 warm13_p95_ms=256.229 warm13_min_ms=203.081 warm13_max_ms=262.651 warm13_spread_promil=263.6 warm13_k=33 warm13_argmax=22
+МЕРЕНО one13ref_p50_ms=271.756 one13ref_p95_ms=299.761 one13ref_min_ms=252.436 one13ref_max_ms=299.761 one13ref_spread_promil=174.1 one13ref_k=11 one13ref_argmax=0
+МЕРЕНО setup13_p50_ms=2521.678 setup13_p95_ms=3030.465 setup13_min_ms=2098.079 setup13_max_ms=3030.465 setup13_spread_promil=369.7 setup13_k=9 setup13_argmax=1
+МЕРЕНО cold13_first_half_p50_ms=3156.657 cold13_second_half_p50_ms=3351.253 cold13_drift_promil=59.4 warm13_drift_promil=51.7 one13_drift_promil=-44.4 covered_shards_min=13 covered_shards_max=13
+МЕРЕНО answers_min=13 answers_max=13 fanout13_to_one_x=12.047 per_shard_marginal_ms=250.182 cold13_to_warm13_x=14.487 setup13_to_cold13_x=0.770 rel_spread_cold13=0.0914 rel_spread_warm13=0.2636 rel_spread_cold1_ref=0.1741 fanout13_p95_is_max=1
+МЕРЕНО cold13_margin_p50_x=-0.542 cold13_margin_p95_x=0.165
+МЕРЕНО gate_2b_all_shards_answered=1
+МЕРЕНО gate_7_cold13_p50_le_row=0
+МЕРЕНО gate_8_cold13_p95_le_row=1
+МЕРЕНО gate_6a_cold13_margin_p50=0
+МЕРЕНО gate_6b_cold13_margin_p95=0
+МЕРЕНО gate_9_cold13_to_warm13_window=1
+МЕРЕНО gate_10_marginal_per_shard_window=0
+МЕРЕНО gate_11_fanout_ratio_window=1
+МЕРЕНО gate_12_setup_share_window=1
+МЕРЕНО gate_13a_drift_cold13=1
+МЕРЕНО gate_13b_drift_warm13=1
+МЕРЕНО gate_13c_drift_one_ref=1
+ok
+test s19_scan_share_in_end_to_end_time ... МЕРЕНО scanlight_p50_ms=17.777 scanlight_p95_ms=20.167 scanlight_min_ms=17.622 scanlight_max_ms=20.167 scanlight_spread_promil=143.2 scanlight_k=15 scanlight_argmax=5
+МЕРЕНО scanheavy_p50_ms=146.334 scanheavy_p95_ms=148.921 scanheavy_min_ms=144.790 scanheavy_max_ms=148.921 scanheavy_spread_promil=28.2 scanheavy_k=15 scanheavy_argmax=7
+МЕРЕНО scan_ratio_x=8.2317 scan_delta_ms=128.557 rel_spread_scanlight=0.1432 rel_spread_scanheavy=0.0282
+МЕРЕНО direct_search_light_p50_us=13.700 direct_search_heavy_p50_us=13044.800 direct_search_ratio_x=952.2 heavy_cell=1100 direct_per_record_us=11.85891 direct_light_below_clock_us=0 net_heavy_p50_ms=146.334 search_share=0.08914
+МЕРЕНО gate_14_scan_ratio_window=0
+МЕРЕНО gate_15_search_share_le=0
+ok
+test s19_structural_shape_of_the_stand ... МЕРЕНО nlist=1024 shards=64 clusters_per_shard=16 top_k_max=64 nprobe_default=16 pow_bits_default=20 agent_poll_ms=25.0 agent_call_timeout_ms=40000.0 agent_request_timeout_ms=10000.0 node_poll_ms=5.0 node_request_timeout_ms=5000.0 stand_pow=8 k_cold=21 k_fanout=11 k_phase=9 k_warm=3 k_scan=15 heavy=1100 fanout=13
+МЕРЕНО query_clusters=13 query_shards_distinct=13
+МЕРЕНО per_peer_find_rps=5 per_peer_publish_rps=1 per_peer_publish_burst=20 node_admits_per_s=100 top_k_max_param=64 lease_buckets=6
+МЕРЕНО e2e_struct_ok=1
+ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 102.14s
+
+EXIT=0
+### DEBUG ЧИСЛА (профиль-зависимая половина) ### 2026-10-23T12:15:07+03:00
+cold1_p50_ms debug:  264.390
+cold13_p50_ms debug: 3273.943
+gate-вектор debug (печать, не assert — правило 6):
+   gate_2a_provider_seen_zero=1
+   gate_3_cold1_p50_le_row=1
+   gate_4_cold1_p95_le_row=1
+   gate_5a_cold1_margin_p50=1
+   gate_5b_cold1_margin_p95=1
+   gate_13a_drift_cold1=1
+   gate_13b_drift_warm1=1
+   gate_2b_all_shards_answered=1
+   gate_7_cold13_p50_le_row=0
+   gate_8_cold13_p95_le_row=1
+   gate_6a_cold13_margin_p50=0
+   gate_6b_cold13_margin_p95=0
+   gate_9_cold13_to_warm13_window=1
+   gate_10_marginal_per_shard_window=0
+   gate_11_fanout_ratio_window=1
+   gate_12_setup_share_window=1
+   gate_13a_drift_cold13=1
+   gate_13b_drift_warm13=1
+   gate_13c_drift_one_ref=1
+   gate_14_scan_ratio_window=0
+   gate_15_search_share_le=0
+-- КРОСС-ПРОФИЛЬ cold1 debug/release (репорт: окно не замораживалось):
+   debug=264.390 release=7.977 отношение=33.1
+-- КРОСС-ПРОФИЛЬ cold13 debug/release (репорт):
+   debug=3273.943 release=56.490 отношение=58.0
+-- структурные гейты в debug обязаны быть 1 (профиль не влияет):
+   gate_2a_provider_seen_zero debug=1
+   gate_2b_all_shards_answered debug=1
+### ИТОГ ### 2026-10-23T12:15:09+03:00
+HEAD после прогонов: 6141f03
+RAM СВОБОДНО, МБ: 6457
+ДИСК СВОБОДНО, МБ: 20816
+target/, МБ: 8593
+осевших каталогов e0084 в %TEMP% (порог (16) про чистоту требует 0): 0
+лог: lab/logs/e0084-all.log (935 строк)
+HELPER_EXIT=0 (худший из кодов шагов; 0 = все шаги отработали)
+
+########## E-0084 · ДИАГНОЗ-1 · 2026-10-23T12:35:00+03:00 · HEAD 6141f03 · правка helper'а, пороги (0)…(18) не двигались ##########
+
+Симптом. В блоках «### ЧИСЛА ПРОГОНА 1 ###» (строка 444) и «### ЧИСЛА ПРОГОНА 2 ###» (строка 631)
+шесть ключей вытаскились пустыми:
+  cold1_drift_promil_1=  warm1_drift_promil_1=  setup1_drift_promil_1=
+  cold13_drift_promil_1= warm13_drift_promil_1= one13_drift_promil_1=
+из шести значений пустыми оказались только отрицательные (в n=2 пустели те же три ключа, у которых
+значение было со знаком минус: warm1_drift_promil_2=, setup1_drift_promil_2=; положительные
+24.8, 16.4, 5.2, 16.1 helper вытащил).
+
+Причина — инструмент, не замер. Экстрактор helper'а был `grep -oE "(^|[[:space:]])$1=[0-9.]*"`:
+класс символов не включал минус, поэтому после `=` совпадало нуль символов и `cut -d= -f2`
+возвращал пустую строку. `*_drift_promil` — знакоая величина (медиана второй половины минус
+медиана первой; дрифт вниз = ускорение), то есть половина её наблюданий печатается с минусом.
+Тот же класс ошибки, что ДИАГНОЗ-2 в `E-0083` (экстрактор терял значения по формату, а не по
+смыслу), только здесь потеря касалась знака, а не границы слова.
+
+Что НЕ пострадало (важно для журнала). Гейты (13a)/(13b)/(13c) исполняет сам оракул, а не helper:
+в обоих release-прогонах напечатаны `gate_13a_drift_cold1=1`, `gate_13b_drift_warm1=1`,
+`gate_13c_drift_one_ref=1`, `gate_13a_drift_cold13=1`, `gate_13b_drift_warm13=1`,
+`gate_13c_drift_one_ref_…=1` (строки 553…558 и 740…745), то есть проверка «|дрифт| ≤ 200 ‰»
+выполнялась над настоящими числами. Потеряна была только транскрипция числа в сводку helper'а.
+Вердикты правила 7 (порог (18)) опирались на `cold1_p50_ms`, `cold1_p95_ms`, `cold13_p50_ms`,
+`cold13_p95_ms` — величины положительные, ониextractировались корректно, поэтому «запас против
+межпрогонного разброса» в n=1/n=2 посчитан по полным данным.
+
+Транскрипция вручную из stdout прогонов (строки 395, 412 — RUN 1; строки 582, 599 — RUN 2),
+граница DRIFT_PROMIL_MAX = 200,0 ‰ заморожена в оракуле и не менялась:
+
+  ключ                       n=1 (RUN 1)   n=2 (RUN 2)   вердикт против 200 ‰
+  cold1_drift_promil          −11,4          +24,8        выполнен / выполнен
+  warm1_drift_promil          −18,3          −17,9        выполнен / выполнен
+  setup1_drift_promil         −35,3           −4,1        выполнен / выполнен
+  cold13_drift_promil         −61,8          +16,4        выполнен / выполнен
+  warm13_drift_promil         −96,4           +5,2        выполнен / выполнен
+  one13_drift_promil          −34,7          +16,1        выполнен / выполнен
+
+Самый широкий наблюдённый дрифт — 96,4 ‰ (0,96 %), в 2,07 раза меньше границы. Знак дрифта
+меняется между прогонами (−61,8 против +16,4 при cold13_p50, воспроизведённом до 0,07 %), поэтому
+гейт (13) как двусторонний интервал по |значению| и выбран: односторонний «замедление запрещено»
+гейт на этом стенде ловил бы только шум стенда.
+
+Правка (только helper, `lab/e0084-run.sh`; оракул, продуктовый код, спека и зависимости не тронуты):
+1. `m()` → `grep -oE "(^|[[:space:]])$1=-?[0-9.]*"`;
+2. `check_nums()` срезает ведущий минус перед проверкой класса (`w=${v#-}`), иначе самопроверка
+   экстрактора сама стала бы ложным «ВНИМАНИЕ» на законном отрицательном значении;
+3. `margin_of()` перестал отвергать строку с минусом (`/[^0-9.-]/`);
+4. добавлен отчёт `drift_verdict()` — шесть дрифтов печатаются вместе с вердиктом против той же
+   замороженной границы 200 ‰, плюс `check_nums` на четырёх из них. Это отчёт, новый порог не введён.
+
+Самопроверка правки до перепрогона: `bash -n lab/e0084-run.sh` — синтаксис чист; новый `m()`,
+применённый к уже написанному логу, возвращает по шести ключам значения последнего блока
+(debug-прогон: −33,9 / −110,0 / 3,1 / 59,4 / 51,7 / −44,4), а ограниченный строками 395…412 —
+−11,4 / −18,3 / −35,3 / −61,8 / −96,4 / −34,7, то есть ровно то, что было потеряно. Бинарь оракула
+от правки helper'а не менялся: sha256 `6579bed9432a4fa463181067207f7f0432d66d29738cb5b68a5d08efb0cbe58b`
+записан и в калибровочном блоке (строка 382), и после прогонов (строка 804).
+
+Следствие для метода: перепрогон helper'а (n=2 вызовов, внутри него свои RUN 1/RUN 2) обязателен,
+чтобы сводные блоки лога содержали полные числа; он не отменяет и не переписывает n=1 — оба блока
+остаются в журнале, вердикты порогов от транскрипции не зависят.
+
+### Поправка (к ДИАГНОЗ-1, 2026-10-23T12:36:00+03:00) — три ссылки и две опечатки ###
+
+В только что написанном блоке ДИАГНОЗ-1 строки 553…558 и 740…745 названы как печать гейтов (13),
+но это сводные строки helper'а (`gate_13a_drift_cold1_1=1` — ключ с суффиксом прогона). Печать
+самого оракула с `МЕРЕНО gate_13…` находится в блоках прогонов: RUN 1 — строки 402, 403 и 424…426;
+RUN 2 — строки 589, 590 и 611…613. Смысл абзаца от этого не меняется: и в сводке helper'а, и
+в stdout оракула все шесть гейтов (13) равны 1 в обоих release-прогонах. Имя третьего гейта
+в RUN-блоках — `gate_13c_drift_one_ref` (в сводке с суффиксом `_1` / `_2`), без «…» в настоящем
+имени. Опечатки того же блока: «extractировались» надо читать «экстрагировались», «знакоая» —
+«со знаком». Пороги и числа не тронуты.

@@ -96,7 +96,14 @@ free_disk_mb() {
 # Экстрактор по подписям печати: ключ ascii, за ним `=число`. Граница перед ключом обязательна:
 # без неё «cold1_p50_ms» матчился бы внутри чужого имени и `tail -1` взял бы не то число
 # (тот же класс ошибки, что ДИАГНОЗ-4 в `E-0082`).
-m() { grep -oE "(^|[[:space:]])$1=[0-9.]*" "$LOG" | tail -1 | cut -d= -f2; }
+#
+# ДИАГНОЗ-1 (2026-10-23): теперь допустим минус. Оракул печатает `*_drift_promil` — медиана
+# второй половины прогона минус медиана первой, величина со знаком (дрифт вниз = ускорение). Со
+# старым классом `[0-9.]*` после `=` не находилось ничего, и `cut` возвращал пустую строку.
+# Гейты (13a)/(13b)/(13c) при этом исполнялись самим оракулом (`gate_13a_drift_cold1=1` и
+# остальные напечатаны в обоих прогонах), то есть потеряна была только транскрипция числа в лог
+# helper'ом, а не проверка. Пороги (0)…(18) не двигались.
+m() { grep -oE "(^|[[:space:]])$1=-?[0-9.]*" "$LOG" | tail -1 | cut -d= -f2; }
 
 pct_diff() { # $1=a $2=b → |a-b|/max ×100
   awk -v a="$1" -v b="$2" 'BEGIN { if (a=="" || b=="") { print "нет чисел"; exit } m = (a>b)?a:b; if (m==0) { print "0,00"; exit } printf "%.2f", (a>b?a-b:b-a)*100/m }'
@@ -111,14 +118,21 @@ rule7() { # $1=запас_долями $2=разброс_долями → вер
 }
 
 margin_of() { # $1=число $2=граница → (граница/число − 1) для гейтов «меньше границы»
-  awk -v p="$1" -v lim="$2" 'BEGIN { if (p=="" || p ~ /[^0-9.]/) { print ""; exit } printf "%.3f", lim/p-1 }'
+  awk -v p="$1" -v lim="$2" 'BEGIN { if (p=="" || p ~ /[^0-9.-]/) { print ""; exit } printf "%.3f", lim/p-1 }'
 }
 
-check_nums() { # самопроверка экстракторов (ДИАГНОЗ-2): каждый аргумент вида ключ=число
-  local pair v
+drift_verdict() { # $1=дрейт в промиле (знаковая величина) → вердикт против замороженной границы 200 ‰
+  awk -v d="$1" 'BEGIN { if (d=="" || d ~ /[^0-9.-]/) { print "нет числа"; exit }
+    x = (d+0 < 0) ? -(d+0) : d+0
+    printf "|%s| = %.1f ‰ вердикт=%s", d, x, (x <= 200.0 ? "выполнен" : "НЕ ВЫПОЛНЕН") }'
+}
+
+check_nums() { # самопроверка экстракторов (ДИАГНОЗ-2; ДИАГНОЗ-1 здесь: минус разрешён)
+  local pair v w
   for pair in "$@"; do
     v=${pair#*=}
-    case "$v" in
+    w=${v#-}
+    case "$w" in
       ''|*[!0-9.]*) echo "ВНИМАНИЕ: экстрактор «${pair%%=*}» вернул не число («$v») — единицы helper'а сверять до пре-регистрации";;
     esac
   done
@@ -240,6 +254,15 @@ C13_95_1=$(get cold13_p95_ms_1 "$N1_FILE"); C13_95_2=$(get cold13_p95_ms_2 "$N2_
   echo "   cold1 p95  (граница 4000 мс):  $(rule7 "$(margin_of "$C1_95_2" 4000)" "$(rel_diff "$C1_95_1" "$C1_95_2")")"
   echo "   cold13 p50 (граница 1500 мс):  $(rule7 "$(margin_of "$C13_50_2" 1500)" "$(rel_diff "$C13_50_1" "$C13_50_2")")  [внутрипрогонный: $(get rel_spread_cold13_2 "$N2_FILE")]"
   echo "   cold13 p95 (граница 4000 мс):  $(rule7 "$(margin_of "$C13_95_2" 4000)" "$(rel_diff "$C13_95_1" "$C13_95_2")")"
+  echo "-- ДРИФТ ПОЛОВИН (гейт (13), граница 200 ‰ заморожена; ДИАГНОЗ-1: числа со знаком теперь транскрибируются, раньше helper вытаскивал по этим ключам пустоту):"
+  check_nums "cold1_drift_promil=$(get cold1_drift_promil_2 "$N2_FILE")" \
+             "warm1_drift_promil=$(get warm1_drift_promil_2 "$N2_FILE")" \
+             "cold13_drift_promil=$(get cold13_drift_promil_2 "$N2_FILE")" \
+             "one13_drift_promil=$(get one13_drift_promil_2 "$N2_FILE")"
+  for k in cold1_drift_promil warm1_drift_promil setup1_drift_promil \
+           cold13_drift_promil warm13_drift_promil one13_drift_promil; do
+    echo "   $k: n=1 $(drift_verdict "$(get "${k}_1" "$N1_FILE")"), n=2 $(drift_verdict "$(get "${k}_2" "$N2_FILE")")"
+  done
   echo "-- ВЕКТОР ГЕЙТОВ (1 = выполнен), n=1 / n=2:"
   for k in $GATES; do
     echo "   gate_$k: $(get "gate_${k}_1" "$N1_FILE") / $(get "gate_${k}_2" "$N2_FILE")"
