@@ -249,7 +249,7 @@ fn denylist_refuses_at_the_bound_and_keeps_every_entry() {
     let mut bad: Vec<String> = Vec::new();
 
     // (6) предел в памяти без файла: 4096 внесений приняты, 4097-е отвергнуто, список не вырос
-    // и ни один из первых ключей не вытеснен — отказ вместо вытеснения (`L-0008`,Lean-модель).
+    // и ни один из первых ключей не вытеснен — отказ вместо вытеснения (`L-0008`, модель Lean).
     let mut a = Admission::new(&params());
     let mut g6_accepted = 0usize;
     for i in 0..MAX_DENYLIST {
@@ -258,7 +258,11 @@ fn denylist_refuses_at_the_bound_and_keeps_every_entry() {
         }
     }
     let g6_first_before = a.is_denied(&deny_key(0));
-    let g6_refused = a.deny(deny_key(MAX_DENYLIST));
+    // Печатный ключ `g6_refused` заморожен в таблице ожиданий helper'а и означает «4097-е внесение
+    // ПРОШЛО» (1 = предела нет, 0 = отказ). Чтение наоборот даёт ровно противоположный вердикт,
+    // поэтому локальная переменная названа честно, а ключ не переименован: после пре-регистрации
+    // ожидания не двигают (AGENTS.md), а записывают как есть.
+    let g6_extra_accepted = a.deny(deny_key(MAX_DENYLIST));
     let g6_len = a.denylist_len();
     let mut g6_first_kept = 0usize;
     for i in 0..MAX_DENYLIST {
@@ -269,9 +273,9 @@ fn denylist_refuses_at_the_bound_and_keeps_every_entry() {
     eprintln!(
         "DENY_G6: g6_accepted={g6_accepted} g6_refused={} g6_len={g6_len} \
          g6_first_before={g6_first_before} g6_first_kept={g6_first_kept}",
-        if g6_refused { 1 } else { 0 }
+        if g6_extra_accepted { 1 } else { 0 }
     );
-    if g6_accepted != MAX_DENYLIST || g6_refused || g6_len != MAX_DENYLIST || g6_first_kept != MAX_DENYLIST {
+    if g6_accepted != MAX_DENYLIST || g6_extra_accepted || g6_len != MAX_DENYLIST || g6_first_kept != MAX_DENYLIST {
         bad.push("(6) не выполнен: предел не отказывает или список потерял внесённое".to_string());
     }
     // Отзыв при полном списке освобождает место — заморозка снимается только действием

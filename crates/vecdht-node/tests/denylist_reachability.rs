@@ -1,10 +1,20 @@
 //! Оракул H-0042/E-0042: подотчётность через denylist (§11.4 (ii)) на живом узле.
 //!
-//! «До» перезагрузки внесённый ключ отвечает на проводе `DENIED` и виден в списке; «после»
-//! повторного открытия того же каталога цепочка членства восстановлена (`epoch()==Some(1)`),
-//! но список пуст и счётчик отказа обнулён — denylist живёт только в RAM. Порог (3) сознательно
-//! слабее ожидания: код после перезагрузки обязан быть не `DENIED` (фактический печатается;
-//! по порядку проверок `handle_publish` это `NOT_OWNER`).
+//! «До» перезагрузки внесённый ключ отвечает на проводе `DENIED` и виден в списке. Ветку «после»
+//! этот оракул замерл дырой: цепочка членства восстанавливалась с диска (`epoch()==Some(1)`), а
+//! список был пуст. Дыру закрыл `E-0092` (файл `denylist.bin`, `ADR-0047`), и блок ниже
+//! переписан на закрытое состояние — по тому же правилу, что `E-0087` применил к оракулу
+//! авторизации gossip: оракул дыры не имеет права врать после фикса, иначе зелёный воркспейс
+//! означает «механизм сломан», а тест падает ровно тогда, когда переживаемость исчезает.
+//!
+//! Имя таргета до `E-0092` было `denylist_is_unreachable_in_and_vanishes_on_restart` — старые
+//! логи (`lab/logs/e0042-*.log`, снимок PRE_FIX `E-0092`) cite именно его; оно сохранено здесь
+//! как ссылка, чтобы история замеров осталась читаемой.
+//!
+//! Код на проводе после рестарта по-прежнему не `DENIED`, и это не дыра denylist'а:
+//! `open_with_admission` поднимает цепочку членства, но не `lease`, поэтому кадр отбивается как
+//! `EPOCH_STALE` раньше admission'а — для любого ключа. Отдельный неизмеренный ранее факт,
+//! названный в карточке `H-0092` и перенесённый в `OPEN-QUESTIONS`.
 
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, testing, Params, ShardNode};
@@ -61,7 +71,7 @@ fn error_to(replies: &[vecdht_node::Envelope], agent: [u8; 32]) -> Option<Protoc
 }
 
 #[test]
-fn denylist_is_unreachable_in_and_vanishes_on_restart() {
+fn denylist_is_reachable_and_survives_restart() {
     let (mut n, d) = primary_on("deny-restart");
     let bad = testing::identity(85);
     let me = bad.pubkey();
@@ -84,7 +94,8 @@ fn denylist_is_unreachable_in_and_vanishes_on_restart() {
     };
     assert_eq!(after_hit, (1, true, 1), "отказ учтён в denied_by_denylist");
 
-    // Порог (2): «после» открытия того же каталога — цепочка с диска, denylist из воздуха.
+    // Порог (2) после `E-0092`: «после» открытия того же каталога — и цепочка с диска, и список
+    // с диска. Именно этот блок был замером дыры; теперь он регрессия переживаемости.
     drop(n);
     let seed = {
         let order = candidates::ordered(1, SHARD, &testing::holders(&SEEDS));
@@ -96,12 +107,18 @@ fn denylist_is_unreachable_in_and_vanishes_on_restart() {
     let mut n2 = testing::node(&d, SHARD, seed, params(), &SEEDS);
     assert_eq!(n2.epoch(), Some(1), "фальсификатор (д): состояние узла восстановлено с диска");
     let a2 = n2.admission.borrow();
-    assert_eq!(a2.denylist_len(), 0, "фальсификатор (б): запрет пережил перезагрузку");
-    assert!(!a2.is_denied(&me), "внесённый «до» ключ снова свободен");
-    assert_eq!(a2.stats.denied_by_denylist, 0);
+    assert_eq!(a2.denylist_len(), 1, "порог (2) `E-0092`: внесённый «до» запрет пережил рестарт");
+    assert!(a2.is_denied(&me), "внесённый «до» ключ по-прежнему запрещён");
+    assert_eq!(
+        a2.stats.denied_by_denylist, 0,
+        "счётчик отказов процесса начинается с нуля: это счётчик пути, а не состояние списка"
+    );
     drop(a2);
 
-    // Порог (3): тот же кадр после перезагрузки — код обязан быть не DENIED; печатаем факт.
+    // Порог (3): код на проводе после рестарта — факт, а не предсказание denylist'а. Узел без
+    // `lease` отвечает `EPOCH_STALE` любому ключу (см. документацию модуля), поэтому проверка
+    // здесь одна: запрет не должен «протечь» обратно в ноль, а решение списка мерится гейтом (4)
+    // оракула `denylist_durable_after_restart.rs`.
     let replies = n2
         .on_frame(me, &publish_frame(85), testing::clock(1))
         .expect("publish после перезагрузки");
@@ -110,8 +127,8 @@ fn denylist_is_unreachable_in_and_vanishes_on_restart() {
         assert_eq!(replies.len(), 0, "без Error и без конвертов быть не может");
         "(нет Error)".to_string()
     });
-    eprintln!("## порог (3): код после перезагрузки = {code} (ожидание по порядку проверок: NOT_OWNER) ##");
-    assert_ne!(code, err_code::DENIED, "фальсификатор (в): запрет всё ещё на проводе");
+    eprintln!("## порог (3): код после перезагрузки = {code} (узел без lease: EPOCH_STALE) ##");
+    assert_ne!(code, err_code::DENIED, "на проводе отказа пока нет — дыра lease'а, не списка");
 
     remove(&d);
 }

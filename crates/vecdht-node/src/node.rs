@@ -179,6 +179,17 @@ impl ShardNode {
         admission: SharedAdmission,
     ) -> Result<Self, NodeError> {
         let store = ShardStore::open(dir, shard)?;
+        // Дurable-форма запрета (§11.4, ii, `ADR-0047`): список поднимается с диска до первого
+        // принятого кадра, а нечитаемый файл — отказ открыть узел, а не «пустой список».
+        // Порядок здесь важен: `load_chain` ниже читает цепочку, и узел, открывшийся с
+        // подозрительным файлом запрета, не должен успеть ничего обслужить.
+        admission
+            .borrow_mut()
+            .attach_store(dir)
+            .map_err(|e| NodeError::Io {
+                ctx: "denylist load",
+                detail: e.to_string(),
+            })?;
         let rendezvous_ttl = params.rendezvous_ttl;
         let chain = Chain { shard, params, authorities };
         let last_mark_applied = store.applied_seq;

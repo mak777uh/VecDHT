@@ -157,6 +157,13 @@ pub struct Stats {
     pub publishes_allowed: u64,
     pub finds_allowed: u64,
     pub denied_by_denylist: u64,
+    /// Внесений, отвергнутых пределом списка (§11.4, ii): оператор хотел наложить запрет, а
+    /// список полон и вытеснять нечего. Отказ — политика, а не авария: `H-0092` и модель Lean
+    /// перебором оставили ровно её (вытеснение живого запрета открывает дыру дешевле рестарта).
+    pub denylist_refused_at_bound: u64,
+    /// Попыток записи `denylist.bin`, закончившихся ошибкой ФС. Запрет при этом НЕ наложен:
+    /// держать его только в RAM значило бы оставить ровно ту дыру, которую цикл закрывает.
+    pub denylist_save_errors: u64,
     pub rejected_publish_quota: u64,
     pub rejected_find_quota: u64,
     pub rejected_node_busy: u64,
@@ -267,6 +274,12 @@ pub struct Admission {
     per_peer: BTreeMap<Addr, Peer>,
     node: Bucket,
     denylist: BTreeSet<Addr>,
+    /// Предел списка (§11.4, ii). Число из `ADR-0047`; политика при упоре — отказ внесению
+    /// (`denylist`), а не вытеснение уже внесённого запрета.
+    denylist_limit: usize,
+    /// Каталог шарда, в который пишется `denylist.bin`. `None` — список живёт только в RAM
+    /// (юнит-тесты, процесс без диска); узел задаёт его при `open`.
+    denylist_dir: Option<std::path::PathBuf>,
     peer_limit: usize,
     prune_every: usize,
     since_prune: usize,
@@ -288,6 +301,8 @@ impl Admission {
             // молчание» и есть смысл посекундного лимита, а не накопленное право на взрыв.
             node: Bucket::new(params.node_admits_per_s, params.node_admits_per_s),
             denylist: BTreeSet::new(),
+            denylist_limit: crate::denylist::MAX_DENYLIST,
+            denylist_dir: None,
             peer_limit: peer_limit.max(1),
             prune_every: prune_every.max(1),
             since_prune: 0,
@@ -306,18 +321,106 @@ impl Admission {
     }
 
     /// §11.4, ii: запрет держит ключ, а не состав, поэтому смену эпизоды он переживает.
-    /// `false` — ключ уже был в списке.
+    /// С 2026-10-23 он переживает и перезапуск: внесение пишется в `denylist.bin` сразу, а при
+    /// упоре в предел **отказывается** (`false`), не вытесняя ни одного уже внесённого ключа.
+    ///
+    /// `false` означает «запрета нет», а случаев три: ключ уже внесён (идемпотентность), список
+    /// полон (`denylist_refused_at_bound`), или запись на диск не удалась (`denylist_save_errors`)
+    /// — в последнем случае вставленный ключ откачен обратно, потому что запрет, исчезающий при
+    /// рестарте, это ровно та дыра, которую этот API обязан закрывать.
     pub fn deny(&mut self, key: Addr) -> bool {
-        self.denylist.insert(key)
+        if self.denylist.contains(&key) {
+            return false;
+        }
+        if self.denylist.len() >= self.denylist_limit {
+            self.stats.denylist_refused_at_bound += 1;
+            return false;
+        }
+        self.denylist.insert(key);
+        if let Err(_e) = self.persist_denylist() {
+            self.denylist.remove(&key);
+            self.stats.denylist_save_errors += 1;
+            return false;
+        }
+        true
     }
 
+    /// Снять запрет. Тоже durable: снятие, переживающее только RAM, вернулось бы на следующий
+    /// рестарт вместе с файлом. Если запись не удалась, запрет остаётся наложенным (файл ведь
+    /// не изменился) и вызывающий получает `false`.
     pub fn undeny(&mut self, key: &Addr) -> bool {
-        self.denylist.remove(key)
+        if !self.denylist.remove(key) {
+            return false;
+        }
+        if let Err(_e) = self.persist_denylist() {
+            self.denylist.insert(*key);
+            self.stats.denylist_save_errors += 1;
+            return false;
+        }
+        true
     }
 
     #[inline]
     pub fn is_denied(&self, key: &Addr) -> bool {
         self.denylist.contains(key)
+    }
+
+    /// Предел списка, действующий в этом admission'е.
+    #[inline]
+    pub fn denylist_limit(&self) -> usize {
+        self.denylist_limit
+    }
+
+    /// Тот же список с другим пределом — для тестов и для встраивателя, у которого своё
+    /// представление о запасе до заморозки. Число меньше 1 бессмысленно, поэтому `max(1)`.
+    #[must_use]
+    pub fn with_denylist_limit(mut self, limit: usize) -> Self {
+        self.denylist_limit = limit.max(1);
+        self
+    }
+
+    /// Привязать каталог шарда: прочитать `denylist.bin` и включить запись при каждом изменении.
+    ///
+    /// Вызывается из `ShardNode::open_with_admission`, то есть **до** того, как узел вообще
+    /// начнёт принимать кадры. Нечитаемый файл — ошибка открытия узла, а не «пустой список»:
+    /// `L-0007` выбирает на битой базе молчаливое снятие всех запретов, и для нас это ровно та
+    /// дыра, которую закрыли (`E-0042` измерил снятие рестартом, а этот путь измеряет снятие
+    /// порчей файла).
+    ///
+    /// Загрузка никогда ничего не вытесняет (`load_never_evicts` в модели Lean): если файл принёс
+    /// больше предела — например, предел понизили в новой сборке, — внесённое сохраняется целиком,
+    /// а новые внесения до `undeny` отказываются. Молча обрезать список означало бы снять чужие
+    /// запреты сменой версии.
+    ///
+    /// Для процесса с несколькими шардами (`§11.3.4`: узел — процесс, а не шард) привязка
+    /// идемпотентна по тому же каталогу и сохраняет первый каталог при другом: список делится на
+    /// процесс, а каталог у процесса один, и второй `open` не обязан ничего перетирать.
+    pub fn attach_store(&mut self, dir: &std::path::Path) -> Result<(), crate::denylist::DenylistError> {
+        if self.denylist_dir.is_some() {
+            // Уже привязан (процесс открыл второй шард тем же общим admission'ом): список
+            // делится на процесс, поэтому ничего не переносим и не перечитываем.
+            return Ok(());
+        }
+        if let Some(loaded) = crate::denylist::load(dir)? {
+            let before = self.denylist.len();
+            self.denylist.extend(loaded);
+            // RAM уже мог содержать запреты, наложенные до открытия шарда: union обязан стать
+            // durable, иначе он исчезнет при первом же рестарте.
+            if self.denylist.len() != before {
+                crate::denylist::save(dir, &self.denylist)?;
+            }
+        }
+        self.denylist_dir = Some(dir.to_path_buf());
+        Ok(())
+    }
+
+    /// Записать текущий список, если каталог привязан. Без привязки — успешное ничего: та же
+    /// семантика, что у юнит-тестов политики, где диск не участвует.
+    fn persist_denylist(&self) -> Result<(), crate::denylist::DenylistError> {
+        match &self.denylist_dir {
+            Some(dir) => crate::denylist::save(dir, &self.denylist),
+            None => Ok(()),
+        }
     }
 
     /// Квота publish (§11.3.1) вместе с denylist'ом (§11.4, ii).
@@ -1054,4 +1157,106 @@ mod tests {
         assert_eq!(e.stale_dropped, 1);
     }
 
+    // --- переживаемость и предел denylist'а (`H-0092`, `ADR-0047`) -------------------------------
+
+    /// Каталог, снимаемый при выходе из области видимости: тест политики падает на assert'е, и
+    /// ручное `remove` в последней строке оставило бы осевший каталог (`E-0085` ДИАГНОЗ-2).
+    struct D(std::path::PathBuf);
+
+    impl Drop for D {
+        fn drop(&mut self) {
+            vecdht_index::testing::remove(&self.0);
+        }
+    }
+
+    fn tmp(tag: &str) -> D {
+        D(vecdht_index::testing::dir(tag))
+    }
+
+    #[test]
+    fn a_denied_key_comes_back_from_the_directory() {
+        let d = tmp("deny-attach");
+        let mut a = Admission::new(&params());
+        a.attach_store(&d.0).expect("первое открытие: файла нет");
+        for i in [1u8, 2, 3] {
+            assert!(a.deny(key(i)), "внесение {i}");
+        }
+        // Цена переживаемости измеряется в байтах, а не «есть ли файл»: 18 + 32·3.
+        assert_eq!(
+            std::fs::metadata(crate::denylist::path(&d.0)).unwrap().len(),
+            114,
+            "ровно заголовок и три ключа"
+        );
+        let mut b = Admission::new(&params());
+        b.attach_store(&d.0).expect("повторное открытие того же каталога");
+        assert_eq!(b.denylist_len(), 3, "список поднялся с диска");
+        assert!(b.is_denied(&key(2)));
+        assert_eq!(b.check_publish(&key(2), &key(2), 0), Verdict::Denied);
+        assert_eq!(b.check_publish(&key(9), &key(9), 0), Verdict::Allow, "чистый ключ чист");
+    }
+
+    #[test]
+    fn an_unreadable_denylist_refuses_the_node_instead_of_emptying_it() {
+        let d = tmp("deny-corrupt");
+        let mut seed = Admission::new(&params());
+        seed.attach_store(&d.0).expect("чистый каталог");
+        assert!(seed.deny(key(1)));
+        assert!(seed.deny(key(2)));
+        let p = crate::denylist::path(&d.0);
+        let good = std::fs::read(&p).expect("файл записан");
+        // Дыра `E-0042` снимала запреты рестартом; этот путь снимал бы их порчей двух байт.
+        std::fs::write(&p, &good[..good.len() - 6]).expect("обрезанный файл");
+        let mut b = Admission::new(&params());
+        let e = b.attach_store(&d.0).expect_err("обрезанный список нельзя открыть молча");
+        assert!(matches!(e, crate::denylist::DenylistError::Corrupt(_)), "{e}");
+        assert_eq!(b.denylist_len(), 0, "на отказе RAM-состояние не изменилось");
+    }
+
+    #[test]
+    fn at_the_bound_the_list_refuses_and_freezes_instead_of_evicting() {
+        // Те же две теоремы модели Lean (`frozen_at_cap`, `undeny_makes_room`), что выбранная
+        // политика, только на реальном пределе кода — гейт (6) оракула с числом 4096.
+        let mut a = Admission::new(&params()).with_denylist_limit(3);
+        for i in [1u8, 2, 3] {
+            assert!(a.deny(key(i)));
+        }
+        assert!(!a.deny(key(4)), "полный список отказывает новому внесению");
+        assert_eq!(a.denylist_len(), 3, "отказ не изменил множество");
+        for i in [1u8, 2, 3] {
+            assert!(a.is_denied(&key(i)), "ни один внесённый запрет не исчез");
+        }
+        assert_eq!(a.stats.denylist_refused_at_bound, 1);
+        assert!(!a.deny(key(1)), "повтор того же ключа — идемпотентный отказ");
+        assert!(a.undeny(&key(2)), "снятие работает при полном списке");
+        assert!(a.deny(key(4)), "снятие вернуло место");
+        assert_eq!(a.denylist_len(), 3);
+    }
+
+    #[test]
+    fn loading_a_file_larger_than_the_bound_keeps_every_entry() {
+        let d = tmp("deny-over-bound");
+        let written: std::collections::BTreeSet<Addr> = [1u8, 2, 3, 4, 5].map(key).into_iter().collect();
+        crate::denylist::save(&d.0, &written).expect("файл на пять ключей");
+        let mut a = Admission::new(&params()).with_denylist_limit(2);
+        a.attach_store(&d.0).expect("файл читается");
+        assert_eq!(a.denylist_len(), 5, "загрузка ничего не вытесняет");
+        assert!(!a.deny(key(9)), "сверх предела не входит");
+        assert_eq!(a.denylist_len(), 5, "и не счищается");
+        // Файл остаётся файлом: предел — политика новых внесений, а не причина портить запись.
+        assert_eq!(std::fs::metadata(crate::denylist::path(&d.0)).unwrap().len(), 18 + 32 * 5);
+    }
+
+    #[test]
+    fn a_ban_that_cannot_be_written_is_not_applied() {
+        let d = tmp("deny-io-fail");
+        let mut a = Admission::new(&params());
+        a.attach_store(&d.0).expect("привязка к существующему каталогу");
+        // Каталог исчезает после привязки: путь, на котором «запрет есть в RAM, но его нет на
+        // диске» перестаёт быть возможен.
+        vecdht_index::testing::remove(&d.0);
+        assert!(!a.deny(key(7)), "нельзя записать — значит не внесено");
+        assert_eq!(a.denylist_len(), 0, "RAM--only запрета не остаётся");
+        assert_eq!(a.stats.denylist_save_errors, 1);
+        assert_eq!(a.check_publish(&key(7), &key(7), 0), Verdict::Allow);
+    }
 }

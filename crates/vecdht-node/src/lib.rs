@@ -36,6 +36,7 @@
 pub mod admission;
 pub mod candidates;
 pub mod config;
+pub mod denylist;
 pub mod lease;
 pub mod membership;
 pub mod net;
@@ -48,6 +49,7 @@ pub mod testing;
 pub use admission::{Admission, Candidate, Evictor, SharedAdmission, Verdict};
 pub use candidates::{expected_update, keeper, members, Holder, MemberList};
 pub use config::{bucket_of, buckets, Clock, ParamError, Params};
+pub use denylist::MAX_DENYLIST;
 pub use lease::{Lease, LeaseError};
 pub use membership::{Chain, Membership, MembershipError, GENESIS_EPOCH};
 pub use net::{Addr, Envelope, LocalNet};
