@@ -54,6 +54,10 @@ ROOT = os.environ.get("VEC_DHT_ROOT") or os.path.dirname(os.path.dirname(os.path
 INDEX = os.path.join(ROOT, "lab", "library", "index.jsonl")
 LEAN_DIR = os.path.join(ROOT, "lab", "lean", "VecDHT")
 REQUIRED_KEYS = ("id", "claim", "falsifier", "oracle", "prior_art", "lean")
+
+# Карточка эксперимента: то, что обязано быть заморожено до первого прогона (шаг 2 жизненного
+# цикла в `lab/README.md`). `hypothesis` сверяется с id карточки отдельно.
+EXPERIMENT_KEYS = ("threshold", "environment", "command", "base_commit")
 # Точное совпадение, не подстрока: «не применён» содержит «применён», и проверка на подстроку
 # превращала отказ в согласие (самопроверка selftest, случай «отказ при четырёх да»).
 LEAN_APPLIED = ("применён", "применен", "сделан", "есть")
@@ -210,6 +214,32 @@ def check_lean(fm, hid, bad, say, skip_lean):
     say(f"LEAN {hid}: модель {os.path.basename(model)} компилируется, sorry=0, ошибок=0")
 
 
+def check_experiment(hid, bad, say):
+    """Карточка эксперимента обязана существовать ДО замера, с порогом и командой.
+
+    Посажено на собственном упущении: пре-регистрация `E-0092` заморозила пороги, фальсификатор,
+    helper и PRE_FIX-снимок в `lab/hypotheses/H-0092-*.md`, но файла `lab/experiments/E-0092-*.md`
+    в том коммите не было (шаг 2 жизненного цикла `lab/README.md` требует именно его). Гейт это
+    не ловил, потому что смотрел только на карточку гипотезы.
+    """
+    eid = "E-" + hid.split("-")[1]
+    hits = sorted(glob.glob(os.path.join(ROOT, "lab", "experiments", eid + "-*.md")))
+    if not hits:
+        bad.append(f"карточка эксперимента {eid} не найдена — пре-регистрация без неё невозможна")
+        return
+    fm, err = front_matter(hits[0])
+    if fm is None:
+        bad.append(f"{os.path.basename(hits[0])}: шапка не разобрана ({err})")
+        return
+    if str(fm.get("hypothesis", "")).strip() != hid:
+        bad.append(f"{os.path.basename(hits[0])}: `hypothesis` не равен {hid}")
+    empty = [k for k in EXPERIMENT_KEYS if not str(fm.get(k, "")).strip()]
+    if empty:
+        bad.append(f"в карточке {eid} не названы: {empty}")
+        return
+    say(f"E-CARD {eid}: порог, окружение и команда названы")
+
+
 def cmd_gate(args):
     bad, out = [], []
     say = out.append
@@ -236,6 +266,7 @@ def cmd_gate(args):
         bad.append("oracle не назван")
     check_prior_art(fm, rows, args.hid, bad, say)
     check_lean(fm, args.hid, bad, say, args.skip_lean)
+    check_experiment(args.hid, bad, say)
     for line in out:
         print(line)
     for b in bad:
@@ -288,6 +319,15 @@ GOOD_MODEL = ("import Std\n\ndef f (n : Nat) : Nat := n + 1\n"
 SORRY_MODEL = ("import Std\n\ntheorem whatever : 1 = 1 := by sorry\n")
 BROKEN_MODEL = ("import Std\n\ndef f (n : Nat) : Nat := n +\n")
 
+# Годная карточка эксперимента: без неё позитивный контроль гейта был бы невозможен —
+# `check_experiment` требует файл, которого в временном лаборатории до 2026-10-24 не было.
+GOOD_EXPERIMENT = {"id": "E-0000", "hypothesis": "H-0000", "status": "running",
+                   "base_commit": "c0ffee1 (пре-регистрация: продукт не тронут)",
+                   "environment": "лабораторный selftest, один процесс",
+                   "command": "python lab/cycle-gate.py selftest",
+                   "threshold": "годная карточка проходит, посаженные нарушения отбиты",
+                   "verdict": "pending"}
+
 
 # (название, мутация карточки, подстрока, по которой узнаём нужную причину отказа)
 DEFECTS = [
@@ -314,6 +354,13 @@ DEFECTS = [
     ("модель не компилируется", {"lean": _lean_applied(), "__model__": BROKEN_MODEL,
                                  "__compile__": True},
      "не компилируется"),
+    # Карточка эксперимента — то, что пре-регистрирует порог. Гейт смотрел только на карточку
+    # гипотезы и потому пропустил собственный цикл `E-0092`: пороги, фальсификатор, helper и
+    # PRE_FIX были в `H-0092-*.md` (коммит `c41610a`), а `lab/experiments/E-0092-*.md` в том
+    # коммите отсутствовал. Ниже — обе ветки этого правила, посаженные как дефекты.
+    ("нет карточки эксперимента", {"__exp__": "missing"}, "не найдена — пре-регистрация"),
+    ("в карточке E не назван порог",
+     {"__exp__": {"threshold": "", "command": ""}}, "в карточке E-0000 не названы"),
 ]
 
 
@@ -331,6 +378,7 @@ def _temp_lab():
     import os
     root = tempfile.mkdtemp(prefix="cycle-gate-selftest-")
     os.makedirs(os.path.join(root, "lab", "hypotheses"))
+    os.makedirs(os.path.join(root, "lab", "experiments"))
     os.makedirs(os.path.join(root, "lab", "library"))
     os.makedirs(os.path.join(root, "lab", "lean", "VecDHT"))
     extra = {"id": "L-0000", "title": "самопроверка гейта", "url": "https://github.com/libp2p/specs",
@@ -369,8 +417,14 @@ def cmd_selftest(_args):
         print("SELFTEST не выполнен: нет PyYAML")
         return 2
     path = os.path.join(root, "lab", "hypotheses", "H-0000-selftest.md")
+    exp_path = os.path.join(root, "lab", "experiments", "E-0000-selftest.md")
 
     model_file = os.path.join(root, "lab", "lean", "VecDHT", "Selftest.lean")
+
+    def write_exp(fm):
+        with io.open(exp_path, "w", encoding="utf-8") as fh:
+            fh.write("---\n" + yaml.safe_dump(fm, allow_unicode=True, sort_keys=False) +
+                     "\n---\n# посадка\n")
 
     def write(fm):
         fm = dict(fm)
@@ -384,10 +438,19 @@ def cmd_selftest(_args):
         else:
             io.open(model_file, "w", encoding="utf-8").write(body)
         fm.pop("__compile__", None)
+        # Карточка эксперимента восстанавливается перед каждой мутацией: иначе «нет карточки»
+        # отравил бы все последующие дефекты своей причиной (они бы проходили по чужому нарушению).
+        exp = fm.pop("__exp__", None)
+        if exp == "missing":
+            if os.path.isfile(exp_path):
+                os.remove(exp_path)
+        else:
+            write_exp(dict(GOOD_EXPERIMENT, **(exp or {})))
         with io.open(path, "w", encoding="utf-8") as fh:
             fh.write("---\n" + yaml.safe_dump(fm, allow_unicode=True, sort_keys=False) +
                      "\n---\n# посадка\n")
 
+    write_exp(GOOD_EXPERIMENT)
     write(GOOD_CARD)
     good_rc, text = _gate(root, "H-0000")
     print(f"  КОНТРОЛЬ годная карточка: rc={good_rc} "
