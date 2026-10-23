@@ -1,0 +1,39 @@
+### E-0092 PRE_FIX · дерево до правки (HEAD afc201a) · 2026-10-23T23:55:08+03:00 ###
+SHAPE: oracle = crates/vecdht-node/tests/denylist_durable_after_restart.rs, 2 таргета, гейты (1)…(6)
+PRE_REG_COMPILE: cargo clippy -p vecdht-node --test denylist_durable_after_restart -- -D warnings = OK (0 предупреждений)
+DISK_FREE_MB_BEFORE=25204  RAM_FREE_MB_BEFORE=6987
+   Compiling vecdht-node v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-node)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.43s
+     Running tests\denylist_durable_after_restart.rs (target\debug\deps\denylist_durable_after_restart-9afb13ee78b56d8a.exe)
+
+running 2 tests
+test denylist_refuses_at_the_bound_and_keeps_every_entry ... DENY_G6: g6_accepted=4096 g6_refused=1 g6_len=4097 g6_first_before=true g6_first_kept=4096
+DENY_G6b: g6b_len=4096 g6b_room=0
+
+thread 'denylist_refuses_at_the_bound_and_keeps_every_entry' (16336) panicked at crates\vecdht-node\tests\denylist_durable_after_restart.rs:289:5:
+гейты не выполнены: ["(6) не выполнен: предел не отказывает или список потерял внесённое", "(6b) не выполнен: отзыв не вернул место"]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test denylist_survives_restart_and_undeny ... DENY_G1: g1_len=3 g1_denied=3 g1_hits=1 g1_code=DENIED
+DENY_G2: g2_file=0 g2_bytes=0 g2_want=114
+DENY_G3: g3_epoch=1 g3_len=0 g3_denied=0
+DENY_G4: g4_denied=false g4_allow=true g4_wire=EPOCH_STALE
+DENY_G5: g5_undenied=0 g5_len=0 g5_revoked=0 g5_kept=0
+
+thread 'denylist_survives_restart_and_undeny' (28164) panicked at crates\vecdht-node\tests\denylist_durable_after_restart.rs:244:5:
+гейты не выполнены: ["(2) не выполнен", "(3) не выполнен: дыра E-0042 открыта", "(4) не выполнен: решение запрета не пережило рестарт", "(5) не выполнен"]
+FAILED
+
+failures:
+
+failures:
+    denylist_refuses_at_the_bound_and_keeps_every_entry
+    denylist_survives_restart_and_undeny
+
+test result: FAILED. 0 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+error: test failed, to rerun pass `-p vecdht-node --test denylist_durable_after_restart`
+error: 1 target failed:
+    `-p vecdht-node --test denylist_durable_after_restart`
+EXIT=101
+DISK_FREE_MB_AFTER=25203
