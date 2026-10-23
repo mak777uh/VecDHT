@@ -1,6 +1,6 @@
 ---
 id: H-0085
-status: proposed
+status: completed
 date: 2026-10-23
 spec: "docs/VecDHT-SPEC-v8.md:136…159 (§4.2 дверь и отзывы), :985 (§9.2 ёмкость), :1504 (§16.1 control-тема), :1803 (открытый вопрос 8)"
 plan: "lab/PLAN.md п. 8"
