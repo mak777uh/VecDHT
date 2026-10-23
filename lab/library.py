@@ -9,12 +9,18 @@
 
 Команды:
   check                 — машинная проверка индекса (exit 1 при любом нарушении)
-  digest                — что не использовано + открытые вопросы спеки без сверки
+  digest                — что не использовано + открытые вопросы спеки без сверки + классы источников
+  verify [--id L-NNNN]  — машинная сверка ссылки с источником: для статьи arXiv-id обязан
+                          принадлежать заявленному названию, для «реализации» — указанный
+                          файл обязан существовать в указанном коммите чужого репозитория
   value [--cycles N]    — счётчики полезности контура и вердикт по заморозенному критерию
   add --json '{...}'    — добавить запись (только валидную)
   use ID --target T     — перевести в «в работе» и привязать к цели
   close ID --action A --what "..."  — закрыть со статусом изменено|не повлияло
   scan                  — триггерные фразы спеки, по которым сверка ещё не сделана
+
+Класс записи («kind»): бумага | спека | реализация. У «реализации» обязательны «ref»
+(sha коммита или тег, не ветка) и «path» — файл внутри репозитория, который читали.
 """
 
 import argparse
@@ -23,6 +29,7 @@ import json
 import os
 import re
 import sys
+from urllib.parse import quote
 
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -38,10 +45,19 @@ SPEC = os.path.join(ROOT, "docs", "VecDHT-SPEC-v8.md")
 
 STATUSES = ("не использован", "в работе", "изменено", "не повлияло")
 DEPTHS = ("аннотация", "текст выборочно", "полный текст")
-REQUIRED = ("id", "title", "url", "cite", "verified", "depth", "gives", "targets",
+# Класс источника (ADR-0048). «бумага» — статья, «спека» — чужой нормативный документ,
+# «реализация» — чужой код. Разделение не decorative: у первых двух проверяется, что id
+# принадлежит заявленному названию, у третьего — что файл существует в заявленном коммите.
+# Пересказ чужого кода без пина на коммит сверяет не источник, а мою память.
+KINDS = ("бумага", "спека", "реализация")
+REQUIRED = ("id", "title", "url", "cite", "verified", "depth", "kind", "gives", "targets",
             "status", "action", "cost_min", "opened")
 ID_RE = re.compile(r"^L-\d{4}$")
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Пин для класса «реализация»: полный/короткий sha либо имя тега. Ветку не принимаем —
+# ветка указывает на код, которого завтра нет, и запись перестаёт быть проверяемой.
+GH_REF_RE = re.compile(r"^(?:[0-9a-f]{7,40}|[vV]?\d[\w.\-]*)$")
+GITHUB_URL_RE = re.compile(r"^https://github\.com/([\w.\-]+/[\w.\-]+)/")
 # Действие обязано указывать, что именно изменено: номер цикла, ADR, § или порог.
 ACTION_REF_RE = re.compile(r"(H-\d{4}|E-\d{4}|ADR-\d{4}|S-\d{4}|§|порог|PLAN|OPEN-QUESTIONS)")
 # Бюджет одного шага сверки, минут (решение владельца 2026-10-23, ADR-0045).
@@ -134,6 +150,27 @@ def check_row(row, today, errors, warnings, seen_ids):
         fail(f"{rid}: дата сверки {v} в будущем", errors)
     if row.get("depth") not in DEPTHS:
         fail(f"{rid}: глубина «{row.get('depth')}» вне списка {DEPTHS}", errors)
+    kind = row.get("kind")
+    if kind not in KINDS:
+        fail(f"{rid}: класс «{kind}» вне списка {list(KINDS)}", errors)
+    elif kind == "реализация":
+        # Класс проверяется по трём полям сразу: откуда (url), на какой код (ref), какой файл (path).
+        m = GITHUB_URL_RE.match(url)
+        if not m:
+            fail(f"{rid}: класс «реализация» требует url вида https://github.com/<владелец>/<репозиторий>/…", errors)
+        if not str(row.get("ref", "")).strip():
+            fail(f"{rid}: класс «реализация» без пина «ref» (sha коммита или тег) — читать нечего", errors)
+        elif not GH_REF_RE.match(str(row["ref"])):
+            fail(f"{rid}: «ref»={row['ref']!r} не похож на sha или тег (ветка не принимается)", errors)
+        if not str(row.get("path", "")).strip():
+            fail(f"{rid}: класс «реализация» без «path» — непонятно, какой файл репозитория читали", errors)
+    elif GITHUB_URL_RE.match(url):
+        # Частный случай того же правила для «спеки»: ссылка на blob/master указывает
+        # на файл, который завтра может быть другим, и запись перестаёт быть проверяемой.
+        if not str(row.get("ref", "")).strip():
+            fail(f"{rid}: ссылка на чужой репозиторий без пина «ref» (sha или тег, не ветка)", errors)
+        if not str(row.get("path", "")).strip():
+            fail(f"{rid}: ссылка на чужой репозиторий без «path» внутри него", errors)
     if row.get("status") not in STATUSES:
         fail(f"{rid}: статус «{row.get('status')}» вне списка {list(STATUSES)}", errors)
     if not str(row.get("title", "")).strip() or not str(row.get("gives", "")).strip():
@@ -239,6 +276,18 @@ def cmd_digest(_args):
           f"в_работе={len(open_wip)} закрыто={len(done)} с_действием_изменение={len(changed)}")
     print(f"LIBDIGEST total={len(rows)} unused={len(unused)} wip={len(open_wip)} "
           f"closed={len(done)} changed={len(changed)}")
+    # Гистограмма классов. Отдельная строка, а не колонка в LIBDIGEST: формат LIBDIGEST
+    # читает оракул E-0089, а «сколько у нас записей про чужой код» — то, чего в индексе
+    # до 2026-10-23 не было вовсе (0 из 6), и молчание об этом проще заметить по нулю.
+    by_kind = {k: sum(1 for r in rows if r.get("kind") == k) for k in KINDS}
+    other = len(rows) - sum(by_kind.values())
+    print(f"КЛАССЫ источников: " + " ".join(f"{k}={by_kind[k]}" for k in KINDS)
+          + (f" без_класса={other}" if other else ""))
+    print(f"LIBCLASSES paper={by_kind['бумага']} spec={by_kind['спека']} "
+          f"impl={by_kind['реализация']} unknown={other}")
+    if not by_kind["реализация"]:
+        print("  ВНИМАНИЕ: ни одной записи о чужой кодовой реализации — решения про приём "
+              "кадров, кэш и запреты сверяются только по бумагам и спекам")
     for r in unused:
         print(f"  НЕ ИСПОЛЬЗОВАН {r.get('id')} {r.get('title','')[:70]} -> {r.get('gives','')[:70]}")
     for r in open_wip:
@@ -359,12 +408,30 @@ def _tokens(s):
     return {w for w in re.sub("[^a-z\\u0430-\\u044f\\u04510-9 ]", " ", str(s).lower()).split() if len(w) >= 4}
 
 
+def _gh_json(url, timeout):
+    """Один GET к api.github.com. Возвращает (http_код, разобранный_json_или_None)."""
+    import json as _json
+    import urllib.request, urllib.error
+
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json",
+                                               "User-Agent": "vecdht-lab-library"})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, _json.loads(resp.read().decode("utf-8", "replace"))
+    except urllib.error.HTTPError as e:
+        return e.code, None
+    # сеть — не доказательство ошибки: недоступность фиксируется отдельным счётчиком
+
+
 def cmd_verify(args):
     """Сверка ссылки с источником: id обязан существовать, а название — пересекаться.
 
     Пойманный живой случай: id, приписанный работе про eclipse-атаки, оказался
     статьёй про мюонный водород. Без этой проверки индекс мог бы хранить цитату,
     которая ни на что не ссылается.
+
+    Класс «реализация» сверяется другим способом (ADR-0048): не названием, а тем,
+    что указанный файл существует в указанном коммите чужого репозитория.
     """
     import urllib.request
 
@@ -372,8 +439,56 @@ def cmd_verify(args):
     if args.id:
         rows = [r for r in rows if r.get("id") == args.id]
     checked = matched = mismatched = skipped = net = 0
+    ic = im = iw = isk = inet = 0
+    def repo_target(r):
+        """Ссылка на чужой репозиторий, которую можно сверить машинно: (владелец/репо, ref, path)."""
+        if r.get("kind") != "реализация" and not GITHUB_URL_RE.match(str(r.get("url", ""))):
+            return None
+        m = GITHUB_URL_RE.match(str(r.get("url", "")))
+        ref, path = str(r.get("ref", "")), str(r.get("path", ""))
+        if not m or not GH_REF_RE.match(ref) or not path:
+            return False  # формат негодный — это провал сверки, а не пропуск
+        return (m.group(1), ref, path)
+
     for r in rows:
         cite = str(r.get("cite", ""))
+        target = repo_target(r)
+        if target is not None:
+            ic += 1
+            if target is False:
+                iw += 1
+                print(f"  НЕ ТОТ ПИН {r.get('id')}: url/ref/path не образуют проверяемую ссылку на код "
+                      f"(url={str(r.get('url'))[:48]}, ref={str(r.get('ref'))[:16]}, "
+                      f"path={str(r.get('path'))[:40]})")
+                continue
+            owner_repo, ref, path = target
+            try:
+                code_c, body_c = _gh_json(
+                    f"https://api.github.com/repos/{owner_repo}/commits/{ref}", args.timeout)
+                code_p, body_p = _gh_json(
+                    f"https://api.github.com/repos/{owner_repo}/contents/"
+                    f"{quote(path, safe='')}?ref={quote(ref, safe='')}", args.timeout)
+            except Exception as e:
+                inet += 1
+                print(f"  СЕТЬ {r.get('id')}: сверка кода не выполнена ({type(e).__name__})")
+                continue
+            if code_c in (404, 422) or code_p in (404, 422):
+                iw += 1
+                print(f"  НЕТ КОДА {r.get('id')}: {owner_repo} отдаёт commit={code_c} path={code_p} "
+                      f"(ждали {ref[:12]}:{path[:44]})")
+                continue
+            if code_c >= 500 or code_p >= 500 or (body_c is None and code_c != 200):
+                inet += 1
+                print(f"  СЕТЬ {r.get('id')}: github api ответил {code_c}/{code_p}, сверка не выполнена")
+                continue
+            if code_c == 200 and code_p == 200:
+                im += 1
+                when = str((body_c or {}).get("commit", {}).get("committer", {}).get("date", "?"))[:10]
+                print(f"  ЕСТЬ КОД {r.get('id')}: {owner_repo} {ref[:12]} ({when}) -> {path[:52]}")
+            else:
+                iw += 1
+                print(f"  НЕ ТОТ ПИН {r.get('id')}: commit={code_c} path={code_p}")
+            continue
         m = re.match(r"^arXiv:(\d{4}\.\d{4,5})", cite)
         if not m:
             skipped += 1
@@ -403,7 +518,10 @@ def cmd_verify(args):
           f"пропущено={skipped} сеть_недоступна={net}")
     print(f"LIBVERIFY checked={checked} matched={matched} wrong={mismatched} "
           f"skipped={skipped} net_unavailable={net}")
-    return 1 if mismatched else 0
+    # Отдельная строка для класса «реализация»: формат LIBVERIFY выше заморожен оракулом
+    # E-0089 и менять его нельзя, а наблюдаемость нового класса нужна.
+    print(f"LIBVERIFY_IMPL checked={ic} matched={im} wrong={iw} skipped={isk} net_unavailable={inet}")
+    return 1 if (mismatched or iw) else 0
 
 
 def main():
