@@ -73,8 +73,33 @@ note "МЕРЕНО $CR"
 $LIB_PY verify >"$T2" 2>&1; RC=$?; cat "$T2" | tee -a "$LOG"; note "EXIT=$RC"
 gate "(1) verify" 0 $RC
 grep -oE "LIBVERIFY checked=[0-9]+ matched=[0-9]+ wrong=[0-9]+.*" "$T2" | tail -1 | sed 's/^/МЕРЕНО /' | tee -a "$LOG"
-V_MATCH=$(grep -oE "LIBVERIFY checked=[0-9]+ matched=[0-9]+" "$T2" | tail -1 | awk '{print $3}' | cut -d= -f2)
-bool "(1) две живые ссылки" 2 "$V_MATCH"
+grep -oE "LIBVERIFY_IMPL checked=[0-9]+.*" "$T2" | tail -1 | sed 's/^/МЕРЕНО /' | tee -a "$LOG"
+# Починка гнилья прибора (ДИАГНОЗ-1 прогона 2026-10-23, записан в лог): expectation было
+# литералом `matched=2`, потому что на момент заморозки в индексе жило 2 arXiv-записи.
+# Индекс растёт — литерал гниёт. Смысл порога (1) был «каждое машинно-проверяемое
+# подтверждение проверилось и совпало, и их не меньше двух»; теперь так и считаем.
+N_PAPER=$(python -c 'import json,io,sys
+rows=[json.loads(l) for l in io.open("lab/library/index.jsonl",encoding="utf-8") if l.strip()]
+print(sum(1 for r in rows if str(r.get("cite","")).startswith("arXiv:")))')
+N_IMPL=$(python -c 'import json,io
+rows=[json.loads(l) for l in io.open("lab/library/index.jsonl",encoding="utf-8") if l.strip()]
+print(sum(1 for r in rows if r.get("kind")=="реализация" or str(r.get("url","")).startswith("https://github.com/")))')
+N_CHECKABLE=$((N_PAPER + N_IMPL))
+LV=$(grep -E "^LIBVERIFY " "$T2" | tail -1)
+V_MATCH=$(printf '%s\n' "$LV" | grep -oE "matched=[0-9]+" | cut -d= -f2)
+V_CHECKED=$(printf '%s\n' "$LV" | grep -oE "checked=[0-9]+" | cut -d= -f2)
+V_WRONG=$(printf '%s\n' "$LV" | grep -oE "wrong=[0-9]+" | cut -d= -f2)
+LI=$(grep -E "^LIBVERIFY_IMPL " "$T2" | tail -1)
+I_MATCH=$(printf '%s\n' "$LI" | grep -oE "matched=[0-9]+" | cut -d= -f2)
+I_WRONG=$(printf '%s\n' "$LI" | grep -oE "wrong=[0-9]+" | cut -d= -f2)
+note "МЕРЕНО порог1 arxiv_записей=$N_PAPER ссылок_на_код=$N_IMPL проверено_всего=$N_CHECKABLE"
+bool "(1) каждое arXiv-подтверждение совпало" "$N_PAPER" "${V_CHECKED:-x}"
+bool "(1) каждое совпадение подтверждено" "$N_PAPER" "${V_MATCH:-x}"
+bool "(1) ни одного подлога (статьи)" 0 "${V_WRONG:-x}"
+bool "(1) каждая ссылка на код проверена машинно" "$N_IMPL" "${I_MATCH:-x}"
+bool "(1) ни одного битого пина" 0 "${I_WRONG:-x}"
+if [ "$N_CHECKABLE" -ge 2 ]; then note "ГЕЙТ (1) не менее двух машинных сверок=OK ($N_CHECKABLE)";
+else note "ГЕЙТ (1) не менее двух машинных сверок=FAIL (получено $N_CHECKABLE)"; WORST_RC=1; fi
 
 # --- порог (2): девять посаженных дефектов обязаны отбиться ------------------------------------
 note "### ШАГ 2 девять посаженных дефектов (рабочий индекс не трогается: VEC_DHT_LIBRARY) ###"
@@ -126,7 +151,7 @@ python - - <<'PY' > /tmp/e0089_fake_row.jsonl
 import json, io, sys
 row = {"id": "L-9001", "title": "Eclipse Attacks on Peer-to-Peer Networks",
        "url": "https://arxiv.org/abs/1501.06539", "cite": "arXiv:1501.06539",
-       "verified": "2026-10-23", "depth": "аннотация",
+       "verified": "2026-10-23", "depth": "аннотация", "kind": "бумага",
        "gives": "посаженная неверная ссылка для контроля (3)", "targets": ["PLAN"],
        "status": "в работе", "action": "", "cost_min": 1, "opened": "2026-10-23"}
 print(json.dumps(row, ensure_ascii=False))
@@ -142,11 +167,20 @@ note "### ШАГ 4 сеть недоступна (timeout 0.001 с) ###"
 $LIB_PY verify --timeout 0.001 >"$T5" 2>&1; RC=$?
 cat "$T5" | tee -a "$LOG"; note "EXIT=$RC"
 grep -oE "LIBVERIFY checked=[0-9]+ matched=[0-9]+ wrong=[0-9]+ skipped=[0-9]+ net_unavailable=[0-9]+" "$T5" | tail -1 | sed 's/^/МЕРЕНО offline /' | tee -a "$LOG"
-N_CHECKED=$(grep -oE "LIBVERIFY checked=[0-9]+" "$T5" | tail -1 | awk '{print $2}' | cut -d= -f2)
-N_NET=$(grep -oE "net_unavailable=[0-9]+" "$T5" | tail -1 | cut -d= -f2)
+grep -oE "LIBVERIFY_IMPL checked=[0-9]+ matched=[0-9]+ wrong=[0-9]+ skipped=[0-9]+ net_unavailable=[0-9]+" "$T5" | tail -1 | sed 's/^/МЕРЕНО offline /' | tee -a "$LOG"
+OLV=$(grep -E "^LIBVERIFY " "$T5" | tail -1)
+OLI=$(grep -E "^LIBVERIFY_IMPL " "$T5" | tail -1)
+N_CHECKED=$(printf '%s\n' "$OLV" | grep -oE "checked=[0-9]+" | cut -d= -f2)
+N_NET=$(printf '%s\n' "$OLV" | grep -oE "net_unavailable=[0-9]+" | cut -d= -f2)
+N_NET_IMPL=$(printf '%s\n' "$OLI" | grep -oE "net_unavailable=[0-9]+" | cut -d= -f2)
+N_NET_TOTAL=$(( ${N_NET:-0} + ${N_NET_IMPL:-0} ))
+note "МЕРЕНО offline недоступно_всего=$N_NET_TOTAL (статей $N_NET + кода $N_NET_IMPL), проверимо было $N_CHECKABLE"
 bool "(4) пустое множество не притворяется проверкой" 0 "$N_CHECKED"
-bool "(4) сеть помечена недоступной" 2 "$N_NET"
-if grep -q "СОВПАЛО" "$T5"; then note "ГЕЙТ (4)=FAIL: при недоступной сети напечатано «СОВПАЛО»"; WORST_RC=1; else note "ГЕЙТ (4) тишины=OK"; fi
+bool "(4) недоступность помечена по всем строкам класса бумага" "$N_PAPER" "$N_NET"
+bool "(4) недоступность помечена по всем ссылкам на код" "$N_IMPL" "$N_NET_IMPL"
+if [ "$N_NET_TOTAL" -ge 2 ]; then note "ГЕЙТ (4) недоступность не молчит=OK ($N_NET_TOTAL)";
+else note "ГЕЙТ (4) недоступность не молчит=FAIL (получено $N_NET_TOTAL)"; WORST_RC=1; fi
+if grep -qE "СОВПАЛО|ЕСТЬ КОД" "$T5"; then note "ГЕЙТ (4)=FAIL: при недоступной сети напечатано «совпало/есть код»"; WORST_RC=1; else note "ГЕЙТ (4) тишины=OK"; fi
 
 # --- порог (5): дайджест задаёт вопросы по разделам спеки --------------------------------------
 note "### ШАГ 5 дайджест: неиспользованное и § без сверки ###"
@@ -175,16 +209,62 @@ bool "(6) PLAN получил форму капа" 1 "$([ "$PLAN_HITS" -ge 1 ] &
 bool "(6) OPEN-QUESTIONS получил вектор" 1 "$([ "$OQ_HITS" -ge 1 ] && echo 1 || echo 0)"
 
 # --- порог (7): критерий полезности не выносится досрочно --------------------------------------
-note "### ШАГ 7 критерий: до закрытия, после закрытия, и при разумном окне ###"
+# Починка гнилья прибора (ДИАГНОЗ-2 прогона 2026-10-23): контрольные состояния строились
+# НА ЖИВОМ индексе — «до закрытия» означало «в индексе пока 0 закрытых строк», а записей
+# в индексе с тех пор стало 6 и все закрыты, поэтому гейт мог быть зелёным только в одном
+# прогоне из жизни (этом). Теперь состояние строится на временной копии, а живой индекс
+# только читается: контроль не должен портить измеряемый объект (тот же урок, что и
+# девять посаженных дефектов шага 2, они пишутся в VEC_DHT_LIBRARY-копию).
+# ДИАГНОЗ-3 прогона 2026-10-23: файл, записанный внутри python по имени «/tmp/…», лежит в
+# C:\tmp, а та же строка, переданная через окружение из bash, MSYS конвертирует в
+# AppData\Local\Temp — checker читал несуществующий индекс и печатал «записей 0», что
+# выглядит как зелёный контроль (verdict не готов) там, где состояние вообще не построено.
+# Пути создаёт bash через mktemp, python получает их argv'ом: одна вселенная имён.
+V2="$(mktemp)"; V5="$(mktemp)"; VD="$(mktemp)"
+note "### ШАГ 7 критерий: три состояния индекса на временных копиях ###"
+python - "$V2" "$V5" "$VD" <<'PY'
+import json, io, sys
+rows = [json.loads(l) for l in io.open("lab/library/index.jsonl", encoding="utf-8") if l.strip()]
+def dump(path, closed_ids, status):
+    out = []
+    for r in rows:
+        r.pop("_line", None)
+        if r["id"] in closed_ids:
+            r["status"] = status
+            r["cost_min"] = 12
+            r["action"] = ("PLAN п. 8б: форма капа ⌈c·m/n⌉ — правка гипотезы H-0088 "
+                           "до её пре-регистрации" if status == "изменено"
+                           else "прочитано, на пороги и гипотезу этого цикла не повлияло: "
+                                "механизм в нашей сети другой")
+        else:
+            r["status"] = "не использован"; r["targets"] = []; r["action"] = ""; r["cost_min"] = 0
+        out.append(r)
+    io.open(path, "w", encoding="utf-8").write("".join(
+        json.dumps(x, ensure_ascii=False) + "\n" for x in out))
+ids = [r["id"] for r in rows]
+dump(sys.argv[1], set(ids[:2]), "изменено")
+dump(sys.argv[2], set(ids[:5]), "изменено")
+dump(sys.argv[3], set(ids[:5]), "не повлияло")
+print("посажжено состояний=3 записей_в_индексе=%d" % len(rows))
+PY
 $LIB_PY value --cycles 5 >"$T1" 2>&1; cat "$T1" | tee -a "$LOG"
-if grep -q "ВЕРДИКТ не готов" "$T1"; then note "ГЕЙТ (7а) до закрытия=OK"; else note "ГЕЙТ (7а) до закрытия=FAIL"; WORST_RC=1; fi
-$LIB_PY close L-0001 --action изменено --what "PLAN п. 8б пункт (2): форма капа ⌈c·m/n⌉ от средней загрузки и переезды как единица цены — правка H-0088 до его пре-регистрации; оговорка переносимости в ADR-0045" --cost 12 >>"$T2" 2>&1
-$LIB_PY close L-0002 --action изменено --what "OPEN-QUESTIONS п. 38: новый вектор §14.4 (black-hole через hubness, до 94,4 % запросов, защиты в литературе нет) и очередь H-0090; в спеку число не перенесено" --cost 14 >>"$T2" 2>&1
-tail -6 "$T2" | tee -a "$LOG"
-$LIB_PY value --cycles 5 >"$T1" 2>&1; cat "$T1" | tee -a "$LOG"
-if grep -q "ВЕРДИКТ не готов" "$T1"; then note "ГЕЙТ (7б) двух записей мало=OK"; else note "ГЕЙТ (7б)=FAIL: вердикт вынесен при 2 < 5"; WORST_RC=1; fi
-$LIB_PY value --cycles 2 >"$T1" 2>&1; cat "$T1" | tee -a "$LOG"
-if grep -q "КОНТУР ГОДЕН" "$T1"; then note "ГЕЙТ (7в) при окне 2=OK"; else note "ГЕЙТ (7в)=FAIL: выполнимый критерий не срабатывает (ДИАГНОЗ-1 из E-0087)"; WORST_RC=1; fi
+note "МЕРЕНО живой_индекс_как_есть=$(grep -E '^LIBVALUE' "$T1" | tail -1)"
+VEC_DHT_LIBRARY="$V2" $LIB_PY value --cycles 5 >"$T1" 2>&1
+cat "$T1" | tee -a "$LOG"
+if grep -q "ВЕРДИКТ не готов" "$T1" && grep -q "LIBVALUE closed=2" "$T1";
+then note "ГЕЙТ (7а) при 2 из 5 закрытых вердикт молчит=OK";
+else note "ГЕЙТ (7а)=FAIL: состояние не построено или вердикт вынесен при 2 < 5"; WORST_RC=1; fi
+VEC_DHT_LIBRARY="$V5" $LIB_PY value --cycles 5 >"$T1" 2>&1
+cat "$T1" | tee -a "$LOG"
+if grep -q "КОНТУР ГОДЕН" "$T1" && grep -q "LIBVALUE closed=5" "$T1";
+then note "ГЕЙТ (7б) при 5 закрытых с изменением=OK";
+else note "ГЕЙТ (7б)=FAIL: выполнимый критерий не срабатывает (ДИАГНОЗ-1 из E-0087)"; WORST_RC=1; fi
+VEC_DHT_LIBRARY="$VD" $LIB_PY value --cycles 5 >"$T1" 2>&1
+cat "$T1" | tee -a "$LOG"
+if grep -q "КОНТУР ДЕКОРАТИВЕН" "$T1" && grep -q "verdict=decorative" "$T1";
+then note "ГЕЙТ (7в) пять прочитанных без действия=OK";
+else note "ГЕЙТ (7в)=FAIL: декоративный контур получает зелёный вердикт"; WORST_RC=1; fi
+rm -f "$V2" "$V5" "$VD"
 
 # --- порог (8): след, зеркало спеки, YAML, ресурсы ----------------------------------------------
 $LIB_PY check >"$T1" 2>&1; RC=$?; cat "$T1" | tee -a "$LOG"; gate "(8) финальный check" 0 $RC
