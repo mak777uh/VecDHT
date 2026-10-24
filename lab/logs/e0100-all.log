@@ -1,0 +1,1994 @@
+
+########## E-0100 · класс и направление интента · прогон 2026-10-24T14:30:53+03:00 ##########
+HEAD: 529e659
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+base_commit: 9687c32
+RAM_FREE_MB_BEFORE=7831 DISK_FREE_MB_BEFORE=11913 PAGEFILE_PEAK_MB=7660
+### ШАГ 0 PRE_FIX (дерево 9687c32, lab/logs/e0100-prefix.txt) ###
+# E-0100 · снимок PRE_FIX, снятый в отдельном worktree на коммите 9687c32
+# (`git worktree add /c/Users/Admin/vecdht-work/pre-e0100 9687c32`), до которого правки §5.5 в коде
+# нет. В worktree скопированы два прибора: `publish_corpus_digest.rs` (собран из API, которое было
+# до правки, поэтому компилируется на базовом дереве) и `intent_attr_tlv.rs` (оракул, который на
+# базовом дереве НЕ компилируется — это и есть зафиксированное отсутствие интерфейса, а не красный
+# по построению тест).
+#
+# Команды, которыми получены строки (все — в worktree, CARGO_TARGET_DIR отдельный):
+#   cargo test -p vecdht-wire --test publish_corpus_digest -- --nocapture
+#   cargo test -p vecdht-wire --test intent_attr_tlv --no-run
+#   grep -rn 'slot_attr' crates --include='*.rs' | grep -v 'tests/intent_attr_tlv.rs' | wc -l
+#   grep -rn 'search_filtered' crates --include='*.rs' | wc -l
+#   grep -oE 'SNAP_FORMAT: u16 = [0-9]+' crates/vecdht-index/src/snapshot.rs
+#   cargo test -p vecdht-index --test memory_budget -- --nocapture
+PRE_FIX_HEAD=9687c32
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+PRE_FIX_INTENT_ATTR_NOUN_EXIT=101
+PRE_FIX_INTENT_ATTR_NOUN_ERRORS=14
+PRE_FIX_SLOT_ATTR_SRC_HITS=0
+PRE_FIX_SEARCH_FILTERED_HITS=0
+PRE_FIX_SNAP_FORMAT=1
+PRE_FIX_INDEX_ENTRY_BYTES=424
+PRE_FIX_MEM_PER_ENTRY_TENTHS=4367
+PRE_FIX_MEM_TOTAL_MIB=416
+### ШАГ 0а диск и RAM до замера ###
+DISK_FREE_MB=11913 TARGET_SIZE_MB=11741
+### ШАГ 1а корпус без объявлений, n=1 ### 2026-10-24T14:32:06+03:00
+   Compiling vecdht-wire v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-wire)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.28s
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-bb5ae98b12fa785f.exe)
+
+running 1 test
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+test declaration_free_corpus_is_byte_stable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+corpus1_exit=0
+### ШАГ 1б корпус без объявлений, n=2 ### 2026-10-24T14:32:08+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-bb5ae98b12fa785f.exe)
+
+running 1 test
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+test declaration_free_corpus_is_byte_stable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+corpus2_exit=0
+PUBLISH_CORPUS_FRAMES_r1=256
+PUBLISH_CORPUS_BYTES_r1=121600
+PUBLISH_CORPUS_FNV1A64_r1=dfa2b84feb67439d
+PUBLISH_CORPUS_FRAMES_r2=256
+PUBLISH_CORPUS_BYTES_r2=121600
+PUBLISH_CORPUS_FNV1A64_r2=dfa2b84feb67439d
+### ШАГ 2а канонический TLV, n=1 ### 2026-10-24T14:32:08+03:00
+   Compiling vecdht-wire v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-wire)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.83s
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-88a253b96678bdaf.exe)
+
+running 8 tests
+INTENT_FILTER_ROUNDTRIP=4
+## отбито: price without intent_class -> intent attribute: INTENT_ATTR_ROUNDTRIP=4
+price without intent_classtest explicit_zero_tags_collapse_before_signature ...  ##
+ok## отбито: 
+INTENT_FILTER_REJECTED=3
+test find_any_is_absence_of_tags ... price zero for paidok
+ -> test free_and_unspecified_add_no_bytes ... intent attribute: okprice zero for paid
+ ##
+test predicates_are_over_the_record_bit_not_the_query_word ... ok
+## отбито: price missing for paidtest unknown_tags_survive_and_do_not_confuse_attrs ... ok
+ -> test four_canonical_combinations_round_trip ... ok
+intent attribute: price missing for paid ##
+test find_filters_round_trip_and_reject_bad_enums ... ok## отбито: price for free
+ -> intent attribute: price without intent_class ##
+## отбито: class out of enum -> bad enum value 2 for intent_class at offset 0 ##
+## отбито: dir out of enum -> bad enum value 3 for intent_dir at offset 0 ##
+## отбито: price wrong length -> intent attribute: price length ##
+## отбито: class wrong length -> intent attribute: intent_class length ##
+INTENT_ATTR_REJECTED=8
+test non_canonical_combinations_are_rejected ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+### ШАГ 2б канонический TLV, n=2 ### 2026-10-24T14:32:10+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.18s
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-88a253b96678bdaf.exe)
+
+running 8 tests
+INTENT_FILTER_ROUNDTRIP=4
+INTENT_FILTER_REJECTED=3
+INTENT_ATTR_ROUNDTRIP=4
+## отбито: price without intent_class -> intent attribute: price without intent_class ##
+## отбито: test free_and_unspecified_add_no_bytes ... ok
+price zero for paid -> intent attribute: test explicit_zero_tags_collapse_before_signature ... ok
+price zero for paidtest find_any_is_absence_of_tags ... ok
+ ##
+test find_filters_round_trip_and_reject_bad_enums ... ok
+test predicates_are_over_the_record_bit_not_the_query_word ... ## отбито: price missing for paid -> intent attribute: okprice missing for paid ##
+
+## отбито: price for freetest four_canonical_combinations_round_trip ...  -> ok
+intent attribute: price without intent_class ##
+test unknown_tags_survive_and_do_not_confuse_attrs ... ok## отбито: class out of enum -> bad enum value 2 for intent_class at offset 
+0 ##
+## отбито: dir out of enum -> bad enum value 3 for intent_dir at offset 0 ##
+## отбито: price wrong length -> intent attribute: price length ##
+## отбито: class wrong length -> intent attribute: intent_class length ##
+INTENT_ATTR_REJECTED=8
+test non_canonical_combinations_are_rejected ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+INTENT_ATTR_ROUNDTRIP_r1=4
+INTENT_ATTR_REJECTED_r1=8
+INTENT_FILTER_ROUNDTRIP_r1=4
+INTENT_FILTER_REJECTED_r1=3
+INTENT_ATTR_ROUNDTRIP_r2=4
+INTENT_ATTR_REJECTED_r2=8
+INTENT_FILTER_ROUNDTRIP_r2=4
+INTENT_FILTER_REJECTED_r2=3
+### ШАГ 3а индекс: предикат, направление, снапшот, n=1 ### 2026-10-24T14:32:11+03:00
+   Compiling vecdht-wire v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-wire)
+   Compiling vecdht-crypto v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-crypto)
+   Compiling vecdht-artifact v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-artifact)
+   Compiling vecdht-index v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-index)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.81s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-238279c372452985.exe)
+
+running 86 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... INDEX_DIR_BUY=1
+INDEX_DIR_SELL=1
+INDEX_DIR_ANY=3
+ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... INDEX_PREDICATE_ONLYPAID_TOP1=1
+ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... SNAP_FORMAT=2
+SNAP_ATTR_ROUNDTRIP=1
+SNAP_FORMAT1_REJECTED=1
+ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+
+EXIT=0
+### ШАГ 3б индекс: то же, n=2 ### 2026-10-24T14:32:17+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.23s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-238279c372452985.exe)
+
+running 86 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... INDEX_DIR_BUY=1
+INDEX_DIR_SELL=1
+INDEX_DIR_ANY=3
+ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... INDEX_PREDICATE_ONLYPAID_TOP1=1
+ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... SNAP_FORMAT=2
+SNAP_ATTR_ROUNDTRIP=1
+SNAP_FORMAT1_REJECTED=1
+ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.30s
+
+EXIT=0
+INDEX_PREDICATE_ONLYPAID_TOP1_r1=1
+INDEX_DIR_BUY_r1=1
+INDEX_DIR_SELL_r1=1
+INDEX_DIR_ANY_r1=3
+SNAP_FORMAT_r1=2
+SNAP_ATTR_ROUNDTRIP_r1=1
+SNAP_FORMAT1_REJECTED_r1=1
+INDEX_PREDICATE_ONLYPAID_TOP1_r2=1
+INDEX_DIR_BUY_r2=1
+INDEX_DIR_SELL_r2=1
+INDEX_DIR_ANY_r2=3
+SNAP_FORMAT_r2=2
+SNAP_ATTR_ROUNDTRIP_r2=1
+SNAP_FORMAT1_REJECTED_r2=1
+### ШАГ 4а узел: атрибут в индексе и фильтры Find, n=1 ### 2026-10-24T14:32:20+03:00
+   Compiling vecdht-index v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-index)
+   Compiling vecdht-node v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-node)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.76s
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-efeb46d5fc7a998f.exe)
+
+running 2 tests
+test publish_attrs_reach_the_index_and_select_the_find ... NODE_PRICE_ARENA_HITS=0
+NODE_PRICE_FILE_HITS=0
+NODE_INDEX_ENTRY_BYTES=424
+NODE_FILTER_ANY=3
+NODE_FILTER_ONLYPAID=1
+NODE_FILTER_ONLYFREE=2
+NODE_FILTER_SELL=1
+NODE_FILTER_FREE_BUY=1
+NODE_FILTER_PAID_BUY=0
+NODE_SLOT_ATTR_101=6
+NODE_SLOT_ATTR_102=1
+NODE_SLOT_ATTR_103=0
+ok
+test unknown_filter_enum_is_a_decode_error ... ## факт: class_filter=9 отвергнут декодом: кадр Find сломал инвариант узла: не разобран: bad enum value 9 for class_filter at offset 0 ##
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+EXIT=0
+### ШАГ 4б узел: то же, n=2 ### 2026-10-24T14:32:24+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-efeb46d5fc7a998f.exe)
+
+running 2 tests
+test publish_attrs_reach_the_index_and_select_the_find ... NODE_PRICE_ARENA_HITS=0
+NODE_PRICE_FILE_HITS=0
+NODE_INDEX_ENTRY_BYTES=424
+NODE_FILTER_ANY=3
+NODE_FILTER_ONLYPAID=1
+NODE_FILTER_ONLYFREE=2
+NODE_FILTER_SELL=1
+NODE_FILTER_FREE_BUY=1
+NODE_FILTER_PAID_BUY=0
+NODE_SLOT_ATTR_101=6
+NODE_SLOT_ATTR_102=1
+NODE_SLOT_ATTR_103=0
+ok
+test unknown_filter_enum_is_a_decode_error ... ## факт: class_filter=9 отвергнут декодом: кадр Find сломал инвариант узла: не разобран: bad enum value 9 for class_filter at offset 0 ##
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+EXIT=0
+NODE_PRICE_ARENA_HITS_r1=0
+NODE_PRICE_FILE_HITS_r1=0
+NODE_INDEX_ENTRY_BYTES_r1=424
+NODE_FILTER_ANY_r1=3
+NODE_FILTER_ONLYPAID_r1=1
+NODE_FILTER_ONLYFREE_r1=2
+NODE_FILTER_SELL_r1=1
+NODE_FILTER_FREE_BUY_r1=1
+NODE_FILTER_PAID_BUY_r1=0
+NODE_SLOT_ATTR_101_r1=6
+NODE_SLOT_ATTR_102_r1=1
+NODE_SLOT_ATTR_103_r1=0
+NODE_PRICE_ARENA_HITS_r2=0
+NODE_PRICE_FILE_HITS_r2=0
+NODE_INDEX_ENTRY_BYTES_r2=424
+NODE_FILTER_ANY_r2=3
+NODE_FILTER_ONLYPAID_r2=1
+NODE_FILTER_ONLYFREE_r2=2
+NODE_FILTER_SELL_r2=1
+NODE_FILTER_FREE_BUY_r2=1
+NODE_FILTER_PAID_BUY_r2=0
+NODE_SLOT_ATTR_101_r2=6
+NODE_SLOT_ATTR_102_r2=1
+NODE_SLOT_ATTR_103_r2=0
+### ШАГ 5а память 1M записей, n=1 ### 2026-10-24T14:32:26+03:00
+   Compiling vecdht-index v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-index)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.07s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-be11cc76cb42f8b8.exe)
+
+running 1 test
+1M записей: арена 404.4 МиБ, списки 4.0 МиБ, dedup 8.0 МиБ, bitmap 0.1 МиБ, объявления 1.0 МиБ, итого 417.5 МиБ (учтено аллокатором 417.5 МиБ)
+на живую запись: 437.7 Б (предел таблицы 450 Б)
+MEM_SLOT_ATTR_BYTES=1000000
+MEM_INDEX_ENTRY_BYTES=424
+MEM_PER_ENTRY_TENTHS=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446=1
+MEM_TOTAL_MIB=417
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.11s
+
+EXIT=0
+### ШАГ 5б память 1M записей, n=2 ### 2026-10-24T14:32:30+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-be11cc76cb42f8b8.exe)
+
+running 1 test
+1M записей: арена 404.4 МиБ, списки 4.0 МиБ, dedup 8.0 МиБ, bitmap 0.1 МиБ, объявления 1.0 МиБ, итого 417.5 МиБ (учтено аллокатором 417.5 МиБ)
+на живую запись: 437.7 Б (предел таблицы 450 Б)
+MEM_SLOT_ATTR_BYTES=1000000
+MEM_INDEX_ENTRY_BYTES=424
+MEM_PER_ENTRY_TENTHS=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446=1
+MEM_TOTAL_MIB=417
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.08s
+
+EXIT=0
+MEM_SLOT_ATTR_BYTES_r1=1000000
+MEM_INDEX_ENTRY_BYTES_r1=424
+MEM_PER_ENTRY_TENTHS_r1=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446_r1=1
+MEM_TOTAL_MIB_r1=417
+MEM_SLOT_ATTR_BYTES_r2=1000000
+MEM_INDEX_ENTRY_BYTES_r2=424
+MEM_PER_ENTRY_TENTHS_r2=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446_r2=1
+MEM_TOTAL_MIB_r2=417
+### КОНТРОЛЬ ПОРОГОВ ###
+порог (1) инертность корпуса: pre=dfa2b84feb67439d post=dfa2b84feb67439d same=совпал расхождений=0/256
+порог (2) канонизация: roundtrip=4 rejected=8 filter_roundtrip=4 filter_rejected=3
+порог (3) предикат до усечения: onlypaid_top1=1 dir_buy=1 dir_sell=1 dir_any=3
+порог (4) цена не хранится: arena_hits=0 file_hits=0 index_entry_bytes=424
+порог (5) память: slot_attr_bytes=1000000 per_entry_tenths=4377 at_most_predicted=1 total_mib=417 delta_tenths=10
+MEM_DELTA_TENTHS=10
+MEM_PRE_PER_ENTRY_TENTHS=4367 MEM_POST_PER_ENTRY_TENTHS=4377
+порог (7) снапшот: format=2 attr_roundtrip=1 format1_rejected=1
+порог (9) вектор n=1 против n=2: РАЗОШЁЛСЯ
+порог (11) ресурсы: disk_free_mb=11913 disk_ok=0 ram_free_mb=8241 pagefile_peak_mb=7660
+порог (12) осевшие_каталоги=0
+### ШАГ 6 верификация воркспейса ### 2026-10-24T14:32:41+03:00
+EXIT=0
+### ШАГ 7 стража текста ### 2026-10-24T14:55:00+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+EXIT=0
+### ШАГ 8 СВЕРКА: lab/expectations/e0100.tsv против напечатанных фактов ###
+РАСХОЖДЕНИЕ: REPRO_VECTOR ждали «1», напечатано «нет такого ключа»
+ОЖИДАНИЙ=33 РАСХОЖДЕНИЙ=1
+СВЕРКА_EXIT=1
+
+########## E-0100 · класс и направление интента · прогон 2026-10-24T14:55:33+03:00 ##########
+HEAD: df55bb3
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+base_commit: 9687c32
+RAM_FREE_MB_BEFORE=7579 DISK_FREE_MB_BEFORE=11951 PAGEFILE_PEAK_MB=7660
+### ШАГ 0 PRE_FIX (дерево 9687c32, lab/logs/e0100-prefix.txt) ###
+# E-0100 · снимок PRE_FIX, снятый в отдельном worktree на коммите 9687c32
+# (`git worktree add /c/Users/Admin/vecdht-work/pre-e0100 9687c32`), до которого правки §5.5 в коде
+# нет. В worktree скопированы два прибора: `publish_corpus_digest.rs` (собран из API, которое было
+# до правки, поэтому компилируется на базовом дереве) и `intent_attr_tlv.rs` (оракул, который на
+# базовом дереве НЕ компилируется — это и есть зафиксированное отсутствие интерфейса, а не красный
+# по построению тест).
+#
+# Команды, которыми получены строки (все — в worktree, CARGO_TARGET_DIR отдельный):
+#   cargo test -p vecdht-wire --test publish_corpus_digest -- --nocapture
+#   cargo test -p vecdht-wire --test intent_attr_tlv --no-run
+#   grep -rn 'slot_attr' crates --include='*.rs' | grep -v 'tests/intent_attr_tlv.rs' | wc -l
+#   grep -rn 'search_filtered' crates --include='*.rs' | wc -l
+#   grep -oE 'SNAP_FORMAT: u16 = [0-9]+' crates/vecdht-index/src/snapshot.rs
+#   cargo test -p vecdht-index --test memory_budget -- --nocapture
+PRE_FIX_HEAD=9687c32
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+PRE_FIX_INTENT_ATTR_NOUN_EXIT=101
+PRE_FIX_INTENT_ATTR_NOUN_ERRORS=14
+PRE_FIX_SLOT_ATTR_SRC_HITS=0
+PRE_FIX_SEARCH_FILTERED_HITS=0
+PRE_FIX_SNAP_FORMAT=1
+PRE_FIX_INDEX_ENTRY_BYTES=424
+PRE_FIX_MEM_PER_ENTRY_TENTHS=4367
+PRE_FIX_MEM_TOTAL_MIB=416
+### ШАГ 0а диск и RAM до замера ###
+МЕРЕНО после: RAM_FREE_MB=7768 DISK_FREE_MB=11934 PAGEFILE_PEAK_MB=7660 TARGET_SIZE_MB=11498
+DISK_FREE_MB=11949 TARGET_SIZE_MB=11498
+########## E-0100 · конец блока ##########
+### ШАГ 1а корпус без объявлений, n=1 ### 2026-10-24T14:56:39+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-bb5ae98b12fa785f.exe)
+
+running 1 test
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+test declaration_free_corpus_is_byte_stable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+corpus1_exit=0
+### ШАГ 1б корпус без объявлений, n=2 ### 2026-10-24T14:56:39+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.16s
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-bb5ae98b12fa785f.exe)
+
+running 1 test
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+test declaration_free_corpus_is_byte_stable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+corpus2_exit=0
+PUBLISH_CORPUS_FRAMES_r1=256
+PUBLISH_CORPUS_BYTES_r1=121600
+PUBLISH_CORPUS_FNV1A64_r1=dfa2b84feb67439d
+PUBLISH_CORPUS_FRAMES_r2=256
+PUBLISH_CORPUS_BYTES_r2=121600
+PUBLISH_CORPUS_FNV1A64_r2=dfa2b84feb67439d
+### ШАГ 2а канонический TLV, n=1 ### 2026-10-24T14:56:40+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-88a253b96678bdaf.exe)
+
+running 8 tests
+INTENT_FILTER_ROUNDTRIP=4
+## отбито: price without intent_class -> INTENT_FILTER_REJECTED=3
+intent attribute: test explicit_zero_tags_collapse_before_signature ... price without intent_class ##
+ok## отбито: 
+price zero for paidINTENT_ATTR_ROUNDTRIP=4
+ -> test find_any_is_absence_of_tags ... intent attribute: price zero for paidok
+ ##
+## отбито: price missing for paid -> intent attribute: price missing for paid ##
+## отбито: price for freetest free_and_unspecified_add_no_bytes ...  -> okintent attribute: price without intent_class ##
+
+## отбито: test unknown_tags_survive_and_do_not_confuse_attrs ... class out of enum -> bad enum value 2 for intent_class at offset 0 ##
+ok## отбито: dir out of enum -> bad enum value 3
+ for test predicates_are_over_the_record_bit_not_the_query_word ... intent_dir at offset 0 ##
+ok
+## отбито: price wrong length -> test find_filters_round_trip_and_reject_bad_enums ... intent attribute: price length ##
+ok
+## отбито: class wrong length -> test four_canonical_combinations_round_trip ... ok
+intent attribute: intent_class length ##
+INTENT_ATTR_REJECTED=8
+test non_canonical_combinations_are_rejected ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+### ШАГ 2б канонический TLV, n=2 ### 2026-10-24T14:56:41+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-88a253b96678bdaf.exe)
+
+running 8 tests
+INTENT_FILTER_ROUNDTRIP=4
+INTENT_FILTER_REJECTED=3
+## отбито: price without intent_class -> intent attribute: price without intent_class ##
+test free_and_unspecified_add_no_bytes ... ## отбито: price zero for paid -> intent attribute: price zero for paid ##
+ok## отбито: 
+price missing for paidINTENT_ATTR_ROUNDTRIP=4
+ -> test find_any_is_absence_of_tags ... intent attribute: okprice missing for paid ##
+
+## отбито: test explicit_zero_tags_collapse_before_signature ... ok
+price for free -> intent attribute: price without intent_class ##
+test unknown_tags_survive_and_do_not_confuse_attrs ... ok## отбито: class out of enum
+ -> bad enum value 2test find_filters_round_trip_and_reject_bad_enums ...  for intent_class at offset 0ok ##
+
+## отбито: dir out of enum -> test predicates_are_over_the_record_bit_not_the_query_word ... bad enum value 3 for intent_dirok at offset 0 ##
+
+## отбито: price wrong length -> test four_canonical_combinations_round_trip ... intent attribute: price length ##
+ok
+## отбито: class wrong length -> intent attribute: intent_class length ##
+INTENT_ATTR_REJECTED=8
+test non_canonical_combinations_are_rejected ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+INTENT_ATTR_ROUNDTRIP_r1=
+INTENT_ATTR_REJECTED_r1=8
+INTENT_FILTER_ROUNDTRIP_r1=4
+INTENT_FILTER_REJECTED_r1=3
+INTENT_ATTR_ROUNDTRIP_r2=
+INTENT_ATTR_REJECTED_r2=8
+INTENT_FILTER_ROUNDTRIP_r2=4
+INTENT_FILTER_REJECTED_r2=3
+### ШАГ 3а индекс: предикат, направление, снапшот, n=1 ### 2026-10-24T14:56:42+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-238279c372452985.exe)
+
+running 86 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... INDEX_DIR_BUY=1
+INDEX_DIR_SELL=1
+INDEX_DIR_ANY=3
+ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... INDEX_PREDICATE_ONLYPAID_TOP1=1
+ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... SNAP_FORMAT=2
+SNAP_ATTR_ROUNDTRIP=1
+SNAP_FORMAT1_REJECTED=1
+ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.83s
+
+EXIT=0
+### ШАГ 3б индекс: то же, n=2 ### 2026-10-24T14:56:46+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.27s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-238279c372452985.exe)
+
+running 86 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... INDEX_DIR_BUY=1
+INDEX_DIR_SELL=1
+INDEX_DIR_ANY=3
+ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... INDEX_PREDICATE_ONLYPAID_TOP1=1
+ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... SNAP_FORMAT=2
+SNAP_ATTR_ROUNDTRIP=1
+SNAP_FORMAT1_REJECTED=1
+ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.53s
+
+EXIT=0
+INDEX_PREDICATE_ONLYPAID_TOP1_r1=1
+INDEX_DIR_BUY_r1=1
+INDEX_DIR_SELL_r1=1
+INDEX_DIR_ANY_r1=3
+SNAP_FORMAT_r1=2
+SNAP_ATTR_ROUNDTRIP_r1=1
+SNAP_FORMAT1_REJECTED_r1=1
+INDEX_PREDICATE_ONLYPAID_TOP1_r2=1
+INDEX_DIR_BUY_r2=1
+INDEX_DIR_SELL_r2=1
+INDEX_DIR_ANY_r2=3
+SNAP_FORMAT_r2=2
+SNAP_ATTR_ROUNDTRIP_r2=1
+SNAP_FORMAT1_REJECTED_r2=1
+### ШАГ 4а узел: атрибут в индексе и фильтры Find, n=1 ### 2026-10-24T14:56:51+03:00
+   Compiling vecdht-node v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-node)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.47s
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-efeb46d5fc7a998f.exe)
+
+running 2 tests
+test publish_attrs_reach_the_index_and_select_the_find ... NODE_PRICE_ARENA_HITS=0
+NODE_PRICE_FILE_HITS=0
+NODE_INDEX_ENTRY_BYTES=424
+NODE_FILTER_ANY=3
+NODE_FILTER_ONLYPAID=1
+NODE_FILTER_ONLYFREE=2
+NODE_FILTER_SELL=1
+NODE_FILTER_FREE_BUY=1
+NODE_FILTER_PAID_BUY=0
+NODE_SLOT_ATTR_101=6
+NODE_SLOT_ATTR_102=1
+NODE_SLOT_ATTR_103=0
+ok
+test unknown_filter_enum_is_a_decode_error ... ## факт: class_filter=9 отвергнут декодом: кадр Find сломал инвариант узла: не разобран: bad enum value 9 for class_filter at offset 0 ##
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+EXIT=0
+### ШАГ 4б узел: то же, n=2 ### 2026-10-24T14:56:54+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-efeb46d5fc7a998f.exe)
+
+running 2 tests
+test publish_attrs_reach_the_index_and_select_the_find ... NODE_PRICE_ARENA_HITS=0
+NODE_PRICE_FILE_HITS=0
+NODE_INDEX_ENTRY_BYTES=424
+NODE_FILTER_ANY=3
+NODE_FILTER_ONLYPAID=1
+NODE_FILTER_ONLYFREE=2
+NODE_FILTER_SELL=1
+NODE_FILTER_FREE_BUY=1
+NODE_FILTER_PAID_BUY=0
+NODE_SLOT_ATTR_101=6
+NODE_SLOT_ATTR_102=1
+NODE_SLOT_ATTR_103=0
+ok
+test unknown_filter_enum_is_a_decode_error ... ## факт: class_filter=9 отвергнут декодом: кадр Find сломал инвариант узла: не разобран: bad enum value 9 for class_filter at offset 0 ##
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+EXIT=0
+NODE_PRICE_ARENA_HITS_r1=0
+NODE_PRICE_FILE_HITS_r1=0
+NODE_INDEX_ENTRY_BYTES_r1=424
+NODE_FILTER_ANY_r1=3
+NODE_FILTER_ONLYPAID_r1=1
+NODE_FILTER_ONLYFREE_r1=2
+NODE_FILTER_SELL_r1=1
+NODE_FILTER_FREE_BUY_r1=1
+NODE_FILTER_PAID_BUY_r1=0
+NODE_SLOT_ATTR_101_r1=6
+NODE_SLOT_ATTR_102_r1=1
+NODE_SLOT_ATTR_103_r1=0
+NODE_PRICE_ARENA_HITS_r2=0
+NODE_PRICE_FILE_HITS_r2=0
+NODE_INDEX_ENTRY_BYTES_r2=424
+NODE_FILTER_ANY_r2=3
+NODE_FILTER_ONLYPAID_r2=1
+NODE_FILTER_ONLYFREE_r2=2
+NODE_FILTER_SELL_r2=1
+NODE_FILTER_FREE_BUY_r2=1
+NODE_FILTER_PAID_BUY_r2=0
+NODE_SLOT_ATTR_101_r2=6
+NODE_SLOT_ATTR_102_r2=1
+NODE_SLOT_ATTR_103_r2=0
+### ШАГ 5а память 1M записей, n=1 ### 2026-10-24T14:56:57+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-be11cc76cb42f8b8.exe)
+
+running 1 test
+1M записей: арена 404.4 МиБ, списки 4.0 МиБ, dedup 8.0 МиБ, bitmap 0.1 МиБ, объявления 1.0 МиБ, итого 417.5 МиБ (учтено аллокатором 417.5 МиБ)
+на живую запись: 437.7 Б (предел таблицы 450 Б)
+MEM_SLOT_ATTR_BYTES=1000000
+MEM_INDEX_ENTRY_BYTES=424
+MEM_PER_ENTRY_TENTHS=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446=1
+MEM_TOTAL_MIB=417
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.47s
+
+EXIT=0
+### ШАГ 5б память 1M записей, n=2 ### 2026-10-24T14:57:00+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.29s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-be11cc76cb42f8b8.exe)
+
+running 1 test
+1M записей: арена 404.4 МиБ, списки 4.0 МиБ, dedup 8.0 МиБ, bitmap 0.1 МиБ, объявления 1.0 МиБ, итого 417.5 МиБ (учтено аллокатором 417.5 МиБ)
+на живую запись: 437.7 Б (предел таблицы 450 Б)
+MEM_SLOT_ATTR_BYTES=1000000
+MEM_INDEX_ENTRY_BYTES=424
+MEM_PER_ENTRY_TENTHS=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446=1
+MEM_TOTAL_MIB=417
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+
+EXIT=0
+MEM_SLOT_ATTR_BYTES_r1=1000000
+MEM_INDEX_ENTRY_BYTES_r1=424
+MEM_PER_ENTRY_TENTHS_r1=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446_r1=1
+MEM_TOTAL_MIB_r1=417
+MEM_SLOT_ATTR_BYTES_r2=1000000
+MEM_INDEX_ENTRY_BYTES_r2=424
+MEM_PER_ENTRY_TENTHS_r2=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446_r2=1
+MEM_TOTAL_MIB_r2=417
+### КОНТРОЛЬ ПОРОГОВ ###
+порог (1) инертность корпуса: pre=dfa2b84feb67439d post=dfa2b84feb67439d same=совпал расхождений=0/256
+порог (2) канонизация: roundtrip= rejected=8 filter_roundtrip=4 filter_rejected=3
+порог (3) предикат до усечения: onlypaid_top1=1 dir_buy=1 dir_sell=1 dir_any=3
+порог (4) цена не хранится: arena_hits=0 file_hits=0 index_entry_bytes=424
+порог (5) память: slot_attr_bytes=1000000 per_entry_tenths=4377 at_most_predicted=1 total_mib=417 delta_tenths=10
+MEM_DELTA_TENTHS=10
+MEM_PRE_PER_ENTRY_TENTHS=4367 MEM_POST_PER_ENTRY_TENTHS=4377
+порог (7) снапшот: format=2 attr_roundtrip=1 format1_rejected=1
+REPRO_VECTOR=1
+порог (9) вектор n=1 против n=2: совпал
+порог (11) ресурсы: disk_free_mb=11949 disk_ok=0 ram_free_mb=7381 pagefile_peak_mb=7660
+порог (12) осевшие_каталоги=0
+### ШАГ 6 верификация воркспейса ### 2026-10-24T14:57:14+03:00
+EXIT=0
+### ШАГ 7 стража текста ### 2026-10-24T15:27:53+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+EXIT=0
+### ШАГ 8 СВЕРКА: lab/expectations/e0100.tsv против напечатанных фактов ###
+РАСХОЖДЕНИЕ: INTENT_ATTR_ROUNDTRIP ждали «4», напечатано «нет такого ключа»
+ОЖИДАНИЙ=33 РАСХОЖДЕНИЙ=1
+СВЕРКА_EXIT=1
+МЕРЕНО после: RAM_FREE_MB=8756 DISK_FREE_MB=11923 PAGEFILE_PEAK_MB=7660 TARGET_SIZE_MB=11481
+########## E-0100 · конец блока ##########
+
+########## E-0100 · класс и направление интента · прогон 2026-10-24T15:37:42+03:00 ##########
+HEAD: 73fbaf6
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+base_commit: 9687c32
+RAM_FREE_MB_BEFORE=7273 DISK_FREE_MB_BEFORE=11911 PAGEFILE_PEAK_MB=7660
+### ШАГ 0 PRE_FIX (дерево 9687c32, lab/logs/e0100-prefix.txt) ###
+# E-0100 · снимок PRE_FIX, снятый в отдельном worktree на коммите 9687c32
+# (`git worktree add /c/Users/Admin/vecdht-work/pre-e0100 9687c32`), до которого правки §5.5 в коде
+# нет. В worktree скопированы два прибора: `publish_corpus_digest.rs` (собран из API, которое было
+# до правки, поэтому компилируется на базовом дереве) и `intent_attr_tlv.rs` (оракул, который на
+# базовом дереве НЕ компилируется — это и есть зафиксированное отсутствие интерфейса, а не красный
+# по построению тест).
+#
+# Команды, которыми получены строки (все — в worktree, CARGO_TARGET_DIR отдельный):
+#   cargo test -p vecdht-wire --test publish_corpus_digest -- --nocapture
+#   cargo test -p vecdht-wire --test intent_attr_tlv --no-run
+#   grep -rn 'slot_attr' crates --include='*.rs' | grep -v 'tests/intent_attr_tlv.rs' | wc -l
+#   grep -rn 'search_filtered' crates --include='*.rs' | wc -l
+#   grep -oE 'SNAP_FORMAT: u16 = [0-9]+' crates/vecdht-index/src/snapshot.rs
+#   cargo test -p vecdht-index --test memory_budget -- --nocapture
+PRE_FIX_HEAD=9687c32
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+PRE_FIX_INTENT_ATTR_NOUN_EXIT=101
+PRE_FIX_INTENT_ATTR_NOUN_ERRORS=14
+PRE_FIX_SLOT_ATTR_SRC_HITS=0
+PRE_FIX_SEARCH_FILTERED_HITS=0
+PRE_FIX_SNAP_FORMAT=1
+PRE_FIX_INDEX_ENTRY_BYTES=424
+PRE_FIX_MEM_PER_ENTRY_TENTHS=4367
+PRE_FIX_MEM_TOTAL_MIB=416
+### ШАГ 0а диск и RAM до замера ###
+DISK_FREE_MB=11911 TARGET_SIZE_MB=11481
+### ШАГ 1а корпус без объявлений, n=1 ### 2026-10-24T15:37:52+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-bb5ae98b12fa785f.exe)
+
+running 1 test
+test declaration_free_corpus_is_byte_stable ... PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+corpus1_exit=0
+### ШАГ 1б корпус без объявлений, n=2 ### 2026-10-24T15:37:52+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.17s
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-bb5ae98b12fa785f.exe)
+
+running 1 test
+test declaration_free_corpus_is_byte_stable ... PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+corpus2_exit=0
+PUBLISH_CORPUS_FRAMES_r1=256
+PUBLISH_CORPUS_BYTES_r1=121600
+PUBLISH_CORPUS_FNV1A64_r1=dfa2b84feb67439d
+PUBLISH_CORPUS_FRAMES_r2=256
+PUBLISH_CORPUS_BYTES_r2=121600
+PUBLISH_CORPUS_FNV1A64_r2=dfa2b84feb67439d
+### ШАГ 2а канонический TLV, n=1 ### 2026-10-24T15:37:54+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-88a253b96678bdaf.exe)
+
+running 8 tests
+test explicit_zero_tags_collapse_before_signature ... ok
+test find_any_is_absence_of_tags ... ok
+test find_filters_round_trip_and_reject_bad_enums ... 
+INTENT_FILTER_ROUNDTRIP=4
+
+INTENT_FILTER_REJECTED=3
+ok
+test four_canonical_combinations_round_trip ... 
+INTENT_ATTR_ROUNDTRIP=4
+ok
+test free_and_unspecified_add_no_bytes ... ok
+test non_canonical_combinations_are_rejected ... ## отбито: price without intent_class -> intent attribute: price without intent_class ##
+## отбито: price zero for paid -> intent attribute: price zero for paid ##
+## отбито: price missing for paid -> intent attribute: price missing for paid ##
+## отбито: price for free -> intent attribute: price without intent_class ##
+## отбито: class out of enum -> bad enum value 2 for intent_class at offset 0 ##
+## отбито: dir out of enum -> bad enum value 3 for intent_dir at offset 0 ##
+## отбито: price wrong length -> intent attribute: price length ##
+## отбито: class wrong length -> intent attribute: intent_class length ##
+
+INTENT_ATTR_REJECTED=8
+ok
+test predicates_are_over_the_record_bit_not_the_query_word ... ok
+test unknown_tags_survive_and_do_not_confuse_attrs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+### ШАГ 2б канонический TLV, n=2 ### 2026-10-24T15:37:54+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.20s
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-88a253b96678bdaf.exe)
+
+running 8 tests
+test explicit_zero_tags_collapse_before_signature ... ok
+test find_any_is_absence_of_tags ... ok
+test find_filters_round_trip_and_reject_bad_enums ... 
+INTENT_FILTER_ROUNDTRIP=4
+
+INTENT_FILTER_REJECTED=3
+ok
+test four_canonical_combinations_round_trip ... 
+INTENT_ATTR_ROUNDTRIP=4
+ok
+test free_and_unspecified_add_no_bytes ... ok
+test non_canonical_combinations_are_rejected ... ## отбито: price without intent_class -> intent attribute: price without intent_class ##
+## отбито: price zero for paid -> intent attribute: price zero for paid ##
+## отбито: price missing for paid -> intent attribute: price missing for paid ##
+## отбито: price for free -> intent attribute: price without intent_class ##
+## отбито: class out of enum -> bad enum value 2 for intent_class at offset 0 ##
+## отбито: dir out of enum -> bad enum value 3 for intent_dir at offset 0 ##
+## отбито: price wrong length -> intent attribute: price length ##
+## отбито: class wrong length -> intent attribute: intent_class length ##
+
+INTENT_ATTR_REJECTED=8
+ok
+test predicates_are_over_the_record_bit_not_the_query_word ... ok
+test unknown_tags_survive_and_do_not_confuse_attrs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+INTENT_ATTR_ROUNDTRIP_r1=4
+INTENT_ATTR_REJECTED_r1=8
+INTENT_FILTER_ROUNDTRIP_r1=4
+INTENT_FILTER_REJECTED_r1=3
+INTENT_ATTR_ROUNDTRIP_r2=4
+INTENT_ATTR_REJECTED_r2=8
+INTENT_FILTER_ROUNDTRIP_r2=4
+INTENT_FILTER_REJECTED_r2=3
+### ШАГ 3а индекс: предикат, направление, снапшот, n=1 ### 2026-10-24T15:37:56+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.07s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-238279c372452985.exe)
+
+running 86 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... INDEX_DIR_BUY=1
+INDEX_DIR_SELL=1
+INDEX_DIR_ANY=3
+ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... INDEX_PREDICATE_ONLYPAID_TOP1=1
+ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... SNAP_FORMAT=2
+SNAP_ATTR_ROUNDTRIP=1
+SNAP_FORMAT1_REJECTED=1
+ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.63s
+
+EXIT=0
+### ШАГ 3б индекс: то же, n=2 ### 2026-10-24T15:38:00+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.25s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-238279c372452985.exe)
+
+running 86 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... INDEX_DIR_BUY=1
+INDEX_DIR_SELL=1
+INDEX_DIR_ANY=3
+ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... INDEX_PREDICATE_ONLYPAID_TOP1=1
+ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... SNAP_FORMAT=2
+SNAP_ATTR_ROUNDTRIP=1
+SNAP_FORMAT1_REJECTED=1
+ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.41s
+
+EXIT=0
+INDEX_PREDICATE_ONLYPAID_TOP1_r1=1
+INDEX_DIR_BUY_r1=1
+INDEX_DIR_SELL_r1=1
+INDEX_DIR_ANY_r1=3
+SNAP_FORMAT_r1=2
+SNAP_ATTR_ROUNDTRIP_r1=1
+SNAP_FORMAT1_REJECTED_r1=1
+INDEX_PREDICATE_ONLYPAID_TOP1_r2=1
+INDEX_DIR_BUY_r2=1
+INDEX_DIR_SELL_r2=1
+INDEX_DIR_ANY_r2=3
+SNAP_FORMAT_r2=2
+SNAP_ATTR_ROUNDTRIP_r2=1
+SNAP_FORMAT1_REJECTED_r2=1
+### ШАГ 4а узел: атрибут в индексе и фильтры Find, n=1 ### 2026-10-24T15:38:04+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-efeb46d5fc7a998f.exe)
+
+running 2 tests
+test publish_attrs_reach_the_index_and_select_the_find ... NODE_PRICE_ARENA_HITS=0
+NODE_PRICE_FILE_HITS=0
+NODE_INDEX_ENTRY_BYTES=424
+NODE_FILTER_ANY=3
+NODE_FILTER_ONLYPAID=1
+NODE_FILTER_ONLYFREE=2
+NODE_FILTER_SELL=1
+NODE_FILTER_FREE_BUY=1
+NODE_FILTER_PAID_BUY=0
+NODE_SLOT_ATTR_101=6
+NODE_SLOT_ATTR_102=1
+NODE_SLOT_ATTR_103=0
+ok
+test unknown_filter_enum_is_a_decode_error ... ## факт: class_filter=9 отвергнут декодом: кадр Find сломал инвариант узла: не разобран: bad enum value 9 for class_filter at offset 0 ##
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+EXIT=0
+### ШАГ 4б узел: то же, n=2 ### 2026-10-24T15:38:05+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-efeb46d5fc7a998f.exe)
+
+running 2 tests
+test publish_attrs_reach_the_index_and_select_the_find ... NODE_PRICE_ARENA_HITS=0
+NODE_PRICE_FILE_HITS=0
+NODE_INDEX_ENTRY_BYTES=424
+NODE_FILTER_ANY=3
+NODE_FILTER_ONLYPAID=1
+NODE_FILTER_ONLYFREE=2
+NODE_FILTER_SELL=1
+NODE_FILTER_FREE_BUY=1
+NODE_FILTER_PAID_BUY=0
+NODE_SLOT_ATTR_101=6
+NODE_SLOT_ATTR_102=1
+NODE_SLOT_ATTR_103=0
+ok
+test unknown_filter_enum_is_a_decode_error ... ## факт: class_filter=9 отвергнут декодом: кадр Find сломал инвариант узла: не разобран: bad enum value 9 for class_filter at offset 0 ##
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+EXIT=0
+NODE_PRICE_ARENA_HITS_r1=0
+NODE_PRICE_FILE_HITS_r1=0
+NODE_INDEX_ENTRY_BYTES_r1=424
+NODE_FILTER_ANY_r1=3
+NODE_FILTER_ONLYPAID_r1=1
+NODE_FILTER_ONLYFREE_r1=2
+NODE_FILTER_SELL_r1=1
+NODE_FILTER_FREE_BUY_r1=1
+NODE_FILTER_PAID_BUY_r1=0
+NODE_SLOT_ATTR_101_r1=6
+NODE_SLOT_ATTR_102_r1=1
+NODE_SLOT_ATTR_103_r1=0
+NODE_PRICE_ARENA_HITS_r2=0
+NODE_PRICE_FILE_HITS_r2=0
+NODE_INDEX_ENTRY_BYTES_r2=424
+NODE_FILTER_ANY_r2=3
+NODE_FILTER_ONLYPAID_r2=1
+NODE_FILTER_ONLYFREE_r2=2
+NODE_FILTER_SELL_r2=1
+NODE_FILTER_FREE_BUY_r2=1
+NODE_FILTER_PAID_BUY_r2=0
+NODE_SLOT_ATTR_101_r2=6
+NODE_SLOT_ATTR_102_r2=1
+NODE_SLOT_ATTR_103_r2=0
+### ШАГ 5а память 1M записей, n=1 ### 2026-10-24T15:38:08+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.31s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-be11cc76cb42f8b8.exe)
+
+running 1 test
+1M записей: арена 404.4 МиБ, списки 4.0 МиБ, dedup 8.0 МиБ, bitmap 0.1 МиБ, объявления 1.0 МиБ, итого 417.5 МиБ (учтено аллокатором 417.5 МиБ)
+на живую запись: 437.7 Б (предел таблицы 450 Б)
+MEM_SLOT_ATTR_BYTES=1000000
+MEM_INDEX_ENTRY_BYTES=424
+MEM_PER_ENTRY_TENTHS=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446=1
+MEM_TOTAL_MIB=417
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.13s
+
+EXIT=0
+### ШАГ 5б память 1M записей, n=2 ### 2026-10-24T15:38:11+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.22s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-be11cc76cb42f8b8.exe)
+
+running 1 test
+1M записей: арена 404.4 МиБ, списки 4.0 МиБ, dedup 8.0 МиБ, bitmap 0.1 МиБ, объявления 1.0 МиБ, итого 417.5 МиБ (учтено аллокатором 417.5 МиБ)
+на живую запись: 437.7 Б (предел таблицы 450 Б)
+MEM_SLOT_ATTR_BYTES=1000000
+MEM_INDEX_ENTRY_BYTES=424
+MEM_PER_ENTRY_TENTHS=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446=1
+MEM_TOTAL_MIB=417
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.22s
+
+EXIT=0
+MEM_SLOT_ATTR_BYTES_r1=1000000
+MEM_INDEX_ENTRY_BYTES_r1=424
+MEM_PER_ENTRY_TENTHS_r1=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446_r1=1
+MEM_TOTAL_MIB_r1=417
+MEM_SLOT_ATTR_BYTES_r2=1000000
+MEM_INDEX_ENTRY_BYTES_r2=424
+MEM_PER_ENTRY_TENTHS_r2=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446_r2=1
+MEM_TOTAL_MIB_r2=417
+### КОНТРОЛЬ ПОРОГОВ ###
+порог (1) инертность корпуса: pre=dfa2b84feb67439d post=dfa2b84feb67439d same=совпал расхождений=0/256
+порог (2) канонизация: roundtrip=4 rejected=8 filter_roundtrip=4 filter_rejected=3
+порог (3) предикат до усечения: onlypaid_top1=1 dir_buy=1 dir_sell=1 dir_any=3
+порог (4) цена не хранится: arena_hits=0 file_hits=0 index_entry_bytes=424
+порог (5) память: slot_attr_bytes=1000000 per_entry_tenths=4377 at_most_predicted=1 total_mib=417 delta_tenths=10
+MEM_DELTA_TENTHS=10
+MEM_PRE_PER_ENTRY_TENTHS=4367 MEM_POST_PER_ENTRY_TENTHS=4377
+порог (7) снапшот: format=2 attr_roundtrip=1 format1_rejected=1
+REPRO_VECTOR=1
+порог (9) вектор n=1 против n=2: совпал
+порог (11) ресурсы: disk_free_mb=11911 disk_ok=0 ram_free_mb=7245 pagefile_peak_mb=7660
+порог (12) осевшие_каталоги=0
+### ШАГ 6 верификация воркспейса ### 2026-10-24T15:38:24+03:00
+EXIT=1
+### ШАГ 7 стража текста ### 2026-10-24T16:03:13+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+EXIT=0
+### ШАГ 8 СВЕРКА: lab/expectations/e0100.tsv против напечатанных фактов ###
+ОЖИДАНИЙ=33 РАСХОЖДЕНИЙ=0
+СВЕРКА_EXIT=0
+МЕРЕНО после: RAM_FREE_MB=7290 DISK_FREE_MB=10306 PAGEFILE_PEAK_MB=7660 TARGET_SIZE_MB=11485
+########## E-0100 · конец блока ##########
+
+########## E-0100 · класс и направление интента · прогон 2026-10-24T16:06:31+03:00 ##########
+HEAD: dc4ecd2
+rustc: rustc 1.99.1 (58cf8f9c3 2026-10-13)
+base_commit: 9687c32
+RAM_FREE_MB_BEFORE=6359 DISK_FREE_MB_BEFORE=10283 PAGEFILE_PEAK_MB=7660
+### ШАГ 0 PRE_FIX (дерево 9687c32, lab/logs/e0100-prefix.txt) ###
+# E-0100 · снимок PRE_FIX, снятый в отдельном worktree на коммите 9687c32
+# (`git worktree add /c/Users/Admin/vecdht-work/pre-e0100 9687c32`), до которого правки §5.5 в коде
+# нет. В worktree скопированы два прибора: `publish_corpus_digest.rs` (собран из API, которое было
+# до правки, поэтому компилируется на базовом дереве) и `intent_attr_tlv.rs` (оракул, который на
+# базовом дереве НЕ компилируется — это и есть зафиксированное отсутствие интерфейса, а не красный
+# по построению тест).
+#
+# Команды, которыми получены строки (все — в worktree, CARGO_TARGET_DIR отдельный):
+#   cargo test -p vecdht-wire --test publish_corpus_digest -- --nocapture
+#   cargo test -p vecdht-wire --test intent_attr_tlv --no-run
+#   grep -rn 'slot_attr' crates --include='*.rs' | grep -v 'tests/intent_attr_tlv.rs' | wc -l
+#   grep -rn 'search_filtered' crates --include='*.rs' | wc -l
+#   grep -oE 'SNAP_FORMAT: u16 = [0-9]+' crates/vecdht-index/src/snapshot.rs
+#   cargo test -p vecdht-index --test memory_budget -- --nocapture
+PRE_FIX_HEAD=9687c32
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+PRE_FIX_INTENT_ATTR_NOUN_EXIT=101
+PRE_FIX_INTENT_ATTR_NOUN_ERRORS=14
+PRE_FIX_SLOT_ATTR_SRC_HITS=0
+PRE_FIX_SEARCH_FILTERED_HITS=0
+PRE_FIX_SNAP_FORMAT=1
+PRE_FIX_INDEX_ENTRY_BYTES=424
+PRE_FIX_MEM_PER_ENTRY_TENTHS=4367
+PRE_FIX_MEM_TOTAL_MIB=416
+### ШАГ 0а диск и RAM до замера ###
+DISK_FREE_MB=10283 TARGET_SIZE_MB=11496
+### ШАГ 1а корпус без объявлений, n=1 ### 2026-10-24T16:06:41+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.29s
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-bb5ae98b12fa785f.exe)
+
+running 1 test
+test declaration_free_corpus_is_byte_stable ... PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+corpus1_exit=0
+### ШАГ 1б корпус без объявлений, n=2 ### 2026-10-24T16:06:42+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.19s
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-bb5ae98b12fa785f.exe)
+
+running 1 test
+test declaration_free_corpus_is_byte_stable ... PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+EXIT=0
+corpus2_exit=0
+PUBLISH_CORPUS_FRAMES_r1=256
+PUBLISH_CORPUS_BYTES_r1=121600
+PUBLISH_CORPUS_FNV1A64_r1=dfa2b84feb67439d
+PUBLISH_CORPUS_FRAMES_r2=256
+PUBLISH_CORPUS_BYTES_r2=121600
+PUBLISH_CORPUS_FNV1A64_r2=dfa2b84feb67439d
+### ШАГ 2а канонический TLV, n=1 ### 2026-10-24T16:06:43+03:00
+   Compiling vecdht-wire v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-wire)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.66s
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-88a253b96678bdaf.exe)
+
+running 8 tests
+test explicit_zero_tags_collapse_before_signature ... ok
+test find_any_is_absence_of_tags ... ok
+test find_filters_round_trip_and_reject_bad_enums ... 
+INTENT_FILTER_ROUNDTRIP=4
+
+INTENT_FILTER_REJECTED=3
+ok
+test four_canonical_combinations_round_trip ... 
+INTENT_ATTR_ROUNDTRIP=4
+ok
+test free_and_unspecified_add_no_bytes ... ok
+test non_canonical_combinations_are_rejected ... ## отбито: price without intent_class -> intent attribute: price without intent_class ##
+## отбито: price zero for paid -> intent attribute: price zero for paid ##
+## отбито: price missing for paid -> intent attribute: price missing for paid ##
+## отбито: price for free -> intent attribute: price without intent_class ##
+## отбито: class out of enum -> bad enum value 2 for intent_class at offset 0 ##
+## отбито: dir out of enum -> bad enum value 3 for intent_dir at offset 0 ##
+## отбито: price wrong length -> intent attribute: price length ##
+## отбито: class wrong length -> intent attribute: intent_class length ##
+
+INTENT_ATTR_REJECTED=8
+ok
+test predicates_are_over_the_record_bit_not_the_query_word ... ok
+test unknown_tags_survive_and_do_not_confuse_attrs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+### ШАГ 2б канонический TLV, n=2 ### 2026-10-24T16:06:45+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.21s
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-88a253b96678bdaf.exe)
+
+running 8 tests
+test explicit_zero_tags_collapse_before_signature ... ok
+test find_any_is_absence_of_tags ... ok
+test find_filters_round_trip_and_reject_bad_enums ... 
+INTENT_FILTER_ROUNDTRIP=4
+
+INTENT_FILTER_REJECTED=3
+ok
+test four_canonical_combinations_round_trip ... 
+INTENT_ATTR_ROUNDTRIP=4
+ok
+test free_and_unspecified_add_no_bytes ... ok
+test non_canonical_combinations_are_rejected ... ## отбито: price without intent_class -> intent attribute: price without intent_class ##
+## отбито: price zero for paid -> intent attribute: price zero for paid ##
+## отбито: price missing for paid -> intent attribute: price missing for paid ##
+## отбито: price for free -> intent attribute: price without intent_class ##
+## отбито: class out of enum -> bad enum value 2 for intent_class at offset 0 ##
+## отбито: dir out of enum -> bad enum value 3 for intent_dir at offset 0 ##
+## отбито: price wrong length -> intent attribute: price length ##
+## отбито: class wrong length -> intent attribute: intent_class length ##
+
+INTENT_ATTR_REJECTED=8
+ok
+test predicates_are_over_the_record_bit_not_the_query_word ... ok
+test unknown_tags_survive_and_do_not_confuse_attrs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+EXIT=0
+INTENT_ATTR_ROUNDTRIP_r1=4
+INTENT_ATTR_REJECTED_r1=8
+INTENT_FILTER_ROUNDTRIP_r1=4
+INTENT_FILTER_REJECTED_r1=3
+INTENT_ATTR_ROUNDTRIP_r2=4
+INTENT_ATTR_REJECTED_r2=8
+INTENT_FILTER_ROUNDTRIP_r2=4
+INTENT_FILTER_REJECTED_r2=3
+### ШАГ 3а индекс: предикат, направление, снапшот, n=1 ### 2026-10-24T16:06:46+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.45s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-238279c372452985.exe)
+
+running 86 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... INDEX_DIR_BUY=1
+INDEX_DIR_SELL=1
+INDEX_DIR_ANY=3
+ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... INDEX_PREDICATE_ONLYPAID_TOP1=1
+ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... SNAP_FORMAT=2
+SNAP_ATTR_ROUNDTRIP=1
+SNAP_FORMAT1_REJECTED=1
+ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.71s
+
+EXIT=0
+### ШАГ 3б индекс: то же, n=2 ### 2026-10-24T16:06:50+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.28s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-238279c372452985.exe)
+
+running 86 tests
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... INDEX_DIR_BUY=1
+INDEX_DIR_SELL=1
+INDEX_DIR_ANY=3
+ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... INDEX_PREDICATE_ONLYPAID_TOP1=1
+ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... SNAP_FORMAT=2
+SNAP_ATTR_ROUNDTRIP=1
+SNAP_FORMAT1_REJECTED=1
+ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test store::tests::publish_writes_then_applies ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.56s
+
+EXIT=0
+INDEX_PREDICATE_ONLYPAID_TOP1_r1=1
+INDEX_DIR_BUY_r1=1
+INDEX_DIR_SELL_r1=1
+INDEX_DIR_ANY_r1=3
+SNAP_FORMAT_r1=2
+SNAP_ATTR_ROUNDTRIP_r1=1
+SNAP_FORMAT1_REJECTED_r1=1
+INDEX_PREDICATE_ONLYPAID_TOP1_r2=1
+INDEX_DIR_BUY_r2=1
+INDEX_DIR_SELL_r2=1
+INDEX_DIR_ANY_r2=3
+SNAP_FORMAT_r2=2
+SNAP_ATTR_ROUNDTRIP_r2=1
+SNAP_FORMAT1_REJECTED_r2=1
+### ШАГ 4а узел: атрибут в индексе и фильтры Find, n=1 ### 2026-10-24T16:06:55+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.30s
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-efeb46d5fc7a998f.exe)
+
+running 2 tests
+test publish_attrs_reach_the_index_and_select_the_find ... NODE_PRICE_ARENA_HITS=0
+NODE_PRICE_FILE_HITS=0
+NODE_INDEX_ENTRY_BYTES=424
+NODE_FILTER_ANY=3
+NODE_FILTER_ONLYPAID=1
+NODE_FILTER_ONLYFREE=2
+NODE_FILTER_SELL=1
+NODE_FILTER_FREE_BUY=1
+NODE_FILTER_PAID_BUY=0
+NODE_SLOT_ATTR_101=6
+NODE_SLOT_ATTR_102=1
+NODE_SLOT_ATTR_103=0
+ok
+test unknown_filter_enum_is_a_decode_error ... ## факт: class_filter=9 отвергнут декодом: кадр Find сломал инвариант узла: не разобран: bad enum value 9 for class_filter at offset 0 ##
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+EXIT=0
+### ШАГ 4б узел: то же, n=2 ### 2026-10-24T16:06:56+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-efeb46d5fc7a998f.exe)
+
+running 2 tests
+test publish_attrs_reach_the_index_and_select_the_find ... NODE_PRICE_ARENA_HITS=0
+NODE_PRICE_FILE_HITS=0
+NODE_INDEX_ENTRY_BYTES=424
+NODE_FILTER_ANY=3
+NODE_FILTER_ONLYPAID=1
+NODE_FILTER_ONLYFREE=2
+NODE_FILTER_SELL=1
+NODE_FILTER_FREE_BUY=1
+NODE_FILTER_PAID_BUY=0
+NODE_SLOT_ATTR_101=6
+NODE_SLOT_ATTR_102=1
+NODE_SLOT_ATTR_103=0
+ok
+test unknown_filter_enum_is_a_decode_error ... ## факт: class_filter=9 отвергнут декодом: кадр Find сломал инвариант узла: не разобран: bad enum value 9 for class_filter at offset 0 ##
+ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+EXIT=0
+NODE_PRICE_ARENA_HITS_r1=0
+NODE_PRICE_FILE_HITS_r1=0
+NODE_INDEX_ENTRY_BYTES_r1=424
+NODE_FILTER_ANY_r1=3
+NODE_FILTER_ONLYPAID_r1=1
+NODE_FILTER_ONLYFREE_r1=2
+NODE_FILTER_SELL_r1=1
+NODE_FILTER_FREE_BUY_r1=1
+NODE_FILTER_PAID_BUY_r1=0
+NODE_SLOT_ATTR_101_r1=6
+NODE_SLOT_ATTR_102_r1=1
+NODE_SLOT_ATTR_103_r1=0
+NODE_PRICE_ARENA_HITS_r2=0
+NODE_PRICE_FILE_HITS_r2=0
+NODE_INDEX_ENTRY_BYTES_r2=424
+NODE_FILTER_ANY_r2=3
+NODE_FILTER_ONLYPAID_r2=1
+NODE_FILTER_ONLYFREE_r2=2
+NODE_FILTER_SELL_r2=1
+NODE_FILTER_FREE_BUY_r2=1
+NODE_FILTER_PAID_BUY_r2=0
+NODE_SLOT_ATTR_101_r2=6
+NODE_SLOT_ATTR_102_r2=1
+NODE_SLOT_ATTR_103_r2=0
+### ШАГ 5а память 1M записей, n=1 ### 2026-10-24T16:06:58+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.26s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-be11cc76cb42f8b8.exe)
+
+running 1 test
+1M записей: арена 404.4 МиБ, списки 4.0 МиБ, dedup 8.0 МиБ, bitmap 0.1 МиБ, объявления 1.0 МиБ, итого 417.5 МиБ (учтено аллокатором 417.5 МиБ)
+на живую запись: 437.7 Б (предел таблицы 450 Б)
+MEM_SLOT_ATTR_BYTES=1000000
+MEM_INDEX_ENTRY_BYTES=424
+MEM_PER_ENTRY_TENTHS=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446=1
+MEM_TOTAL_MIB=417
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.42s
+
+EXIT=0
+### ШАГ 5б память 1M записей, n=2 ### 2026-10-24T16:07:02+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.24s
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-be11cc76cb42f8b8.exe)
+
+running 1 test
+1M записей: арена 404.4 МиБ, списки 4.0 МиБ, dedup 8.0 МиБ, bitmap 0.1 МиБ, объявления 1.0 МиБ, итого 417.5 МиБ (учтено аллокатором 417.5 МиБ)
+на живую запись: 437.7 Б (предел таблицы 450 Б)
+MEM_SLOT_ATTR_BYTES=1000000
+MEM_INDEX_ENTRY_BYTES=424
+MEM_PER_ENTRY_TENTHS=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446=1
+MEM_TOTAL_MIB=417
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.60s
+
+EXIT=0
+MEM_SLOT_ATTR_BYTES_r1=1000000
+MEM_INDEX_ENTRY_BYTES_r1=424
+MEM_PER_ENTRY_TENTHS_r1=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446_r1=1
+MEM_TOTAL_MIB_r1=417
+MEM_SLOT_ATTR_BYTES_r2=1000000
+MEM_INDEX_ENTRY_BYTES_r2=424
+MEM_PER_ENTRY_TENTHS_r2=4377
+MEM_PER_ENTRY_AT_MOST_PREDICTED_4446_r2=1
+MEM_TOTAL_MIB_r2=417
+### КОНТРОЛЬ ПОРОГОВ ###
+порог (1) инертность корпуса: pre=dfa2b84feb67439d post=dfa2b84feb67439d same=совпал расхождений=0/256
+порог (2) канонизация: roundtrip=4 rejected=8 filter_roundtrip=4 filter_rejected=3
+порог (3) предикат до усечения: onlypaid_top1=1 dir_buy=1 dir_sell=1 dir_any=3
+порог (4) цена не хранится: arena_hits=0 file_hits=0 index_entry_bytes=424
+порог (5) память: slot_attr_bytes=1000000 per_entry_tenths=4377 at_most_predicted=1 total_mib=417 delta_tenths=10
+MEM_DELTA_TENTHS=10
+MEM_PRE_PER_ENTRY_TENTHS=4367 MEM_POST_PER_ENTRY_TENTHS=4377
+порог (7) снапшот: format=2 attr_roundtrip=1 format1_rejected=1
+REPRO_VECTOR=1
+порог (9) вектор n=1 против n=2: совпал
+порог (11) ресурсы: disk_free_mb=10283 disk_ok=0 ram_free_mb=5119 pagefile_peak_mb=7660
+порог (12) осевшие_каталоги=0
+### ШАГ 6 верификация воркспейса ### 2026-10-24T16:07:16+03:00
+EXIT=0
+### ШАГ 7 стража текста ### 2026-10-24T16:32:49+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+EXIT=0
+### ШАГ 8 СВЕРКА: lab/expectations/e0100.tsv против напечатанных фактов ###
+ОЖИДАНИЙ=33 РАСХОЖДЕНИЙ=0
+СВЕРКА_EXIT=0
