@@ -1,0 +1,125 @@
+########## E-0101 · 2026-10-24T17:58:07+03:00 · дерево 424973b ##########
+### ШАГ 0 PRE_FIX: прибора нет, слабости есть (архив 2925bf2) ### 2026-10-24T17:58:07+03:00
+PREFIX_REVIEW_SCRIPT=0
+PREFIX_VERIFY_REFS=0
+PREFIX_FINDINGS=5
+PREFIX_TOP=closed-empty-result:4
+    НАХОДКА closed-empty-result: lab/hypotheses/H-0092-denylist-durable-and-bounded.md — раздел результата пуст или остался заготовкой при status=supported
+    НАХОДКА closed-empty-result: lab/hypotheses/H-0093-lean-model-guards.md — нет раздела «Результат»/«Итог» при status=supported
+    НАХОДКА closed-empty-result: lab/hypotheses/H-0094-revocation-durable-after-restart.md — нет раздела «Результат»/«Итог» при status=supported
+    НАХОДКА closed-empty-result: lab/hypotheses/H-0095-door-refusal-reason-observable.md — нет раздела «Результат»/«Итог» при status=supported
+    НАХОДКА helper-orphans: lab/e0015-run.sh — не назван в карточке E-0015-owner-cap-cost.md: прогон не воспроизводится
+### носитель ### 2026-10-24T17:58:18+03:00
+DISK_FREE_MB=22265 RAM_FREE_MB=11550 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 самопроверка прибора, n=1 ### 2026-10-24T17:58:20+03:00
+    REVIEW_SELFTEST total=8 passed=8
+      КЕЙС stale-refs: ОТБИТ
+      КЕЙС closed-empty-result: ОТБИТ
+      КЕЙС testing-closed: ОТБИТ
+      КЕЙС ignored-no-reason: ОТБИТ
+      КЕЙС expect-orphans: ОТБИТ
+      КЕЙС helper-orphans: ОТБИТ
+      КЕЙС missing-experiments: ОТБИТ
+      КЕЙС чистое_дерево: OK (находок=0)
+REVIEW_SELFTEST_TOTAL=8 REVIEW_SELFTEST_TOTAL_r1=8
+REVIEW_SELFTEST_PASSED=8 REVIEW_SELFTEST_PASSED_r1=8
+### ШАГ 2 check: находки и инвентарь, n=1 ### 2026-10-24T17:58:21+03:00
+    REVIEW_BIG_RS=4
+    REVIEW_CLOSED_EMPTY=0
+    REVIEW_EXPECT_ORPHANS=0
+    REVIEW_FINDINGS=0
+    REVIEW_HELPER_ORPHANS=0
+    REVIEW_IGNORED=9
+    REVIEW_IGNORED_NO_REASON=0
+    REVIEW_MD_FILES=243
+    REVIEW_MISSING_EXPERIMENTS=0
+    REVIEW_REFS_OK=627
+    REVIEW_REFS_STALE=0
+    REVIEW_TESTING_CLOSED=0
+    REVIEW_TODOS=0
+    REVIEW_TOP=none:0
+REVIEW_FINDINGS=0 REVIEW_FINDINGS_r1=0
+REVIEW_TOP=none:0 REVIEW_TOP_r1=none:0
+REVIEW_CLOSED_EMPTY=0 REVIEW_CLOSED_EMPTY_r1=0
+REVIEW_TESTING_CLOSED=0 REVIEW_TESTING_CLOSED_r1=0
+REVIEW_IGNORED_NO_REASON=0 REVIEW_IGNORED_NO_REASON_r1=0
+REVIEW_EXPECT_ORPHANS=0 REVIEW_EXPECT_ORPHANS_r1=0
+REVIEW_HELPER_ORPHANS=0 REVIEW_HELPER_ORPHANS_r1=0
+REVIEW_MISSING_EXPERIMENTS=0 REVIEW_MISSING_EXPERIMENTS_r1=0
+REVIEW_REFS_STALE=0 REVIEW_REFS_STALE_r1=0
+REVIEW_MD_FILES=243 REVIEW_MD_FILES_r1=243
+REVIEW_REFS_OK=627 REVIEW_REFS_OK_r1=627
+REVIEW_IGNORED=9 REVIEW_IGNORED_r1=9
+REVIEW_BIG_RS=4 REVIEW_BIG_RS_r1=4
+REVIEW_TODOS=0 REVIEW_TODOS_r1=0
+### ШАГ 3 gate H-0101 и audit -n 5, n=1 ### 2026-10-24T17:58:43+03:00
+    ПРИОРАРТ H-0101: строк=2 классы=['реализация']
+    LEAN H-0101: модель не сделана, рубрика обязательной не требует
+    E-CARD E-0101: порог, окружение и команда названы
+    CYCLE H-0101=OK нарушениий=0
+GATE_H0101_OK=1 GATE_H0101_OK_r1=1
+AUDIT_VIOLATIONS=0 AUDIT_VIOLATIONS_r1=0
+AUDIT_CARDS=5 AUDIT_CARDS_r1=5
+### ШАГ 1 самопроверка прибора, n=2 ### 2026-10-24T17:58:44+03:00
+    REVIEW_SELFTEST total=8 passed=8
+      КЕЙС stale-refs: ОТБИТ
+      КЕЙС closed-empty-result: ОТБИТ
+      КЕЙС testing-closed: ОТБИТ
+      КЕЙС ignored-no-reason: ОТБИТ
+      КЕЙС expect-orphans: ОТБИТ
+      КЕЙС helper-orphans: ОТБИТ
+      КЕЙС missing-experiments: ОТБИТ
+      КЕЙС чистое_дерево: OK (находок=0)
+REVIEW_SELFTEST_TOTAL=8 REVIEW_SELFTEST_TOTAL_r2=8
+REVIEW_SELFTEST_PASSED=8 REVIEW_SELFTEST_PASSED_r2=8
+### ШАГ 2 check: находки и инвентарь, n=2 ### 2026-10-24T17:58:44+03:00
+    REVIEW_BIG_RS=4
+    REVIEW_CLOSED_EMPTY=0
+    REVIEW_EXPECT_ORPHANS=0
+    REVIEW_FINDINGS=0
+    REVIEW_HELPER_ORPHANS=0
+    REVIEW_IGNORED=9
+    REVIEW_IGNORED_NO_REASON=0
+    REVIEW_MD_FILES=243
+    REVIEW_MISSING_EXPERIMENTS=0
+    REVIEW_REFS_OK=627
+    REVIEW_REFS_STALE=0
+    REVIEW_TESTING_CLOSED=0
+    REVIEW_TODOS=0
+    REVIEW_TOP=none:0
+REVIEW_FINDINGS=0 REVIEW_FINDINGS_r2=0
+REVIEW_TOP=none:0 REVIEW_TOP_r2=none:0
+REVIEW_CLOSED_EMPTY=0 REVIEW_CLOSED_EMPTY_r2=0
+REVIEW_TESTING_CLOSED=0 REVIEW_TESTING_CLOSED_r2=0
+REVIEW_IGNORED_NO_REASON=0 REVIEW_IGNORED_NO_REASON_r2=0
+REVIEW_EXPECT_ORPHANS=0 REVIEW_EXPECT_ORPHANS_r2=0
+REVIEW_HELPER_ORPHANS=0 REVIEW_HELPER_ORPHANS_r2=0
+REVIEW_MISSING_EXPERIMENTS=0 REVIEW_MISSING_EXPERIMENTS_r2=0
+REVIEW_REFS_STALE=0 REVIEW_REFS_STALE_r2=0
+REVIEW_MD_FILES=243 REVIEW_MD_FILES_r2=243
+REVIEW_REFS_OK=627 REVIEW_REFS_OK_r2=627
+REVIEW_IGNORED=9 REVIEW_IGNORED_r2=9
+REVIEW_BIG_RS=4 REVIEW_BIG_RS_r2=4
+REVIEW_TODOS=0 REVIEW_TODOS_r2=0
+### ШАГ 3 gate H-0101 и audit -n 5, n=2 ### 2026-10-24T17:59:06+03:00
+    ПРИОРАРТ H-0101: строк=2 классы=['реализация']
+    LEAN H-0101: модель не сделана, рубрика обязательной не требует
+    E-CARD E-0101: порог, окружение и команда названы
+    CYCLE H-0101=OK нарушениий=0
+GATE_H0101_OK=1 GATE_H0101_OK_r2=1
+AUDIT_VIOLATIONS=0 AUDIT_VIOLATIONS_r2=0
+AUDIT_CARDS=5 AUDIT_CARDS_r2=5
+### ШАГ 4 воспроизводимость вектора ### 2026-10-24T17:59:07+03:00
+КЛЮЧЕЙ=28 РАСХОЖДЕНИЙ=0
+REPRO_VECTOR=1
+### ШАГ 5 верификация воркспейса ### 2026-10-24T17:59:07+03:00
+VERIFY_EXIT=0
+REVIEW_IN_VERIFY=1 (selftest_строк=1, findings_строк=1)
+    REVIEW_FINDINGS=0
+### ШАГ 6 стража текста ### 2026-10-24T18:22:16+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+### ШАГ 7 СВЕРКА: lab/expectations/e0101.tsv против напечатанных фактов ###
+ОЖИДАНИЙ=26 РАСХОЖДЕНИЙ=0
+СВЕРКА_EXIT=0
+WORST_RC=0
