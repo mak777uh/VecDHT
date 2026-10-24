@@ -183,12 +183,22 @@ grab "$V2" 2 "$VERUS_KEYS" > "$F2"; echo "n2_const_match=$(val "$V2" CONST_MATCH
 # не краснел из-за сети.
 if [ "${VEC_DHT_CI_POLL:-0}" = "1" ]; then
   { echo "### ШАГ 8 CI (GitHub Actions, публичный API без токена) ###"
+    # Печатать `ключ=значение` без пробела: `val` ищет токен `ключ=`, а `print('ключ=', x)`
+    # вставляет пробел, и `RUN_ID` оказывался пустым — то есть весь разбор работ молча
+    # пропускался. Это второй за цикл случай того же класса дефекта (первый — ключи Verus выше),
+    # и он пойман не сверкой, а ручным прогоном шага 8: отсюда обязательная метка
+    # `ci_run_id_НЕ_РАЗОБРАН` ниже — пустой `RUN_ID` обязан быть слышен, а не выглядел как «CI
+    # просто не участвовал».
     curl -s --max-time 40 "https://api.github.com/repos/mak777uh/VecDHT/actions/workflows" \
-      | python -c "import json,sys;d=json.load(sys.stdin);print('ci_workflows_total=',d.get('total_count'));print('ci_workflow_names=',','.join(sorted(w['name'] for w in d.get('workflows',[]))))" 2>/dev/null
+      | python -c "import json,sys;d=json.load(sys.stdin);print('ci_workflows_total=%s' % d.get('total_count'));print('ci_workflow_names=%s' % ','.join(sorted(w['name'] for w in d.get('workflows',[]))))" 2>/dev/null
     curl -s --max-time 40 "https://api.github.com/repos/mak777uh/VecDHT/actions/runs?per_page=1" \
-      | python -c "import json,sys;d=json.load(sys.stdin);r=(d.get('workflow_runs') or [{}])[0];print('ci_run_id=',r.get('id'));print('ci_run_conclusion=',r.get('status'),r.get('conclusion'));print('ci_run_head_sha=',str(r.get('head_sha'))[:7])" 2>/dev/null
+      | python -c "import json,sys;d=json.load(sys.stdin);r=(d.get('workflow_runs') or [{}])[0];print('ci_run_id=%s' % r.get('id'));print('ci_run_status=%s' % r.get('status'));print('ci_run_conclusion=%s' % r.get('conclusion'));print('ci_run_head_sha=%s' % str(r.get('head_sha'))[:7])" 2>/dev/null
   } >> "$LOG"
   RUN_ID=$(val "$LOG" ci_run_id)
+  { echo "ci_head_local=$(git rev-parse --short HEAD)"
+    echo "ci_run_matches_head=$( [ -n "$RUN_ID" ] && [ "$(val "$LOG" ci_run_head_sha)" = "$(git rev-parse --short HEAD)" ] && echo 1 || echo 0)"
+    [ -n "$RUN_ID" ] || echo "ci_run_id_НЕ_РАЗОБРАН=1 — шагу 8 нечего брать из API"
+  } >> "$LOG"
   if [ -n "$RUN_ID" ]; then
     # Порог (12) требует, чтобы в журнале лежал ВЫВОД каждой из четырёх работ, а не только их цвета.
     # ЖУРНАЛ работы анонимно недоступен (`/jobs/{id}/logs` отдаёт 403 «Must have admin rights», а
@@ -209,14 +219,20 @@ for j in d.get("jobs", []):
         print("  ci_step=%s n=%s name=%s conclusion=%s" %
               (tag, s.get("number"), s.get("name"), s.get("conclusion")))
 PY
-    for JID in $(block | grep -oE 'ci_job=[a-z_]+ job_id=[0-9]+' | sed 's/.*job_id=//'); do
+    for JID in $(block | grep -oE 'ci_job=[^ ]+ job_id=[0-9]+' | sed 's/.*job_id=//'); do
       curl -s --max-time 40 "https://api.github.com/repos/mak777uh/VecDHT/check-runs/$JID/annotations" \
         | python -c "
 import json, sys
 d = json.load(sys.stdin)
-for a in (d.get('annotations') or []):
-    print('ci_ann job=%s level=%s file=%s :: %s' % ('$JID', a.get('annotation_level'), a.get('path'), (a.get('message') or '').strip()))
-if not (d.get('annotations') or []):
+# Измерено на этом же API: эндпоинт check-runs/{id}/annotations отдаёт ГОЛЫЙ СПИСОК аннотаций,
+# а не объект с полем annotations (в отличие от runs/{id}/jobs). Читался бы только dict — и шаг
+# молчал бы, показав пустоту там, где сервер вернул шесть строк.
+a = d if isinstance(d, list) else (d.get('annotations') or [])
+for x in a:
+    lvl = x.get('annotation_level')
+    if lvl == 'notice':
+        print('ci_ann job=$JID :: ' + (x.get('message') or '').strip())
+if not a:
     print('ci_ann job=$JID пусто — workflow не напечатал ни одной метки')
 " >> "$LOG" 2>/dev/null
     done
