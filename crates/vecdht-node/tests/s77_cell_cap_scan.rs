@@ -200,6 +200,15 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
         .filter(|i| n.store.index.owner_slot(&owner(*i)).is_some())
         .count();
     assert_eq!(nines_left, 19, "жертвой обязан стать дешёвый обитатель (9 бит), а не дорогой 12");
+    // Печать состояния кап-ветки — до контрольного приёма в пустую ячейку: иначе `SHARD_TOTAL`
+    // включал бы кадр, к капу не относящийся, и ключ перестал бы означать то, что назван.
+    eprintln!(
+        "S77_CELL={} S77_SHARD_TOTAL={} S77_EVICTED={} S77_GLOBAL_SCANNED={} S77_NINES_LEFT={nines_left}",
+        n.store.index.cluster_len(BASE),
+        n.store.len(),
+        n.evictor.evicted,
+        n.evictor.scanned
+    );
 
     // (2) Новичок дешевле всех в ячейке: §11.3.3 запрещает вытеснять дороже принятой записи.
     let k3 = owner(900_002);
@@ -225,13 +234,6 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
     assert_eq!(n.evictor.scanned, before, "при свободном капе арена не обходится");
     assert_eq!(n.evictor.evicted, evicted0 + 1, "приём без капа не вытесняет");
 
-    eprintln!(
-        "S77_CELL={} S77_SHARD_TOTAL={} S77_EVICTED={} S77_GLOBAL_SCANNED={} S77_NINES_LEFT={nines_left}",
-        n.store.index.cluster_len(BASE),
-        n.store.len(),
-        n.evictor.evicted,
-        n.evictor.scanned
-    );
     eprintln!(
         "S77_CHEAP_REFUSED={} S77_CHEAP_CODE={} S77_CHEAP_EVICTED={} \
          S77_CONTROL_SCANNED_DELTA={} S77_CONTROL_EVICTED_DELTA={}",

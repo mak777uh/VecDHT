@@ -795,11 +795,31 @@ impl ShardNode {
             match victim {
                 Some(_) => self.admission.borrow_mut().stats.cell_cap_moves += 1,
                 None => {
-                    // Дешевле новичка в этой ячейке никого знакомого — наружу тот же coarse-код
-                    // (`ADR-0044` решение 3: отдельного кода на проводе не заводим), различает
-                    // их счётчик [`Stats::cell_cap_rejections`].
-                    self.admission.borrow_mut().stats.cell_cap_rejections += 1;
-                    return self.err(from, err_code::SHARD_FULL, 10_000);
+                    // Резервуар держит 64 самых дешёвых записей шарда, и в большом шарде их
+                    // занимают чужие ячейки — тогда «знакомой» жертвы в этой нет (`E-0088`,
+                    // ДИАГНОЗ-3: `refuse` при `live = 34 286`). Второй источник — окно живых
+                    // слотов самой ячейки: бюджет 256 и курсор (`H-0102`), а не обход ячейки.
+                    let slots = self.store.index.cluster_slots(msg.cluster_id);
+                    victim = self.evictor.cell_victim_scan(
+                        msg.cluster_id,
+                        slots,
+                        newcomer,
+                        |slot| self.store.index.entry(slot).map(|e| e.published_bucket),
+                        admission::EVICT_SCAN_BUDGET,
+                    );
+                    match victim {
+                        Some(_) => self.admission.borrow_mut().stats.cell_cap_moves += 1,
+                        None => {
+                            // Дешевле новичка в этой ячейке никого, чью цену узел знает, —
+                            // наружу тот же coarse-код (`ADR-0044` решение 3: отдельного кода на
+                            // проводе не заводим), различает их счётчик
+                            // [`Stats::cell_cap_rejections`]. Записи с неизвестной ценой (`bits = 0`,
+                            // принятые другим узлом или до рестарта) жертвой не становятся: §11.3.3
+                            // запрещает вытеснять запись дешевле, чем она стоила.
+                            self.admission.borrow_mut().stats.cell_cap_rejections += 1;
+                            return self.err(from, err_code::SHARD_FULL, 10_000);
+                        }
+                    }
                 }
             }
         }

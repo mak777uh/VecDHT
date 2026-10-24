@@ -620,7 +620,15 @@ pub struct Evictor {
     ranked: BTreeSet<Candidate>,
     limit: usize,
     scan_from: u32,
+    /// slot, с которого начнётся следующий оконный проход **внутри ячейки** (`H-0102`). Отдельный
+    /// от `scan_from` курсор: обход арены и обход ячейки — разные множества, и общий курсор
+    /// сдвигал бы один проход другим. Словарь по `u16` ограничен числом ячеек шарда (256),
+    /// поэтому растёт не с шардом, а с числом ячеек, в которые узел принимал записи.
+    cell_scan: BTreeMap<u16, u32>,
     pub scanned: u64,
+    /// Сколько живых слотов осмотрел оконный проход внутри ячейки. Не входит в `scanned`:
+    /// глобальная арена этим механизмом не обходится, и смешивать две цены нельзя.
+    pub cell_scanned: u64,
     pub evicted: u64,
     pub stale_dropped: u64,
 }
@@ -633,7 +641,9 @@ impl Evictor {
             ranked: BTreeSet::new(),
             limit: limit.max(1),
             scan_from: 0,
+            cell_scan: BTreeMap::new(),
             scanned: 0,
+            cell_scanned: 0,
             evicted: 0,
             stale_dropped: 0,
         }
@@ -774,6 +784,73 @@ impl Evictor {
             self.forget(c.slot);
         }
         victim
+    }
+
+    /// Жертва внутри ячейки по ограниченному окну её живых слотов (`H-0102`, хвост `E-0088`).
+    ///
+    /// Зачем рядом с [`Evictor::cell_victim`], а не вместо неё: резервуар держит 64 самых дешёвых
+    /// записей **шарда**, поэтому в большом шарде его занимают записи чужих ячеек, и горячая
+    /// ячейка остаётся без «знакомой» жертвы — кап уходил в отказ при живых дешёвых обитателях
+    /// (`E-0088`, ДИАГНОЗ-3: `g5_branch=refuse` при `live = 34 286`). Здесь источник жертвы —
+    /// сама ячейка.
+    ///
+    /// Цена прохода ограничена: не больше `scan` слотов, а не размер ячейки. Курсор
+    /// [`Evictor::cell_scan`] хранит следующий непросмотренный slot, поэтому отказ на одном окне
+    /// не запирает дешёвую запись навсегда: следующий заход в ту же ячейку продолжит список, а
+    /// дойдя до конца — обернётся в начало. Обёртка происходит **между** вызовами, а не внутри
+    /// одного: иначе проход стоил бы бюджета на хвосте и на начале сразу и измеренное число
+    /// перестало бы быть верхней границей.
+    ///
+    /// `slots` — живые слоты ячейки по возрастанию (их держит индекс, это срез, а не сборка);
+    /// `bucket_of` — свежесть записи, нужна только для ничьих по битам. Записи с неизвестной
+    /// ценой (`bits = 0`, принятые другим узлом или до рестарта, §11.3.3) пропускаются: сделать
+    /// их жертвой значило бы вытеснить запись дешевле, чем она стоила, а это не исправляется
+    /// ничем. Отказ для них — осознанная ошибка в безопасную сторону, названная в `H-0102`.
+    ///
+    /// Порядок цен тот же, что у [`Evictor::victim`]: биты, затем свежесть, затем slot. Жертвой
+    /// может стать только запись строго дешевле новичка; иначе `None` (§11.3.3).
+    pub fn cell_victim_scan<B>(
+        &mut self,
+        cluster: u16,
+        slots: &[u32],
+        newcomer: Candidate,
+        mut bucket_of: B,
+        scan: usize,
+    ) -> Option<Candidate>
+    where
+        B: FnMut(u32) -> Option<u32>,
+    {
+        if scan == 0 || slots.is_empty() {
+            return None;
+        }
+        let cursor = self.cell_scan.get(&cluster).copied().unwrap_or(0);
+        // Курсор — это slot, а не индекс: слоты ячейки меняются (TTL, вытеснение, переезд), и
+        // индекс, сохранённый между заходами, указывал бы на другую запись молча.
+        let mut start = slots.partition_point(|s| *s < cursor);
+        if start >= slots.len() {
+            // Ячейка сжалась под курсором — проход начинается сначала, а не отказывает навсегда.
+            start = 0;
+        }
+        let end = (start + scan).min(slots.len());
+        let mut best: Option<Candidate> = None;
+        for &slot in &slots[start..end] {
+            self.cell_scanned += 1;
+            let Some(bits) = self.bits_of(slot) else { continue };
+            if (bits as u32) > newcomer.bits {
+                continue;
+            }
+            let Some(published_bucket) = bucket_of(slot) else { continue };
+            let cand = Candidate { bits: bits as u32, published_bucket, slot };
+            if cand >= newcomer {
+                continue;
+            }
+            if best.is_none_or(|b| cand < b) {
+                best = Some(cand);
+            }
+        }
+        let next = if end < slots.len() { slots[end - 1].saturating_add(1) } else { 0 };
+        self.cell_scan.insert(cluster, next);
+        best
     }
 
     /// Долить кандидатов, обойдя не больше `scan` живых записей, начиная с [`Evictor::scan_from`]
