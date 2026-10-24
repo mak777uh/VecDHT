@@ -71,12 +71,41 @@ def printed_value(key, corpus):
     return m.group(1) if m else None
 
 
+CASES = [
+    # (имя, корпус фактов, ключ, ожидание, должен ли найтись)
+    ("точное совпадение", "A=1\n", "A", "1", True),
+    ("чужой префикс не считается", "PRE_FIX_A=1\n", "A", "1", False),
+    ("граница цифры: N=93 не есть N=9", "N=93\n", "N", "9", False),
+    ("ключа нет — молчание не успех", "B=1\n", "A", "1", False),
+    ("ключ со пробелом — второй токен строки",
+     "LEANGUARD_SELFTEST total=10 passed=10\n", "LEANGUARD_SELFTEST passed", "10", True),
+    ("кириллическое значение", "repro_вектор=совпал\n", "repro_вектор", "совпал", True),
+    ("дробное значение", "V=1.5\n", "V", "1.5", True),
+    ("чужое значение не удовлетворяет", "A=2\n", "A", "1", False),
+]
+
+
+def selftest():
+    bad = 0
+    for name, corpus, key, want, should in CASES:
+        got = find(key, want, corpus)
+        if got != should:
+            bad += 1
+            print(f"СЕЛФТЕСТ ПРОВАЛ: {name}: ждали {should}, получили {got}")
+        else:
+            print(f"СЕЛФТЕСТ ok: {name}")
+    print(f"EXPECT_SELFTEST total={len(CASES)} passed={len(CASES) - bad}")
+    return 0 if bad == 0 else 1
+
+
 def main(argv):
     try:
         sys.stdout.reconfigure(encoding="utf-8")
         sys.stderr.reconfigure(encoding="utf-8")
     except (AttributeError, ValueError):
         pass
+    if len(argv) > 1 and argv[1] == "--selftest":
+        return selftest()
     if len(argv) < 3:
         print(__doc__.strip().splitlines()[2])
         return 2
