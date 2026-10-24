@@ -323,7 +323,7 @@ fn assign_price_stays_inside_the_budget() {
     );
     assert!(p50 <= budget, "assign p50 {p50} мкс вышел за бюджет {budget} мкс (debug — запасной)");
     assert_eq!(
-        n2.admission.borrow().stats.cluster_unverified as u64, PRICE_FRAMES,
+        n2.admission.borrow().stats.cluster_unverified, PRICE_FRAMES,
         "ценовой цикл без артефакта обязан быть посчитан целиком"
     );
 }
