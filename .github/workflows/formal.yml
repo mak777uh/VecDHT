@@ -1,0 +1,171 @@
+# Три независимых формальных конвейера на одном коммите (`ADR-0053`, слово владельца от 2026-10-24).
+#
+# Почему три, а не один: Lean в этом репозитории доказывает утверждения о политиках на перечислимых
+# множествах через `native_decide`, то есть через перебор, и состояний с переполнением `u64` у него
+# просто нет. Verus доказывает контракты над функцией, транскрибированной один в один из продукта,
+# через SMT. Kani проверяет достижимость состояний того же тела ограниченным перебором. Разные
+# модели ошибок — разные дефекты; один конвейер не заменяет другой, и числа каждой работы видны
+# отдельно.
+#
+# Почему Linux, а не Windows: у Kani 0.68.0 ровно четыре publish-ассета, все под Linux и macOS
+# (`L-0018`), Windows-сборки нет. Verus на Windows исполняется локально (это и есть рабочая станция
+# контура), но держать CI на одной платформе значит терять Kani. Поэтому боевая линия тулчейнов
+# здесь — `x86_64-unknown-linux-gnu`, и версии заморожены числами ниже, а не «latest»: обновление
+# тулчейна обязано быть коммитом, а не случайностью ночного прогона.
+name: formal
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERUS_VERSION: 0.2026.10.18.7d82994
+  KANI_VERSION: 0.68.0
+  LEAN_TOOLCHAIN: leanprover/lean4:v4.36.0-rc1
+
+jobs:
+  verus:
+    name: Verus — контракты над арифметикой приёма
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Верус просит ровно тот тулчейн, что зашит в его сборку, и его номер лежит в version.json
+      # рядом с бинарём: хранить его второй копией в этом файле значит однажды разойтись с ним.
+      - name: Установка Verus
+        run: |
+          set -euo pipefail
+          curl -sSLo /tmp/verus.zip \
+            "https://github.com/verus-lang/verus/releases/download/release/${VERUS_VERSION}/verus-${VERUS_VERSION}-x86-linux.zip"
+          mkdir -p "$HOME/verus-dist"
+          unzip -q /tmp/verus.zip -d "$HOME/verus-dist"
+          VERUS_BIN="$(find "$HOME/verus-dist" -maxdepth 3 -type f -name verus | head -1)"
+          test -n "$VERUS_BIN"
+          # zip может не донести бит исполнения: без него verus и его z3 молча отказываются стартовать.
+          chmod -R +x "$(dirname "$VERUS_BIN")"
+          TOOLCHAIN="$(sed -n 's/.*"toolchain": "\([0-9][0-9.]*\).*/\1/p' "$(dirname "$VERUS_BIN")/version.json" | head -1)"
+          test -n "$TOOLCHAIN"
+          echo "VEC_DHT_VERUS=$VERUS_BIN" >> "$GITHUB_ENV"
+          echo "VEC_DHT_VERUS_TOOLCHAIN=$TOOLCHAIN" >> "$GITHUB_ENV"
+          echo "VERUS_TOOLCHAIN=$TOOLCHAIN"
+
+      - name: Тулчейн из version.json
+        run: |
+          set -euo pipefail
+          rustup toolchain install "$VEC_DHT_VERUS_TOOLCHAIN" --profile minimal --component rust-src
+
+      - name: Прибор (проверка модели и самопроверка с посаженными дефектами)
+        # Код возврата каждого вызова пишется в лог до `tee`: без этого красный круг работы
+        # зависел бы от того, что `tee` всегда успешен.
+        run: |
+          set -uo pipefail
+          L=/tmp/verus-ci.log; : > "$L"; rc_all=0
+          echo "### Verus (Linux, тулчейн $VEC_DHT_VERUS_TOOLCHAIN) ###" >> "$L"
+          VEC_DHT_VERUS_REQUIRED=1 bash lab/verus-check.sh >> "$L" 2>&1; r=$?
+          echo "VERUS_CHECK_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
+          bash lab/verus-check.sh selftest >> "$L" 2>&1; r=$?
+          echo "VERUS_SELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
+          cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc_all
+
+  kani:
+    name: Kani — ограниченная модельная проверка харнесов продукта
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установка Kani
+        run: |
+          set -euo pipefail
+          curl -sSLo /tmp/kani.tar.gz \
+            "https://github.com/model-checking/kani/releases/download/kani-${KANI_VERSION}/kani-${KANI_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          tar xzf /tmp/kani.tar.gz -C "$HOME"
+          KANI_BIN="$(find "$HOME" -maxdepth 3 -type d -name bin -path "*kani-${KANI_VERSION}*linux*" | head -1)"
+          test -n "$KANI_BIN"
+          echo "$KANI_BIN" >> "$GITHUB_PATH"
+          "$KANI_BIN/cargo-kani" --version | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Харнеси живут в продукте под `#[cfg(kani)]` (`crates/vecdht-node/src/admission.rs`), поэтому
+      # обычная сборка и `cargo test` их не видят вовсе: эта работа — единственный способ узнать, что
+      # ∀-утверждения о капе ячейки кто-то проверяет, а не только иллюстрирует на трёх точках.
+      - name: cargo kani -p vecdht-node
+        run: |
+          set -uo pipefail
+          L=/tmp/kani-ci.log
+          echo "### Kani ###" > "$L"
+          cargo kani -p vecdht-node >> "$L" 2>&1; r=$?
+          echo "KANI_RC=$r" >> "$L"
+          tail -60 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+  lean:
+    name: Lean — модели дверей, лесенок и политик
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установка elan и замороженного тулчейна Lean
+        run: |
+          set -euo pipefail
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default "$LEAN_TOOLCHAIN"
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          lean --version | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Прибор зовёт `python` (на рабочей станции это единственный доступный алиас), в образах
+      # Ubuntu есть только `python3`: симлинк нужен, чтобы один и тот же скрипт шёл и локально, и в CI.
+      - name: Алиас python -> python3
+        run: sudo ln -sf "$(command -v python3)" /usr/local/bin/python
+
+      - name: Страж моделей и его самопроверка
+        run: |
+          set -uo pipefail
+          L=/tmp/lean-ci.log; : > "$L"; rc_all=0
+          echo "### Lean ###" >> "$L"
+          bash lab/lean-check.sh --quiet >> "$L" 2>&1; r=$?
+          echo "LEAN_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
+          python lab/lean-check.py selftest >> "$L" 2>&1; r=$?
+          echo "LEANGUARD_SELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
+          tail -40 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc_all
+
+  admission:
+    name: "Продуктовый срез: тесты, clippy, компиляция харнесов"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Тесты vecdht-node
+        run: |
+          set -uo pipefail
+          L=/tmp/node-test.log
+          echo "### cargo test -p vecdht-node ###" > "$L"
+          cargo test -p vecdht-node --no-fail-fast >> "$L" 2>&1; r=$?
+          echo "TEST_RC=$r" >> "$L"
+          grep -E "^test result|^error|TEST_RC" "$L" | tail -30 | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      - name: Clippy и компиляция харнесов под заглушку Kani
+        run: |
+          set -uo pipefail
+          L=/tmp/node-lint.log; : > "$L"; rc_all=0
+          echo "### clippy -D warnings ###" >> "$L"
+          cargo clippy -p vecdht-node --all-targets -- -D warnings >> "$L" 2>&1; r=$?
+          echo "CLIPPY_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
+          echo "### kani-compile-check ###" >> "$L"
+          bash lab/kani-compile-check.sh >> "$L" 2>&1; r=$?
+          echo "KCC_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
+          cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $rc_all

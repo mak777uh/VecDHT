@@ -28,6 +28,23 @@ LOG="lab/logs/workspace-verify-2026-10-22.log"
   echo "### lean-check selftest ### $(date +%FT%T%:z)"
   python lab/lean-check.py selftest 2>&1 | tail -14
   echo "LEANGUARD_SELFTEST_EXIT=${PIPESTATUS[0]}"
+  # Контуры №2 и №3 формальной проверки (после Lean) входят в то же закрытие цикла, что и cargo:
+  # прибор, который не гоняется на каждом цикле, через пять циклов становится зелёным текстом —
+  # это ровно та причина, по которой `H-0093` посадил самопроверку в Lean-страж.
+  # REQUIRED=1 здесь не случайность: без него отсутствующий бинарь Verus печатал бы SKIP, и
+  # закрытие цикла молча перестало бы доказывать что-либо про арифметику приёма (`ADR-0053`).
+  echo "### verus-check (required) ### $(date +%FT%T%:z)"
+  VEC_DHT_VERUS_REQUIRED=1 bash lab/verus-check.sh --quiet 2>&1 | tail -8
+  echo "VERUS_EXIT=${PIPESTATUS[0]}"
+  echo "### verus-check selftest ### $(date +%FT%T%:z)"
+  bash lab/verus-check.sh selftest 2>&1 | tail -8
+  echo "VERUS_SELFTEST_EXIT=${PIPESTATUS[0]}"
+  # Харнеси Kani под `#[cfg(kani)]` обычная сборка не видит вовсе, а Kani на Windows не
+  # устанавливается. Локально проверяется хотя бы то, что они компилируются: иначе CI краснеет
+  # через час на опечатке в типе. Сами утверждения проверяет Kani, и только в CI.
+  echo "### kani-compile-check ### $(date +%FT%T%:z)"
+  bash lab/kani-compile-check.sh 2>&1 | tail -6
+  echo "KCC_EXIT=${PIPESTATUS[0]}"
   # Гейт круга (боль -> источники -> рубрика Lean -> оракул) и индекс источников проверяются
   # вместе с кодом: механизм, который никто не гоняет, через пять циклов превращается в текст.
   echo "### cycle-gate selftest ### $(date +%FT%T%:z)"

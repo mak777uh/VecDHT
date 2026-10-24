@@ -7,6 +7,12 @@ license.workspace = true
 repository.workspace = true
 description = "VecDHT v8 — узел шарда: самовалидируемая цепочка членства, lease/epoch, репликация W=2 из R=3, handoff и отдача снапшота (спека §9, §12)"
 
+[lints.rust]
+# Формальный инструмент Kani включается собственным cfg-флагом (`cargo kani`), а не зависимостью.
+# Без объявления ниже `unexpected_cfgs` считает `cfg(kani)` опечаткой, и clippy с `-D warnings`
+# падает на harness'ах из `admission.rs`, которые в обычном прогоне не компилируются вовсе.
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
+
 [dependencies]
 blake3 = { workspace = true }
 thiserror = { workspace = true }

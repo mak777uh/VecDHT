@@ -83,6 +83,24 @@ pub const CELL_CAP_NUM: u64 = 2;
 /// держится, и обе ветки опираются на наш замер, а не на чужой.
 pub const CELL_CAP_MIN: u64 = 4_096;
 
+/// Верхняя граница `live_in_shard`, ниже которой `CELL_CAP_NUM * live_in_shard` в [`cell_cap_limit`]
+/// не переполняет `u64`.
+///
+/// Числа здесь не «мелочи»: `(2⁶⁴ − 1 − n) / c` при `c = 2`, `n = 16` даёт 9 223 372 036 854 775 799,
+/// то есть граница лежит на половине диапазона `u64`, и ни одна реальная конфигурация шарда до неё не
+/// доходит (`max_live_per_shard` по умолчанию — 2 000 000). Причина, по которой константа всё-таки
+/// названа: до `E-0099` это условие существовало только в комментарии про `m ≤ 1e9`, а умножение
+/// в release-профиле переполняется по кольцу, то есть при `live > 2⁶³` кап стал бы МЕНЬШЕ, чем при
+/// нулевой загрузке, и ветка `.max(min)` уже не спасала бы. Verus поймал это как недоказуемый
+/// пост-условием `cap >= min` случай (`lab/proofs/verus/cap_math.rs`, снятое `requires` даёт
+/// `errors=1`) — предпосылка была не задокументирована, а не выполнена.
+///
+/// Граница сознательно на один шаг уже острой (`live ≤ (2⁶⁴ − 16) / 2`) — ровно как предпосылка
+/// `requires` в Verus-модели `lab/proofs/verus/cap_math.rs`. Расходиться разрешено только в безопасную
+/// сторону, и обе версии дают одно и то же число, поэтому сверка констант в `lab/verus-check.sh`
+/// работает без исключений.
+pub const CELL_CAP_MAX_LIVE: u64 = (u64::MAX - (CLUSTERS_PER_SHARD as u64 + 1)) / CELL_CAP_NUM;
+
 /// Предел живых записей одной ячейки шарда — форма `⌈c·m/n⌉` от средней загрузки (`L-0001`,
 /// [arXiv:1608.01350](https://arxiv.org/abs/1608.01350)), где `m` — живые записи шарда, а `n` —
 /// число ячеек в шарде. Взят максимумом с `min` (пол [`CELL_CAP_MIN`] по умолчанию): у пустого
@@ -95,6 +113,8 @@ pub const CELL_CAP_MIN: u64 = 4_096;
 #[inline]
 pub fn cell_cap_limit(live_in_shard: u64, min: u64) -> u64 {
     let per = u64::from(CLUSTERS_PER_SHARD);
+    // Предпосылка, названная [`CELL_CAP_MAX_LIVE`]: вне неё умножение идёт по кольцу.
+    debug_assert!(live_in_shard <= CELL_CAP_MAX_LIVE, "кап вне области определения формы ⌈c·m/n⌉");
     // ⌈c·m/n⌉ целыми: (c·m + n − 1) / n. При m ≤ 1e9 произведение не переполняет u64.
     ((CELL_CAP_NUM * live_in_shard).saturating_add(per - 1) / per).max(min)
 }
@@ -1258,5 +1278,68 @@ mod tests {
         assert_eq!(a.denylist_len(), 0, "RAM--only запрета не остаётся");
         assert_eq!(a.stats.denylist_save_errors, 1);
         assert_eq!(a.check_publish(&key(7), &key(7), 0), Verdict::Allow);
+    }
+}
+
+// Прибор формального контура №3 (Kani, bounded model checking). Модуль compile-ется только под
+// `cargo kani` (`--cfg kani`), поэтому обычная сборка и `cargo test` его не видят — см. `ADR-0053`.
+// Смысл не в том, чтобы повторить юнит-тесты: Kani перебирает достижимые состояния функции на
+// ограниченном домене и обязан подтверждать ∀-утверждения, которые тест на трёх точках только
+// иллюстрируют. Окно 2⁶⁴ недостижимо для bounded-перебора, поэтому домен сужен ассумпциями, и
+// именно это сужение честно названо в каждом харнесе.
+#[cfg(kani)]
+mod kani_harnesses {
+    use super::*;
+
+    /// Пол: при любой загрузке шарда кап не ниже заявленного минимума.
+    #[kani::proof]
+    #[kani::unwind(2)]
+    fn cap_is_never_below_floor() {
+        let live: u64 = kani::any();
+        let min: u64 = kani::any();
+        kani::assume(live <= CELL_CAP_MAX_LIVE);
+        let cap = cell_cap_limit(live, min);
+        assert!(cap >= min);
+    }
+
+    /// Монотонность по загрузке: больше живых записей — не меньше предел ячейки.
+    #[kani::proof]
+    #[kani::unwind(2)]
+    fn cap_is_monotone_in_live() {
+        let l1: u64 = kani::any();
+        let l2: u64 = kani::any();
+        let min: u64 = kani::any();
+        kani::assume(l1 <= l2);
+        kani::assume(l2 <= CELL_CAP_MAX_LIVE);
+        assert!(cell_cap_limit(l1, min) <= cell_cap_limit(l2, min));
+    }
+
+    /// Мост к математической форме ⌈c·m/n⌉: пока слагаемые влезают в `u128`, тело обязано совпадать
+    /// с ceil-арифметикой, посчитанной независимо. Числа фикстуры берутся из замера `E-0088`
+    /// (4096 при `max_live_per_shard = 2 000 000` и 4286 при live 34 286), чтобы проверка была про
+    /// те же точки, что измерены, а не только про абстракцию.
+    #[kani::proof]
+    #[kani::unwind(2)]
+    fn cap_matches_ceiling_formula() {
+        let live: u64 = kani::any();
+        let min: u64 = kani::any();
+        kani::assume(live <= 1_000_000_000);
+        let per: u128 = u64::from(CLUSTERS_PER_SHARD).into();
+        let exact: u128 = (u128::from(CELL_CAP_NUM) * u128::from(live) + per - 1) / per;
+        let floor: u128 = u128::from(min);
+        let want = if exact > floor { exact } else { floor };
+        assert!(u128::from(cell_cap_limit(live, min)) == want);
+    }
+
+    /// Покрываемость: ветка `saturating_add` (та, где `c·m` уже влезает, а `c·m + n − 1` — нет)
+    /// достижима на объявленной границе. Если она не достижима вовсе, `.saturating_add` в теле —
+    /// украшение, и тогда её надо либо убрать, либо сузить [`CELL_CAP_MAX_LIVE`].
+    #[kani::proof]
+    #[kani::unwind(2)]
+    fn saturating_branch_is_reachable() {
+        let live: u64 = kani::any();
+        kani::assume(live <= CELL_CAP_MAX_LIVE);
+        kani::assume(CELL_CAP_NUM * live > u64::MAX - u64::from(CLUSTERS_PER_SHARD) + 1);
+        kani::cover!(true);
     }
 }

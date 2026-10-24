@@ -1,0 +1,8 @@
+### ШАГ 0 PRE_FIX (дерево 7566592, снят по VEC_DHT_PREFIX_SHOOT) ###
+prefix_verus_log_files=0
+prefix_cell_cap_max_live=0
+prefix_verus_check_script=нет
+prefix_kani_check_script=нет
+prefix_workflows=0
+prefix_ci_workflows_total=0
+prefix_ci_runs_total=0
