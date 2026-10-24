@@ -89,8 +89,8 @@ DISK_BEFORE=$(disk_mb)
 
 V1=$(mktemp); V2=$(mktemp); VS=$(mktemp); KC=$(mktemp); KS=$(mktemp)
 LC=$(mktemp); LS=$(mktemp); REQ=$(mktemp); SKP=$(mktemp); REGT=$(mktemp); REGC=$(mktemp)
-CORP=$(mktemp); F1=$(mktemp); F2=$(mktemp)
-cleanup() { rm -f "$V1" "$V2" "$VS" "$KC" "$KS" "$LC" "$LS" "$REQ" "$SKP" "$REGT" "$REGC" "$CORP" "$F1" "$F2"; }
+CORP=$(mktemp); F1=$(mktemp); F2=$(mktemp); CIJ=$(mktemp)
+cleanup() { rm -f "$V1" "$V2" "$VS" "$KC" "$KS" "$LC" "$LS" "$REQ" "$SKP" "$REGT" "$REGC" "$CORP" "$F1" "$F2" "$CIJ"; }
 trap cleanup EXIT
 
 run_to() { # $1=файл $2=метка; rest=команда
@@ -190,13 +190,36 @@ if [ "${VEC_DHT_CI_POLL:-0}" = "1" ]; then
   } >> "$LOG"
   RUN_ID=$(val "$LOG" ci_run_id)
   if [ -n "$RUN_ID" ]; then
-    curl -s --max-time 40 "https://api.github.com/repos/mak777uh/VecDHT/actions/runs/$RUN_ID/jobs?per_page=30" \
-      | python -c "
-import json,sys
-d=json.load(sys.stdin)
-for j in d.get('jobs',[]):
-    print('ci_job=%s name=%s conclusion=%s' % (j.get('name','?').split('—')[0].strip().lower().replace(' ','_'), j.get('name'), j.get('conclusion')))
+    # Порог (12) требует, чтобы в журнале лежал ВЫВОД каждой из четырёх работ, а не только их цвета.
+    # ЖУРНАЛ работы анонимно недоступен (`/jobs/{id}/logs` отдаёт 403 «Must have admin rights», а
+    # страница требует входа — это проверено и на API, и на HTML), поэтому вывод берётся из двух
+    # анонимно читаемых источников: пошаговые коды работ (`/runs/{id}/jobs`) и аннотации, которые
+    # сам workflow печатает строками `::notice::` (`/check-runs/{job_id}/annotations`).
+    curl -s --max-time 40 "https://api.github.com/repos/mak777uh/VecDHT/actions/runs/$RUN_ID/jobs?per_page=30" > "$CIJ" 2>/dev/null
+    python - "$CIJ" >> "$LOG" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+for j in d.get("jobs", []):
+    tag = j.get("name", "?").split("—")[0].strip().lower().replace(" ", "_")
+    print("ci_job=%s job_id=%s name=%s status=%s conclusion=%s" %
+          (tag, j.get("id"), j.get("name"), j.get("status"), j.get("conclusion")))
+    for s in j.get("steps", []):
+        if s.get("name", "").startswith(("Post ", "Set up", "Complete")):
+            continue
+        print("  ci_step=%s n=%s name=%s conclusion=%s" %
+              (tag, s.get("number"), s.get("name"), s.get("conclusion")))
+PY
+    for JID in $(block | grep -oE 'ci_job=[a-z_]+ job_id=[0-9]+' | sed 's/.*job_id=//'); do
+      curl -s --max-time 40 "https://api.github.com/repos/mak777uh/VecDHT/check-runs/$JID/annotations" \
+        | python -c "
+import json, sys
+d = json.load(sys.stdin)
+for a in (d.get('annotations') or []):
+    print('ci_ann job=%s level=%s file=%s :: %s' % ('$JID', a.get('annotation_level'), a.get('path'), (a.get('message') or '').strip()))
+if not (d.get('annotations') or []):
+    print('ci_ann job=$JID пусто — workflow не напечатал ни одной метки')
 " >> "$LOG" 2>/dev/null
+    done
   fi
 fi
 
