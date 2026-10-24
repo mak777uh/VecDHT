@@ -57,7 +57,10 @@ for n in 1 2; do
   total=$(sed -n 's/^CYCLEGATE_SELFTEST total=\([0-9]*\) passed=\([0-9]*\).*/\1/p' "$OUT/selftest_r$n.txt")
   passed=$(sed -n 's/^CYCLEGATE_SELFTEST total=\([0-9]*\) passed=\([0-9]*\).*/\2/p' "$OUT/selftest_r$n.txt")
   cases=$(sed -n 's/^CYCLEGATE_LEAN_FIELD_CASES=//p' "$OUT/selftest_r$n.txt")
-  rejected=$(grep -E '^  ДЕФЕКТ (применён без|`доказывает` без|соответствие формулировкой|прибор соответствия)' "$OUT/selftest_r$n.txt" | grep -c 'ОТБИТ' || true)
+  # Счётчик обязан считать РОВНО четыре новых кейса. Первая редакция ловила подстроку
+  # «применён без» и захватывала старый кейс «применён без модели»: печаталось 5 при пороге 4.
+  # Это ДИАГНОЗ-1 блока 1: широкий шаблон измерил не то, что заморожено. Шаблон сужен до полных имён.
+  rejected=$(grep -E '^  ДЕФЕКТ (применён без `доказывает`|`доказывает` без предмета|соответствие формулировкой, а не прибором|прибор соответствия не найден): rc=[0-9]+ ОТБИТ' "$OUT/selftest_r$n.txt" | grep -c 'ОТБИТ' || true)
   printf "CYCLEGATE_TOTAL=%s CYCLEGATE_TOTAL_r%s=%s\n" "${total:-NONE}" "$n" "${total:-NONE}" | tee -a "$LOG"
   printf "CYCLEGATE_PASSED=%s CYCLEGATE_PASSED_r%s=%s\n" "${passed:-NONE}" "$n" "${passed:-NONE}" | tee -a "$LOG"
   printf "LEAN_FIELD_CASES=%s LEAN_FIELD_CASES_r%s=%s\n" "${cases:-NONE}" "$n" "${cases:-NONE}" | tee -a "$LOG"

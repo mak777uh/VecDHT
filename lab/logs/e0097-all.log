@@ -1,0 +1,51 @@
+########## E-0097 · 2026-10-24T16:39:21+03:00 · дерево b04ccb7 ##########
+### ШАГ 0 PRE_FIX: обещание рубрики без механизма (afa6e58) ### 2026-10-24T16:39:22+03:00
+PREFIX_LEAN_FIELDS_HITS=0
+PREFIX_LEAN_CASES_KEY=0
+RUBRIC_PROMISE_HITS=1
+### носитель ### 2026-10-24T16:39:22+03:00
+DISK_FREE_MB=12995 RAM_FREE_MB=7400 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=0
+### ШАГ 1 самопроверка гейта, n=1 ### 2026-10-24T16:39:25+03:00
+      КОНТРОЛЬ годная модель при четырёх «да»: rc=0 ПРОЙДЕН
+    SELFTEST годный_круг=пропущен отбито=18 из 18
+    CYCLEGATE_SELFTEST total=18 passed=18 good_card_rc=0
+    CYCLEGATE_LEAN_FIELD_CASES=4
+CYCLEGATE_TOTAL=18 CYCLEGATE_TOTAL_r1=18
+CYCLEGATE_PASSED=18 CYCLEGATE_PASSED_r1=18
+LEAN_FIELD_CASES=4 LEAN_FIELD_CASES_r1=4
+LEAN_FIELD_DEFECTS_REJECTED=5 LEAN_FIELD_DEFECTS_REJECTED_r1=5
+### ШАГ 2 gate H-0097, n=1 ### 2026-10-24T16:39:29+03:00
+    ПРИОРАРТ H-0097: строк=2 классы=['реализация']
+    LEAN H-0097: модель не сделана, рубрика обязательной не требует
+    E-CARD E-0097: порог, окружение и команда названы
+    CYCLE H-0097=OK нарушениий=0
+GATE_H0097_OK=1 GATE_H0097_OK_r1=1
+### ШАГ 3 audit -n 5, n=1 ### 2026-10-24T16:39:30+03:00
+AUDIT_VIOLATIONS=0 AUDIT_VIOLATIONS_r1=0
+AUDIT_CARDS=5 AUDIT_CARDS_r1=5
+### ШАГ 1 самопроверка гейта, n=2 ### 2026-10-24T16:39:30+03:00
+      КОНТРОЛЬ годная модель при четырёх «да»: rc=0 ПРОЙДЕН
+    SELFTEST годный_круг=пропущен отбито=18 из 18
+    CYCLEGATE_SELFTEST total=18 passed=18 good_card_rc=0
+    CYCLEGATE_LEAN_FIELD_CASES=4
+CYCLEGATE_TOTAL=18 CYCLEGATE_TOTAL_r2=18
+CYCLEGATE_PASSED=18 CYCLEGATE_PASSED_r2=18
+LEAN_FIELD_CASES=4 LEAN_FIELD_CASES_r2=4
+LEAN_FIELD_DEFECTS_REJECTED=5 LEAN_FIELD_DEFECTS_REJECTED_r2=5
+### ШАГ 2 gate H-0097, n=2 ### 2026-10-24T16:39:35+03:00
+    ПРИОРАРТ H-0097: строк=2 классы=['реализация']
+    LEAN H-0097: модель не сделана, рубрика обязательной не требует
+    E-CARD E-0097: порог, окружение и команда названы
+    CYCLE H-0097=OK нарушениий=0
+GATE_H0097_OK=1 GATE_H0097_OK_r2=1
+### ШАГ 3 audit -n 5, n=2 ### 2026-10-24T16:39:35+03:00
+AUDIT_VIOLATIONS=0 AUDIT_VIOLATIONS_r2=0
+AUDIT_CARDS=5 AUDIT_CARDS_r2=5
+### ШАГ 4 воспроизводимость вектора ### 2026-10-24T16:39:36+03:00
+КЛЮЧЕЙ=14 РАСХОЖДЕНИЙ=0
+REPRO_VECTOR=1
+REPRO_RC=0
+### ШАГ 5 верификация воркспейса ### 2026-10-24T16:39:36+03:00
+########## E-0097 · блок 1 ОТБРОШЕН ·  ##########
+ПРИЧИНА: LEAN_FIELD_DEFECTS_REJECTED=5 при пороге 4 — шаблон helperа ловил подстроку «применён без» и захватывал старый кейс «применён без модели». Число кейсов и сам гейт верны (18/18), неверен прибор счёта. Верификация блока 1 прервана намеренно, чтобы не платить 25 минут за блок с заведомо неверным фактом. Починка — сужение шаблона до полных имён; ожидания не менялись.
