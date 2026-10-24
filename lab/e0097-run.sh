@@ -97,6 +97,11 @@ python lab/facts.py repro "$OUT/facts_r1.txt" "$OUT/facts_r2.txt" --strip-run > 
 rc=$?; note $rc
 cat "$OUT/repro.txt" | tail -4 | tee -a "$LOG"
 printf "REPRO_RC=%s\n" "$rc" | tee -a "$LOG"
+# Ожидание `REPRO_VECTOR` живёт в таблице так же, как остальные факты, поэтому оно обязано попасть
+# в файл фактов. Блок 2 напечатал `REPRO_VECTOR=1` в лог, но не в факты, и сверка честно сказала
+# «нет такого ключа» (ДИАГНОЗ-2). Значение берётся из вывода прибора, а не переписывается.
+rv=$(sed -n 's/^REPRO_VECTOR=//p' "$OUT/repro.txt" | tail -1)
+for f in 1 2; do printf "REPRO_VECTOR_r%s=%s\n" "$f" "${rv:-NONE}" >> "$OUT/facts_r$f.txt"; done
 
 say "### ШАГ 5 верификация воркспейса ### $(date +%FT%T%:z)"
 bash lab/workspace-verify.sh E-0097 >/dev/null 2>&1
