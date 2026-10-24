@@ -1,0 +1,115 @@
+########## E-0104 · 2026-10-25T00:14:29+03:00 · дерево 7ab6cc5 ##########
+### ШАГ 0 gate и носитель ### 2026-10-25T00:14:29+03:00
+ПРИОРАРТ H-0104: строк=2 классы=['спека']
+LEAN H-0104: модель не сделана, рубрика обязательной не требует
+E-CARD E-0104: порог, окружение и команда названы
+CYCLE H-0104=OK нарушениий=0
+GATE_H0104_OK=1
+DISK_FREE_MB=20688 RAM_FREE_MB=10613 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 два прогона, оба бинаря ### 2026-10-25T00:14:32+03:00
+     Running tests\c104_metrics_closed.rs (target\debug\deps\c104_metrics_closed-42c2ac1632e50d8b.exe)
+
+running 3 tests
+## C104_NODE_NAMES=37 C104_NODE_EXACT=1 C104_NODE_RENDER_OK=1 ##
+test names_are_exact_and_render_round_trips ... ok
+## C104_NODE_MAPPED=24 C104_NODE_MEMORY_ROWS=6 C104_NODE_CENTROIDS_OBSERVABLE=1 ##
+test each_counter_maps_to_its_own_name ... ok
+## C104_NODE_NO_PRICE=1 C104_NODE_DOOR_SEPARATE=1 ##
+test no_price_no_door_and_no_free_text ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\c104_metrics_closed.rs (target\debug\deps\c104_metrics_closed-c9804f85449430e2.exe)
+
+running 3 tests
+## C104_NET_SIZE_STABLE=1 C104_NET_NO_PRICE=1 ##
+## C104_NET_DOOR_LABELS=22 C104_NET_LABELS_CLOSED=1 C104_NET_SUM=759 C104_NET_SUM_OK=1 C104_NET_RENDER_OK=1 ##
+test size_does_not_grow_with_the_number_of_refusals ... ok
+test door_labels_are_closed_and_total_is_the_sum ... ok
+## C104_NET_WIRING=1 C104_NET_FIXED=7 ##
+test fresh_agent_service_reports_fixed_zeros ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+C104_MEASURED=1
+C104_NODE_NAMES=37
+C104_NODE_EXACT=1
+C104_NODE_RENDER_OK=1
+C104_NODE_MAPPED=24
+C104_NODE_MEMORY_ROWS=6
+C104_NODE_CENTROIDS_OBSERVABLE=1
+C104_NODE_NO_PRICE=1
+C104_NODE_DOOR_SEPARATE=1
+C104_NET_WIRING=1
+C104_NET_FIXED=7
+C104_NET_DOOR_LABELS=22
+C104_NET_LABELS_CLOSED=1
+C104_NET_SUM=759
+C104_NET_SUM_OK=1
+C104_NET_RENDER_OK=1
+C104_NET_SIZE_STABLE=1
+C104_NET_NO_PRICE=1
+C104_EXIT=0
+C104_RUNS=2
+DISK_GE_15000=1
+     Running tests\c104_metrics_closed.rs (target\debug\deps\c104_metrics_closed-42c2ac1632e50d8b.exe)
+
+running 3 tests
+## C104_NODE_NAMES=37 C104_NODE_EXACT=1 C104_NODE_RENDER_OK=1 ##
+## C104_NODE_NO_PRICE=1 C104_NODE_DOOR_SEPARATE=1 ##
+test names_are_exact_and_render_round_trips ... ok
+test no_price_no_door_and_no_free_text ... ok
+## C104_NODE_MAPPED=24 C104_NODE_MEMORY_ROWS=6 C104_NODE_CENTROIDS_OBSERVABLE=1 ##
+test each_counter_maps_to_its_own_name ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests\c104_metrics_closed.rs (target\debug\deps\c104_metrics_closed-c9804f85449430e2.exe)
+
+running 3 tests
+## C104_NET_SIZE_STABLE=1 C104_NET_NO_PRICE=1 ##
+## C104_NET_DOOR_LABELS=22 C104_NET_LABELS_CLOSED=1 C104_NET_SUM=759 C104_NET_SUM_OK=1 C104_NET_RENDER_OK=1 ##
+test size_does_not_grow_with_the_number_of_refusals ... ok
+test door_labels_are_closed_and_total_is_the_sum ... ok
+## C104_NET_WIRING=1 C104_NET_FIXED=7 ##
+test fresh_agent_service_reports_fixed_zeros ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+C104_MEASURED=1
+C104_NODE_NAMES=37
+C104_NODE_EXACT=1
+C104_NODE_RENDER_OK=1
+C104_NODE_MAPPED=24
+C104_NODE_MEMORY_ROWS=6
+C104_NODE_CENTROIDS_OBSERVABLE=1
+C104_NODE_NO_PRICE=1
+C104_NODE_DOOR_SEPARATE=1
+C104_NET_WIRING=1
+C104_NET_FIXED=7
+C104_NET_DOOR_LABELS=22
+C104_NET_LABELS_CLOSED=1
+C104_NET_SUM=759
+C104_NET_SUM_OK=1
+C104_NET_RENDER_OK=1
+C104_NET_SIZE_STABLE=1
+C104_NET_NO_PRICE=1
+C104_EXIT=0
+C104_RUNS=2
+DISK_GE_15000=1
+C104_VECTOR_STABLE=1
+### ШАГ 2 audit ### 2026-10-25T00:14:40+03:00
+CYCLE H-0104=OK нарушениий=0
+КАРТОЧКА H-0104: под правилом, оформлена
+AUDIT карточек=5 исторических=0 под_правилом=5
+AUDIT_VIOLATIONS=0
+### ШАГ 3 полная верификация ### 2026-10-25T00:14:41+03:00
+VERIFY_EXIT=0
+### ШАГ 4 стража текста и сверка ### 2026-10-25T00:44:05+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+ОЖИДАНИЙ=25 РАСХОЖДЕНИЙ=0
+СВЕРКА_EXIT=0
+### ШАГ 5 носитель после прогона ### 2026-10-25T00:44:06+03:00
+DISK_FREE_MB=20662 RAM_FREE_MB=12804 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
