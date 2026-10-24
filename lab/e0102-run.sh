@@ -50,7 +50,9 @@ pfc2=$(pick "S77_AFTER_FIRST_CELL" "$PREFIX_LOG")
 pft=$(pick "S77_AFTER_FIRST_TOTAL" "$PREFIX_LOG")
 pfe=$(pick "S77_AFTER_FIRST_EVICTED" "$PREFIX_LOG")
 psec=$(sed -n 's/.*ответ: Some("\([A-Z_]*\)").*/\1/p' "$PREFIX_LOG" | tail -1)
-pgb=$(grep -o 'MERE g5_branch=[a-z]*' "$FREEZE_LOG" | tail -1 | cut -d= -f2)
+# Строка E-0088 начинается с `MERE g5_live_before=…`, поэтому `g5_branch` стоит не сразу за
+# `MERE`, а в середине строки; якорь — сам токен, а не первое слово (ДИАГНОЗ-5 E-0102).
+pgb=$(grep -o 'g5_branch=[a-z]*' "$FREEZE_LOG" | tail -1 | cut -d= -f2)
 pge=$(grep -o 'g5_evicted=[0-9]*' "$FREEZE_LOG" | tail -1 | cut -d= -f2)
 pgs=$(grep -o 'g5_scanned=[0-9]*' "$FREEZE_LOG" | tail -1 | cut -d= -f2)
 printf "PREFIX_CELL_VICTIM_SCAN_HITS=%s\n" "$p1" | tee -a "$LOG"
