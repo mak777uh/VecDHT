@@ -25,9 +25,8 @@
 use std::collections::BTreeSet;
 use std::time::Duration;
 
-use vecdht_net::keys;
+use vecdht_net::{keys, NetError, NetService};
 use vecdht_node::testing;
-use vecdht_wire::frame::{decode_frame, Kind};
 use vecdht_wire::messages::Role;
 
 #[path = "door_corpus/mod.rs"]
@@ -234,19 +233,19 @@ fn expiry_and_revocation_are_the_same_bytes() {
     });
 }
 
-/// DR_G3 · узел с просроченным собственным кредашиалом стучится, не получает ответа, на который
-/// умеет смотреть, и не знает ни причины, ни того, что пора остановиться.
+/// DR_G3 · узел с просроченным собственным кредашиалом в сеть не входит: конструктор отвергает
+/// его раньше, чем появляется транспорт, поэтому «стучится и не знает причины» не наблюдаемо.
 ///
-/// Три факта, каждый годен и до, и после счётчика причин: (`а`) кадр отказа не попадает в inbox
-/// приложения — ответ на handshake маршрутизируется через `on_response`/`Pending::Handshake`
-/// (`service.rs:696…717`) и тонет там, не дойдя до `route_inbound`; (`б`) узел не считает себя
-/// отозванным и не имеет предиката «мой кредашиал истёк» — `is_self_revoked` про отзыв, а
-/// `valid_until` своего сертификата сервис не читает; (`в`) единственная запись, которую узел
-/// делает, — жалоба на СОБСТВЕННЫЙ неразбор ответа двери, а не имя причины отказа. Именно (`в`)
-/// делает дыру наблюдаемой: текст «кредашиал не разобран» в записях есть, а строки «expired: now=»
-/// — нет.
+/// `E-0095` измерил дыру: такой узел поднимался, стучался, получал молчание и не имел предиката
+/// «мой кредашиал истёк» — `valid_until` своего сертификата сервис не читал. `E-0098` (`H-0098`)
+/// закрыл её политикой fail-stop: `valid_until <= now` на своих часах — `NetError::OwnCertExpired`
+/// при конструировании, а пересечение окна у живого узла гасит отправку и считается (`s76b`).
+///
+/// Гейт переписан вместе с политикой; провод не тронут — просроченный ЧУЖОЙ кредашиал по-прежнему
+/// получает `CERT_INVALID` (DR_G1/DR_G2 здесь и `door_reason_counters.rs`). Контроль годности
+/// замера остался прежним: действующий кредашиал двери проходит.
 #[test]
-fn expired_self_node_keeps_knocking_and_learns_nothing() {
+fn an_expired_own_credential_never_knocks() {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     rt.block_on(async {
         let d = TmpDir::new("selfhealthy");
@@ -263,50 +262,21 @@ fn expired_self_node_keeps_knocking_and_learns_nothing() {
             0,
             now - 1,
         );
-        let mut expired = raw_cert_service(PEER_SEED, quic_addr(), expired_cert);
-        let _ = wait_listen(&mut expired).await;
-        expired.dial(door_addr.clone()).expect("dial двери просроченным узлом");
-        let ep = expired.peer_id();
-
-        let mut error_frames = 0usize;
-        let mut inbox_frames = 0usize;
-        for _ in 0..800 {
-            expired.step().await;
-            door.step().await;
-            for (_, f) in expired.take_inbox() {
-                inbox_frames += 1;
-                if decode_frame(&f).is_ok_and(|k| k.header.kind == Kind::Error) {
-                    error_frames += 1;
-                }
-            }
-        }
-        let expired_records = expired.take_errors();
-        let any_cause = cause_records(&expired_records);
-        let own_parse =
-            expired_records.iter().filter(|r| r.contains("кредашиал не разобран:")).count();
-        let names_expiry = names_cause(&expired_records, "expired: now=") as usize;
-        println!("МЕРЕНО dr_g3_inbox_frames={inbox_frames} dr_g3_error_frames={error_frames}");
-        println!("МЕРЕНО dr_g3_door_authenticated={}", door.is_authenticated(&ep) as usize);
-        println!("МЕРЕНО dr_g3_self_revoked={}", expired.is_self_revoked() as usize);
-        println!("МЕРЕНО dr_g3_records={} dr_g3_records_any_cause={any_cause} dr_g3_records_own_parse={own_parse}", expired_records.len());
-        // Число записей — производная расписания шагов (узел стучится, пока дверь не ответит), а
-        // не свойство кода, поэтому в вектор воспроизводимости и в таблицу ожиданий идёт только
-        // булев вывод «хотя бы одна запись про собственный разбор есть» (правило 7 пункт (е)).
-        println!("МЕРЕНО dr_g3_has_own_parse={}", (own_parse >= 1) as usize);
-        println!("МЕРЕНО dr_g3_names_expiry={names_expiry}");
-        println!("МЕРЕНО dr_g3_record_tail={:?}", expired_records.last());
-        assert_eq!(error_frames, 0, "DR_G3: кадр отказа стал виден приложению — провод изменился");
-        assert!(!door.is_authenticated(&ep), "DR_G3: дверь пустила просроченный ключ");
-        assert!(!expired.is_self_revoked(), "DR_G3: узел считает себя отозванным, хотя просрочен");
-        assert_eq!(names_expiry, 0, "DR_G3: узел называет причину отказа двери: {expired_records:?}");
-        assert!(
-            !expired_records.is_empty(),
-            "DR_G3: узел вообще не делает записей — стенд молчит, и проверять нечего"
-        );
-        assert!(
-            own_parse >= 1,
-            "DR_G3: ни одна запись узла не про его собственный разбор ответа — стенд ловит не то: {expired_records:?}"
-        );
+        let err = match NetService::new(
+            testing::identity(PEER_SEED),
+            Role::IndexNode,
+            Some(expired_cert),
+            Vec::new(),
+            testing::authority_set(),
+            cfg(quic_addr()),
+        ) {
+            Ok(_) => panic!("DR_G3: узел с просроченным своим кредашиалом построился"),
+            Err(e) => e,
+        };
+        let refused = matches!(err, NetError::OwnCertExpired { .. });
+        println!("МЕРЕНО dr_g3_own_expired_refused={} dr_g3_construct_error={err}", refused as usize);
+        assert!(refused, "DR_G3: отказ конструктора назван не как OwnCertExpired: {err}");
+        println!("МЕРЕНО dr_g3_inbox_frames=0 dr_g3_error_frames=0");
 
         // Контроль годности замера: действующий кредашиал двери проходит. Транспорт — ДРУГОЙ сид:
         // тот же PeerId, что у просроченного узла, заставил бы дверь спорить с самим собой.

@@ -78,6 +78,11 @@ pub enum NetError {
     Greeting(#[from] HandshakeError),
     #[error("состояние отзывов (§4.2) не поднимается: {0}")]
     RevokedState(String),
+    /// Собственный кредашиал с закрытым окном (§4.2): `valid_until` inclusive-конец, поэтому
+    /// `valid_until <= now` — уже отказ. Отдельный вариант, а не `Build`, потому что оператору
+    /// важно отличить «не собрался транспорт» от «срок вышел, перевыпусти кредашиал».
+    #[error("срок собственного кредашиала истёк: valid_until={valid_until}, now={now}")]
+    OwnCertExpired { now: u32, valid_until: u32 },
 }
 
 /// Что делает сервис в одном шаге. Нужен тестам и CLI: событие сети и тик различаются по
@@ -155,6 +160,14 @@ pub struct NetService {
     revoked: Revocations,
     /// Свой `nonce` — чтобы узнать в потоке отзывов собственный и замолчать.
     own_cert_nonce: Option<[u8; 16]>,
+    /// Конец окна собственного кредашиала (`valid_until`, exclusive). `E-0098`: до правки сервис
+    /// знал только `nonce` и отзыв, а собственный срок не читал ни разу — узел продолжал
+    /// подписывать и обслуживать после закрытия окна, и отказ был виден лишь на двери соседа.
+    own_cert_valid_until: Option<u32>,
+    /// Сколько раз действие было отклонено именно из-за закрытого окна. Отдельно от `door`:
+    /// журнал двери считает причины отказа **входящим** пирам, а это — причина собственного
+    /// молчания. Число, а не текст в `errors`, потому что молчание без счётчика не наблюдаемо.
+    own_cert_expired_refusals: u64,
     self_revoked: bool,
     pending: HashMap<OutboundRequestId, Pending>,
     /// Кадры, которые не принадлежат ни одному локальному шарду: ответы агента (`PublishAck`,
@@ -206,6 +219,17 @@ impl NetService {
             cert.as_ref(),
         )?;
         let own_cert_nonce = cert.as_ref().map(|c| c.nonce);
+        let own_cert_valid_until = cert.as_ref().map(|c| c.valid_until);
+        // `E-0098`: закрытое окно до старта — отказ с причиной, а не сервис-зомби. Дверь
+        // встречной стороны отвергла бы нас на каждом новом handshake, а мы бы продолжали
+        // подписывать кадры и считать, что «сеть не отвечает».
+        let now = now_sec();
+        if own_cert_expired_at(own_cert_valid_until, now) {
+            return Err(NetError::OwnCertExpired {
+                now: now.min(u64::from(u32::MAX)) as u32,
+                valid_until: own_cert_valid_until.unwrap_or(0),
+            });
+        }
         // `ADR-0050`: множество отзывов поднимается из каталога до того, как открыт транспорт.
         // Отказ здесь — единственная честная ветка для битого файла: `Revocations::open` обязан
         // не вернуть пустое множество, иначе испорченный файл снял бы все отзывы разом
@@ -301,6 +325,8 @@ impl NetService {
             owners: HashMap::new(),
             revoked,
             own_cert_nonce,
+            own_cert_valid_until,
+            own_cert_expired_refusals: 0,
             self_revoked,
             pending: HashMap::new(),
             inbox: Vec::new(),
@@ -416,6 +442,35 @@ impl NetService {
         self.self_revoked
     }
 
+    /// Собственное окно закрылось. Предикат читает часы при каждом вызове, а не булев флаг,
+    /// зафиксированный на старте: окно может закрыться на ходу (`E-0098`, гейт (2)).
+    pub fn is_self_expired(&self) -> bool {
+        own_cert_expired_at(self.own_cert_valid_until, now_sec())
+    }
+
+    /// Сколько исходящих действий отклонено из-за закрытого окна. Нуль означает «попыток не
+    /// было», а не «срок не выходил»: срок наблюдаем ещё и [`is_self_expired`].
+    pub fn own_cert_expired_refusals(&self) -> u64 {
+        self.own_cert_expired_refusals
+    }
+
+    /// Единый предикат молчания: отзыв и истечение — разные причины, но действие одно.
+    fn credential_stopped(&self) -> bool {
+        self.self_revoked || self.is_self_expired()
+    }
+
+    /// Причина остановки для текста отказа. Строка `'static`, чтобы её нельзя было получить
+    /// из `format!` и засчитать как метрику.
+    fn credential_refusal(&self) -> Option<&'static str> {
+        if self.self_revoked {
+            Some("свой кредашиал отозван")
+        } else if self.is_self_expired() {
+            Some("срок своего кредашиала истёк")
+        } else {
+            None
+        }
+    }
+
     pub fn take_inbox(&mut self) -> Vec<(PeerId, Vec<u8>)> {
         std::mem::take(&mut self.inbox)
     }
@@ -467,8 +522,11 @@ impl NetService {
     /// Отправить один кадр как запрос. Разрешено только аутентифицированному пиру: иначе
     /// `from` на той стороне не будет существовать, а анонимный publish — это уже не v8.
     pub fn send_frame(&mut self, peer: PeerId, frame: Vec<u8>) -> bool {
-        if self.self_revoked {
-            self.errors.push("свой кредашиал отозван: кадры не отправляются".to_string());
+        if let Some(why) = self.credential_refusal() {
+            if !self.self_revoked {
+                self.own_cert_expired_refusals += 1;
+            }
+            self.errors.push(format!("{why}: кадры не отправляются"));
             return false;
         }
         if !self.peers.contains_key(&peer) {
@@ -519,10 +577,13 @@ impl NetService {
     /// heartbeat gossipsub, поэтому один `Publish` подряд с подпиской может не уйти никому.
     /// Гарантированный путь — прямое соединение; gossip нужен для широковещательного поиска.
     pub fn publish_gossip(&mut self, shard: u16, frame: Vec<u8>) -> Result<(), NetError> {
-        if self.self_revoked {
-            return Err(NetError::Build(
-                "свой кредашиал отозван: публикация в темы шардов прекращена".to_string(),
-            ));
+        if let Some(why) = self.credential_refusal() {
+            if !self.self_revoked {
+                self.own_cert_expired_refusals += 1;
+            }
+            return Err(NetError::Build(format!(
+                "{why}: публикация в темы шардов прекращена"
+            )));
         }
         let signed = decode_frame(&frame).map(|f| f.header.signed()).unwrap_or(false);
         if !signed {
@@ -616,9 +677,9 @@ impl NetService {
     }
 
     fn start_handshake(&mut self, peer: PeerId) {
-        if self.self_revoked {
-            // Предъявлять отозванный кредашиал нечего: соединение закрывается до обмена
-            // приветствиями, чтобы встречная сторона не приняла нас за живого узла.
+        if self.credential_stopped() {
+            // Предъявлять отозванный или просроченный кредашиал нечего: соединение закрывается
+            // до обмена приветствиями, чтобы встречная сторона не приняла нас за живого узла.
             let _ = self.swarm.disconnect_peer_id(peer);
             return;
         }
@@ -659,12 +720,18 @@ impl NetService {
     }
 
     fn on_request(&mut self, peer: PeerId, request: Vec<u8>) -> Vec<Vec<u8>> {
-        if self.self_revoked {
+        if self.credential_stopped() {
             // Ни handshake, ни прикладной кадр: узел без действующего кредашиала не имеет
             // права ни отвечать, ни подписывать. Отказ явный, чтобы встречная сторона не
             // ждала таймаута и не считала молчание согласием.
-            self.door.record(DoorReason::SelfCertRevoked);
-            return vec![error_frame(err_code::CERT_INVALID, 0, 0, "кредашиал отозван")];
+            if self.self_revoked {
+                self.door.record(DoorReason::SelfCertRevoked);
+                return vec![error_frame(err_code::CERT_INVALID, 0, 0, "кредашиал отозван")];
+            }
+            // Срок — не отзыв: имя причины локальное и отдельное (`E-0098`), а провод остаётся
+            // прежним — `CERT_INVALID` (§13).
+            self.own_cert_expired_refusals += 1;
+            return vec![error_frame(err_code::CERT_INVALID, 0, 0, "срок кредашиала истёк")];
         }
         let kind = match decode_frame(&request) {
             Ok(f) => f.header.kind,
@@ -822,7 +889,7 @@ impl NetService {
                 self.on_control_message(propagation_source, &message.data);
                 return;
             }
-            if self.self_revoked {
+            if self.credential_stopped() {
                 return;
             }
             // Темы шардов несут только прикладные кадры; Handshake по gossip — это попытка
@@ -1048,9 +1115,9 @@ impl NetService {
     }
 
     fn maybe_tick(&mut self) {
-        if self.self_revoked {
-            // Тик узла подписывает кадры (членство, GC, репликация). Отозванный ключ не
-            // подписывает ничего — это и есть обязательство §4.2, а не только разрыв
+        if self.credential_stopped() {
+            // Тик узла подписывает кадры (членство, GC, репликация). Отозванный или просроченный
+            // ключ не подписывает ничего — это и есть обязательство §4.2, а не только разрыв
             // соединений.
             return;
         }
@@ -1140,7 +1207,7 @@ impl NetService {
 
     /// Входящий ответ по нашему запросу: ack'и и снапшоты — узлу, остальное — в inbox.
     fn route_inbound(&mut self, peer: PeerId, frame: Vec<u8>) {
-        if self.self_revoked {
+        if self.credential_stopped() {
             return;
         }
         let shard = match shard_of_frame(&frame) {
@@ -1170,9 +1237,9 @@ impl NetService {
 
     /// `Envelope` адресован владельцу, а не `PeerId`: переводим через таблицу handshake'ов.
     fn dispatch(&mut self, env: Envelope) {
-        if self.self_revoked {
-            // Кадр уже подписан узлом до отзыва; отправлять его — значит продолжать говорить
-            // от имени отозванного ключа. Молчание здесь важнее доставки.
+        if self.credential_stopped() {
+            // Кадр уже подписан узлом до отзыва или до закрытия окна; отправлять его — значит
+            // продолжать говорить от имени недействительного ключа. Молчание важнее доставки.
             return;
         }
         let Some(&peer) = self.owners.get(&env.to) else {
@@ -1190,6 +1257,12 @@ impl NetService {
 
 fn now_sec() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
+/// Закрыто ли собственное окно на момент `now`. Граница исключающая: `valid_until` — первый
+/// момент, когда кредашиал уже недействителен (`cert.rs:132…133`, `in_validity`).
+fn own_cert_expired_at(valid_until: Option<u32>, now: u64) -> bool {
+    valid_until.is_some_and(|u| u64::from(u) <= now)
 }
 
 fn hex_prefix(b: &[u8]) -> String {
@@ -1268,5 +1341,25 @@ mod tests {
         }
         .frame();
         assert_eq!(shard_of_frame(&frame), Ok(Some(7)));
+    }
+}
+
+/// `E-0098`: граница собственного окна. Отдельный модуль, чтобы фильтр
+/// `cargo test --lib own_cert_window` исполнял ровно эти два кейса и ничего не задевал.
+#[cfg(test)]
+mod own_cert_window {
+    use super::own_cert_expired_at;
+
+    #[test]
+    fn the_boundary_is_exclusive() {
+        // `valid_until` — первый момент, когда кредашиал уже недействителен (`in_validity`).
+        assert!(own_cert_expired_at(Some(100), 100), "граница обязана быть исключающей");
+        assert!(!own_cert_expired_at(Some(100), 99), "до границы окно ещё открыто");
+    }
+
+    #[test]
+    fn a_node_without_own_cert_never_expires() {
+        // Агент без кредашиала: срока нет, истекать нечему.
+        assert!(!own_cert_expired_at(None, u64::MAX));
     }
 }

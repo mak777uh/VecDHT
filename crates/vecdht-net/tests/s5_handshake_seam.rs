@@ -397,9 +397,15 @@ fn the_refusal_speaks_cert_invalid_and_keeps_the_old_identity() {
     });
 }
 
-/// (4) Кеш аутентификации не имеет срока: просроченный кредашиал остаётся аутентифицированным.
+/// (4) Кеш аутентификации не имеет срока: просроченный чужой кредашиал остаётся
+/// аутентифицированным — но сам его владелец уже молчит.
+///
+/// `E-0076` измерил только первую половину: узел продолжал обслуживать просроченного пира, потому
+/// что срок своего кредашиала сервис не читал вовсе. `E-0098` (`H-0098`) сделал вторую половину
+/// наблюдаемой: пересечение окна на своих часах гасит отправку и считает отказ. Кеш узла при этом
+/// по-прежнему не имеет срока — это разные факты, и оба теперь под гейтом.
 #[test]
-fn the_authentication_cache_outlives_valid_until() {
+fn the_authentication_cache_outlives_valid_until_while_the_peer_goes_silent() {
     let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
     rt.block_on(async {
         let d = dir("s5-cache");
@@ -451,11 +457,12 @@ fn the_authentication_cache_outlives_valid_until() {
             "(4) причина отказа — срок: {err:?}"
         );
 
-        // А кеш — нет: пир остался аутентифицированным и его кадры обслуживаются.
+        // Кеш узла — нет: просроченный пир остаётся аутентифицированным.
         assert!(
             node.is_authenticated(&pp),
             "(4) кеш аутентификации не имеет срока: просроченный кредашиал до сих пор допущен"
         );
+        // А сам пир уже не говорит: своё окно закрыто, отправка — отказ со счётчиком (`E-0098`).
         let find = testing::find_frame(
             &testing::identity(PEER_SEED),
             &testing::vector(3),
@@ -463,24 +470,25 @@ fn the_authentication_cache_outlives_valid_until() {
             5,
             4243,
         );
-        assert!(peer.send_frame(np, find), "(4) пир аутентифицирован");
-        let mut served = Vec::new();
-        let deadline = tokio::time::Instant::now() + Duration::from_secs(20);
-        while tokio::time::Instant::now() < deadline {
-            node.step().await;
-            peer.step().await;
-            served.extend(peer.take_inbox());
-            if match_result_of(&served).is_some() {
-                break;
-            }
-        }
         assert!(
-            match_result_of(&served).is_some(),
-            "(4) просроченный пир не обслужен: {served:?}"
+            !peer.send_frame(np, find),
+            "(4) узел с закрытым своим окном отправил кадр"
         );
-        assert!(
-            error_of(&served).is_none(),
-            "(4) просроченный пир получил отказ: {served:?}"
+        let refusals = peer.own_cert_expired_refusals();
+        println!("S5_CACHE_AFTER_EXPIRY=1 S5_PEER_SILENT=1 S5_PEER_REFUSALS={refusals}");
+        assert!(refusals >= 1, "(4) отказ по закрытому окну не посчитан: {refusals}");
+        // Второй вызов ничего не меняет: тишина не зависит от того, сколько раз её спросили.
+        let _ = peer.send_frame(np, testing::find_frame(
+            &testing::identity(PEER_SEED),
+            &testing::vector(4),
+            &[CLUSTER],
+            6,
+            4244,
+        ));
+        assert_eq!(
+            peer.own_cert_expired_refusals(),
+            refusals + 1,
+            "(4) каждый отказ обязан быть посчитан ровно один раз"
         );
         let _ = std::fs::remove_dir_all(&d);
     });
