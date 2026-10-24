@@ -160,6 +160,10 @@ for f in 1 2; do printf "REPRO_VECTOR_r%s=%s\n" "$f" "${rv:-NONE}" >> "$OUT/fact
 say "### ШАГ 6 верификация воркспейса ### $(date +%FT%T%:z)"
 bash lab/workspace-verify.sh E-0098 >/dev/null 2>&1
 rc=$?; printf "VERIFY_EXIT=%s\n" "$rc" | tee -a "$LOG"; note $rc
+# ПОПРАВКА E-0098 (ДИАГНОЗ-1, до повторного прогона): ключ печатался в лог, но не попадал
+# в вектор фактов, поэтому сверка отвечала «нет такого ключа» вместо сравнения. Правка
+# механическая: ожидание `VERIFY_EXIT=0` не менялось, вектор обязан нести каждый ключ.
+for f in 1 2; do printf "VERIFY_EXIT_r%s=%s\n" "$f" "$rc" >> "$OUT/facts_r$f.txt"; done
 VLOG="lab/logs/workspace-verify-2026-10-22.log"
 start=$(grep -n "########## E-0098 · workspace-verify" "$VLOG" | tail -1 | cut -d: -f1)
 if [ -n "$start" ]; then
