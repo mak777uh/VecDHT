@@ -1,0 +1,24 @@
+########## E-0102 · PRE_FIX на продукте до правки · 2026-10-24T20:07:20+03:00 · дерево ae35a1d ##########
+   Compiling vecdht-node v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-node)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.36s
+     Running tests\s77_cell_cap_scan.rs (target\debug\deps\s77_cell_cap_scan-34777945df0f66af.exe)
+
+running 2 tests
+test a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir ... S77_FIRST_REFUSED=1 S77_FIRST_CODE=SHARD_FULL S77_AFTER_FIRST_CELL=300 S77_AFTER_FIRST_TOTAL=400 S77_AFTER_FIRST_EVICTED=0
+
+thread 'a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir' (27300) panicked at crates\vecdht-node\tests\s77_cell_cap_scan.rs:183:5:
+за окном скана лежат 9-битные записи дешевле новичка — кап обязан вытеснить одну, ответ: Some("SHARD_FULL")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test renewal_stays_free_while_the_window_scan_is_opt_in ... S77_RENEW_EVICTED=0 S77_RENEW_CELL=300 S77_RENEW_TOTAL=400
+ok
+
+failures:
+
+failures:
+    a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir
+
+test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.16s
+
+error: test failed, to rerun pass `-p vecdht-node --test s77_cell_cap_scan`
+PREFIX_EXIT=101
