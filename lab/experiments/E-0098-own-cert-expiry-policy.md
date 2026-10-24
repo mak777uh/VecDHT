@@ -1,10 +1,10 @@
 ---
 id: E-0098
 hypothesis: H-0098
-status: pre-registered
+status: completed
 base_commit: "f9923c9 (продукт до правки: PRE_FIX-оракул прогнан здесь и заморожен в lab/logs/e0098-prefix.log)"
 started: "2026-10-24"
-finished: null
+finished: "2026-10-24"
 environment: "Windows, x86_64-pc-windows-gnu; rustc 1.99.1; Python 3 (PyYAML). Настоящий QUIC на loopback. Приборы: `cargo test -p vecdht-net --test s76_own_cert_expiry` (3 гейта), `cargo test -p vecdht-net --test s76b_own_cert_expiry_observe` (счётчик), `cargo test -p vecdht-net --lib own_cert_window` (граница), `python lab/cycle-gate.py`, `bash lab/workspace-verify.sh E-0098`. `RAYON_NUM_THREADS=2`, PATH включает `/c/Users/Admin/mingw64/bin`"
 command: "bash lab/e0098-run.sh (заморожен этим коммитом; исполняется неизменяемой mktemp-копией).
 Порядок: (0) PRE_FIX — статические счётчики `git show f9923c9:...service.rs` (`valid_until`,
@@ -29,8 +29,8 @@ threshold: "Заморожено этим коммитом вместе с `lab/
 верификацией, а не живёт отдельным файлом. `VERIFY_EXIT=0`, `TEXT_DIRTY_FILES=0`,
 `DISK_GE_15000=1` фиксирует ресурсный порог (11) тройкой чисел и не подгоняется. Фальсификаторы —
 шесть пунктов из `H-0098`"
-result: null
-verdict: pending
+result: "supports. PRE_FIX (f9923c9, замороженный прогон): PREFIX_VALID_UNTIL_HITS=0, PREFIX_OWN_CERT_EXPIRED_HITS=0, PREFIX_SELF_REVOKED_HITS=17, оракул 1 passed / 2 failed при G1_CONSTRUCTED=1, G2_AFTER_EXPIRY_SERVED=1, G3_FRESH_SERVED=1. После правки (два прогона на неизменном дереве, REPRO_VECTOR=1): S76 3/3, G1_CONSTRUCTED=0, G2_BEFORE_EXPIRY_SERVED=1, G2_AFTER_EXPIRY_SERVED=0, G3_FRESH_SERVED=1; S76B 1/1 при S76B_SELF_EXPIRED=1 и S76B_REFUSALS_GE_1=1; UNIT 2/2 (граница исключающая, None не истекает). GATE_H0098_OK=1, AUDIT_VIOLATIONS=0, AUDIT_CARDS=5, 28 ожиданий / 0 расхождений, СВЕРКА_EXIT=0, WORST_RC=0. S76_IN_VERIFY=1 (оракул исполняется полной верификацией), VERIFY_EXIT=0, TEXT_DIRTY_FILES=0; верификация 112 срезов, 789 passed, 0 failed, 7 ignored. Ресурсы после замера: DISK_FREE_MB=20759, RAM_FREE_MB=13611, PAGEFILE_PEAK_MB=7660; DISK_GE_15000=1 (порог (11) выполнен числом)"
+verdict: supports
 ---
 
 # E-0098 — политика просроченного собственного кредашиала: fail-stop и наблюдаемая причина
@@ -87,3 +87,54 @@ helper печатает эти факты из замороженного фай
 Провод, `NetConfig`, `revocation.bin` и порядок лесенки §4.2 не трогаются. Нижняя граница окна
 (`valid_from` в будущем) в гипотезу не входит — это ошибка развёртывания с причиной `NotYetValid`
 на двери соседа. Политика — fail-stop без завершения процесса: молчание и число, а не `panic`.
+
+## Результат
+
+Вердикт `supports`: все шесть фальсификаторов из `H-0098` проверены исполнением и ни один не наступил.
+
+| Факт | PRE_FIX (`f9923c9`) | После правки (два прогона) |
+|---|---|---|
+| Сервис с просроченным окном | строится (`G1_CONSTRUCTED=1`) | отказ конструктора (`S76_G1_CONSTRUCTED=0`, `err = OwnCertExpired`) |
+| Узел после закрытия окна на ходу | обслуживает Find (`G2_AFTER_EXPIRY_SERVED=1`) | молчит (`S76_G2_AFTER_EXPIRY_SERVED=0`), до закрытия обслуживает (`=1`) |
+| Годный кредашиал | обслуживает (`G3_FRESH_SERVED=1`) | обслуживает (`S76_G3_FRESH_SERVED=1`) — ложного молчания нет |
+| Причина наблюдаема | ключа нет (`PREFIX_OWN_CERT_EXPIRED_HITS=0`) | `S76B_SELF_EXPIRED=1`, `S76B_REFUSALS_GE_1=1` |
+| Граница окна | — | юнит `UNIT 2/2`: `valid_until == now` отвергнут, `None` не истекает |
+| Провод | `CERT_INVALID` | `CERT_INVALID` (отдельный код на провод не добавлен) |
+
+Оракул в PRE_FIX красный исполнением, а не пересказом: `PREFIX_ORACLE_PASSED=1`,
+`PREFIX_ORACLE_FAILED=2` на базовом продукте, где тех имён API ещё нет. Статические счётчики
+подтверждают диагноз: `valid_until` в `service.rs` до правки — 0 вхождений, `self_revoked` — 17,
+`own_cert_nonce` — 5: срок жил только внутри приветствия, молчание было только про отзыв.
+
+Сверка: `ОЖИДАНИЙ=28 РАСХОЖДЕНИЙ=0`, `СВЕРКА_EXIT=0`, `WORST_RC=0`; `REPRO_VECTOR=1` — каждый
+прибор прогнан дважды на неизменном дереве и дал тот же вектор (правило 7 (е)). Оракул не живёт
+отдельным файлом: `S76_IN_VERIFY=1`, `VERIFY_EXIT=0` — полная верификация воркспейса исполняет
+`s76`, `s76b` и юнит-тесты границы. Верификация: 112 срезов, 789 passed, 0 failed, 7 ignored;
+`CLIPPY_EXIT=0`, `VERUS_EXIT=0`, `KCC_EXIT=0`, `CYCLEGATE_EXIT=0`, `REVIEW_FINDINGS=0`,
+`LIBCHECK_EXIT=0`, `TEXT_DIRTY_FILES=0`.
+
+Ресурсы (три числа, pagefile в тройке): до замера `DISK_FREE_MB=20742 RAM_FREE_MB=13376
+PAGEFILE_PEAK_MB=7660`, после — `20759 / 13611 / 7660`, `DISK_GE_15000=1`. `cargo clean` не
+исполнялся.
+
+Что правка делает на ходу: `credential_stopped()` — один предикат «отозван или просрочен» для
+отправки, публикации, тика и обслуживания входящих; причина при этом остаётся раздельной
+(`credential_refusal()` и отдельный счётчик `own_cert_expired_refusals`), поэтому отзыв и истечение
+не смешиваются в одно молчание. Перевыпуск кредашиала лечится только перезапуском сервиса — это
+названо в `ADR-0055` как цена fail-stop.
+
+## Lean: модель не строилась, и это ответ, а не пропуск
+
+Утверждение цикла — предикат над часами и его видимость в коде (`own_cert_expired_at`), а не
+инвариант структуры. Пространство состояний (окно открыто/закрыто × путь кадра) конечно и проверено
+гейтами на настоящем сервисе; Lean-модель дала бы доказательство модели без соответствия коду — ровно
+то, что пятый вопрос рубрики (`lab/lean-rubric.md`) запрещает засчитывать. Соответствие здесь
+проверяет названный прибор: `s76b` и юнит `own_cert_window` исполняют тот же предикат, что продукт.
+
+## Что цикл не решил
+
+Нижняя граница окна (`valid_from` в будущем) осталась вне политики: у неё своя причина `NotYetValid`
+на двери соседа и своя ошибка развёртывания — названо в `OPEN-QUESTIONS` п. 50. Отдельного кода
+отказа на проводе нет и не заведено: §13 держит свёртку, а `ADR-0024` (различающий код) по-прежнему
+не принят. Перевыпуск на ходу (принять новый кредашиал без рестарта) не входит в цикл: `NetService`
+строится один раз, и это ограничение названо в `ADR-0055`.
