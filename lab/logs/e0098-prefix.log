@@ -1,0 +1,31 @@
+########## E-0098 PRE_FIX · 2026-10-24T18:48:08+03:00 · дерево f9923c9 (продукт до правки) ##########
+### команда: cargo test -p vecdht-net --test s76_own_cert_expiry -- --nocapture --test-threads=1 ###
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.62s
+     Running tests\s76_own_cert_expiry.rs (target\debug\deps\s76_own_cert_expiry-a72c9534285fcf55.exe)
+
+running 3 tests
+test g1_an_expired_own_cert_is_not_constructed ... G1_CONSTRUCTED=1
+
+thread 'g1_an_expired_own_cert_is_not_constructed' (17428) panicked at crates\vecdht-net\tests\s76_own_cert_expiry.rs:219:9:
+(1) сервис с просроченным собственным кредашиалом построен: ошибка обязана быть отказом
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+FAILED
+test g2_a_running_node_stops_when_its_window_closes ... G2_BEFORE_EXPIRY_SERVED=1
+G2_AFTER_EXPIRY_SERVED=1
+
+thread 'g2_a_running_node_stops_when_its_window_closes' (24272) panicked at crates\vecdht-net\tests\s76_own_cert_expiry.rs:288:9:
+(2) после закрытия окна узел продолжил обслуживать Find: кадры=[(PeerId("12D3KooWRndVhVZPCiQwHBBBdg769GyrPUW13zxwqQyf9r3ANaba"), [19, 8, 1, 0, 52, 0, 0, 0, 7, 0, 1, 0, 0, 0, 0, 0, 0, 0, 190, 27, 0, 0, 0, 0, 0, 0, 237, 73, 40, 198, 40, 209, 194, 198, 234, 233, 3, 56, 144, 89, 149, 97, 41, 89, 39, 58, 92, 99, 249, 54, 54, 193, 70, 20, 172, 135, 55, 209, 0, 0, 64, 125, 158, 60, 4, 24, 155, 205, 54, 38, 246, 251, 153, 48, 102, 175, 212, 39, 4, 213, 23, 69, 88, 106, 69, 227, 241, 32, 172, 9, 67, 232, 87, 97, 150, 15, 137, 213, 23, 221, 112, 97, 80, 121, 212, 191, 148, 60, 125, 239, 228, 134, 162, 3, 3, 211, 63, 61, 84, 229, 104, 26, 144, 219, 6])]
+FAILED
+test g3_a_fresh_own_cert_serves_find ... G3_FRESH_SERVED=1
+ok
+
+failures:
+
+failures:
+    g1_an_expired_own_cert_is_not_constructed
+    g2_a_running_node_stops_when_its_window_closes
+
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 11.22s
+
+error: test failed, to rerun pass `-p vecdht-net --test s76_own_cert_expiry`
+PRE_FIX_EXIT=101
