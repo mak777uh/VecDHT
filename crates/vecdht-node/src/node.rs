@@ -16,8 +16,10 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use thiserror::Error;
+use vecdht_artifact::Centroids;
 use vecdht_crypto::{
     intent_id, pow_input, pow_ok, shard_of_cluster, verify_body, AuthoritySet, Identity,
 };
@@ -131,6 +133,9 @@ pub struct ShardNode {
     /// Локальная политика приёма (§11.3). Разделяется всеми шардами одного процесса: §11.3.4
     /// нормирует «100 admits/с на узел», а не на шард.
     pub admission: SharedAdmission,
+    /// Замороженные центроиды сети (§7.1). `None` — узел не получил артефакт: он обязан
+    /// принимать `cluster_id` издателя как факт и считать это счётчиком, а не молчанием.
+    pub centroids: Option<Arc<Centroids>>,
     /// Кандидаты на вытеснение и достигнутые биты PoW (§11.3.3). RAM и на шард: slot'ы
     /// принадлежат индексу этого шарда.
     pub evictor: Evictor,
@@ -213,6 +218,7 @@ impl ShardNode {
             assembly: None,
             cold: BTreeMap::new(),
             pull_attempts: 0,
+            centroids: None,
             admission,
             evictor: Evictor::new(admission::EVICT_RESERVOIR),
             rendezvous: Issuer::new(rendezvous_ttl),
@@ -220,6 +226,17 @@ impl ShardNode {
         };
         node.membership = node.load_chain()?;
         Ok(node)
+    }
+
+    /// Дать узлу центроиды артефакта (§7.1): с этого момента `Publish` пересчитывает
+    /// присваивание по `vec_q` (§7.3), а не верит `cluster_id` издателя.
+    ///
+    /// Отдельный шаг, а не аргумент `open`, потому что узел нужен и тестам без геометрии
+    /// (транспорт, дверь, членство); но отсутствие центроидов наблюдаемо — каждый принятый
+    /// кадр без них увеличивает `Stats::cluster_unverified`.
+    pub fn with_centroids(mut self, centroids: Arc<Centroids>) -> Self {
+        self.centroids = Some(centroids);
+        self
     }
 
     #[inline]
@@ -761,6 +778,32 @@ impl ShardNode {
         if !pow_ok(&input, msg.pow_nonce, bits) {
             return self.err(from, err_code::POW_INVALID, 0);
         }
+        // §7.3: узел пересчитывает присваивание по своим центроидам и использует своё;
+        // `cluster_id` издателя — подсказка для маршрутизации, а не факт. Пересчёт не входит в
+        // `pow_input` и не должен: платит издатель за шард, а ячейку выбирает геометрия вектора,
+        // а не заявление. Если пересчитанный кластер принадлежит другому шарду, кадр отвергается
+        // тем же `SHARD_MISMATCH`: принять его значило бы положить запись в шард, чьё зондирование
+        // её не увидит. Без центроидов узел ведёт себя как раньше, но каждый такой кадр считается.
+        //
+        // Место — после `pow_ok` намеренно: `assign` по 1024×384 стоит десятки микросекунд, и
+        // считать его для кадра без оплаченной работы значило бы дать бесплатный усилитель CPU.
+        let own_cluster = match self.centroids.as_deref() {
+            Some(c) => {
+                let own = c.assign(&msg.vec_q);
+                if shard_of_cluster(own) != self.shard {
+                    self.admission.borrow_mut().stats.cluster_cross_shard += 1;
+                    return self.err(from, err_code::SHARD_MISMATCH, 0);
+                }
+                if own != msg.cluster_id {
+                    self.admission.borrow_mut().stats.cluster_reassigned += 1;
+                }
+                own
+            }
+            None => {
+                self.admission.borrow_mut().stats.cluster_unverified += 1;
+                msg.cluster_id
+            }
+        };
         // §11.3.4: узловой бюджет резервируется *до* вытеснения. Обратный порядок оставлял бы
         // за `BUSY` уже удалённую чужую запись — отказ дешевле принятия, но не ценой чужого
         // слота. Токен при последующем `SHARD_FULL` не возвращается: см. политику в
@@ -783,14 +826,14 @@ impl ShardNode {
         // льгота переезду (207) пробивает кап, а проверка без льготы (15) ломает §11.3.2,
         // отказывая честному продлению в своей полной ячейке.
         let old_cell = owner_slot.and_then(|s| self.store.index.entry(s)).map(|e| e.cluster_id);
-        let grows_cell = old_cell != Some(msg.cluster_id);
+        let grows_cell = old_cell != Some(own_cluster);
         let limit = self.params.cell_cap_limit(self.store.len() as u64);
-        if grows_cell && (self.store.index.cluster_len(msg.cluster_id) as u64) >= limit {
+        if grows_cell && (self.store.index.cluster_len(own_cluster) as u64) >= limit {
             let newcomer = Candidate::newcomer(bits, msg.published_bucket);
             victim = self.evictor.cell_victim(
                 newcomer,
                 |s| self.store.index.is_live(s),
-                |s| matches!(self.store.index.entry(s), Some(e) if e.cluster_id == msg.cluster_id),
+                |s| matches!(self.store.index.entry(s), Some(e) if e.cluster_id == own_cluster),
             );
             match victim {
                 Some(_) => self.admission.borrow_mut().stats.cell_cap_moves += 1,
@@ -799,9 +842,9 @@ impl ShardNode {
                     // занимают чужие ячейки — тогда «знакомой» жертвы в этой нет (`E-0088`,
                     // ДИАГНОЗ-3: `refuse` при `live = 34 286`). Второй источник — окно живых
                     // слотов самой ячейки: бюджет 256 и курсор (`H-0102`), а не обход ячейки.
-                    let slots = self.store.index.cluster_slots(msg.cluster_id);
+                    let slots = self.store.index.cluster_slots(own_cluster);
                     victim = self.evictor.cell_victim_scan(
-                        msg.cluster_id,
+                        own_cluster,
                         slots,
                         newcomer,
                         |slot| self.store.index.entry(slot).map(|e| e.published_bucket),
@@ -865,7 +908,7 @@ impl ShardNode {
         let entry = IndexEntry {
             owner_ed25519: msg.owner_ed25519,
             vec_q: msg.vec_q,
-            cluster_id: msg.cluster_id,
+            cluster_id: own_cluster,
             published_bucket: msg.published_bucket,
             ttl_buckets: msg.ttl_buckets,
         };
