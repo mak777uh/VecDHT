@@ -12,7 +12,8 @@ use vecdht_index::ivf::IvfIndex;
 use vecdht_wire::codec::DIM;
 
 const MIB: usize = 1024 * 1024;
-/// Таблица §8.2: ≈449 Б/запись, 1M записей ⇒ ≈428 МБ.
+/// Таблица §8.2: ≈450 Б/запись (424 арена + 4 список + ~20 dedup + 1 bitmap + 1 байт объявления),
+/// 1M записей ⇒ ≈429 МБ.
 const BUDGET: usize = 428 * MIB;
 /// Допуск гейта (§19.1) — ±5%.
 const TOL_PCT: usize = 5;
@@ -101,11 +102,12 @@ fn one_million_entries_fit_the_budget() {
     let mem = index.mem_bytes();
     let mib = |b: usize| format!("{:.1} МиБ", b as f64 / MIB as f64);
     println!(
-        "1M записей: арена {}, списки {}, dedup {}, bitmap {}, итого {} (учтено аллокатором {})",
+        "1M записей: арена {}, списки {}, dedup {}, bitmap {}, объявления {}, итого {} (учтено аллокатором {})",
         mib(mem.arena),
         mib(mem.lists),
         mib(mem.owners),
         mib(mem.bitmap),
+        mib(mem.slot_attr),
         mib(mem.total()),
         mib(used),
     );
@@ -116,6 +118,7 @@ fn one_million_entries_fit_the_budget() {
     assert!(mem.lists <= 8 * MIB, "inverted lists: {} — ожидаемо ~4 МиБ", mib(mem.lists));
     assert!(mem.owners <= 16 * MIB, "dedup: {} — ожидаемо ~8 МиБ", mib(mem.owners));
     assert!(mem.bitmap <= 2 * MIB, "bitmap: {}", mib(mem.bitmap));
+    assert_eq!(mem.slot_attr, N, "байт объявления = 1 Б × N (§5.5)");
 
     // Гейт: и по учёту самого индекса, и по факту аллокаций процесса.
     assert!(mem.total() <= upper, "{} > {}, §8.2 не сходится", mib(mem.total()), mib(upper));
@@ -127,10 +130,19 @@ fn one_million_entries_fit_the_budget() {
         mib(lower)
     );
 
-    // Байт на живую запись против ≈449 Б из таблицы.
+    // Байт на живую запись против ≈450 Б из таблицы §8.2 (прогноз `E-0100`: 444,6 Б).
     let per = mem.per_entry(index.live);
-    assert!(per <= 449.0 * 1.05, "{per:.1} Б/запись против 449 Б (§8.2)");
-    println!("на живую запись: {per:.1} Б (предел таблицы 449 Б)");
+    assert!(per <= 450.0 * 1.05, "{per:.1} Б/запись против 450 Б (§8.2)");
+    println!("на живую запись: {per:.1} Б (предел таблицы 450 Б)");
+    // Печатные факты для `lab/expectations/e0100.tsv`: сверка идёт по ним, а не по прозе.
+    println!("MEM_SLOT_ATTR_BYTES={}", mem.slot_attr);
+    println!("MEM_INDEX_ENTRY_BYTES={INDEX_ENTRY_BYTES}");
+    println!("MEM_PER_ENTRY_TENTHS={}", (per * 10.0).round() as usize);
+    println!(
+        "MEM_PER_ENTRY_AT_MOST_PREDICTED_4446={}",
+        u8::from(per <= 444.6)
+    );
+    println!("MEM_TOTAL_MIB={}", mem.total() / MIB);
 
     drop(index);
     let leaked = live_bytes() - before;

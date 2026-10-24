@@ -27,7 +27,7 @@
 
 use vecdht_crypto::quant::l2_sq;
 use vecdht_wire::constants::{shard_of, NLIST};
-use vecdht_wire::messages::Match;
+use vecdht_wire::messages::{ClassFilter, DirFilter, Match, SLOT_ATTR_PAID};
 use vecdht_wire::DIM;
 
 use crate::entry::IndexEntry;
@@ -47,6 +47,8 @@ pub enum IndexError {
     ArenaFull(usize),
     #[error("slot {0} уже занят живой записью")]
     SlotAlreadyLive(u32),
+    #[error("байт объявления {0:#04x} выставляет зарезервированные биты (§5.5)")]
+    BadSlotAttr(u8),
 }
 
 /// Результат вставки: «замена на месте» отличается от новой записи только флагом, slot один.
@@ -63,14 +65,18 @@ pub struct MemBytes {
     pub lists: usize,
     pub owners: usize,
     pub bitmap: usize,
+    /// Один байт объявления на slot (§5.5). Отдельная строка, а не часть арены: 424-байтовая
+    /// раскладка `IndexEntry` остаётся нетронутой, и цены скана §19.4 не двигаются.
+    pub slot_attr: usize,
 }
 
 impl MemBytes {
     pub fn total(&self) -> usize {
-        self.arena + self.lists + self.owners + self.bitmap
+        self.arena + self.lists + self.owners + self.bitmap + self.slot_attr
     }
 
-    /// Байт на живую запись — против ≈449 Б из §8.2. Диагностика бюджета, не путь поиска.
+    /// Байт на живую запись — против ≈450 Б из §8.2 (424 арена + 4 список + ~20 таблица
+    /// владельцев + 1 bitmap + 1 байт объявления). Диагностика бюджета, не путь поиска.
     pub fn per_entry(&self, live: usize) -> f64 {
         if live == 0 {
             0.0
@@ -85,6 +91,10 @@ pub struct IvfIndex {
     pub shard: u16,
     /// Арена: `entries[slot]`. Мёртвые slot'ы остаются в массиве (§8.3).
     pub entries: Vec<IndexEntry>,
+    /// Один байт объявления на slot (§5.5): биты 0..1 — направление, бит 2 — `paid`.
+    /// Отдельный массив, а не поле `IndexEntry`: 424-байтовая раскладка арены стоит под
+    /// измеренными ценами скана (§19.4), и добавленный байт в ней сдвинул бы их все.
+    pub slot_attr: Vec<u8>,
     /// Inverted lists по кластерам глобального квантизатора; внутри — slot'ы по возрастанию.
     pub lists: Vec<Vec<u32>>,
     /// Bitmap живых slot'ов, по биту на запись.
@@ -115,6 +125,7 @@ impl IvfIndex {
         IvfIndex {
             shard,
             entries: Vec::with_capacity(n),
+            slot_attr: Vec::with_capacity(n),
             lists: vec![Vec::new(); NLIST as usize],
             live_words: Vec::with_capacity(n.div_ceil(64)),
             owners: OwnerTable::with_capacity(n),
@@ -168,6 +179,17 @@ impl IvfIndex {
     pub fn owner_slot(&self, owner: &[u8; 32]) -> Option<u32> {
         let entries = &self.entries;
         self.owners.get(owner, |s| entries.get(s as usize).map(|e| e.owner_ed25519))
+    }
+
+    /// Байт объявления живого slot'а (§5.5). Мёртвый slot и выход за арену ⇒ `None`, как и
+    /// `entry`: атрибут мёртвой записи никому не нужен и переиспользуется вместе со slot'ом.
+    #[inline]
+    pub fn slot_attr(&self, slot: u32) -> Option<u8> {
+        if self.is_live(slot) {
+            self.slot_attr.get(slot as usize).copied()
+        } else {
+            None
+        }
     }
 
     #[inline]
@@ -239,6 +261,7 @@ impl IvfIndex {
             self.entries.reserve_exact(ARENA_BLOCK);
         }
         self.entries.push(IndexEntry::default());
+        self.slot_attr.push(0);
         Ok(slot)
     }
 
@@ -302,7 +325,11 @@ impl IvfIndex {
     /// Вызывать сразу после записи снапшота, когда `trimmed_next_slot()` — это и есть записанный
     /// `next_slot`.
     pub fn truncate_holes(&mut self) {
-        self.entries.truncate(self.trimmed_next_slot() as usize);
+        let keep = self.trimmed_next_slot() as usize;
+        self.entries.truncate(keep);
+        // Байт объявления живёт в отдельном массиве, и забыть его здесь значило бы разойтись
+        // по длине с ареной после первого же снапшота на узле с репликацией.
+        self.slot_attr.truncate(keep);
         // Слова bitmap оставляем длиннее: биты выше хвоста нулевые, и `is_live` за пределами
         // арены отвечает «мёртв», как и обязана.
         self.recompute_min_dead();
@@ -311,8 +338,22 @@ impl IvfIndex {
     /// Вставить запись. Дедупликация: перепубликация того же `(owner, shard)` заменяет на месте
     /// в том же slot'е (§8.3, тест §19.1 «живых записей одна»).
     pub fn insert(&mut self, e: IndexEntry) -> Result<InsertOutcome, IndexError> {
+        self.insert_with_attr(e, 0)
+    }
+
+    /// Вставка с байтом объявления (§5.5). Перепубликация заменяет запись на месте и обязана
+    /// переписать байт того же slot'а: иначе «снял платность» оставил бы старый бит до истечения
+    /// TTL, то есть фильтр врал бы на живой записи.
+    pub fn insert_with_attr(
+        &mut self,
+        e: IndexEntry,
+        slot_attr: u8,
+    ) -> Result<InsertOutcome, IndexError> {
         if e.cluster_id >= NLIST {
             return Err(IndexError::ClusterOutOfRange(e.cluster_id));
+        }
+        if slot_attr & !0b0000_0111 != 0 {
+            return Err(IndexError::BadSlotAttr(slot_attr));
         }
         let want = shard_of(e.cluster_id);
         if want != self.shard {
@@ -326,10 +367,12 @@ impl IvfIndex {
                 self.list_insert(e.cluster_id, slot);
             }
             self.entries[slot as usize] = e;
+            self.slot_attr[slot as usize] = slot_attr;
             return Ok(InsertOutcome { slot, replaced: true });
         }
         let slot = self.alloc_slot()?;
         self.entries[slot as usize] = e;
+        self.slot_attr[slot as usize] = slot_attr;
         self.set_live(slot);
         self.live += 1;
         // Slot'ы из дыр обязаны вставиться в список по порядку; «новый slot всегда максимальный»
@@ -357,6 +400,11 @@ impl IvfIndex {
         }
         let e = self.entries[slot as usize];
         self.clear_live(slot);
+        // Атрибут гасится вместе с записью: slot переиспользуется, и оставленный байт сделал бы
+        // новую запись «платной» или «продажей» без всякого объявления.
+        if let Some(a) = self.slot_attr.get_mut(slot as usize) {
+            *a = 0;
+        }
         self.list_remove(e.cluster_id, slot);
         let owner = e.owner_ed25519;
         let entries = &self.entries;
@@ -388,8 +436,23 @@ impl IvfIndex {
     /// по возрастанию slot'а — тогда списки остаются отсортированными без вставки в середину, и
     /// файл, прочитанный дважды, даёт идентичное состояние (§19.1).
     pub fn load_entry(&mut self, slot: u32, e: IndexEntry) -> Result<(), IndexError> {
+        self.load_entry_with_attr(slot, e, 0)
+    }
+
+    /// То же с байтом объявления: снапшот формата 2 хранит его рядом с записью (§8.2).
+    /// Обе арены растут вместе — иначе после загрузки файла `slot_attr` разошёлся бы с `entries`
+    /// по длине, и фильтр §12.7 читал бы чужие байты у хвостовых slot'ов.
+    pub fn load_entry_with_attr(
+        &mut self,
+        slot: u32,
+        e: IndexEntry,
+        slot_attr: u8,
+    ) -> Result<(), IndexError> {
         if e.cluster_id >= NLIST {
             return Err(IndexError::ClusterOutOfRange(e.cluster_id));
+        }
+        if slot_attr & !0b0000_0111 != 0 {
+            return Err(IndexError::BadSlotAttr(slot_attr));
         }
         let want = shard_of(e.cluster_id);
         if want != self.shard {
@@ -404,7 +467,11 @@ impl IvfIndex {
             debug_assert!(need_u32 as usize == need);
             self.entries.resize(need, IndexEntry::default());
         }
+        if self.slot_attr.len() < need {
+            self.slot_attr.resize(need, 0);
+        }
         self.entries[slot as usize] = e;
+        self.slot_attr[slot as usize] = slot_attr;
         self.set_live(slot);
         self.live += 1;
         self.lists[e.cluster_id as usize].push(slot);
@@ -469,6 +536,28 @@ impl IvfIndex {
         top_k: usize,
         now_bucket: u32,
     ) -> Vec<(u32, u32)> {
+        self.search_filtered(
+            q,
+            clusters,
+            top_k,
+            now_bucket,
+            ClassFilter::Any,
+            DirFilter::Any,
+        )
+    }
+
+    /// Поиск с фильтрами §12.7. Предикат стоит **до** отбора в буфер: отфильтрованная запись не
+    /// занимает место в `top_k`, поэтому «нашли ровно `top_k`, отсеяли всех» не случается.
+    /// Контракт `(l2_sq ASC, slot ASC)` не зависит от фильтра — фильтр только сужает вход.
+    pub fn search_filtered(
+        &self,
+        q: &[i8; DIM],
+        clusters: &[u16],
+        top_k: usize,
+        now_bucket: u32,
+        class: ClassFilter,
+        dir: DirFilter,
+    ) -> Vec<(u32, u32)> {
         if top_k == 0 {
             return Vec::new();
         }
@@ -479,6 +568,10 @@ impl IvfIndex {
                 let e = &self.entries[slot as usize];
                 // Запись могла пережить дедлайн, но ещё не быть снята GcTick'ом.
                 if e.is_expired(now_bucket) {
+                    continue;
+                }
+                let attr = self.slot_attr.get(slot as usize).copied().unwrap_or(0);
+                if class.rejects(attr & SLOT_ATTR_PAID != 0) || dir.rejects(attr & 0b11) {
                     continue;
                 }
                 let hit = (l2_sq(q, &e.vec_q), slot);
@@ -525,12 +618,20 @@ impl IvfIndex {
             lists,
             owners: self.owners.bytes(),
             bitmap: self.live_words.capacity() * core::mem::size_of::<u64>(),
+            slot_attr: self.slot_attr.capacity(),
         }
     }
 
     /// Проверка внутренних инвариантов: нужна, чтобы `recover(disk) == replay(all ops)` (§10.5)
     /// сравнивал *состояние*, а не только байты файла.
     pub fn check_invariants(&self) -> Result<(), String> {
+        if self.slot_attr.len() != self.entries.len() {
+            return Err(format!(
+                "арена {} записей против {} байт объявления",
+                self.entries.len(),
+                self.slot_attr.len()
+            ));
+        }
         for (c, list) in self.lists.iter().enumerate() {
             for w in list.windows(2) {
                 if w[0] >= w[1] {
@@ -868,6 +969,74 @@ mod tests {
         ix.mark_dead(4);
         let seen: Vec<u32> = ix.live_slots().map(|(s, _)| s).collect();
         assert_eq!(seen, vec![0, 2, 3, 5]);
+    }
+
+    /// §8.2/§12.7: фильтр стоит до `truncate`, поэтому «в кластере 20 записей, платная одна,
+    /// просят одну платную» обязано вернуть эту одну, а не пусто.
+    #[test]
+    fn filter_applies_before_top_k_truncation() {
+        let mut ix = idx();
+        for o in 0..20u8 {
+            ix.insert_with_attr(entry(o, 0, 0, 1000), 0).unwrap();
+        }
+        // Платная — самая дальняя по расстоянию: при отборе «сначала top_k, потом фильтр» её
+        // бы уже выбросили.
+        let mut paid = entry(200, 0, 0, 1000);
+        paid.vec_q = [60i8; DIM];
+        ix.insert_with_attr(paid, SLOT_ATTR_PAID).unwrap();
+        let hits =
+            ix.search_filtered(&[0i8; DIM], &[0], 1, 0, ClassFilter::OnlyPaid, DirFilter::Any);
+        println!("INDEX_PREDICATE_ONLYPAID_TOP1={}", hits.len());
+        assert_eq!(hits.len(), 1, "платная запись обязана дожить до отбора");
+        assert_eq!(ix.entry(hits[0].1).unwrap().owner_ed25519, [200u8; 32]);
+        let free =
+            ix.search_filtered(&[0i8; DIM], &[0], 1, 0, ClassFilter::OnlyFree, DirFilter::Any);
+        assert_ne!(free[0].1, hits[0].1, "бесплатный фильтр не выдаёт платную");
+    }
+
+    #[test]
+    fn direction_filter_reads_the_author_bits() {
+        let mut ix = idx();
+        ix.insert_with_attr(entry(1, 0, 0, 1000), 1).unwrap(); // куплю, бесплатно
+        ix.insert_with_attr(entry(2, 0, 0, 1000), 2).unwrap(); // продам, бесплатно
+        ix.insert_with_attr(entry(3, 0, 0, 1000), 0).unwrap(); // без направления
+        let buy = ix.search_filtered(&[0i8; DIM], &[0], 10, 0, ClassFilter::Any, DirFilter::Buy);
+        let sell = ix.search_filtered(&[0i8; DIM], &[0], 10, 0, ClassFilter::Any, DirFilter::Sell);
+        let any = ix.search_filtered(&[0i8; DIM], &[0], 10, 0, ClassFilter::Any, DirFilter::Any);
+        assert_eq!(buy.iter().map(|h| h.1).collect::<Vec<_>>(), vec![0]);
+        assert_eq!(sell.iter().map(|h| h.1).collect::<Vec<_>>(), vec![1]);
+        assert_eq!(any.len(), 3, "Any не смотрит на биты (§12.7)");
+        println!("INDEX_DIR_BUY={}", buy.len());
+        println!("INDEX_DIR_SELL={}", sell.len());
+        println!("INDEX_DIR_ANY={}", any.len());
+    }
+
+    #[test]
+    fn republish_overwrites_attr_and_death_clears_it() {
+        let mut ix = idx();
+        let s = ix.insert_with_attr(entry(1, 0, 0, 1000), 0b101).unwrap().slot;
+        assert_eq!(ix.slot_attr(s), Some(0b101));
+        // Снял платность — байт того же slot'а обязан измениться сразу, а не по TTL.
+        ix.insert_with_attr(entry(1, 0, 1, 1000), 0).unwrap();
+        assert_eq!(ix.slot_attr(s), Some(0));
+        ix.insert_with_attr(entry(1, 0, 2, 1000), SLOT_ATTR_PAID).unwrap();
+        assert_eq!(ix.slot_attr(s), Some(SLOT_ATTR_PAID));
+        ix.mark_dead(s);
+        assert_eq!(ix.slot_attr(s), None, "мёртвый slot не объявляет ничего");
+        // Дыра переиспользована записью без объявления — чужой бит не протёк.
+        let again = ix.insert(entry(2, 0, 3, 1000)).unwrap();
+        assert_eq!(again.slot, s);
+        assert_eq!(ix.slot_attr(again.slot), Some(0));
+        ix.check_invariants().unwrap();
+    }
+
+    #[test]
+    fn reserved_attr_bits_are_refused() {
+        let mut ix = idx();
+        assert_eq!(
+            ix.insert_with_attr(entry(1, 0, 0, 1000), 0b1000),
+            Err(IndexError::BadSlotAttr(0b1000))
+        );
     }
 
     #[test]

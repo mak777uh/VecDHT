@@ -489,6 +489,7 @@ fn one_pull_heals_a_gap_but_the_response_is_unauthenticated() {
         cluster_id: cluster_of(77),
         published_bucket: 2,
         ttl_buckets: TTL,
+        slot_attr: 0,
     };
     let op = ReplicateOp {
         shard: SHARD,
@@ -551,14 +552,14 @@ fn cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail() {
     assert_eq!(t.node(s).applied_seq(), 0, "(3) S холоден");
 
     let written = t.node_mut(h).store.flush_snapshot().expect("flush_snapshot");
-    assert_eq!(written, 73_268, "(3) flush пишет снапшот на applied_seq 160");
+    assert_eq!(written, 73_428, "(3) flush пишет снапшот на applied_seq 160");
     let path = t.dir_of(h).join(snapshot_name(160));
     assert_eq!(
         std::fs::metadata(&path).expect("файл снапшота").len(),
         snapshot_size_for(160) as u64,
         "(3) размер снапшота"
     );
-    assert_eq!(snapshot_size_for(160), 73_268, "(3) 48 + 160*428 + 4096 + 640 + 4");
+    assert_eq!(snapshot_size_for(160), 73_428, "(3) 48 + 160*429 + 4096 + 640 + 4");
     let mf = read_manifest(t.dir_of(h)).unwrap().expect("MANIFEST");
     assert_eq!(
         (mf.snapshot_seq, mf.applied_seq, mf.oldest_wal_needed, mf.next_slot),
@@ -591,7 +592,7 @@ fn cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail() {
             o1.total_len,
             o1.offset
         ),
-        (SHARD, 1, 160, 1, 160, 160, 73_268, 0),
+        (SHARD, 1, 160, 1, 160, 160, 73_428, 0),
         "(3) метаданные первого куска"
     );
     assert_eq!(o1.chunk.len(), 65_535, "(3) первый кусок во весь лимит");
@@ -607,7 +608,7 @@ fn cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail() {
     let out2 = deliver(&mut t, h, s, &out[0], 4);
     assert_eq!(out2.len(), 1);
     let o2 = SnapshotOffer::decode(&out2[0].frame).expect("SnapshotOffer");
-    assert_eq!((o2.offset, o2.chunk.len()), (65_535, 7_733), "(3) второй кусок — хвост файла");
+    assert_eq!((o2.offset, o2.chunk.len()), (65_535, 7_893), "(3) второй кусок — хвост файла");
     assert_eq!(o2.snapshot_seq, o1.snapshot_seq);
     assert_eq!(o2.content_hash, o1.content_hash, "(3) один хеш на все куски");
     assert_eq!(o2.applied_seq, 160);
@@ -673,13 +674,13 @@ fn snapshot_offer_skews_seq_when_the_holder_has_moved_on() {
     // A — снапшот на 1.
     let out = publish_via(&mut t, p, 20, 30, 1, 1, h);
     assert_eq!(acks_of(&out).len(), 1);
-    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 1"), 4_580,
+    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 1"), 4_581,
         "(4) flush пишет снапшот на 1");
     assert_eq!(
         std::fs::metadata(t.dir_of(h).join(snapshot_name(1))).unwrap().len(),
         snapshot_size_for(1) as u64
     );
-    assert_eq!(snapshot_size_for(1), 4_580);
+    assert_eq!(snapshot_size_for(1), 4_581);
 
     // B — уже после снапшота.
     let out = publish_via(&mut t, p, 21, 31, 1, 1, h);
@@ -708,11 +709,11 @@ fn snapshot_offer_skews_seq_when_the_holder_has_moved_on() {
             offer.next_slot,
             offer.total_len
         ),
-        (1, 1, 2, 2, 4_580),
+        (1, 1, 2, 2, 4_581),
         "(4) файл описывает 1 запись, оффер обещает 2"
     );
     assert_eq!(offer.total_len as usize, snapshot_size_for(1), "(4) геометрия файла — одна запись");
-    assert_eq!(offer.chunk.len(), 4_580);
+    assert_eq!(offer.chunk.len(), 4_581);
 
     let err = t
         .node_mut(s)
@@ -730,20 +731,20 @@ fn snapshot_offer_skews_seq_when_the_holder_has_moved_on() {
     assert!(format!("{bad}").contains("next_slot"), "(4) каталог неоткрываем до нового снапшота: {bad}");
 
     // Новый снапшот на 2 записи согласован с живым manifest — установка проходит.
-    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 2"), 5_012,
+    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 2"), 5_014,
         "(4) flush пишет снапшот на 2");
     assert_eq!(
         std::fs::metadata(t.dir_of(h).join(snapshot_name(2))).unwrap().len(),
         snapshot_size_for(2) as u64
     );
-    assert_eq!(snapshot_size_for(2), 5_012);
+    assert_eq!(snapshot_size_for(2), 5_014);
 
     let out = deliver_raw(&mut t, h, s_addr, &req, 1);
     assert_eq!(out.len(), 1);
     let offer = SnapshotOffer::decode(&out[0].frame).expect("SnapshotOffer");
     assert_eq!(
         (offer.snapshot_seq, offer.applied_seq, offer.next_slot, offer.total_len),
-        (2, 2, 2, 5_012),
+        (2, 2, 2, 5_014),
         "(4) согласованный оффер"
     );
     let out = deliver(&mut t, s, h, &out[0], 1);
@@ -794,13 +795,13 @@ fn warm_lagging_replica_cannot_take_the_snapshot_and_stops() {
     let out = publish_via(&mut t, p, 32, 42, 1, 2, h);
     assert_eq!(acks_of(&out).len(), 1);
     assert_eq!(t.node(h).applied_seq(), 3);
-    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 3"), 5_444,
+    assert_eq!(t.node_mut(h).store.flush_snapshot().expect("flush 3"), 5_447,
         "(5) flush пишет снапшот на 3");
     assert_eq!(
         std::fs::metadata(t.dir_of(h).join(snapshot_name(3))).unwrap().len(),
         snapshot_size_for(3) as u64
     );
-    assert_eq!(snapshot_size_for(3), 5_444);
+    assert_eq!(snapshot_size_for(3), 5_447);
     let starts: Vec<u64> = list_segments(t.dir_of(h))
         .expect("сегменты")
         .into_iter()
@@ -845,7 +846,7 @@ fn warm_lagging_replica_cannot_take_the_snapshot_and_stops() {
             offer.next_slot,
             offer.total_len
         ),
-        (2, 3, 3, 4, 4, 5_444),
+        (2, 3, 3, 4, 4, 5_447),
         "(5) оффер снова смешивает файл (3 записи) и живой manifest (4)"
     );
 

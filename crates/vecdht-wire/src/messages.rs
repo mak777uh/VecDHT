@@ -1086,7 +1086,11 @@ impl Codec for ReplicateAck {
     }
 }
 
-/// Тело `Insert`: ровно те же поля, что `IndexEntry` (§8.2), без служебных.
+/// Тело `Insert`: те же поля, что `IndexEntry` (§8.2), плюс необязательный байт атрибутов.
+///
+/// `slot_attr` идёт TLV-хвостом, а не новым фиксированным полем: у записи без объявления (§5.5)
+/// тегов нет, и тело остаётся ровно 424 байта, как до правки. Иначе старые WAL-фреймы и векторы
+/// `E-0087`…`E-0095` перестали бы читаться, хотя атрибут к ним отношения не имеет.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct InsertOp {
     pub owner_ed25519: [u8; 32],
@@ -1094,7 +1098,13 @@ pub struct InsertOp {
     pub cluster_id: u16,
     pub published_bucket: u32,
     pub ttl_buckets: u16,
+    /// Байт `slot_attr` (§5.5): биты 0..1 — направление, бит 2 — `paid`, остальные нули.
+    pub slot_attr: u8,
 }
+
+/// TLV-тег атрибута в namespace `InsertOp`. `0x0002` выбран так же, как у `Publish`
+/// (`intent_class`): один и тот же смысл в двух сообщениях не должен иметь разные номера.
+pub const TLV_SLOT_ATTR: u16 = 0x0002;
 
 impl InsertOp {
     pub fn encode(&self, w: &mut Writer) {
@@ -1103,6 +1113,9 @@ impl InsertOp {
         w.u16(self.cluster_id);
         w.u32(self.published_bucket);
         w.u16(self.ttl_buckets);
+        if self.slot_attr != 0 {
+            w.tlv(TLV_SLOT_ATTR, &[self.slot_attr]);
+        }
     }
 
     pub fn decode(r: &mut Reader<'_>) -> Result<Self, DecodeError> {
@@ -1111,8 +1124,14 @@ impl InsertOp {
         let cluster_id = r.u16()?;
         let published_bucket = r.u32()?;
         let ttl_buckets = r.u16()?;
+        let tlv = r.tlv_tail()?;
+        let slot_attr = match tlv.iter().find(|(t, _)| *t == TLV_SLOT_ATTR) {
+            None => 0,
+            Some((_, v)) if v.len() == 1 && v[0] & !SLOT_ATTR_MASK == 0 => v[0],
+            Some(_) => return Err(DecodeError::IntentAttr("slot_attr length or reserved bits")),
+        };
         r.expect_end()?;
-        Ok(InsertOp { owner_ed25519, vec_q, cluster_id, published_bucket, ttl_buckets })
+        Ok(InsertOp { owner_ed25519, vec_q, cluster_id, published_bucket, ttl_buckets, slot_attr })
     }
 
     pub fn body_bytes(&self) -> Vec<u8> {
@@ -1121,6 +1140,11 @@ impl InsertOp {
         w.into_vec()
     }
 }
+
+/// Маска занятых бит `slot_attr`: направление (0..1) и `paid` (2). Остальные биты зарезервированы
+/// и обязаны быть нулём — иначе две реализации разойдутся в трактовке одного и того же байта.
+pub const SLOT_ATTR_MASK: u8 = 0b0000_0111;
+pub const SLOT_ATTR_PAID: u8 = 0b0000_0100;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DeleteOp {
@@ -1578,6 +1602,7 @@ mod tests {
                 cluster_id: 12,
                 published_bucket: 1000,
                 ttl_buckets: 225,
+                slot_attr: 0,
             }
             .body_bytes(),
         });
@@ -1643,7 +1668,7 @@ mod tests {
             text: vec![b'a'; MAX_INTENT_TEXT_BYTES + 1],
         };
         let frame = m.encode_unsigned();
-        // Энкoder пишет u16 length-prefix, лимит проверяется на декоде.
+        // Энкодер пишет u16 length-prefix, лимит проверяется на декоде.
         assert!(matches!(IntentTextResponse::decode(&frame), Err(DecodeError::FieldTooLong(_))));
     }
 

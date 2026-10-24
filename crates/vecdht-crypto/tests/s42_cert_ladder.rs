@@ -121,6 +121,7 @@ fn decode_name(e: &DecodeError) -> &'static str {
         DecodeError::SigLength(_) => "decode:SigLength",
         DecodeError::BodyTooLarge { .. } => "decode:BodyTooLarge",
         DecodeError::OutOfOrder { .. } => "decode:OutOfOrder",
+        DecodeError::IntentAttr(_) => "decode:IntentAttr",
     }
 }
 
@@ -289,7 +290,7 @@ fn zero_capacity_is_refused_before_the_threshold_signed_and_unsigned() {
     println!("МЕРЕНО gate7=1");
 }
 
-/// (О1)-в: две ступени — одно имя. Без этого пунктаLean-теорема (г) выглядит выдуманной.
+/// (О1)-в: две ступени — одно имя. Без этого пункта Lean-теорема (г) выглядит выдуманной.
 #[test]
 fn two_rungs_share_one_name_and_differ_only_in_have() {
     let (set, ids) = net();

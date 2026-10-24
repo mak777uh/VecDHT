@@ -298,6 +298,7 @@ fn vectors() -> BTreeMap<String, Vec<u8>> {
                 cluster_id: 12,
                 published_bucket: 1000,
                 ttl_buckets: 225,
+                slot_attr: 0,
             }
             .body_bytes())
             .body_bytes(),

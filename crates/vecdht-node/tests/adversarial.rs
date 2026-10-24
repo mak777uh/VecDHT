@@ -262,6 +262,7 @@ fn a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked() {
         cluster_id: CLUSTER,
         published_bucket: 0,
         ttl_buckets: 225,
+        slot_attr: 0,
     };
     let op = |epoch: u64, seq: u64| ReplicateOp {
         shard: SHARD,

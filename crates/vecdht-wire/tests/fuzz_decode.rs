@@ -121,6 +121,7 @@ fn corpus() -> Vec<Vec<u8>> {
         cluster_id: 511,
         published_bucket: 106_250_000,
         ttl_buckets: 225,
+        slot_attr: 0,
     };
     let mut out: Vec<Vec<u8>> = vec![Handshake { role: Role::Agent, preprocessing_version: 3, model_version: "m".into(), genesis_hash: [1; 32], cert: vec![], tlv: vec![] }.encode_unsigned()];
     out.push(Handshake { role: Role::IndexNode, preprocessing_version: u16::MAX, model_version: "granite-embedding-97m-v2".into(), genesis_hash: [0xFF; 32], cert: vec![0x9C; 32], tlv: vec![(0x0001, vec![1u8])] }.encode_unsigned());
@@ -144,7 +145,7 @@ fn corpus() -> Vec<Vec<u8>> {
     out.push(ReplicateOp { shard: 1, epoch: 2, seq: 3, op_kind: OpKind::Delete, body: DeleteOp { owner_ed25519: [3; 32], shard: 5 }.body_bytes() }.encode_signed(&sig));
     out.push(ReplicateOp { shard: 2, epoch: 3, seq: 4, op_kind: OpKind::TimeMark, body: encode_mark(4, 99) }.encode_signed(&sig));
     out.push(LeaseGrant { shard: 5, epoch: 3, primary_ed25519: [0x11; 32], dht_peer_id: vec![0x00, 0x24, 0x00], expires_at_bucket: 40_000 }.encode_signed(&sig));
-    // Кусок снапшота: граница kуска (offset+chunk == total_len) и максимальный chunk.
+    // Кусок снапшота: граница куска (offset+chunk == total_len) и максимальный chunk.
     out.push(SnapshotOffer { shard: 5, epoch: 3, snapshot_seq: 1, oldest_wal_needed: 0, applied_seq: 0, next_slot: 0, time_mark_bucket: 0, total_len: 1, offset: 0, content_hash: [0x4D; 32], chunk: vec![0x7F] }.encode_signed(&sig));
     out.push(SnapshotOffer { shard: 63, epoch: u64::MAX, snapshot_seq: u64::MAX, oldest_wal_needed: u64::MAX, applied_seq: u64::MAX, next_slot: u64::MAX, time_mark_bucket: u32::MAX, total_len: 768, offset: 256, content_hash: [0x4D; 32], chunk: vec![0xEE; 512] }.encode_signed(&sig));
     out.push(ReplicateAck { shard: 5, epoch: 3, seq: 1_024, replica_ed25519: [0x22; 32], applied_seq: 1_024, ok: true }.encode_signed(&sig));

@@ -13,10 +13,14 @@
 //! ```text
 //! magic "vdht/s8/snap" | format u16 | shard u16 | snapshot_seq u64 | next_slot u64
 //!   | max_epoch_served u64 | time_mark_bucket u32 | live u32
-//!   | [ slot u32 | entry 424 ] × live
+//!   | [ slot u32 | entry 424 | slot_attr u8 ] × live
 //!   | [ len u32 | slot u32 × len ] × NLIST
 //!   | crc32 u32  (над всем предыдущим)
 //! ```
+//!
+//! Байт объявления (`slot_attr`, §5.5) появился в формате 2. Он лежит рядом с записью, а не в
+//! ней: 424-байтовая раскладка `IndexEntry` остаётся сетевой раскладкой (§8.2), и снапшот — это
+//! по-прежнему «арена как есть» плюс один байт на живой slot.
 
 use std::fs::File;
 use std::io::{BufWriter, Read, Write};
@@ -29,7 +33,9 @@ use crate::entry::{IndexEntry, INDEX_ENTRY_BYTES};
 use crate::ivf::{IvfIndex, IndexError};
 
 pub const SNAP_MAGIC: &[u8; 12] = b"vdht/s8/snap";
-pub const SNAP_FORMAT: u16 = 1;
+/// Формат 2 = формат 1 плюс байт `slot_attr` у каждой живой записи (§5.5). Файл формата 1 без
+/// этого байта читать как формат 2 нельзя — длины записей разойдутся, и crc не сойдётся.
+pub const SNAP_FORMAT: u16 = 2;
 pub const SNAP_PREFIX: &str = "snap.";
 pub const SNAP_SUFFIX: &str = ".log";
 pub const SNAP_PARTIAL_SUFFIX: &str = ".partial";
@@ -38,10 +44,13 @@ pub const CRC_LEN: usize = 4;
 /// 12 magic + 2 format + 2 shard + 8 snapshot_seq + 8 next_slot + 8 epoch + 4 bucket + 4 live.
 pub const SNAP_HEADER_LEN: usize = 12 + 2 + 2 + 8 + 8 + 8 + 4 + 4;
 
+/// Одна запись в файле: slot + арена + байт объявления.
+pub const SNAP_RECORD_BYTES: usize = 4 + INDEX_ENTRY_BYTES + 1;
+
 /// Байт размера заголовка записей, для теста бюджета.
 #[inline]
 pub fn snapshot_size_for(live: usize) -> usize {
-    SNAP_HEADER_LEN + live * (4 + INDEX_ENTRY_BYTES) + (NLIST as usize) * 4 + live * 4 + CRC_LEN
+    SNAP_HEADER_LEN + live * SNAP_RECORD_BYTES + (NLIST as usize) * 4 + live * 4 + CRC_LEN
 }
 
 /// Служебные поля снапшота, не входящие в арену.
@@ -72,7 +81,7 @@ pub enum SnapshotError {
     TooShort(usize),
     #[error("магическая строка не `vdht/s8/snap`")]
     BadMagic,
-    #[error("версия формата снапшота {0}, ожидаем 1")]
+    #[error("версия формата снапшота {0}, ожидаем 2")]
     BadFormat(u16),
     #[error("снапшот относится к шарду {found}, а индекс — к {want}")]
     ShardMismatch { want: u16, found: u16 },
@@ -176,6 +185,7 @@ pub fn write_snapshot(
     for (slot, e) in index.live_slots() {
         out.extend_from_slice(&slot.to_le_bytes());
         e.write_into(&mut out);
+        out.push(index.slot_attr.get(slot as usize).copied().unwrap_or(0));
         if out.len() >= 32 * 1024 {
             written += flush_block(&mut w, &mut h, &out)?;
             out.clear();
@@ -261,7 +271,7 @@ pub fn parse_snapshot(bytes: &[u8]) -> Result<(SnapshotMeta, IvfIndex), Snapshot
 
     // Число записей ограничено размером файла: `(live_declared, next_slot)` — данные из
     // заголовка, и резервировать память по ним наивыжим значением нельзя.
-    let max_records = (bytes.len() - SNAP_HEADER_LEN - CRC_LEN) / (4 + INDEX_ENTRY_BYTES);
+    let max_records = (bytes.len() - SNAP_HEADER_LEN - CRC_LEN) / SNAP_RECORD_BYTES;
     let mut index = IvfIndex::with_capacity(shard, (live_declared as usize).min(max_records));
     // Арена восстанавливается с теми же номерами slot'ов: `resize`, а не `push` (§8.3).
     let room = usize::try_from(next_slot).map_err(|_| SnapshotError::TooShort(usize::MAX))?;
@@ -286,7 +296,8 @@ pub fn parse_snapshot(bytes: &[u8]) -> Result<(SnapshotMeta, IvfIndex), Snapshot
         last_slot = Some(slot);
         let e = IndexEntry::from_bytes(p.take(INDEX_ENTRY_BYTES)?)
             .map_err(|_| SnapshotError::TooShort(0))?;
-        index.load_entry(slot, e)?;
+        let attr = p.take(1)?[0];
+        index.load_entry_with_attr(slot, e, attr)?;
     }
 
     // Списки: сверяем с тем, что уже выстроено из записей. Расхождение = битый или подменённый
@@ -475,6 +486,25 @@ mod tests {
         assert_eq!(back.entry(5), ix.entry(5));
         assert_eq!(back.owner_slot(&[5u8; 32]), Some(5));
         assert!(bytes.len() < write_to_bytes(&populated(0, 12), 1).len());
+    }
+
+    #[test]
+    fn slot_attrs_survive_the_roundtrip_and_format_one_is_refused() {
+        let mut ix = populated(0, 6);
+        ix.insert_with_attr(entry(0, 0, 101, 10), 0b101).unwrap();
+        let bytes = write_to_bytes(&ix, 9);
+        let (_, back) = parse_snapshot(&bytes).unwrap();
+        assert_eq!(back.slot_attr(0), Some(0b101), "платность и направление пережили файл");
+        assert_eq!(back.slot_attr(1), Some(0));
+        // Формат 1 (без байта атрибута) обязан быть отвергнут, а не прочитан со сдвигом.
+        let mut old = bytes.clone();
+        old[12..14].copy_from_slice(&1u16.to_le_bytes());
+        recrc(&mut old);
+        let rejected = matches!(parse_snapshot(&old), Err(SnapshotError::BadFormat(1)));
+        assert!(rejected);
+        println!("SNAP_FORMAT={SNAP_FORMAT}");
+        println!("SNAP_ATTR_ROUNDTRIP={}", u8::from(back.slot_attr(0) == Some(0b101)));
+        println!("SNAP_FORMAT1_REJECTED={}", u8::from(rejected));
     }
 
     #[test]

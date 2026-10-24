@@ -62,6 +62,7 @@ fn four_canonical_combinations_round_trip() {
         (IntentClass::Paid, Some(500), IntentDir::Sell),
         (IntentClass::Paid, Some(1), IntentDir::Buy),
     ];
+    let mut roundtrip = 0usize;
     for (class, price, dir) in cases {
         let attrs = IntentAttrs { class, price, dir };
         let mut p = publish_with(Vec::new());
@@ -74,7 +75,9 @@ fn four_canonical_combinations_round_trip() {
         let mut again = back.clone();
         again.set_intent(attrs);
         assert_eq!(again.tlv, back.tlv, "set_intent обязан быть идемпотентным");
+        roundtrip += 1;
     }
+    println!("INTENT_ATTR_ROUNDTRIP={roundtrip}");
 }
 
 #[test]
@@ -102,6 +105,7 @@ fn non_canonical_combinations_are_rejected() {
         ("price wrong length", vec![(0x0002, vec![1]), (0x0003, vec![9, 9, 9])]),
         ("class wrong length", vec![(0x0002, vec![1, 0])]),
     ];
+    let mut rejected = 0usize;
     for (what, tlv) in cases {
         let err = Publish::decode(&publish_with(tlv).encode_unsigned())
             .expect_err(&format!("{what}: неканоничная форма принята декодом"));
@@ -109,8 +113,10 @@ fn non_canonical_combinations_are_rejected() {
             matches!(err, DecodeError::BadEnum { .. } | DecodeError::IntentAttr(_)),
             "{what}: ожидался отказ формы, получено {err:?}"
         );
+        rejected += 1;
         eprintln!("## отбито: {what} -> {err} ##");
     }
+    println!("INTENT_ATTR_REJECTED={rejected}");
 }
 
 #[test]
@@ -142,6 +148,7 @@ fn find_any_is_absence_of_tags() {
 
 #[test]
 fn find_filters_round_trip_and_reject_bad_enums() {
+    let mut roundtrip = 0usize;
     for (class, dir) in [
         (ClassFilter::OnlyPaid, DirFilter::Buy),
         (ClassFilter::OnlyFree, DirFilter::Sell),
@@ -152,14 +159,19 @@ fn find_filters_round_trip_and_reject_bad_enums() {
         f.set_filters(class, dir);
         let back = Find::decode(&f.encode_unsigned()).unwrap();
         assert_eq!(back.filters().unwrap(), (class, dir));
+        roundtrip += 1;
     }
+    println!("INTENT_FILTER_ROUNDTRIP={roundtrip}");
+    let mut rejected = 0usize;
     for tlv in [vec![(0x0002, vec![3u8])], vec![(0x0003, vec![4u8])], vec![(0x0002, vec![1, 1])]] {
         let err = Find::decode(&find_with(tlv).encode_unsigned()).expect_err("неканоничный фильтр принят");
         assert!(
             matches!(err, DecodeError::BadEnum { .. } | DecodeError::IntentAttr(_)),
             "ожидался отказ фильтра, получено {err:?}"
         );
+        rejected += 1;
     }
+    println!("INTENT_FILTER_REJECTED={rejected}");
 }
 
 #[test]

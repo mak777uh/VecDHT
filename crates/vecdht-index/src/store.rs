@@ -12,7 +12,9 @@
 use std::path::{Path, PathBuf};
 
 use vecdht_wire::codec::{Reader, DIM};
-use vecdht_wire::messages::{decode_mark, encode_mark, DeleteOp, InsertOp, OpKind, ReplicateOp};
+use vecdht_wire::messages::{
+    decode_mark, encode_mark, ClassFilter, DeleteOp, DirFilter, InsertOp, OpKind, ReplicateOp,
+};
 
 use crate::entry::IndexEntry;
 use crate::ivf::IvfIndex;
@@ -283,7 +285,21 @@ impl ShardStore {
     }
 
     pub fn stage_insert(&mut self, e: IndexEntry) -> Result<u64, StoreError> {
-        self.stage(WalFrame::new(0, OpKind::Insert, e.to_insert().body_bytes()))
+        self.stage_insert_with_attr(e, 0)
+    }
+
+    /// `Insert` с байтом объявления (§5.5). Байт едет в теле фрейма, а не отдельным опсом:
+    /// реплика применяет тот же фрейм и получает тот же `slot_attr` без второго сообщения.
+    pub fn stage_insert_with_attr(
+        &mut self,
+        e: IndexEntry,
+        slot_attr: u8,
+    ) -> Result<u64, StoreError> {
+        self.stage(WalFrame::new(
+            0,
+            OpKind::Insert,
+            e.to_insert_with_attr(slot_attr).body_bytes(),
+        ))
     }
 
     pub fn stage_delete(&mut self, owner: [u8; 32]) -> Result<u64, StoreError> {
@@ -386,7 +402,8 @@ impl ShardStore {
                     kind: "Insert",
                     detail: e.to_string(),
                 })?;
-                self.index.insert(IndexEntry::from_insert(&op))?;
+                self.index
+                    .insert_with_attr(IndexEntry::from_insert(&op), op.slot_attr)?;
             }
             OpKind::Delete => {
                 let mut r = Reader::new(&frame.body);
@@ -475,6 +492,18 @@ impl ShardStore {
     /// Поиск с последним применённым `TimeMark` в роли «сейчас» (§8.4).
     pub fn search(&self, q: &[i8; DIM], clusters: &[u16], top_k: usize) -> Vec<(u32, u32)> {
         self.index.search(q, clusters, top_k, self.time_mark_bucket)
+    }
+
+    /// Поиск с фильтрами класса и направления (§12.7). `Any/Any` — ровно `search`.
+    pub fn search_filtered(
+        &self,
+        q: &[i8; DIM],
+        clusters: &[u16],
+        top_k: usize,
+        class: ClassFilter,
+        dir: DirFilter,
+    ) -> Vec<(u32, u32)> {
+        self.index.search_filtered(q, clusters, top_k, self.time_mark_bucket, class, dir)
     }
 
     #[inline]

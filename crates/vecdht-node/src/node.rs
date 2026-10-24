@@ -26,9 +26,9 @@ use vecdht_index::{IndexEntry, ShardStore, StoreError, StoreManifest};
 use vecdht_wire::codec::MAX_BODY_LEN;
 use vecdht_wire::frame::{decode_frame, Kind};
 use vecdht_wire::messages::{
-    domain, encode_mark, err_code, Codec, DeleteOp, Find, LeaveNotice, MatchResult, Member,
-    MembershipUpdate, OpKind, ProtocolError, Publish, PublishAck, ReplicateAck, ReplicateOp,
-    SnapshotOffer, WalPullRequest, WalPullResponse,
+    domain, encode_mark, err_code, Codec, DeleteOp, Find, IntentClass, LeaveNotice, MatchResult,
+    Member, MembershipUpdate, OpKind, ProtocolError, Publish, PublishAck, ReplicateAck,
+    ReplicateOp, SnapshotOffer, SLOT_ATTR_PAID, WalPullRequest, WalPullResponse,
 };
 use vecdht_wire::DecodeError;
 
@@ -179,7 +179,7 @@ impl ShardNode {
         admission: SharedAdmission,
     ) -> Result<Self, NodeError> {
         let store = ShardStore::open(dir, shard)?;
-        // Дurable-форма запрета (§11.4, ii, `ADR-0047`): список поднимается с диска до первого
+        // Durable-форма запрета (§11.4, ii, `ADR-0047`): список поднимается с диска до первого
         // принятого кадра, а нечитаемый файл — отказ открыть узел, а не «пустой список».
         // Порядок здесь важен: `load_chain` ниже читает цепочку, и узел, открывшийся с
         // подозрительным файлом запрета, не должен успеть ничего обслужить.
@@ -849,7 +849,12 @@ impl ShardNode {
             published_bucket: msg.published_bucket,
             ttl_buckets: msg.ttl_buckets,
         };
-        let insert_seq = match self.store.stage_insert(entry) {
+        // Класс и направление объявления (§5.5) сворачиваются в один байт индекса. Цена здесь
+        // не участвует: узел её не хранит, и в `slot_attr` для неё нет бита.
+        let intent = msg.intent()?;
+        let slot_attr = intent.dir.as_u8()
+            | if intent.class == IntentClass::Paid { SLOT_ATTR_PAID } else { 0 };
+        let insert_seq = match self.store.stage_insert_with_attr(entry, slot_attr) {
             Ok(seq) => seq,
             Err(StoreError::WalFailed(_)) => return self.err(from, err_code::WAL_FAILED, 100),
             Err(e) => return Err(NodeError::Store(e)),
@@ -873,7 +878,8 @@ impl ShardNode {
         }
         let slot = self.store.index.owner_slot(&msg.owner_ed25519).unwrap_or(0);
         self.evictor.observe(slot, bits as u8, msg.published_bucket);
-        let mut out = self.replicate(insert_seq, OpKind::Insert, entry.to_insert().body_bytes());
+        let mut out =
+            self.replicate(insert_seq, OpKind::Insert, entry.to_insert_with_attr(slot_attr).body_bytes());
         if let (Some(seq), Some((c, e))) = (delete_seq, victim_entry) {
             let op = DeleteOp { owner_ed25519: e.owner_ed25519, shard: self.shard };
             out.extend(self.replicate(seq, OpKind::Delete, op.body_bytes()));
@@ -1068,7 +1074,11 @@ impl ShardNode {
         }
         let epoch = self.epoch().unwrap_or(0);
         let top_k = (q.top_k as usize).min(self.params.top_k_max as usize);
-        let hits = self.store.search(&q.query_vector, &q.clusters, top_k);
+        // §12.7: фильтр сужает вход до отбора `top_k`; отсутствие тега — `Any`.
+        let (class, dir) = q.filters()?;
+        let hits = self
+            .store
+            .search_filtered(&q.query_vector, &q.clusters, top_k, class, dir);
         let res = MatchResult {
             shard: self.shard,
             epoch,

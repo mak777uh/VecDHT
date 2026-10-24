@@ -65,12 +65,21 @@ impl IndexEntry {
 
     #[inline]
     pub fn to_insert(&self) -> InsertOp {
+        self.to_insert_with_attr(0)
+    }
+
+    /// Тело `Insert` с байтом объявления (§5.5). Ненулевой байт добавляет TLV-хвост; нулевой
+    /// оставляет тело ровно 424 байта, как до §5.5, — поэтому старые WAL-фреймы и векторы
+    /// замеров остаются валидными.
+    #[inline]
+    pub fn to_insert_with_attr(&self, slot_attr: u8) -> InsertOp {
         InsertOp {
             owner_ed25519: self.owner_ed25519,
             vec_q: self.vec_q,
             cluster_id: self.cluster_id,
             published_bucket: self.published_bucket,
             ttl_buckets: self.ttl_buckets,
+            slot_attr,
         }
     }
 
