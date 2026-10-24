@@ -1,7 +1,7 @@
 ---
 id: E-0095
 hypothesis: H-0095
-status: pre-registered
+status: completed
 base_commit: "a391c8d (дерево, на котором снят PRE_FIX; коммит пре-регистрации — оракул дыры +
 общий корпус + helper + таблица ожиданий + ADR-0051 (proposed) + три источника; продукт в нём не
 тронут)"
