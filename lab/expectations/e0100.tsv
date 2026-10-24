@@ -35,3 +35,4 @@ MEM_PER_ENTRY_AT_MOST_PREDICTED_4446	1	порог (5): 444,6 Б — верхня
 MEM_DELTA_TENTHS	10	прирост ровно 1,0 Б/запись между PRE_FIX (436,7) и после правки
 corpus1_exit	0
 corpus2_exit	0
+REPRO_VECTOR	1	два прогона на неизменном дереве дают одинаковый вектор фактов (правило 7 (е))

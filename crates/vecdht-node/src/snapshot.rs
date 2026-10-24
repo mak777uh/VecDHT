@@ -29,7 +29,7 @@ pub enum SyncError {
     TooShort(usize),
     #[error("магическая строка не `vdht/s8/snap`")]
     BadMagic,
-    #[error("версия формата снапшота {0}, ожидаем 1")]
+    #[error("версия формата снапшота {0}, ожидаем 2")]
     BadFormat(u16),
     #[error("снапшот относится к шарду {found}, узел держит {want}")]
     ShardMismatch { want: u16, found: u16 },
@@ -304,8 +304,11 @@ mod tests {
         bad_magic[0] ^= 0xff;
         assert_eq!(header(&bad_magic).unwrap_err(), SyncError::BadMagic);
         let mut other_shard = bytes.clone();
-        other_shard[12..14].copy_from_slice(&2u16.to_le_bytes());
-        assert_eq!(header(&other_shard).unwrap_err(), SyncError::BadFormat(2));
+        // Чужая версия формата лежит сразу после магической строки; берём заведомо не текущую,
+        // иначе проверка «формат 2 отвергается» проверяет саму себя.
+        let bogus = SNAP_FORMAT + 1;
+        other_shard[12..14].copy_from_slice(&bogus.to_le_bytes());
+        assert_eq!(header(&other_shard).unwrap_err(), SyncError::BadFormat(bogus));
         let mut other = bytes.clone();
         other[14..16].copy_from_slice(&6u16.to_le_bytes());
         assert_eq!(header(&other).unwrap().0.shard, 6, "чужой шард читается из заголовка");
