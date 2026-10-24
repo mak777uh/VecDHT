@@ -1,6 +1,6 @@
 ---
 id: H-0099
-status: proposed
+status: supported
 date: 2026-10-24
 spec: "спека продукта тут не правится; объект — приборный контур: модель `lab/proofs/verus/cap_math.rs`,
       приборы `lab/verus-check.sh` и `lab/kani-compile-check.sh`, харнеси `#[cfg(kani)]` в
@@ -123,3 +123,14 @@ Verus-модель капа (`lab/proofs/verus/cap_math.rs`) — транскр�
 - Вердикт `supports` не означает, что формальные контуры доказали что-то о wire-формате: у них пока
   один объект — арифметика приёма. Расширение на `Admission::check_publish` и на дверь `service.rs` —
   следующие циклы, и они обязаны быть отдельными карточками.
+
+## Итог (`E-0099`, вердикт `supports`)
+
+Три контура исполняются на одном коммите и публикуют числа: Verus `verified=8 errors=0`, Kani в CI
+`4 successfully verified harnesses, 0 failures`, Lean-страж `LEAN_ALL_OK=1` при 115 декларациях, и все
+девять посадок отбиты (`VERUS_SELFTEST 5/5`, `KCC_SELFTEST 4/4`). Первый в истории репозитория прогон
+`40067618981` был красным по двум причинам установки, обе названы по первоисточникам, и после починки
+четыре прогона подряд `completed success`. Предпосылка, которую модель Verus нашла в арифметике капа,
+лежит в продукте как `CELL_CAP_MAX_LIVE` + `debug_assert!`. Порог (9) по диску не выполнен
+(14156 МБ при допуске ≥15000) и оставлен невыполненным числом. Подробно — в
+`lab/experiments/E-0099-three-formal-pipelines.md`.
