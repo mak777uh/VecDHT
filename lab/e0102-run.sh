@@ -141,11 +141,32 @@ for n in 1 2; do
   gf=$(sed -n 's/^test result: .* \([0-9]*\) passed; \([0-9]*\) failed;.*/\2/p' "$OUT/s14_r$n.txt" | tail -1)
   printf "S14_G5_TESTS=%s S14_G5_TESTS_r%s=%s\n" "$(( ${gp:-0} + ${gf:-0} ))" "$n" "$(( ${gp:-0} + ${gf:-0} ))" | tee -a "$LOG"
   printf "S14_G5_PASSED=%s S14_G5_PASSED_r%s=%s\n" "${gp:-NONE}" "$n" "${gp:-NONE}" | tee -a "$LOG"
-  for k in BRANCH REFUSED EVICTED SCANNED CELL LIVE LIMIT; do
-    v=$(pick "g5_$k" "$OUT/s14_r$n.txt")
-    printf "S14_G5_%s=%s S14_G5_%s_r%s=%s\n" "$k" "${v:-NONE}" "$k" "$n" "${v:-NONE}" | tee -a "$LOG"
-    printf "S14_G5_%s_r%s=%s\n" "$k" "$n" "${v:-NONE}" >> "$F"
-  done
+  # Ключи печатаются литерально, а не шаблоном `S14_G5_%s`: иначе threshold-lint не видит
+  # прибора («порог без прибора»), а `pick` по верхнему регистру молча берёт NONE — гейт s14
+  # печатает `g5_branch=` строчными. Оба дефекта первого прогона E-0102, найдены машиной.
+  vb=$(pick "g5_branch" "$OUT/s14_r$n.txt")
+  vr=$(pick "g5_refused" "$OUT/s14_r$n.txt")
+  ve=$(pick "g5_evicted" "$OUT/s14_r$n.txt")
+  vs=$(pick "g5_scanned" "$OUT/s14_r$n.txt")
+  vc=$(pick "g5_cell" "$OUT/s14_r$n.txt")
+  vl=$(pick "g5_live" "$OUT/s14_r$n.txt")
+  vm=$(pick "g5_limit" "$OUT/s14_r$n.txt")
+  printf "S14_G5_BRANCH=%s S14_G5_BRANCH_r%s=%s\n" "${vb:-NONE}" "$n" "${vb:-NONE}" | tee -a "$LOG"
+  printf "S14_G5_REFUSED=%s S14_G5_REFUSED_r%s=%s\n" "${vr:-NONE}" "$n" "${vr:-NONE}" | tee -a "$LOG"
+  printf "S14_G5_EVICTED=%s S14_G5_EVICTED_r%s=%s\n" "${ve:-NONE}" "$n" "${ve:-NONE}" | tee -a "$LOG"
+  printf "S14_G5_SCANNED=%s S14_G5_SCANNED_r%s=%s\n" "${vs:-NONE}" "$n" "${vs:-NONE}" | tee -a "$LOG"
+  printf "S14_G5_CELL=%s S14_G5_CELL_r%s=%s\n" "${vc:-NONE}" "$n" "${vc:-NONE}" | tee -a "$LOG"
+  printf "S14_G5_LIVE=%s S14_G5_LIVE_r%s=%s\n" "${vl:-NONE}" "$n" "${vl:-NONE}" | tee -a "$LOG"
+  printf "S14_G5_LIMIT=%s S14_G5_LIMIT_r%s=%s\n" "${vm:-NONE}" "$n" "${vm:-NONE}" | tee -a "$LOG"
+  {
+    printf "S14_G5_BRANCH_r%s=%s\n" "$n" "${vb:-NONE}"
+    printf "S14_G5_REFUSED_r%s=%s\n" "$n" "${vr:-NONE}"
+    printf "S14_G5_EVICTED_r%s=%s\n" "$n" "${ve:-NONE}"
+    printf "S14_G5_SCANNED_r%s=%s\n" "$n" "${vs:-NONE}"
+    printf "S14_G5_CELL_r%s=%s\n" "$n" "${vc:-NONE}"
+    printf "S14_G5_LIVE_r%s=%s\n" "$n" "${vl:-NONE}"
+    printf "S14_G5_LIMIT_r%s=%s\n" "$n" "${vm:-NONE}"
+  } >> "$F"
   printf "S14_G5_TESTS_r%s=%s\n" "$n" "$(( ${gp:-0} + ${gf:-0} ))" >> "$F"
   printf "S14_G5_PASSED_r%s=%s\n" "$n" "${gp:-NONE}" >> "$F"
 

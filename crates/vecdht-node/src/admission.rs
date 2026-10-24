@@ -844,7 +844,7 @@ impl Evictor {
             if cand >= newcomer {
                 continue;
             }
-            if best.is_none_or(|b| cand < b) {
+            if best.map_or(true, |b| cand < b) {
                 best = Some(cand);
             }
         }
