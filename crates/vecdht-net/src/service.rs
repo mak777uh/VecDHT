@@ -40,6 +40,7 @@ use vecdht_wire::messages::{
 
 use crate::behaviour::{Behaviour, BehaviourEvent};
 use crate::codec::FrameCodec;
+use crate::door::{DoorLedger, DoorReason};
 use crate::handshake::{self, HandshakeError, PeerIdentity};
 use crate::keys;
 use crate::provider_cache::ProviderCache;
@@ -163,6 +164,10 @@ pub struct NetService {
     /// `BTreeMap<u16, BTreeSet<PeerId>>` с одним пополнением и нулём удалений — монотонный кэш,
     /// измеренный `E-0085` гейтом (в) и перенесённый `E-0086` в спеку.
     providers: ProviderCache,
+    /// Локальный журнал причин отказа двери (§4.2, `E-0095`; `ADR-0051`). Конечен по
+    /// построению: ключ — имя из `DoorReason::ALL`, а не текст, поэтому число записей
+    /// ограничено числом имён, а не числом отказов.
+    door: DoorLedger,
     listen_addrs: Vec<Multiaddr>,
     errors: Vec<String>,
     /// Сколько provider-запросов §7.4 завершилось успехом. Наблюдаемость для гейтов: «узел
@@ -300,6 +305,7 @@ impl NetService {
             pending: HashMap::new(),
             inbox: Vec::new(),
             providers: ProviderCache::product(cfg.provider_republish.as_secs()),
+            door: DoorLedger::default(),
             listen_addrs: Vec::new(),
             errors: Vec::new(),
             provider_announcements: 0,
@@ -416,6 +422,23 @@ impl NetService {
 
     pub fn take_errors(&mut self) -> Vec<String> {
         std::mem::take(&mut self.errors)
+    }
+
+    /// Отказы двери по именам причин (`E-0095`). Это локальное наблюдение, а не протокол: имена
+    /// не уходят на провод, и `CERT_INVALID` остаётся единственным кодом для всех причин кредашиала.
+    pub fn door_refusals(&self) -> Vec<(&'static str, u64)> {
+        self.door.refusals()
+    }
+
+    /// Полное число отказов, записанных дверью. Нужен, чтобы проверить `сумма по именам == refusals`
+    /// (гейт (3) цикла `E-0095`).
+    pub fn door_refusal_total(&self) -> u64 {
+        self.door.total()
+    }
+
+    /// Счётчик одной причины. Нуль означает «эта ветка не происходила», а не «ветки нет».
+    pub fn door_refusal_count(&self, reason: DoorReason) -> u64 {
+        self.door.count(reason)
     }
 
     /// Число пиров в таблице маршрутизации Kademlia. Тестам нужно отличать «запись не ушла,
@@ -640,14 +663,25 @@ impl NetService {
             // Ни handshake, ни прикладной кадр: узел без действующего кредашиала не имеет
             // права ни отвечать, ни подписывать. Отказ явный, чтобы встречная сторона не
             // ждала таймаута и не считала молчание согласием.
+            self.door.record(DoorReason::SelfCertRevoked);
             return vec![error_frame(err_code::CERT_INVALID, 0, 0, "кредашиал отозван")];
         }
         let kind = match decode_frame(&request) {
             Ok(f) => f.header.kind,
-            Err(e) => return vec![error_frame(err_code::BAD_ENUM, 0, 0, &e.to_string())],
+            Err(e) => {
+                self.door.record(DoorReason::FrameUndecodable);
+                return vec![error_frame(err_code::BAD_ENUM, 0, 0, &e.to_string())];
+            }
         };
         if kind == Kind::Handshake {
             return match self.accept_handshake(peer, &request) {
+                Err(e) => {
+                    // Причина считается ДО того, как кадр схлопнут в `CERT_INVALID`: имя живёт
+                    // локально, провод остаётся прежним (`ADR-0051`, решение 1).
+                    let reason = DoorReason::from_handshake_error(&e);
+                    self.door.record(reason);
+                    vec![error_frame(err_code::CERT_INVALID, 0, 0, &e.to_string())]
+                }
                 Ok(who) => {
                     let mut batch = vec![self.greeting.encode_unsigned()];
                     // ADR-0017: завершённый handshake — доказательство достижимости и повод
@@ -656,10 +690,10 @@ impl NetService {
                     batch.extend(self.peer_alive_events(who.owner).into_iter().map(|e| e.frame));
                     batch
                 }
-                Err(e) => vec![error_frame(err_code::CERT_INVALID, 0, 0, &e.to_string())],
             };
         }
         let Some(who) = self.peers.get(&peer).cloned() else {
+            self.door.record(DoorReason::Unspecified);
             return vec![error_frame(
                 err_code::DENIED,
                 0,

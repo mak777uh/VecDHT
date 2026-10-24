@@ -106,6 +106,65 @@ pub static PROBE_CAUSES: [(&str, Option<&str>); 20] = [
     ("junk_frame", None),
 ];
 
+/// Строка корпуса для свёртки. Вынесена из тела теста сюда: `dr_frame_digest` и
+/// `dc_frame_digest` обязаны сойтись байт в байт, а два отдельных `format!` разъезжаются ровно так
+/// же, как разъехались два скопированных корпуса (гейт (5) цикла `E-0095`).
+pub fn refusal_row(label: &str, code: &str, retry_after_ms: u32, shard: u16, raw: &[u8]) -> String {
+    format!("{label}={code}:{retry_after_ms}:{shard}:{}", hex::encode(raw))
+}
+
+/// Строка молчаливой пробы: отказа на проводе нет, и в свёртку идёт не кадр, а само молчание.
+pub fn silent_row(label: &str) -> String {
+    format!("{label}=без-ответа")
+}
+
+/// Имя причины, которым дверь обязана записать данную пробу (`DoorReason::name()`). `None` — у
+/// пробы `junk_frame`: её отбивает транспортный кодек до `on_request`, и записи на двери быть не
+/// должно вовсе.
+///
+/// Таблица заведена здесь, а не в файле счётчиков, по той же причине, что и корпус: два независимых
+/// списка проб и их имён неминуемо разъезжаются, и `счётчик сошёлся с числом отказов` превращается
+/// в пересказ самого себя.
+///
+/// Первая редакция таблицы была выведена из кода верификатора и ошиблась в пяти пробах: часть
+/// причин отсекает сам декодер кредашиала. Замороженные значения этого не отменяют — расхождение
+/// напечатано отдельным фактом и вошло в `ДИАГНОЗ` (`lab/expectations/e0095.tsv` правке внутри
+/// замерного цикла не подлежит).
+pub static PROBE_REASONS: [(&str, Option<&str>); 20] = [
+    // Пять проб переатрибутированы ПО ЗАМЕРУ, а не по assumption (ДИАГНОЗ цикла): их отбивает
+    // `NodeCert::decode` раньше верификатора — `cert.rs:78…80` версия, `:86…88` `MAX_CERT_SHARDS`,
+    // `:102…104` число подписей > 16, `:110…112` `valid_until <= valid_from`. Имя у них общее:
+    // общим именем `cert_undecodable`. Ветки `cert.rs:140…141` («подписей больше предела» =
+    // `BelowThreshold`) и `valid_from > valid_until` = `NotYetValid` с провода недостижимы.
+    ("cert_version", Some("cert_undecodable")),
+    ("cert_genesis", Some("cert_genesis_mismatch")),
+    ("cert_zero_capacity", Some("cert_zero_capacity")),
+    ("cert_shards_over", Some("cert_undecodable")),
+    ("cert_not_yet_valid", Some("cert_not_yet_valid")),
+    ("cert_expired", Some("cert_expired")),
+    ("cert_below_threshold", Some("cert_below_threshold")),
+    ("cert_sigs_over", Some("cert_undecodable")),
+    ("cert_from_after_until", Some("cert_undecodable")),
+    ("cert_other_peer_id", Some("cert_peer_id_mismatch")),
+    ("cert_owner_mismatch", Some("cert_owner_mismatch")),
+    ("cert_undecodable", Some("cert_undecodable")),
+    ("cert_wrong_role", Some("cert_wrong_role")),
+    ("agent_with_cert", Some("agent_with_cert")),
+    ("missing_cert", Some("missing_cert")),
+    ("hs_genesis", Some("genesis_mismatch")),
+    ("hs_model", Some("model_mismatch")),
+    ("hs_preprocessing", Some("preprocessing_mismatch")),
+    ("frame_bad_kind", Some("frame_undecodable")),
+    ("junk_frame", None),
+];
+
+pub fn probe_reason_name(label: &str) -> Option<&'static str> {
+    PROBE_REASONS
+        .iter()
+        .find(|(l, _)| *l == label)
+        .and_then(|(_, r)| *r)
+}
+
 pub fn probe_cause(label: &str) -> Option<&'static str> {
     PROBE_CAUSES
         .iter()

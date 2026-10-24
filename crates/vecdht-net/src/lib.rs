@@ -8,6 +8,7 @@
 //! * [`keys`] связывает прикладной Ed25519-ключ с libp2p-идентичностью, не вводя собственной
 //!   деривации `PeerId` (§4.1);
 //! * [`handshake`] проверяет `NodeCert` и его привязку к транспорту (§4.2);
+//! * [`door`] даёт имени причины отказа конечный тип и локальный журнал причин (§4.2; `E-0095`);
 //! * [`provider_cache`] держит конечную таблицу провайдеров шарда (§7.4, §P5; `E-0091`);
 //! * [`service`] владеет `ShardNode`'ами, Kademlia-провайдерами шардов (§7.4), gossip-темами
 //!   и event loop'ом; вся протокольная логика остаётся в `vecdht-node`;
@@ -27,6 +28,7 @@
 pub mod agent;
 pub mod behaviour;
 pub mod codec;
+pub mod door;
 pub mod handshake;
 pub mod keys;
 pub mod provider_cache;
@@ -36,5 +38,6 @@ pub use agent::{
     Agent, AgentConfig, AgentError, FindOutcome, FindQuery, FoundMatch, NetworkParams,
     PublishReceipt, PublishRequest, RendezvousGrant, SessionInfo, ShardAnswer, ShardFailure,
 };
-pub use handshake::{PeerIdentity, HandshakeError};
+pub use door::{DoorLedger, DoorReason};
+pub use handshake::{HandshakeError, PeerIdentity};
 pub use service::{shard_topic, NetConfig, NetError, NetService, Step};

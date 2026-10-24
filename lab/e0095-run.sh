@@ -71,7 +71,7 @@ dc_not_yet_valid_count dc_three_actions_distinct dc_revoked_name dc_expired_name
 dc_revoked_counter dc_after_repeats_entries dc_after_repeats_total dc_max_name_len
 dc_responder_errors_empty dc_wire_codes dc_frame_digest dc_zero_names
 dc_self_cert_revoked_hits dc_shard_not_covered_hits dc_transport_no_owner_hits
-dc_unreachable_names"
+dc_unreachable_names dc_decoder_absorbed_probes"
 
 FACT_KEYS="$DR_KEYS $DC_KEYS"
 

@@ -108,7 +108,7 @@ fn door_refusals_collapse_to_one_code_and_leave_no_names() {
                     refused += 1;
                     codes.insert(c.clone());
                     frames.insert(hex::encode(&raw));
-                    rows.push(format!("{label}={c}:{retry}:{s}:{}", hex::encode(&raw)));
+                    rows.push(refusal_row(label, &c, retry, s, &raw));
                     println!("МЕРЕНО dr_probe_{label}_code={c} dr_probe_{label}_len={}", raw.len());
                     println!(
                         "МЕРЕНО dr_probe_{label}_responder_records={} dr_probe_{label}_responder_named={} dr_probe_{label}_initiator_records={} dr_probe_{label}_initiator_named={}",
@@ -122,7 +122,7 @@ fn door_refusals_collapse_to_one_code_and_leave_no_names() {
                 }
                 None => {
                     silent += 1;
-                    rows.push(format!("{label}=без-ответа"));
+                    rows.push(silent_row(label));
                     println!("МЕРЕНО dr_probe_{label}_code=без-ответа dr_probe_{label}_len=0");
                 }
             }
