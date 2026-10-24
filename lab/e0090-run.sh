@@ -120,7 +120,7 @@ bash lab/check-text-clean.sh \
   crates/vecdht-embed/tests/h0090_hubness.rs \
   lab/hypotheses/H-0090-hubness-and-blind-poisoning.md \
   lab/experiments/E-0090-hubness-and-blind-poisoning.md \
-  lab/expectations/e0090.tsv lab/h0090-run.sh 2>&1 | tail -3 | tee -a "$LOG"
+  lab/expectations/e0090.tsv lab/e0090-run.sh 2>&1 | tail -3 | tee -a "$LOG"
 rc=${PIPESTATUS[0]}; note $rc
 
 python lab/expect.py lab/expectations/e0090.tsv "$OUT/facts_r1.txt" "$OUT/facts_r2.txt" 2>&1 | tail -n 8 | tee -a "$LOG"
