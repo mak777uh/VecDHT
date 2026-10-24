@@ -20,7 +20,11 @@
 #  (г) ожидания живут файлом `lab/expectations/e0100.tsv` и сверяются исполнением, а не памятью;
 #  (д) контроль append-only лога берётся от отметки начала блока (ДИАГНОЗ-3 из `E-0087`);
 #  (е) PRE_FIX — снимок в репозитории (`lab/logs/e0100-prefix.txt`), снятый в отдельном worktree
-#      на коммите `9687c32`; helper только сверяет его с текущим отпечатком.
+#      на коммите `9687c32`; helper только сверяет его с текущим отпечатком;
+#  (ж) счётчики печатаются из нескольких тестов, поэтому libtest идёт с `--test-threads=1`:
+#      в блоке 2 первый `println!` склеился с префиксом `test …` («price zero for paid» +
+#      `INTENT_ATTR_ROUNDTRIP=4`), и сверка честно сказала «нет такого ключа». Прибор тоже
+#      поправлен — каждый счётчик печатается с ведущим переводом строки; это ДИАГНОЗ-3 блока 2.
 if [ -z "${VEC_DHT_ROOT:-}" ]; then
   VEC_DHT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
   export VEC_DHT_ROOT
@@ -100,15 +104,15 @@ DISK_BEFORE=$(disk_mb)
   echo "DISK_FREE_MB=$DISK_BEFORE TARGET_SIZE_MB=$(du -sm target 2>/dev/null | cut -f1)"
 } >> "$LOG"
 
-run_to "$C1" "ШАГ 1а корпус без объявлений, n=1" cargo test -p vecdht-wire --test publish_corpus_digest --no-fail-fast -- --nocapture
+run_to "$C1" "ШАГ 1а корпус без объявлений, n=1" cargo test -p vecdht-wire --test publish_corpus_digest --no-fail-fast -- --nocapture --test-threads=1
 echo "corpus1_exit=$(grep -oE 'EXIT=[0-9]+' "$LOG" | tail -1 | cut -d= -f2)" >> "$LOG"
-run_to "$C2" "ШАГ 1б корпус без объявлений, n=2" cargo test -p vecdht-wire --test publish_corpus_digest --no-fail-fast -- --nocapture
+run_to "$C2" "ШАГ 1б корпус без объявлений, n=2" cargo test -p vecdht-wire --test publish_corpus_digest --no-fail-fast -- --nocapture --test-threads=1
 echo "corpus2_exit=$(grep -oE 'EXIT=[0-9]+' "$LOG" | tail -1 | cut -d= -f2)" >> "$LOG"
 grab "$C1" r1 "$CORPUS_KEYS" >> "$LOG"
 grab "$C2" r2 "$CORPUS_KEYS" >> "$LOG"
 
-run_to "$A1" "ШАГ 2а канонический TLV, n=1" cargo test -p vecdht-wire --test intent_attr_tlv --no-fail-fast -- --nocapture
-run_to "$A2" "ШАГ 2б канонический TLV, n=2" cargo test -p vecdht-wire --test intent_attr_tlv --no-fail-fast -- --nocapture
+run_to "$A1" "ШАГ 2а канонический TLV, n=1" cargo test -p vecdht-wire --test intent_attr_tlv --no-fail-fast -- --nocapture --test-threads=1
+run_to "$A2" "ШАГ 2б канонический TLV, n=2" cargo test -p vecdht-wire --test intent_attr_tlv --no-fail-fast -- --nocapture --test-threads=1
 grab "$A1" r1 "$ATTR_KEYS" >> "$LOG"
 grab "$A2" r2 "$ATTR_KEYS" >> "$LOG"
 

@@ -77,7 +77,7 @@ fn four_canonical_combinations_round_trip() {
         assert_eq!(again.tlv, back.tlv, "set_intent обязан быть идемпотентным");
         roundtrip += 1;
     }
-    println!("INTENT_ATTR_ROUNDTRIP={roundtrip}");
+    println!("\nINTENT_ATTR_ROUNDTRIP={roundtrip}");
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn non_canonical_combinations_are_rejected() {
         rejected += 1;
         eprintln!("## отбито: {what} -> {err} ##");
     }
-    println!("INTENT_ATTR_REJECTED={rejected}");
+    println!("\nINTENT_ATTR_REJECTED={rejected}");
 }
 
 #[test]
@@ -161,7 +161,7 @@ fn find_filters_round_trip_and_reject_bad_enums() {
         assert_eq!(back.filters().unwrap(), (class, dir));
         roundtrip += 1;
     }
-    println!("INTENT_FILTER_ROUNDTRIP={roundtrip}");
+    println!("\nINTENT_FILTER_ROUNDTRIP={roundtrip}");
     let mut rejected = 0usize;
     for tlv in [vec![(0x0002, vec![3u8])], vec![(0x0003, vec![4u8])], vec![(0x0002, vec![1, 1])]] {
         let err = Find::decode(&find_with(tlv).encode_unsigned()).expect_err("неканоничный фильтр принят");
@@ -171,7 +171,7 @@ fn find_filters_round_trip_and_reject_bad_enums() {
         );
         rejected += 1;
     }
-    println!("INTENT_FILTER_REJECTED={rejected}");
+    println!("\nINTENT_FILTER_REJECTED={rejected}");
 }
 
 #[test]
