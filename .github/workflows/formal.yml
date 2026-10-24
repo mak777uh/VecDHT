@@ -29,8 +29,15 @@ concurrency:
 
 env:
   VERUS_VERSION: 0.2026.10.18.7d82994
+  # Хэши ассетов и скриптов, которые скачиваются по сети. Взяты из API релиза
+  # (`assets[].digest` для Verus) и из самого файла на закреплённом коммите (elan): номер версии
+  # пинает ИМЯ файла, но не его содержимое, а подменённый архив дал бы «зелёный» круг без всякого
+  # отношения к нашему коду. Несовпадение хэша — красный шаг с отдельной меткой, а не молчание.
+  VERUS_SHA256: e9af03732d4bdd32b93a8fcf471706739c24c1473fa5086618d96c47237845dd
   KANI_VERSION: 0.68.0
   LEAN_TOOLCHAIN: leanprover/lean4:v4.36.0-rc1
+  ELAN_COMMIT: 9605b24b08cf68b78dce0014b6fa01be1f8e2cee
+  ELAN_SHA256: a620ff1641616222c8d37c54845492004bb84d6877cdbc944dd65c1aa685bf53
 
 jobs:
   verus:
@@ -47,6 +54,14 @@ jobs:
           set -euo pipefail
           curl -sSLo /tmp/verus.zip \
             "https://github.com/verus-lang/verus/releases/download/release/${VERUS_VERSION}/verus-${VERUS_VERSION}-x86-linux.zip"
+          # Проверка целостности до распаковки: `.zip` — не исполняемый файл, но содержит `verus`,
+          # `z3` и `rust_verify`, которые дальше запускаются как есть. Печать RC в сводку нужна,
+          # чтобы отказ был виден тому, у кого нет прав на журнал работы.
+          printf '%s  %s\n' "$VERUS_SHA256" /tmp/verus.zip | sha256sum -c - > /tmp/verus-sha.log 2>&1
+          r=$?; echo "VERUS_SHA_RC=$r" | tee -a "$GITHUB_STEP_SUMMARY"
+          cat /tmp/verus-sha.log | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice::VERUS_SHA_RC=$r"
+          [ "$r" -eq 0 ] || exit 1
           mkdir -p "$HOME/verus-dist"
           unzip -q /tmp/verus.zip -d "$HOME/verus-dist"
           VERUS_BIN="$(find "$HOME/verus-dist" -maxdepth 3 -type f -name verus | head -1)"
@@ -157,8 +172,16 @@ jobs:
         run: |
           set -uo pipefail
           S="$GITHUB_STEP_SUMMARY"
-          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o /tmp/elan-init.sh
+          # URL закреплён КОММИТОМ, а не веткой `master`: скрипт установщика исполняется от имени
+          # репозитория, и `master` мог бы измениться между двумя прогонами одной и той же ревизии
+          # нашего дерева. Хэш проверяется отдельно — закреплённый коммит всё равно остаётся
+          # внешним сетевым вводом.
+          curl -sSfL "https://raw.githubusercontent.com/leanprover/elan/${ELAN_COMMIT}/elan-init.sh" -o /tmp/elan-init.sh
           echo "ELAN_CURL_RC=$?" | tee -a "$S"
+          printf '%s  %s\n' "$ELAN_SHA256" /tmp/elan-init.sh | sha256sum -c - > /tmp/elan-sha.log 2>&1
+          r=$?; echo "ELAN_SHA_RC=$r" | tee -a "$S"; cat /tmp/elan-sha.log | tee -a "$S"
+          echo "::notice::ELAN_SHA_RC=$r"
+          [ "$r" -eq 0 ] || exit 1
           sh /tmp/elan-init.sh -y --no-modify-path > /tmp/elan-init.log 2>&1
           r=$?; echo "ELAN_INIT_RC=$r" | tee -a "$S"; tail -4 /tmp/elan-init.log | tee -a "$S"
           [ "$r" -eq 0 ] || exit 1
