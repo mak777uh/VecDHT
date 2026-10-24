@@ -1,0 +1,26 @@
+# E-0100 · снимок PRE_FIX, снятый в отдельном worktree на коммите 9687c32
+# (`git worktree add /c/Users/Admin/vecdht-work/pre-e0100 9687c32`), до которого правки §5.5 в коде
+# нет. В worktree скопированы два прибора: `publish_corpus_digest.rs` (собран из API, которое было
+# до правки, поэтому компилируется на базовом дереве) и `intent_attr_tlv.rs` (оракул, который на
+# базовом дереве НЕ компилируется — это и есть зафиксированное отсутствие интерфейса, а не красный
+# по построению тест).
+#
+# Команды, которыми получены строки (все — в worktree, CARGO_TARGET_DIR отдельный):
+#   cargo test -p vecdht-wire --test publish_corpus_digest -- --nocapture
+#   cargo test -p vecdht-wire --test intent_attr_tlv --no-run
+#   grep -rn 'slot_attr' crates --include='*.rs' | grep -v 'tests/intent_attr_tlv.rs' | wc -l
+#   grep -rn 'search_filtered' crates --include='*.rs' | wc -l
+#   grep -oE 'SNAP_FORMAT: u16 = [0-9]+' crates/vecdht-index/src/snapshot.rs
+#   cargo test -p vecdht-index --test memory_budget -- --nocapture
+PRE_FIX_HEAD=9687c32
+PUBLISH_CORPUS_FRAMES=256
+PUBLISH_CORPUS_BYTES=121600
+PUBLISH_CORPUS_FNV1A64=dfa2b84feb67439d
+PRE_FIX_INTENT_ATTR_NOUN_EXIT=101
+PRE_FIX_INTENT_ATTR_NOUN_ERRORS=14
+PRE_FIX_SLOT_ATTR_SRC_HITS=0
+PRE_FIX_SEARCH_FILTERED_HITS=0
+PRE_FIX_SNAP_FORMAT=1
+PRE_FIX_INDEX_ENTRY_BYTES=424
+PRE_FIX_MEM_PER_ENTRY_TENTHS=4367
+PRE_FIX_MEM_TOTAL_MIB=416
