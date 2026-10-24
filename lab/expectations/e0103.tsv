@@ -1,0 +1,20 @@
+C103_MEASURED	1	прибор исполнил все пять тестов (иначе 0 — не замер)
+C103_FORGED_ENTRY_CELL	117	подделанная заявка 119 не выбрала ячейку: запись в 7·16+5
+C103_FORGED_CLAIMED_COUNT	0	заявленная ячейка 119 пуста
+C103_REASSIGNED	1	расхождение подсказки и пересчёта посчитано один раз
+C103_HONEST_ENTRY_CELL	117	честный кадр лёг в свою ячейку
+C103_HONEST_REASSIGNED	0	честное присваивание не считается пересборкой
+C103_CROSS_SHARD_CODE	SHARD_MISMATCH	пересчёт в шард 8 отвергнут существующим кодом, wire не менялся
+C103_CROSS_SHARD	1	отказ посчитан cluster_cross_shard
+C103_CROSS_SHARD_STORE	0	отказ не занял slot
+C103_NO_CENTROIDS_ENTRY_CELL	119	без артефакта поведение прежнее (fail-open по подсказке)
+C103_NO_CENTROIDS_UNVERIFIED	1	кадр без центроидов посчитан — развёртывание наблюдаемо
+C103_ASSIGN_BUDGET_US	300	бюджет §6.1 «квантование + assign» < 0.3 мс
+C103_ASSIGN_P50_LE_300US	1	assign p50 на publish-пути уложился в бюджет §6.1
+C103_EXIT	0	cargo test обоих релизных прогонов завершился успешно
+C103_RUNS	2	два прогона на неизменном дереве (правило 7 (е))
+C103_VECTOR_STABLE	1	векторы двух прогонов совпали
+GATE_H0103_OK	1	cycle-gate gate H-0103 без нарушений
+AUDIT_VIOLATIONS	0	audit последних пяти карточек без нарушений
+VERIFY_EXIT	0	полная верификация workspace завершилась успешно
+DISK_GE_15000	1	ресурсный порог (11): свободный диск не ниже 15 000 МБ (RAM/pagefile — в логе)
