@@ -254,6 +254,7 @@ RAYON_NUM_THREADS=4 VEC_DHT_MODEL_DIR=<...> \
 | `lab/threshold-lint.py` | до прогона: каждый ключ таблицы обязан кем-то печататься; `cmp` без `strip_run` — невыполнимый порог | `python lab/threshold-lint.py --selftest` (7) и `--latest` по свежей E-карточке |
 | `lab/runlib.sh` | общие `val`/`grab`/`strip_run`/`resources`/`run_to` для helper'ов новых циклов | `bash lab/runlib.sh --selftest` (7) |
 | `lab/disk-report.sh` | диск/RAM/pagefile; `--full` — размеры, `--apply` — объявление и удаление `target/*/incremental` (не `cargo clean`) | — (только чтение по умолчанию) |
+| `lab/repo-review.py` | после цикла: обход всего дерева на классы слабостей, которые уже случались (ссылки за концом файла, пустые результаты закрытых карточек, `#[ignore]` без причины, сироты helper'ов и ожиданий); `check` печатает `REVIEW_*` | `python lab/repo-review.py selftest` (8: семь классов + чистое дерево) |
 
 Правило, которое из этого следует и которое стоит в `e0100-run.sh`: helper, печатающий счётчики
 из нескольких тестов, обязан запускать `cargo test` с `--test-threads=1`; иначе первый `println!`

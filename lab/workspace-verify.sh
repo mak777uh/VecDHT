@@ -80,6 +80,15 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "LINT_SELFTEST_EXIT=$rc"; note $rc
   bash lab/runlib.sh --selftest 2>&1 | tail -3
   rc=${PIPESTATUS[0]}; echo "RUNLIB_SELFTEST_EXIT=$rc"; note $rc
+  # Самопроверка репозитория (слово владельца 2026-10-24): после каждого цикла — обход всего дерева
+  # на классы слабостей, которые уже случались, и числа в лог. Находки не валят сборку (это
+  # инвентарь, а не вердикт), но цикл обязан на них ответить до закрытия (`lab/PLAN.md` п. 8и).
+  echo "### repo-review selftest ### $(date +%FT%T%:z)"
+  python lab/repo-review.py selftest 2>&1 | tail -9
+  rc=${PIPESTATUS[0]}; echo "REVIEW_SELFTEST_EXIT=$rc"; note $rc
+  echo "### repo-review check ### $(date +%FT%T%:z)"
+  python lab/repo-review.py check 2>&1
+  rc=$?; echo "REVIEW_EXIT=$rc"; note $rc
   # Пороги самого свежего цикла: ключ, которого никто не печатает, — обещание, а не порог.
   python lab/threshold-lint.py --latest 2>&1 | tail -6
   rc=${PIPESTATUS[0]}; echo "LINT_LATEST_EXIT=$rc"; note $rc
