@@ -1,0 +1,31 @@
+PRE_FIX E-0104 — структурное отсутствие поверхности наблюдения
+База: e0856d5 (дерево до снимка). Снято 2026-10-25 до пре-регистрации.
+Команды и вывод (граница токена: grep по именам типа, а не по подстроке):
+
+$ git grep -n "NodeMetrics" e0856d5 -- crates | wc -l
+0
+
+$ git grep -n "NetMetrics" e0856d5 -- crates | wc -l
+0
+
+$ git ls-tree -r --name-only e0856d5 -- crates/vecdht-node/tests crates/vecdht-net/tests | grep -c c104
+0
+
+ДИАГНОЗ-1: `pub mod metrics` на базе НЕ равен нулю — 1 совпадение:
+e0856d5:crates/vecdht-embed/src/lib.rs:29:pub mod metrics;
+Это `vecdht-embed/src/metrics.rs` — функции качества офлайн-оценки (recall@k, DCG/nDCG,
+gain_percent, mean/median), а не наблюдение продукта: они считаются на машине, которая измеряет,
+и никуда не попадают. Приложение C ими не снимается. Поэтому PRE_FIX формулируется по именам
+типа (`NodeMetrics`/`NetMetrics`), а не по слову «metrics», иначе отсутствие поверхности
+выдавалось бы за наличие.
+
+Счётчики при этом существовали и были рассыпаны:
+e0856d5:crates/vecdht-node/src/admission.rs:315:    pub stats: Stats,
+e0856d5:crates/vecdht-net/src/service.rs:484:    pub fn door_refusals(&self) -> Vec<(&'static str, u64)> {
+
+Файлов `crates/vecdht-node/tests/c104_metrics_closed.rs` и
+`crates/vecdht-net/tests/c104_metrics_closed.rs` на базе нет: прибор на базе не исполняется
+(E0583 — файл теста не найден), поэтому PRE_FIX — отсутствие поверхности, а не красный тест.
+После правки поверхность и приборы появляются одним коммитом пре-регистрации; замер — на нём же.
+
+Ресурс на момент снятия: см. lab/logs/e0104-all.log, шаг 0.

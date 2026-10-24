@@ -485,6 +485,12 @@ impl NetService {
         self.door.refusals()
     }
 
+    /// Снимок наблюдения транспорта (`H-0104`, Приложение C). Отдельный метод, а не поле:
+    /// снимок не хранится и не устаревает — он читает счётчики в момент вызова.
+    pub fn metrics(&self) -> crate::metrics::NetMetrics {
+        crate::metrics::NetMetrics::of(self)
+    }
+
     /// Полное число отказов, записанных дверью. Нужен, чтобы проверить `сумма по именам == refusals`
     /// (гейт (3) цикла `E-0095`).
     pub fn door_refusal_total(&self) -> u64 {

@@ -31,6 +31,7 @@ pub mod codec;
 pub mod door;
 pub mod handshake;
 pub mod keys;
+pub mod metrics;
 pub mod provider_cache;
 pub mod service;
 

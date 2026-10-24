@@ -39,6 +39,7 @@ pub mod config;
 pub mod denylist;
 pub mod lease;
 pub mod membership;
+pub mod metrics;
 pub mod net;
 pub mod node;
 pub mod rendezvous;
