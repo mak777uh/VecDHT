@@ -129,7 +129,7 @@ fn corpus() -> Vec<Vec<u8>> {
     out.push(Publish { preprocessing_version: 0, cluster_id: 0, vec_q: [127i8; DIM], owner_ed25519: [0; 32], ttl_buckets: u16::MAX, published_bucket: 0, pow_bits: 0, pow_nonce: 0, intent_id: [0; 32], tlv: vec![] }.encode_signed(&sig));
     out.push(PublishAck { shard: 63, epoch: u64::MAX, seq: u64::MAX, slot: u32::MAX, next_pow_bits: 28, error_code: String::new(), retry_after_ms: u32::MAX }.encode_unsigned());
     out.push(Find { preprocessing_version: 3, query_vector: [-128i8; DIM], clusters: vec![0, 1023], top_k: 0, query_id: 0, requester_ed25519: [4; 32], tlv: vec![] }.encode_unsigned());
-    out.push(Find { preprocessing_version: u16::MAX, query_vector: [127i8; DIM], clusters: vec![], top_k: u16::MAX, query_id: u64::MAX, requester_ed25519: [4; 32], tlv: vec![(0x0002, vec![])] }.encode_signed(&sig));
+    out.push(Find { preprocessing_version: u16::MAX, query_vector: [127i8; DIM], clusters: vec![], top_k: u16::MAX, query_id: u64::MAX, requester_ed25519: [4; 32], tlv: vec![(0x0002, vec![2u8])] }.encode_signed(&sig));
     out.push(MatchResult { shard: 0, epoch: 0, query_id: 0, responder_ed25519: [5; 32], matches: vec![] }.encode_signed(&sig));
     out.push(MatchResult { shard: 63, epoch: 1, query_id: 2, responder_ed25519: [5; 32], matches: vec![Match { owner_ed25519: [1; 32], cluster_id: 80, d2: 0, slot: 3 }, Match { owner_ed25519: [2; 32], cluster_id: 81, d2: vecdht_wire::MAX_D2, slot: 4 }] }.encode_signed(&sig));
     out.push(IntentTextRequest { query_id: u64::MAX, target_ed25519: [6; 32], slot: u32::MAX, present: vec![7; 8] }.encode_unsigned());

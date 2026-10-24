@@ -138,9 +138,140 @@ pub trait Codec: Sized {
 pub type Tlv = Vec<(u16, Vec<u8>)>;
 
 fn write_tlv(w: &mut Writer, tlv: &Tlv) {
-    for (tag, value) in tlv {
+    // Канонический порядок тегов — возрастающий (§5.1 п. 4). Сортируем копию индексов, а не сам
+    // `Tlv`: вызывающий вправе держать пары в любом порядке, а `Writer::tlv` паникует на убывании
+    // (это правильно для ручной сериализации, но не для данных, собранных из конфигурации).
+    // Неизвестные теги сохраняются как есть: их порядок между собой уже задан вызывающим.
+    let mut order: Vec<usize> = (0..tlv.len()).collect();
+    order.sort_by_key(|&i| tlv[i].0);
+    for i in order {
+        let (tag, value) = &tlv[i];
         w.tlv(*tag, value);
     }
+}
+
+/// Атрибуты объявления записи (§5.5): класс, цена и направление.
+///
+/// Цена — `Option<u64>` без единицы; узел её декодирует, проверяет и выбрасывает, поэтому в
+/// индексе живут только класс и направление (один байт `slot_attr`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct IntentAttrs {
+    pub class: IntentClass,
+    pub price: Option<u64>,
+    pub dir: IntentDir,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum IntentClass {
+    #[default]
+    Free = 0,
+    Paid = 1,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum IntentDir {
+    #[default]
+    Unspecified = 0,
+    Buy = 1,
+    Sell = 2,
+}
+
+impl IntentClass {
+    fn from_byte(v: u8) -> Result<Self, DecodeError> {
+        match v {
+            0 => Ok(IntentClass::Free),
+            1 => Ok(IntentClass::Paid),
+            _ => Err(DecodeError::BadEnum { value: v as u64, what: "intent_class", offset: 0 }),
+        }
+    }
+
+    #[inline]
+    pub fn as_u8(self) -> u8 {
+        self as u8
+    }
+}
+
+impl IntentDir {
+    fn from_byte(v: u8) -> Result<Self, DecodeError> {
+        match v {
+            0 => Ok(IntentDir::Unspecified),
+            1 => Ok(IntentDir::Buy),
+            2 => Ok(IntentDir::Sell),
+            _ => Err(DecodeError::BadEnum { value: v as u64, what: "intent_dir", offset: 0 }),
+        }
+    }
+
+    #[inline]
+    pub fn as_u8(self) -> u8 {
+        self as u8
+    }
+}
+
+fn tlv_one_byte(tlv: &Tlv, tag: u16, what: &'static str) -> Result<Option<u8>, DecodeError> {
+    match tlv.iter().find(|(t, _)| *t == tag) {
+        None => Ok(None),
+        Some((_, v)) if v.len() == 1 => Ok(Some(v[0])),
+        Some(_) => Err(DecodeError::IntentAttr(what)),
+    }
+}
+
+impl IntentAttrs {
+    /// Разобрать TLV-хвост `Publish` по канонической форме §5.5.
+    ///
+    /// Явные `intent_class = 0` и `intent_dir = 0` не ошибка (они схлопываются в отсутствие тега
+    /// до проверки подписи), а вот `price` без класса, цена при `free` и `price = 0` при `paid` —
+    /// ошибка декода, а не «трактуем как free»: молчаливая трактовка превратила бы платное
+    /// объявление в бесплатное для того, кто обязан был отказать.
+    pub fn parse(tlv: &Tlv) -> Result<Self, DecodeError> {
+        let class_raw = tlv_one_byte(tlv, TLV_INTENT_CLASS, "intent_class length")?;
+        let dir_raw = tlv_one_byte(tlv, TLV_INTENT_DIR, "intent_dir length")?;
+        let class = match class_raw {
+            None => IntentClass::Free,
+            Some(v) => IntentClass::from_byte(v)?,
+        };
+        let dir = match dir_raw {
+            None => IntentDir::Unspecified,
+            Some(v) => IntentDir::from_byte(v)?,
+        };
+        let price = match tlv.iter().find(|(t, _)| *t == TLV_PRICE) {
+            None => None,
+            Some((_, v)) if v.len() == 8 => {
+                let mut b = [0u8; 8];
+                b.copy_from_slice(v);
+                Some(u64::from_le_bytes(b))
+            }
+            Some(_) => return Err(DecodeError::IntentAttr("price length")),
+        };
+        match (class_raw, class, price) {
+            (None, _, Some(_)) => Err(DecodeError::IntentAttr("price without intent_class")),
+            (_, IntentClass::Paid, None) => Err(DecodeError::IntentAttr("price missing for paid")),
+            (_, IntentClass::Paid, Some(0)) => Err(DecodeError::IntentAttr("price zero for paid")),
+            (_, IntentClass::Free, Some(_)) => Err(DecodeError::IntentAttr("price for free")),
+            _ => Ok(IntentAttrs { class, price, dir }),
+        }
+    }
+
+    /// Записать атрибуты в TLV, сохранив неизвестные вызывающему теги. Известные теги
+    /// пересобираются, поэтому вызвать дважды безопасно.
+    pub fn write_into(&self, tlv: &mut Tlv) {
+        tlv.retain(|(t, _)| {
+            !matches!(*t, TLV_INTENT_CLASS | TLV_PRICE | TLV_INTENT_DIR)
+        });
+        if self.class == IntentClass::Paid {
+            tlv.push((TLV_INTENT_CLASS, vec![1]));
+            tlv.push((TLV_PRICE, self.price.unwrap_or(0).to_le_bytes().to_vec()));
+        }
+        if self.dir != IntentDir::Unspecified {
+            tlv.push((TLV_INTENT_DIR, vec![self.dir.as_u8()]));
+        }
+        tlv.sort_by_key(|(t, _)| *t);
+    }
+}
+
+/// Убрать неканоничные нулевые теги ДО проверки подписи (§5.5 п. 1, §12.7): явный `0` в
+/// перечислении и отсутствие тега обязаны давать одни и те же подписанные байты.
+fn collapse_zero_tags(tlv: &mut Tlv, tags: &[u16]) {
+    tlv.retain(|(tag, v)| !(tags.contains(tag) && v.as_slice() == [0u8]));
 }
 
 // ---------------------------------------------------------------------------
@@ -236,6 +367,25 @@ pub struct Publish {
 /// Зарезервированный TLV-тег `role_slot` (спека §6.5: несколько интентов на агента — не активировано).
 pub const TLV_ROLE_SLOT: u16 = 0x0001;
 
+/// Атрибуты объявления в TLV-хвосте `Publish` (§5.5). `0x0001` занят `role_slot`.
+pub const TLV_INTENT_CLASS: u16 = 0x0002;
+pub const TLV_PRICE: u16 = 0x0003;
+pub const TLV_INTENT_DIR: u16 = 0x0004;
+
+impl Publish {
+    /// Атрибуты объявления (§5.5). Декод уже проверил каноническую форму, поэтому ошибка здесь
+    /// возможна только у структуры, собранной в обход `decode`/`set_intent`.
+    pub fn intent(&self) -> Result<IntentAttrs, DecodeError> {
+        IntentAttrs::parse(&self.tlv)
+    }
+
+    /// Записать атрибуты в TLV. `free` + `unspecified` не добавляет ни одного тега, то есть
+    /// интент без объявления остаётся байт-в-байт прежним.
+    pub fn set_intent(&mut self, attrs: IntentAttrs) {
+        attrs.write_into(&mut self.tlv);
+    }
+}
+
 impl Codec for Publish {
     const KIND: Kind = Kind::Publish;
     const DOMAIN: &'static [u8] = domain::PUBLISH;
@@ -270,7 +420,13 @@ impl Codec for Publish {
         let pow_bits = r.u8()?;
         let pow_nonce = r.u64()?;
         let intent_id = r.fixed()?;
-        let tlv = r.tlv_tail()?;
+        let mut tlv = r.tlv_tail()?;
+        // Схлопывание нулевых тегов — часть декода, а не проверки подписи: подпись считается по
+        // пересобранным canonical-байтам (§5.2), и обе записи обязаны дать одни и те же байты.
+        collapse_zero_tags(&mut tlv, &[TLV_INTENT_CLASS, TLV_INTENT_DIR]);
+        // Валидация канонической формы на входе: неканоничная запись отвергается здесь, а не
+        // выясняется при первом поиске с фильтром.
+        IntentAttrs::parse(&tlv)?;
         r.expect_end()?;
         Ok(Publish {
             preprocessing_version,
@@ -354,6 +510,111 @@ pub struct Find {
 
 pub const TLV_BATCH_HINT: u16 = 0x0001;
 
+/// Фильтры поиска в TLV-хвосте `Find` (§12.7). `0x0001` в namespace `Find` занят `batch_hint`.
+pub const TLV_CLASS_FILTER: u16 = 0x0002;
+pub const TLV_DIR_FILTER: u16 = 0x0003;
+
+/// Класс, который проситель хочет видеть. `Any` — поведение до §5.5.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum ClassFilter {
+    #[default]
+    Any = 0,
+    OnlyFree = 1,
+    OnlyPaid = 2,
+}
+
+/// Направление автора записи, которое проситель хочет видеть (§12.7: фильтр выбирает
+/// направление АВТОРА, а не своё). `Any` — поведение до §5.5.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum DirFilter {
+    #[default]
+    Any = 0,
+    Buy = 1,
+    Sell = 2,
+    Unspecified = 3,
+}
+
+impl ClassFilter {
+    fn from_byte(v: u8) -> Result<Self, DecodeError> {
+        match v {
+            0 => Ok(ClassFilter::Any),
+            1 => Ok(ClassFilter::OnlyFree),
+            2 => Ok(ClassFilter::OnlyPaid),
+            _ => Err(DecodeError::BadEnum { value: v as u64, what: "class_filter", offset: 0 }),
+        }
+    }
+
+    /// Предикат над битом `paid` записи. `Any` не смотрит на бит вовсе.
+    #[inline]
+    pub fn rejects(self, paid: bool) -> bool {
+        match self {
+            ClassFilter::Any => false,
+            ClassFilter::OnlyFree => paid,
+            ClassFilter::OnlyPaid => !paid,
+        }
+    }
+
+    #[inline]
+    pub fn as_u8(self) -> u8 {
+        self as u8
+    }
+}
+
+impl DirFilter {
+    fn from_byte(v: u8) -> Result<Self, DecodeError> {
+        match v {
+            0 => Ok(DirFilter::Any),
+            1 => Ok(DirFilter::Buy),
+            2 => Ok(DirFilter::Sell),
+            3 => Ok(DirFilter::Unspecified),
+            _ => Err(DecodeError::BadEnum { value: v as u64, what: "dir_filter", offset: 0 }),
+        }
+    }
+
+    /// `dir` — младшие два бита `slot_attr` (§5.5). `Any` не смотрит на бит вовсе.
+    #[inline]
+    pub fn rejects(self, dir_bits: u8) -> bool {
+        match self {
+            DirFilter::Any => false,
+            DirFilter::Buy => dir_bits != IntentDir::Buy.as_u8(),
+            DirFilter::Sell => dir_bits != IntentDir::Sell.as_u8(),
+            DirFilter::Unspecified => dir_bits != IntentDir::Unspecified.as_u8(),
+        }
+    }
+
+    #[inline]
+    pub fn as_u8(self) -> u8 {
+        self as u8
+    }
+}
+
+impl Find {
+    /// Разобрать фильтры §12.7. Отсутствие тега — `Any`; явный `0` до этого уже схлопнут декодом.
+    pub fn filters(&self) -> Result<(ClassFilter, DirFilter), DecodeError> {
+        let class = match tlv_one_byte(&self.tlv, TLV_CLASS_FILTER, "class_filter length")? {
+            None => ClassFilter::Any,
+            Some(v) => ClassFilter::from_byte(v)?,
+        };
+        let dir = match tlv_one_byte(&self.tlv, TLV_DIR_FILTER, "dir_filter length")? {
+            None => DirFilter::Any,
+            Some(v) => DirFilter::from_byte(v)?,
+        };
+        Ok((class, dir))
+    }
+
+    /// Записать фильтры в TLV, сохранив неизвестные теги. `Any` пишется как отсутствие тега.
+    pub fn set_filters(&mut self, class: ClassFilter, dir: DirFilter) {
+        self.tlv.retain(|(t, _)| !matches!(*t, TLV_CLASS_FILTER | TLV_DIR_FILTER));
+        if class != ClassFilter::Any {
+            self.tlv.push((TLV_CLASS_FILTER, vec![class.as_u8()]));
+        }
+        if dir != DirFilter::Any {
+            self.tlv.push((TLV_DIR_FILTER, vec![dir.as_u8()]));
+        }
+        self.tlv.sort_by_key(|(t, _)| *t);
+    }
+}
+
 impl Codec for Find {
     const KIND: Kind = Kind::Find;
     const DOMAIN: &'static [u8] = domain::FIND;
@@ -375,9 +636,9 @@ impl Codec for Find {
         let top_k = r.u16()?;
         let query_id = r.u64()?;
         let requester_ed25519 = r.fixed()?;
-        let tlv = r.tlv_tail()?;
-        r.expect_end()?;
-        Ok(Find {
+        let mut tlv = r.tlv_tail()?;
+        collapse_zero_tags(&mut tlv, &[TLV_CLASS_FILTER, TLV_DIR_FILTER]);
+        let find = Find {
             preprocessing_version,
             query_vector,
             clusters,
@@ -385,7 +646,10 @@ impl Codec for Find {
             query_id,
             requester_ed25519,
             tlv,
-        })
+        };
+        find.filters()?;
+        r.expect_end()?;
+        Ok(find)
     }
 }
 
