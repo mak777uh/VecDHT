@@ -56,6 +56,12 @@ DEFAULT_ROOT = os.path.dirname(HERE)
 MODELS_DIR = os.environ.get("LEAN_MODELS_DIR") or os.path.join(DEFAULT_ROOT, "lab", "lean", "VecDHT")
 ELAN = r"C:\Users\Admin\.elan\bin"
 MINGW = r"C:\Users\Admin\mingw64\bin"
+# Рабочая станция — Windows, и два пути выше описывают её. Прибор обязан заводиться и на Linux
+# (первый CI-прогон `formal.yml` запускает `bash lab/lean-check.sh` на ubuntu-24.04, где elan
+# ставится в `$HOME/.elan/bin`), поэтому в список кандидатов добавлен домашний путь: на Windows
+# `expanduser` даёт ровно тот же каталог, что и `ELAN`, а на Linux — единственный существующий.
+# Фильтр `os.path.isdir` ниже означает, что несуществующий кандидат просто не попадает в PATH.
+ELAN_CANDIDATES = (ELAN, MINGW, os.path.expanduser("~/.elan/bin"))
 # Дочерние процессы обязаны писать и читаться в UTF-8: у Windows консоль по умолчанию cp1251, и
 # первая же самопроверка прочитала «изменена после заморозки» как mojibake — дефект был отбит по
 # коду возврата, но не по своей причине, потому что причина не совпала со строкой поиска.
@@ -511,7 +517,7 @@ def main():
             stream.reconfigure(encoding="utf-8", errors="replace")
         except Exception:
             pass
-    for p in (ELAN, MINGW):
+    for p in ELAN_CANDIDATES:
         if os.path.isdir(p) and p not in os.environ.get("PATH", ""):
             os.environ["PATH"] = p + os.pathsep + os.environ.get("PATH", "")
     ap = argparse.ArgumentParser(description="страж формальных моделей Lean")

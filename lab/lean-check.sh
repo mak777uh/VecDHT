@@ -23,7 +23,14 @@
 #   bash lab/lean-check.sh selftest               # восемь посаженных дефектов + два контроля
 set -uo pipefail
 cd "$(dirname "$0")/.."
-export PATH="/c/Users/Admin/.elan/bin:/c/Users/Admin/mingw64/bin:$PATH"
+# Рабочая станция — Windows, и эти два каталога держат соответственно `lean` и линковщик. В CI
+# (ubuntu-24.04, работа `formal.yml`) их не существует, и добавлять их в PATH бессмысленно, но
+# безопасно; домашний элановский каталог добавляется только если он есть — так один и тот же скрипт
+# заводится на обеих платформах, не теряя локальную настройку.
+for p in "/c/Users/Admin/.elan/bin" "/c/Users/Admin/mingw64/bin" "$HOME/.elan/bin"; do
+  [ -d "$p" ] && PATH="$p:$PATH"
+done
+export PATH
 # Обратная совместимость: прежний вызов не имел подкоманды (`bash lab/lean-check.sh [--quiet]`),
 # а `workspace-verify.sh` зовёт именно так. Подкоманда подставляется, если первым аргументом идёт
 # флаг или аргументов нет вовсе.

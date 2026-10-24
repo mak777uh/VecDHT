@@ -85,16 +85,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Первый вариант этого шага скачивал publish-тарбал и вызывал `$KANI_BIN/cargo-kani` — работа
+      # покраснела на шаге установки. Причина измерена, а не угадана: тарбал
+      # `kani-0.68.0-x86_64-unknown-linux-gnu.tar.gz` (140 315 343 Б) распакуется в каталог
+      # `kani-0.68.0/` — без подстроки `linux` в пути, поэтому `-path "*kani-0.68.0*linux*"` не
+      # находил ничего, — и в его `bin/` лежат cbmc, goto-analyzer, goto-cc, goto-instrument,
+      # kani-compiler, kani-cov, kani-driver, kissat, но `cargo-kani` среди них нет: это драйвер из
+      # crate'а `kani-verifier` (0.68.0, не yanked), а не часть релизного архива. Ставим так же, как
+      # official контур `model-checking/kani-github-action`: `cargo install --locked --version` +
+      # `cargo-kani setup`, который и приносит компоненты. Коды возврата печатаются в
+      # `$GITHUB_STEP_SUMMARY`: журнал работы без прав администратора репозитория не читается
+      # (API отдаёт 403), поэтому единственный канал диагностики — то, что шага видно в сводке.
       - name: Установка Kani
         run: |
-          set -euo pipefail
-          curl -sSLo /tmp/kani.tar.gz \
-            "https://github.com/model-checking/kani/releases/download/kani-${KANI_VERSION}/kani-${KANI_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-          tar xzf /tmp/kani.tar.gz -C "$HOME"
-          KANI_BIN="$(find "$HOME" -maxdepth 3 -type d -name bin -path "*kani-${KANI_VERSION}*linux*" | head -1)"
-          test -n "$KANI_BIN"
-          echo "$KANI_BIN" >> "$GITHUB_PATH"
-          "$KANI_BIN/cargo-kani" --version | tee -a "$GITHUB_STEP_SUMMARY"
+          set -uo pipefail
+          S="$GITHUB_STEP_SUMMARY"
+          cargo install --locked --version "$KANI_VERSION" kani-verifier > /tmp/kani-install.log 2>&1
+          r=$?; echo "KANI_INSTALL_RC=$r" | tee -a "$S"
+          tail -5 /tmp/kani-install.log | tee -a "$S"
+          [ "$r" -eq 0 ] || exit 1
+          export PATH="$HOME/.cargo/bin:$PATH"
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          cargo-kani setup > /tmp/kani-setup.log 2>&1
+          r=$?; echo "KANI_SETUP_RC=$r" | tee -a "$S"
+          tail -8 /tmp/kani-setup.log | tee -a "$S"
+          [ "$r" -eq 0 ] || exit 1
+          cargo-kani --version 2>&1 | tee -a "$S"; echo "KANI_VERSION_RC=$?" | tee -a "$S"
 
       # Харнеси живут в продукте под `#[cfg(kani)]` (`crates/vecdht-node/src/admission.rs`), поэтому
       # обычная сборка и `cargo test` их не видят вовсе: эта работа — единственный способ узнать, что
@@ -116,12 +132,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Два измеренных факта против двух способов покраснеть, которые были в первой версии шага:
+      # у `elan-init.sh` нет опции `--default` (в `usage` — только `-y`, `--no-modify-path`,
+      # `--default-toolchain <toolchain>`; неизвестный аргумент скрипт отдаёт бинарю elan, и тот
+      # выходит с кодом 1), а запись в `$GITHUB_PATH` действует только для СЛЕДУЮЩИХ шагов, поэтому
+      # `lean --version` в том же шаге обращался к бинарю, которого ещё нет в PATH. Здесь тулчейн
+      # ставится отдельной командой, PATH дополняется на месте, и каждый код возврата печатается в
+      # сводку — журнал работы без администраторских прав не читается (API отдаёт 403).
       - name: Установка elan и замороженного тулчейна Lean
         run: |
-          set -euo pipefail
-          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y --default "$LEAN_TOOLCHAIN"
+          set -uo pipefail
+          S="$GITHUB_STEP_SUMMARY"
+          curl -sSfL https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -o /tmp/elan-init.sh
+          echo "ELAN_CURL_RC=$?" | tee -a "$S"
+          sh /tmp/elan-init.sh -y --no-modify-path > /tmp/elan-init.log 2>&1
+          r=$?; echo "ELAN_INIT_RC=$r" | tee -a "$S"; tail -4 /tmp/elan-init.log | tee -a "$S"
+          [ "$r" -eq 0 ] || exit 1
+          export PATH="$HOME/.elan/bin:$PATH"
           echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
-          lean --version | tee -a "$GITHUB_STEP_SUMMARY"
+          elan toolchain install "$LEAN_TOOLCHAIN" > /tmp/elan-tool.log 2>&1
+          r=$?; echo "ELAN_TOOLCHAIN_RC=$r" | tee -a "$S"; tail -6 /tmp/elan-tool.log | tee -a "$S"
+          [ "$r" -eq 0 ] || exit 1
+          elan default "$LEAN_TOOLCHAIN"
+          echo "ELAN_DEFAULT_RC=$?" | tee -a "$S"
+          lean --version | tee -a "$S"; echo "LEAN_VERSION_RC=$?" | tee -a "$S"
+          # Модели импортируют `Std`: в этом тулчейне он часть поставки (`lib/lean/Std.olean` на
+          # рабочей станции это проверено файлом), поэтому наличие модуля озвучивается прямо здесь —
+          # иначе красный круг на шаге приборов пришлось бы объяснять догадками. `python` в этом
+          # шаге ещё нет (алиас заводится следующим), поэтому проверка — shell'ом.
+          echo "LEAN_STD_FILES=$(ls "$HOME"/.elan/toolchains/*/lib/lean 2>/dev/null | grep -c '^Std')" | tee -a "$S"
 
       # Прибор зовёт `python` (на рабочей станции это единственный доступный алиас), в образах
       # Ubuntu есть только `python3`: симлинк нужен, чтобы один и тот же скрипт шёл и локально, и в CI.

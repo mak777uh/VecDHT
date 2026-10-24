@@ -105,12 +105,35 @@ run_to() { # $1=файл $2=метка; rest=команда
 
 VERUS_KEYS="VERUS_VERIFIED VERUS_ERRORS VERUS_STATUS"
 
+# Экстрактор ключей Verus. Замороженная таблица называет ключи `VERUS_VERIFIED/ERRORS/STATUS`, а
+# прибор печатает их одной строкой `VERUS_TOTAL verified=8 errors=0 files=1 status=OK` — имени
+# ключа в ней нет, и прежний `val` выдавал пустоту: сверка показала 6 расхождений при двух зелёных
+# прогонах (rc=0) и `repro=совпал` по двум пустым векторам, то есть воспроизводимость была
+# посчитана по молчанию. ДИАГНОЗ того же класса, что и ДИАГНОЗ-1 из `E-0088`: имена ключей обязано
+# проверять исполнением экстрактора до боевого прогона, а не памятью о формате вывода.
+# Пустое поле теперь отличается от числа словом `НЕВЫДЕЛЕНО`, и такое значение не может совпасть с
+# ожиданием молча.
+vfield() { # $1=файл $2=поле внутри строки VERUS_TOTAL
+  local v
+  v="$(grep 'VERUS_TOTAL' "$1" | tail -1 | tr ' ' '\n' | grep -E "^$2=" | head -1 | cut -d= -f2-)"
+  [ -n "$v" ] && echo "$v" || echo НЕВЫДЕЛЕНО
+}
+grab() { local f="$1" s="$2" k v; for k in $3; do
+  case "$k" in
+    VERUS_VERIFIED) v="$(vfield "$f" verified)" ;;
+    VERUS_ERRORS)   v="$(vfield "$f" errors)" ;;
+    VERUS_STATUS)   v="$(vfield "$f" status)" ;;
+    *)              v="$(val "$f" "$k")" ;;
+  esac
+  printf 'n%s_%s=%s\n' "$s" "$k" "$v"
+done; }
+
 # Шаг 1 — Verus на боевом дереве, дважды (гейт (8): вектор обязан совпасть).
 run_to "$V1" "ШАГ 1 Verus, прогон n=1" bash lab/verus-check.sh --quiet
 echo "verus_check_rc=$?" >> "$LOG"
 run_to "$V2" "ШАГ 2 Verus, прогон n=2" bash lab/verus-check.sh --quiet
 echo "verus_check2_rc=$?" >> "$LOG"
-grab() { local f="$1" s="$2" k; for k in $3; do printf 'n%s_%s=%s\n' "$s" "$k" "$(val "$f" "$k")"; done; }
+
 { echo "### ВЕКТОР ПОРОГОВ n=1 ###"; grab "$V1" 1 "$VERUS_KEYS"; echo "n1_const_match=$(val "$V1" CONST_MATCH)"; } >> "$LOG"
 { echo "### ВЕКТОР ПОРОГОВ n=2 ###"; grab "$V2" 2 "$VERUS_KEYS"; echo "n2_const_match=$(val "$V2" CONST_MATCH)"; } >> "$LOG"
 
