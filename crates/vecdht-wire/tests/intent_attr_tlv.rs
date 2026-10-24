@@ -14,8 +14,15 @@ use vecdht_wire::messages::{
     ClassFilter, Codec, DirFilter, Find, IntentAttrs, IntentClass, IntentDir, Publish,
 };
 
-fn publish_with(tlv: Vec<(u16, Vec<u8>)>) -> Publish {
-    Publish {
+/// Форма TLV-хвоста в таблицах теста: пары «тег, байты».
+///
+/// Отдельное имя, а не `Vec<(u16, Vec<u8>)>` в каждой сигнатуре: clippy `type_complexity`
+/// валит `-D warnings` на `Vec<(&str, Vec<(u16, Vec<u8>)>)>` (блок 3 `E-0100`). Это тот же
+/// класс, что и склейка счётчика: прибор был красным, а прежний `workspace-verify.sh` съедал
+/// `CLIPPY_EXIT=101` и возвращал 0.
+type TlvCases = Vec<(u16, Vec<u8>)>;
+
+fn publish_with(tlv: TlvCases) -> Publish {    Publish {
         preprocessing_version: 1,
         cluster_id: 7,
         vec_q: [0i8; DIM],
@@ -29,7 +36,7 @@ fn publish_with(tlv: Vec<(u16, Vec<u8>)>) -> Publish {
     }
 }
 
-fn find_with(tlv: Vec<(u16, Vec<u8>)>) -> Find {
+fn find_with(tlv: TlvCases) -> Find {
     Find {
         preprocessing_version: 1,
         query_vector: [0i8; DIM],
@@ -95,7 +102,7 @@ fn explicit_zero_tags_collapse_before_signature() {
 #[test]
 fn non_canonical_combinations_are_rejected() {
     let price = 500u64.to_le_bytes().to_vec();
-    let cases: Vec<(&str, Vec<(u16, Vec<u8>)>)> = vec![
+    let cases: Vec<(&str, TlvCases)> = vec![
         ("price without intent_class", vec![(0x0003, price.clone())]),
         ("price zero for paid", vec![(0x0002, vec![1]), (0x0003, 0u64.to_le_bytes().to_vec())]),
         ("price missing for paid", vec![(0x0002, vec![1])]),
