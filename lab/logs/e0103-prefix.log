@@ -1,0 +1,47 @@
+########## E-0103 PRE_FIX · 2026-10-24T23:26:33+03:00 · дерево be111f7 + временный патч ##########
+Патч: блок §7.3 (пересчёт по центроидам) заменён на 'let own_cluster = msg.cluster_id;' —
+поведение базового коммита, API with_centroids оставлен, чтобы прибор компилировался.
+   Compiling vecdht-node v0.1.0 (C:\Users\Admin\vecdht-work\vecdht\crates\vecdht-node)
+    Finished `release` profile [optimized] target(s) in 18.44s
+     Running tests\c103_cluster_reassign.rs (target\release\deps\c103_cluster_reassign-4363149b0824749c.exe)
+
+running 5 tests
+
+thread 'forged_cluster_id_does_not_choose_the_cell' (24008) panicked at crates\vecdht-node\tests\c103_cluster_reassign.rs:194:5:
+assertion `left == right` failed: ячейку выбрал заявленный cluster_id
+  left: Some(119)
+ right: Some(117)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'without_centroids_reuse_of_claim_is_observable' (13816) panicked at crates\vecdht-node\tests\c103_cluster_reassign.rs:255:5:
+assertion `left == right` failed: молчание здесь было бы дырой развёртывания
+  left: 0
+ right: 1
+## C103_HONEST_ENTRY_CELL=117 C103_HONEST_REASSIGNED=0 ##
+
+thread 'cross_shard_recompute_is_refused' (28096) panicked at crates\vecdht-node\tests\c103_cluster_reassign.rs:217:19:
+пересчёт в чужой шард обязан быть отказом
+test forged_cluster_id_does_not_choose_the_cell ... FAILED
+test without_centroids_reuse_of_claim_is_observable ... FAILED
+test cross_shard_recompute_is_refused ... FAILED
+test honest_assignment_is_not_a_reassignment ... ok
+## C103_ASSIGN_P50_US=60 C103_ASSIGN_BUDGET_US=300 C103_ASSIGN_P50_LE_300US=1 C103_PUBLISH_P50_WITH_US=1151 C103_PUBLISH_P50_WITHOUT_US=1076 ##
+
+thread 'assign_price_stays_inside_the_budget' (11720) panicked at crates\vecdht-node\tests\c103_cluster_reassign.rs:325:5:
+assertion `left == right` failed: ценовой цикл без артефакта обязан быть посчитан целиком
+  left: 0
+ right: 60
+test assign_price_stays_inside_the_budget ... FAILED
+
+failures:
+
+failures:
+    assign_price_stays_inside_the_budget
+    cross_shard_recompute_is_refused
+    forged_cluster_id_does_not_choose_the_cell
+    without_centroids_reuse_of_claim_is_observable
+
+test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+error: test failed, to rerun pass `-p vecdht-node --test c103_cluster_reassign`
+PRE_FIX_RC=101
