@@ -1,0 +1,95 @@
+########## E-0090 · 2026-10-24T22:06:12+03:00 · дерево d1dbb76 ##########
+### ШАГ 0 носитель ### 2026-10-24T22:06:12+03:00
+DISK_FREE_MB=22184 RAM_FREE_MB=13009 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 два прогона прибора ### 2026-10-24T22:06:15+03:00
+    Finished `release` profile [optimized] target(s) in 0.43s
+     Running tests\h0090_hubness.rs (target\release\deps\h0090_hubness-bb240c78041cccff.exe)
+
+running 1 test
+H0090_MEASURED=1 H0090_CORPUS=50000 H0090_QUERIES=1000 H0090_SAMPLE=5000 H0090_K=10 H0090_NPROBE=16 H0090_HUBS=10
+H0090_CORPUS_HASH=531c5c43f518e19e1477748b61807905f91061e97a25a515b8aa0b412fb8cfa9 H0090_QUERIES_HASH=5883a42f3fed54d215b2bc3201f6a6800ed1c73d1a0e68e6a2dd974c493fc663
+H0090_HUB_MEAN=10.0000 H0090_HUB_SKEW=1.9750 H0090_HUB_MAX=64 H0090_HUB_P99=37 H0090_HUB_ZERO=42 H0090_HUB_SAMPLE_SEC=1.81
+H0090_RECALL16=0.8303 H0090_TRUE10_IN_PROBE=0.8304 H0090_TRUTH_IN_PROBE=8304 H0090_TRUTH_TOTAL=10000 H0090_GEOMETRY_SEC=7.17
+H0090_HUB_IDS=[1565, 1054, 946, 101, 1510, 2827, 2338, 3493, 1181, 3400] H0090_HUB_OCC=[64, 62, 61, 57, 56, 56, 51, 51, 50, 50]
+H0090_ATTACK_EXACT_TOP1=0.0000 H0090_ATTACK_EXACT_TOP10=0.0090 H0090_ATTACK_IVF_TOP1=0.0000 H0090_ATTACK_IVF_TOP10=0.0000 H0090_ATTACK_TOP1_COUNT=0 H0090_ATTACK_TOP10_COUNT=0 H0090_TARGETED_IVF_TOP1=1.0000 H0090_TARGETED_COUNT=1000
+test hubness_and_blind_poisoning_on_the_real_corpus ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.45s
+
+H0090_MEASURED=1
+H0090_CORPUS=50000
+H0090_QUERIES=1000
+H0090_SAMPLE=5000
+H0090_K=10
+H0090_NPROBE=16
+H0090_HUBS=10
+H0090_HUB_SKEW_GE_1=1
+H0090_HUB_MAX_GE_50=1
+H0090_HUB_ZERO_GT_0=1
+H0090_RECALL16_IN_0829_0832=1
+H0090_PROBE_GAP_LE_002=1
+H0090_ATTACK_IVF_TOP1_LE_1PCT=1
+H0090_TARGETED_IVF_TOP1_EQ_1000=1
+H0090_EXIT=0
+H0090_RUNS=2
+DISK_GE_15000=1
+    Finished `release` profile [optimized] target(s) in 0.27s
+     Running tests\h0090_hubness.rs (target\release\deps\h0090_hubness-bb240c78041cccff.exe)
+
+running 1 test
+H0090_MEASURED=1 H0090_CORPUS=50000 H0090_QUERIES=1000 H0090_SAMPLE=5000 H0090_K=10 H0090_NPROBE=16 H0090_HUBS=10
+H0090_CORPUS_HASH=531c5c43f518e19e1477748b61807905f91061e97a25a515b8aa0b412fb8cfa9 H0090_QUERIES_HASH=5883a42f3fed54d215b2bc3201f6a6800ed1c73d1a0e68e6a2dd974c493fc663
+H0090_HUB_MEAN=10.0000 H0090_HUB_SKEW=1.9750 H0090_HUB_MAX=64 H0090_HUB_P99=37 H0090_HUB_ZERO=42 H0090_HUB_SAMPLE_SEC=1.73
+H0090_RECALL16=0.8303 H0090_TRUE10_IN_PROBE=0.8304 H0090_TRUTH_IN_PROBE=8304 H0090_TRUTH_TOTAL=10000 H0090_GEOMETRY_SEC=6.31
+H0090_HUB_IDS=[1565, 1054, 946, 101, 1510, 2827, 2338, 3493, 1181, 3400] H0090_HUB_OCC=[64, 62, 61, 57, 56, 56, 51, 51, 50, 50]
+H0090_ATTACK_EXACT_TOP1=0.0000 H0090_ATTACK_EXACT_TOP10=0.0090 H0090_ATTACK_IVF_TOP1=0.0000 H0090_ATTACK_IVF_TOP10=0.0000 H0090_ATTACK_TOP1_COUNT=0 H0090_ATTACK_TOP10_COUNT=0 H0090_TARGETED_IVF_TOP1=1.0000 H0090_TARGETED_COUNT=1000
+test hubness_and_blind_poisoning_on_the_real_corpus ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.54s
+
+H0090_MEASURED=1
+H0090_CORPUS=50000
+H0090_QUERIES=1000
+H0090_SAMPLE=5000
+H0090_K=10
+H0090_NPROBE=16
+H0090_HUBS=10
+H0090_HUB_SKEW_GE_1=1
+H0090_HUB_MAX_GE_50=1
+H0090_HUB_ZERO_GT_0=1
+H0090_RECALL16_IN_0829_0832=1
+H0090_PROBE_GAP_LE_002=1
+H0090_ATTACK_IVF_TOP1_LE_1PCT=1
+H0090_TARGETED_IVF_TOP1_EQ_1000=1
+H0090_EXIT=0
+H0090_RUNS=2
+DISK_GE_15000=1
+H0090_VECTOR_STABLE=1
+### ШАГ 2 gate/audit ### 2026-10-24T22:06:40+03:00
+ПРИОРАРТ H-0090: чужой код не читали, причина записана (259 зн.)
+ПРИОРАРТ H-0090: строк=2 классы=['бумага']
+LEAN H-0090: модель не сделана, рубрика обязательной не требует
+E-CARD E-0090: порог, окружение и команда названы
+  НАРУШЕНИЕ: L-0004: в targets нет H-0090 — запись читают не для этой гипотезы
+  НАРУШЕНИЕ: L-0005: в targets нет H-0090 — запись читают не для этой гипотезы
+CYCLE H-0090=FAIL нарушениий=2
+GATE_H0090_OK=0
+CYCLE H-0102=OK нарушениий=0
+КАРТОЧКА H-0102: под правилом, оформлена
+AUDIT карточек=5 исторических=0 под_правилом=5
+AUDIT_VIOLATIONS=0
+### ШАГ 3 полная верификация ### 2026-10-24T22:06:41+03:00
+VERIFY_EXIT=0
+### ШАГ 4 стража текста и сверка ### 2026-10-24T22:35:23+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+РАСХОЖДЕНИЕ: GATE_H0090_OK ждали «1», напечатано «0»
+ОЖИДАНИЙ=21 РАСХОЖДЕНИЙ=1
+СВЕРКА_EXIT=1
+WORST_RC=1
+
+### ПРОГОН 1 ОБЪЯВЛЕН НЕ-ЗАМЕРОМ (2026-10-24T22:36) ###
+ПРИЧИНА: GATE_H0090_OK=0 — у L-0004 и L-0005 в targets не было H-0090.
+Числа прибора стабильны (H0090_VECTOR_STABLE=1) и не пересматривались, ожидания и оракул не менялись.
+ИСПРАВЛЕНО: python lab/library.py use L-0004/L-0005 --target H-0090; gate вручную = OK 0 нарушений.
+ЗАМЕР: будет повторён замороженным helper-ом целиком (AGENTS.md п.11: гейт до helper-а).
