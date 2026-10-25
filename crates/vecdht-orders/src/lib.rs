@@ -761,6 +761,18 @@ impl Receipt {
         self.signature = Some(key.sign(&self.signing_bytes()).to_bytes());
     }
 
+    /// Проверка подписи квитанции по её ключу. Отделена от `validate`, потому что слой стыковки
+    /// цепочек (§V9.7) проверяет подпись над байтами, пришедшими внутри `PayoutClaim`, и не вправе
+    /// требовать живого заказа на входе: здесь нужен ровно один криптографический шаг.
+    pub fn verify(&self, verifier: &VerifyingKey) -> bool {
+        match &self.signature {
+            Some(bytes) => Signature::from_slice(bytes)
+                .map(|s| verifier.verify(&self.signing_bytes(), &s).is_ok())
+                .unwrap_or(false),
+            None => false,
+        }
+    }
+
     /// **Правило вывода вердикта** (§V9.5). Порядок значим: он определяет, какой код ошибки увидит
     /// наблюдатель, когда нарушено сразу несколько правил.
     ///
@@ -989,6 +1001,565 @@ pub fn check_escrow(order: &PaidOrder, state: &EscrowState, trusted: &[u64]) -> 
             Ok(())
         }
     }
+}
+
+// ---------------------------------------------------------------------------
+// Слой стыковки цепочек (§V9.7, проект `ADR-0064`): term_hash, binding, witness, claim
+// ---------------------------------------------------------------------------
+//
+// §V9.7 описывает интерфейс наблюдателя (`lookup`/`release`/`refund`), но перевод делает цепочка, и
+// ей нужен не вызов, а **артефакт**: подписанные байты, из которых по §V9.5/§V9.8 выводится
+// «выплата разрешена и кому». Здесь живут четыре подписанных объекта и один хеш-корень, который
+// связывает заказ с деньгами. Ни один из них не входит в `canonical_record` заказа (инвариант
+// аддитивности): `order_ref`, все 30 векторов и закрытые циклы `E-0111`/`E-0113` от их появления не
+// сдвинулись ни на байт — это проверяется прибором, а не обещанием.
+
+/// Префикс домена для `term_hash` — единственной связки заказа с деньгами.
+pub const DOMAIN_TERM: &[u8] = b"vecdht/paid_order_term/v1";
+/// Префикс домена для `VerifierBinding` (подпись издателя: «этот заказ оседлает этот верификатор»).
+pub const DOMAIN_BINDING: &[u8] = b"vecdht/paid_order_binding/v1";
+/// Префикс домена реестра цепочек (`ChainDescriptor` + его корень).
+pub const DOMAIN_CHAIN: &[u8] = b"vecdht/chain_registry/v1";
+/// Префикс домена для `EscrowWitness` (подпись наблюдателя о залоге).
+pub const DOMAIN_WITNESS: &[u8] = b"vecdht/escrow_witness/v1";
+/// Префикс домена для `PayoutClaim` (требование бенефициара, которое мост проверяет офлайн).
+pub const DOMAIN_CLAIM: &[u8] = b"vecdht/payout_claim/v1";
+
+impl Asset {
+    /// Ровно те байты, что поле 8 `canonical_record`: тег ветки, для `token` — `chain_id` и
+    /// `address`, затем терминатор `0x00`. Второй кодировки актива в протоколе нет намеренно:
+    /// `term_hash` включает эти байты как есть, поэтому актив в заказе и актив в связке с деньгами
+    /// не могут разойтись, не разошедшись с `order_ref`.
+    pub fn canonical_bytes(&self) -> Vec<u8> {
+        let mut w = Vec::new();
+        match self {
+            Asset::Native => w.push(0),
+            Asset::Token { chain_id, address } => {
+                w.push(1);
+                w.extend_from_slice(&chain_id.to_le_bytes());
+                w.extend_from_slice(address);
+            }
+        }
+        w.push(0x00);
+        w
+    }
+}
+
+/// `term_hash = sha256(DOMAIN_TERM ‖ 0x00 ‖ order_ref ‖ chain_id(8 LE) ‖ asset_bytes ‖
+/// beneficiary(32) ‖ amount(16 LE) ‖ u32le(len(escrow_ref)) ‖ escrow_ref)`.
+///
+/// Один хеш связывает всё, что нужно знать мосту: что заказано, на какой цепи, каким активом, кому,
+/// сколько и по какой ссылке залога. Он выводим из `(заказ, бенефициар)` — и издателем, и
+/// наблюдателем, и мостом считается одинаково, поэтому «ссылка на контракт денег» не является
+/// вторым, независимым идентификатором. `chain_id` для `native` равен 0 (§V9.2) и для `token`
+/// дублирует поле актива: это намеренно, потому что у моста есть число цепи, а форму актива он не
+/// разбирает.
+pub fn term_hash(order: &PaidOrder, beneficiary: &PubKey) -> Hash {
+    let mut v = Vec::new();
+    v.extend_from_slice(DOMAIN_TERM);
+    v.push(0x00);
+    v.extend_from_slice(&order.order_ref());
+    v.extend_from_slice(&order.reward.asset.chain_id().to_le_bytes());
+    v.extend_from_slice(&order.reward.asset.canonical_bytes());
+    v.extend_from_slice(beneficiary);
+    v.extend_from_slice(&order.reward.amount.to_le_bytes());
+    push_bytes(&mut v, &order.reward.escrow_ref);
+    sha256(&v)
+}
+
+/// Подпись издателя: «этот заказ оседлает вот этот верификатор». Закрывает дыру, из-за которой
+/// `E_RECEIPT_UNSIGNED` («verifier_pubkey не доверенный») висел над списком доверенных ключей,
+/// которого в протоколе нет: соответствие ключа квитанции ключу, которого ждал издатель, становится
+/// свойством подписанного артефакта, а не внешним мнением.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VerifierBinding {
+    pub order_ref: Hash,
+    pub verifier_pubkey: PubKey,
+    /// Дублирует поле 3 заказа для локальной сверки мостом, который читает заказ целиком.
+    pub image_digest: Hash,
+    pub term_hash: Hash,
+    /// Подпись издателя (ключ = поле 12 `canonical_record.publisher`) над `canonical_bytes()`.
+    pub signature: Option<Sig>,
+}
+
+impl VerifierBinding {
+    /// Байты под письмо: домен, затем поля в объявленном порядке, каждый с терминатором `0x00`,
+    /// кроме последнего.
+    pub fn canonical_bytes(&self) -> Vec<u8> {
+        let mut w = Vec::new();
+        w.extend_from_slice(DOMAIN_BINDING);
+        w.push(0x00);
+        w.extend_from_slice(&self.order_ref);
+        w.push(0x00);
+        w.extend_from_slice(&self.verifier_pubkey);
+        w.push(0x00);
+        w.extend_from_slice(&self.image_digest);
+        w.push(0x00);
+        w.extend_from_slice(&self.term_hash);
+        w
+    }
+
+    pub fn sign(&mut self, key: &SigningKey) {
+        self.signature = Some(key.sign(&self.canonical_bytes()).to_bytes());
+    }
+
+    pub fn verify(&self, publisher: &VerifyingKey) -> bool {
+        match &self.signature {
+            Some(bytes) => Signature::from_slice(bytes)
+                .map(|s| publisher.verify(&self.canonical_bytes(), &s).is_ok())
+                .unwrap_or(false),
+            None => false,
+        }
+    }
+
+    /// Собрать связку по заказу: `order_ref`, образ и `term_hash` берутся из самого заказа, поэтому
+    /// издатель не может написать в binding'е другую сумму или другую цепь, не создав новый заказ.
+    pub fn for_order(order: &PaidOrder, beneficiary: &PubKey, verifier_pubkey: &PubKey) -> Self {
+        Self {
+            order_ref: order.order_ref(),
+            verifier_pubkey: *verifier_pubkey,
+            image_digest: order.verifier.image_digest,
+            term_hash: term_hash(order, beneficiary),
+            signature: None,
+        }
+    }
+}
+
+/// Описатель одной цепи. Реестр — **данные, а не код**: добавление цепочки не имеет права делать
+/// недействительными уже опубликованные заказы, поэтому заказ и свидетельство пинят корень реестра,
+/// а не вопрос «разрешён ли chain_id».
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChainDescriptor {
+    pub chain_id: u64,
+    /// Печатный ASCII: реестр читают стороны, которым нечего сказать о кодировке имён.
+    pub name: String,
+    /// Что мост знает о параметрах разблокировки конкретной цепи. Неизвестный `bridge_code` — это
+    /// не девятнадцатый код, а `E_UNSUPPORTED_ASSET` на уровне актива (актив не выражен формой из
+    /// описателя).
+    pub bridge_code: u16,
+    /// Тег актива, в котором цепь принимает залог (`0` = native, `1` = token, как поле 8 §V9.2).
+    pub settle_asset_tag: u8,
+    /// Минимальная осмысленная величина залога на этой цепи, в минимальных единицах актива.
+    pub min_amount: u128,
+    pub note: String,
+}
+
+impl ChainDescriptor {
+    /// Байты описателя: домен, тег записи `0`, затем поля в объявленном порядке (целые — LE, строки
+    /// — `u32le` длина ‖ UTF-8), разделители `0x00` между полями.
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>, OrderError> {
+        if !printable_ascii(&self.name) {
+            return Err(OrderError::new(
+                ErrorCode::E_ORDER_MALFORMED,
+                "имя цепи вне печатного ASCII",
+                Some(self.name.clone()),
+            ));
+        }
+        if !printable_ascii(&self.note) {
+            return Err(OrderError::new(
+                ErrorCode::E_ORDER_MALFORMED,
+                "заметка о цепи вне печатного ASCII",
+                None,
+            ));
+        }
+        if self.settle_asset_tag > 1 {
+            return Err(OrderError::new(
+                ErrorCode::E_UNSUPPORTED_ASSET,
+                "описатель называет актив вне двух форм §V9.2",
+                Some(self.settle_asset_tag.to_string()),
+            ));
+        }
+        let mut w = Vec::new();
+        w.extend_from_slice(DOMAIN_CHAIN);
+        w.push(0x00);
+        w.push(0);
+        w.push(0x00);
+        w.extend_from_slice(&self.chain_id.to_le_bytes());
+        w.push(0x00);
+        push_string(&mut w, &self.name);
+        w.push(0x00);
+        w.extend_from_slice(&self.bridge_code.to_le_bytes());
+        w.push(0x00);
+        w.push(self.settle_asset_tag);
+        w.push(0x00);
+        w.extend_from_slice(&self.min_amount.to_le_bytes());
+        w.push(0x00);
+        push_string(&mut w, &self.note);
+        Ok(w)
+    }
+}
+
+/// Корень реестра цепочек — та же детерминированная сборка, что §V9.4 для множества файлов: листья
+/// `sha256(DOMAIN_CHAIN ‖ 0x00 ‖ descriptor_bytes)`, сортировка по байтовому порядку, корень
+/// `sha256(DOMAIN_CHAIN ‖ 0x01 ‖ concat(leaves))`.
+///
+/// Пустой реестр имеет корень (`sha256(DOMAIN_CHAIN ‖ 0x01)`), а не ошибку: «цепочек ещё не
+/// зарегистрировано» — легальное состояние, в котором выплата просто не проходит по
+/// `E_ESCROW_UNKNOWN` (fail closed, как `DEFAULT_TRUSTED_CHAINS = []`). Дубликат `chain_id` — ошибка
+/// структуры, а не «последний победил»: два описателя одной цепи означают, что корень не описывает
+/// ни одну из них однозначно.
+pub fn registry_root(descriptors: &[ChainDescriptor]) -> Result<Hash, OrderError> {
+    let mut leaves: Vec<Hash> = Vec::with_capacity(descriptors.len());
+    let mut seen: Vec<u64> = Vec::with_capacity(descriptors.len());
+    for d in descriptors {
+        if seen.contains(&d.chain_id) {
+            return Err(OrderError::new(
+                ErrorCode::E_ORDER_MALFORMED,
+                "в реестре две записи об одной цепи",
+                Some(d.chain_id.to_string()),
+            ));
+        }
+        seen.push(d.chain_id);
+        leaves.push(sha256_chain(&[DOMAIN_CHAIN, &[0x00], &d.canonical_bytes()?]));
+    }
+    leaves.sort_unstable();
+    let mut concat: Vec<u8> = Vec::with_capacity(1 + leaves.len() * 32);
+    concat.extend_from_slice(DOMAIN_CHAIN);
+    concat.push(0x01);
+    for l in &leaves {
+        concat.extend_from_slice(l);
+    }
+    Ok(sha256(&concat))
+}
+
+/// Серийно выводимое отражение `EscrowState` + результата `check_escrow`. Наблюдатель подписывает
+/// только залог — о вердикте свидетельствует квитанция.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EscrowWitness {
+    pub term_hash: Hash,
+    pub chain_id: u64,
+    /// Те же четыре состояния, что у `EscrowStatus` (§V9.7), пятого нет: `0` not_funded, `1` locked,
+    /// `2` released, `3` refunded.
+    pub status: u8,
+    /// Сколько реально залочено, в минимальных единицах актива.
+    pub amount_on_chain: u128,
+    /// Непрозрачная метка высоты/хеша блока цепочки — для аудита, протокол её не исполняет.
+    pub block_ref: Vec<u8>,
+    pub registry_root: Hash,
+    pub observer_pubkey: PubKey,
+    pub signature: Option<Sig>,
+}
+
+impl EscrowWitness {
+    pub fn canonical_bytes(&self) -> Vec<u8> {
+        let mut w = Vec::new();
+        w.extend_from_slice(DOMAIN_WITNESS);
+        w.push(0x00);
+        w.extend_from_slice(&self.term_hash);
+        w.push(0x00);
+        w.extend_from_slice(&self.chain_id.to_le_bytes());
+        w.push(0x00);
+        w.push(self.status);
+        w.push(0x00);
+        w.extend_from_slice(&self.amount_on_chain.to_le_bytes());
+        w.push(0x00);
+        push_bytes(&mut w, &self.block_ref);
+        w.push(0x00);
+        w.extend_from_slice(&self.registry_root);
+        w.push(0x00);
+        w.extend_from_slice(&self.observer_pubkey);
+        w
+    }
+
+    pub fn sign(&mut self, key: &SigningKey) {
+        self.signature = Some(key.sign(&self.canonical_bytes()).to_bytes());
+    }
+
+    pub fn verify(&self, observer: &VerifyingKey) -> bool {
+        match &self.signature {
+            Some(bytes) => Signature::from_slice(bytes)
+                .map(|s| observer.verify(&self.canonical_bytes(), &s).is_ok())
+                .unwrap_or(false),
+            None => false,
+        }
+    }
+
+    /// Разбор тега состояния. Чужой тег — не пятое состояние, а нарушение структуры записи.
+    pub fn status(&self) -> Result<EscrowStatus, OrderError> {
+        match self.status {
+            0 => Ok(EscrowStatus::NotFunded),
+            1 => Ok(EscrowStatus::Locked),
+            2 => Ok(EscrowStatus::Released),
+            3 => Ok(EscrowStatus::Refunded),
+            other => Err(OrderError::new(
+                ErrorCode::E_ORDER_MALFORMED,
+                "неизвестный тег состояния залога",
+                Some(other.to_string()),
+            )),
+        }
+    }
+
+    /// Свидетельство о том, что наблюдатель уже проверил: то же состояние и та же величина, что он
+    /// нашёл, плюс корень реестра, против которого она осмысленна.
+    pub fn for_state(order: &PaidOrder, beneficiary: &PubKey, state: &EscrowState, observer_pubkey: &PubKey, registry_root: Hash, block_ref: &[u8]) -> Self {
+        Self {
+            term_hash: term_hash(order, beneficiary),
+            chain_id: state.chain_id,
+            status: match state.status {
+                EscrowStatus::NotFunded => 0,
+                EscrowStatus::Locked => 1,
+                EscrowStatus::Released => 2,
+                EscrowStatus::Refunded => 3,
+            },
+            amount_on_chain: state.amount,
+            block_ref: block_ref.to_vec(),
+            registry_root,
+            observer_pubkey: *observer_pubkey,
+            signature: None,
+        }
+    }
+}
+
+/// Требование бенефициара: единственный объект, который сторонний мост проверяет офлайн. Квитанция,
+/// binding и свидетельство встроены целиком (байты + подписи), потому что решение обязано выводиться
+/// из самих байтов, а не из обращения к узлу.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PayoutClaim {
+    pub term_hash: Hash,
+    pub order_ref: Hash,
+    pub receipt: Receipt,
+    pub binding: VerifierBinding,
+    pub witness: EscrowWitness,
+    /// Ключ принятого исполнителя: он же `submission.submitter`, он же получатель `release`.
+    pub beneficiary: PubKey,
+    pub signature: Option<Sig>,
+}
+
+/// Встраиваемый объект: `u32le(len(body)) ‖ body ‖ 0x00 ‖ подпись (64 байта)`.
+fn push_embedded(w: &mut Vec<u8>, body: &[u8], sig: &Sig) {
+    push_bytes(w, body);
+    w.push(0x00);
+    w.extend_from_slice(sig);
+}
+
+impl PayoutClaim {
+    /// Байты под письмо. Порядок полей — тот же, что в объявлении записи, то есть в описании слоя.
+    /// Подписи встроенных объектов входят в байты: требование цитирует решения, а не пересказывает
+    /// их хешами, иначе сторонний читатель не сможет проверить ни одну из трёх подписей.
+    pub fn canonical_bytes(&self) -> Result<Vec<u8>, OrderError> {
+        let json = self.receipt.canonical_json()?;
+        let mut w = Vec::new();
+        w.extend_from_slice(DOMAIN_CLAIM);
+        w.push(0x00);
+        w.extend_from_slice(&self.term_hash);
+        w.push(0x00);
+        w.extend_from_slice(&self.order_ref);
+        w.push(0x00);
+        push_embedded(&mut w, &json, self.receipt.signature.as_ref().ok_or_else(|| {
+            OrderError::new(ErrorCode::E_RECEIPT_UNSIGNED, "квитанция в требовании без подписи", None)
+        })?);
+        w.push(0x00);
+        push_embedded(&mut w, &self.binding.canonical_bytes(), self.binding.signature.as_ref().ok_or_else(|| {
+            OrderError::new(ErrorCode::E_RECEIPT_INVALID, "связка верификатора в требовании без подписи", None)
+        })?);
+        w.push(0x00);
+        push_embedded(&mut w, &self.witness.canonical_bytes(), self.witness.signature.as_ref().ok_or_else(|| {
+            OrderError::new(ErrorCode::E_ESCROW_UNKNOWN, "свидетельство о залоге в требовании без подписи", None)
+        })?);
+        w.push(0x00);
+        w.extend_from_slice(&self.beneficiary);
+        Ok(w)
+    }
+
+    /// Подпись требования. Возвращает ошибку, если байты не собрались: подпись над пустотой
+    /// создала бы требование, чья подпись ничего не покрывает, — а этот объект как раз и обязан
+    /// быть тем, что мост проверяет офлайн. Остальные `sign` (`PaidOrder`, `Submission`, `Receipt`)
+    /// не могут провалиться, поэтому и не возвращают `Result`.
+    pub fn sign(&mut self, key: &SigningKey) -> Result<(), OrderError> {
+        let body = self.canonical_bytes()?;
+        self.signature = Some(key.sign(&body).to_bytes());
+        Ok(())
+    }
+
+    pub fn verify(&self, beneficiary: &VerifyingKey) -> bool {
+        match (&self.signature, self.canonical_bytes()) {
+            (Some(bytes), Ok(body)) => Signature::from_slice(bytes)
+                .map(|s| beneficiary.verify(&body, &s).is_ok())
+                .unwrap_or(false),
+            _ => false,
+        }
+    }
+
+    /// Собрать требование из трёх подписанных объектов. `order` здесь не участвует: всё, что нужно
+    /// мосту, уже зафиксировано в байтах связки.
+    pub fn assemble(order: &PaidOrder, submission: &Submission, receipt: Receipt, binding: VerifierBinding, witness: EscrowWitness) -> Self {
+        let beneficiary = submission.submitter;
+        Self {
+            term_hash: term_hash(order, &beneficiary),
+            order_ref: order.order_ref(),
+            receipt,
+            binding,
+            witness,
+            beneficiary,
+            signature: None,
+        }
+    }
+}
+
+/// Что мост считает «доверенным»: набор цепей, набор ключей наблюдателей, множество корней реестра.
+/// Три списка пусты по умолчанию — это не незавершённость, а fail closed: пустой набор даёт отказ по
+/// существующему коду, а не «протокол сломан».
+#[derive(Debug, Clone, Copy)]
+pub struct BridgeTrust<'a> {
+    pub chains: &'a [u64],
+    pub observers: &'a [PubKey],
+    pub registries: &'a [Hash],
+}
+
+/// Пустой по умолчанию снимок доверия — как `DEFAULT_TRUSTED_CHAINS = []`.
+pub const NO_TRUST: BridgeTrust<'static> = BridgeTrust { chains: &[], observers: &[], registries: &[] };
+
+impl<'a> BridgeTrust<'a> {
+    pub fn none() -> Self {
+        NO_TRUST
+    }
+}
+
+/// **Чистая функция вывода выплаты** — то, ради чего слой существует. Ни один шаг не обращается к
+/// узлу VecDHT: любой, у кого есть эти байты, пересчитывает решение. Порядок значим ровно так же,
+/// как у `check_submission` и `Receipt::derive`: при двух нарушениях сторонний читатель обязан
+/// получить тот же код, что и мы.
+///
+/// 0. подпись бенефициара над байтами требования, совпадение `order_ref` и ключа получателя с
+///    подачей, читаемость встроенных объектов → иначе `E_ORDER_MALFORMED` (отсутствие подписи у
+///    своей записи — структурное правило, как в §V9.4);
+/// 1. `term_hash` пересчитан из (заказ, бенефициар) и равен напечатанному → `E_HASH_MISMATCH`;
+/// 2. вердикт квитанции выводится из её полей (§V9.5), равен напечатанному и есть `pass` →
+///    `E_VERDICT_MISMATCH` (или код, который называет сам вывод);
+/// 3. ключ квитанции = ключ, которого ждал издатель, и подпись квитанции проходит →
+///    `E_RECEIPT_UNSIGNED`;
+/// 4. связка подписана издателем заказа и относится к этому заказу и образу → `E_RECEIPT_INVALID`;
+/// 5. свидетельство подписано доверенным наблюдателем, пинит доверенный корень реестра и говорит о
+///    залоге, достаточном на известной цепи → `E_ESCROW_UNKNOWN` / `E_ESCROW_INSUFFICIENT` /
+///    `E_UNSUPPORTED_ASSET` / `E_REPLAY`; всё, что не удалось засвидетельствовать про залог,
+///    называется `E_ESCROW_UNKNOWN`, потому что квитанция при этом остаётся годной;
+/// 6. `now ≤ deadline + PAYBACK_WINDOW_SECONDS` и подача не позже срока → `E_DEADLINE_PASSED`.
+pub fn check_payout_claim(
+    claim: &PayoutClaim,
+    order: &PaidOrder,
+    submission: &Submission,
+    trust: &BridgeTrust<'_>,
+    now: u64,
+) -> Result<(), OrderError> {
+    let malformed = |why: &'static str, detail: Option<String>| OrderError::new(ErrorCode::E_ORDER_MALFORMED, why, detail);
+    // (0) Требование обязано быть подписано тем, кому оно платит. Канонические байты при этом
+    // обязаны собираться: встроенный объект без подписи не цитирует ничьё решение, и требование,
+    // которое не кодируется, не может быть и исполнено.
+    let claim_bytes = claim.canonical_bytes().map_err(|e| match e.code {
+        ErrorCode::E_RECEIPT_UNSIGNED | ErrorCode::E_RECEIPT_INVALID | ErrorCode::E_ESCROW_UNKNOWN => e,
+        other => malformed("требование не кодируется: встроенный объект нарушает форму", Some(other.as_str().to_string())),
+    })?;
+    let sig = match &claim.signature {
+        Some(s) => *s,
+        None => return Err(malformed("требование без подписи бенефициара", None)),
+    };
+    let beneficiary = VerifyingKey::from_bytes(&claim.beneficiary).map_err(|_| malformed("ключ бенефициара не является Ed25519", None))?;
+    let ok = Signature::from_slice(&sig)
+        .map(|s| beneficiary.verify(&claim_bytes, &s).is_ok())
+        .unwrap_or(false);
+    if !ok {
+        return Err(malformed("подпись требования не проходит по его байтам", None));
+    }
+    if claim.order_ref != order.order_ref() {
+        return Err(malformed("требование ссылается на другой заказ", None));
+    }
+    if claim.beneficiary != submission.submitter {
+        return Err(malformed("получатель требования не равен подавшему", None));
+    }
+    // (1) Связка заказа с деньгами пересчитывается, а не принимается на веру.
+    let want = term_hash(order, &claim.beneficiary);
+    if claim.term_hash != want {
+        return Err(OrderError::new(ErrorCode::E_HASH_MISMATCH, "term_hash не совпал с пересчитанным", None));
+    }
+    // (2) Квитанция остаётся единственным источником вердикта.
+    let derived = claim.receipt.derive(order)?;
+    if derived != claim.receipt.verdict {
+        return Err(OrderError::new(
+            ErrorCode::E_VERDICT_MISMATCH,
+            "выведенный вердикт не равен напечатанному в квитанции",
+            Some(format!("{} != {}", derived.as_str(), claim.receipt.verdict.as_str())),
+        ));
+    }
+    if derived != Verdict::Pass {
+        return Err(OrderError::new(
+            ErrorCode::E_VERDICT_MISMATCH,
+            "выплата разрешена только по pass",
+            Some(derived.as_str().to_string()),
+        ));
+    }
+    if claim.receipt.order_ref != claim.order_ref || claim.receipt.submission_ref != submission.submission_ref() {
+        return Err(OrderError::new(ErrorCode::E_RECEIPT_INVALID, "квитанция в требовании ссылается на другой заказ или подачу", None));
+    }
+    // (3) Чей ключ оседлал заказ — решает издатель, а не список доверенных.
+    if claim.receipt.verifier_pubkey != claim.binding.verifier_pubkey {
+        return Err(OrderError::new(
+            ErrorCode::E_RECEIPT_UNSIGNED,
+            "квитанция подписана не тем ключом, которого ждал издатель",
+            None,
+        ));
+    }
+    let verifier = VerifyingKey::from_bytes(&claim.receipt.verifier_pubkey)
+        .map_err(|_| OrderError::new(ErrorCode::E_RECEIPT_UNSIGNED, "ключ верификатора не является Ed25519", None))?;
+    if !claim.receipt.verify(&verifier) {
+        return Err(OrderError::new(ErrorCode::E_RECEIPT_UNSIGNED, "подпись квитанции не проходит", None));
+    }
+    // (4) Связка обязана быть подписанной именно издателем этого заказа.
+    let publisher = VerifyingKey::from_bytes(&order.publisher)
+        .map_err(|_| OrderError::new(ErrorCode::E_RECEIPT_INVALID, "ключ издателя не является Ed25519", None))?;
+    if claim.binding.order_ref != claim.order_ref || claim.binding.term_hash != want {
+        return Err(OrderError::new(ErrorCode::E_RECEIPT_INVALID, "связка относится к другому заказу или контракту", None));
+    }
+    if claim.binding.image_digest != order.verifier.image_digest {
+        return Err(OrderError::new(ErrorCode::E_RECEIPT_INVALID, "связка называет другой образ", None));
+    }
+    if !claim.binding.verify(&publisher) {
+        return Err(OrderError::new(ErrorCode::E_RECEIPT_INVALID, "связка не подписана издателем заказа", None));
+    }
+    // (5) Залог: свидетельствует доверенный наблюдатель, распорядился реестр, считает цепь.
+    // Все четыре отказа свидетельства залога идут в один код `E_ESCROW_UNKNOWN`: квитанция при этом
+    // остаётся годной, и называть её неподписанной было бы неправдой — неправдопособна именно
+    // гарантия залога. Так же решает печатный шаг (5) носителя `docs/PAID_PAYOUT-VECTORS.md`.
+    if !trust.observers.contains(&claim.witness.observer_pubkey) {
+        return Err(OrderError::new(ErrorCode::E_ESCROW_UNKNOWN, "наблюдатель не входит в доверенный набор", None));
+    }
+    if claim.witness.term_hash != want {
+        return Err(OrderError::new(ErrorCode::E_ESCROW_UNKNOWN, "свидетельство выдано не про этот контракт", None));
+    }
+    let observer = VerifyingKey::from_bytes(&claim.witness.observer_pubkey)
+        .map_err(|_| OrderError::new(ErrorCode::E_ESCROW_UNKNOWN, "ключ наблюдателя не является Ed25519", None))?;
+    if !claim.witness.verify(&observer) {
+        return Err(OrderError::new(ErrorCode::E_ESCROW_UNKNOWN, "подпись свидетельства не проходит", None));
+    }
+    if !trust.registries.contains(&claim.witness.registry_root) {
+        return Err(OrderError::new(ErrorCode::E_ESCROW_UNKNOWN, "корень реестра цепочек не доверен", None));
+    }
+    let status = claim.witness.status()?;
+    let state = EscrowState {
+        chain_id: claim.witness.chain_id,
+        asset: order.reward.asset.clone(),
+        amount: claim.witness.amount_on_chain,
+        status,
+    };
+    // Судья тот же, что у §V9.7: `check_escrow` сохраняет порядок проверок и коды. Отличие от
+    // вызова наблюдателя одно — состояние берётся из подписанного свидетельства, а не из живого
+    // запроса к цепи, поэтому функция остаётся чистой.
+    check_escrow(order, &state, trust.chains)?;
+    // (6) Часы. Требование, пришедшее после окна, не исполняется, и это не ошибка формы.
+    if submission.created_at > order.deadline {
+        return Err(OrderError::new(
+            ErrorCode::E_DEADLINE_PASSED,
+            "подача позже срока заказа",
+            Some(format!("{}, срок {}", submission.created_at, order.deadline)),
+        ));
+    }
+    if now > order.deadline.saturating_add(PAYBACK_WINDOW_SECONDS) {
+        return Err(OrderError::new(
+            ErrorCode::E_DEADLINE_PASSED,
+            "требование после окна выплаты",
+            Some(format!("{}, окно {}", now, order.deadline + PAYBACK_WINDOW_SECONDS)),
+        ));
+    }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -1276,6 +1847,12 @@ pub fn keypair(seed: u8) -> (SigningKey, VerifyingKey) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Байтовый шаблон `[v; 32]` — чтобы подмена хеша в тестах читалась как «здесь другой хеш»,
+    /// а не как шестнадцатеричная строка, которую надо сверять глазами.
+    fn pattern(v: u8) -> Hash {
+        [v; 32]
+    }
 
     fn order() -> PaidOrder {
         let (sk, vk) = keypair(1);
@@ -1580,6 +2157,329 @@ mod tests {
         let mut wrong_chain = locked.clone();
         wrong_chain.chain_id = 1;
         assert_eq!(check_escrow(&o, &wrong_chain, &[8453]).unwrap_err().code, ErrorCode::E_ESCROW_UNKNOWN);
+    }
+
+    // ---- слой стыковки цепочек (§V9.7, ADR-0064) ------------------------------------
+
+    /// Реестр из двух цепей: native (0) и токен на 8453. `min_amount` не участвует в решении моста
+    /// в этом тесте — он участвует в том, какой заказ вообще стоит публиковать. `name` и `note` —
+    /// печатный ASCII: то же правило, что у `toolchain` квитанции (§V9.5), потому что эти строки
+    /// входят в листья реестра, а значит и в `registry_root`, который пересчитывает сторонний мост.
+    fn registry() -> Vec<ChainDescriptor> {
+        vec![
+            ChainDescriptor {
+                chain_id: 0,
+                name: "vecdht-native".to_string(),
+                bridge_code: 1,
+                settle_asset_tag: 0,
+                min_amount: 1_000,
+                note: "protocol native".to_string(),
+            },
+            ChainDescriptor {
+                chain_id: 8453,
+                name: "base".to_string(),
+                bridge_code: 2,
+                settle_asset_tag: 1,
+                min_amount: 10_000,
+                note: "EVM-like, secp256k1".to_string(),
+            },
+        ]
+    }
+
+    /// Заказ с токеном на 8453: именно на таких цепях мост не может проверить Ed25519, и тем не
+    /// менее выплата обязана выводиться из байтов.
+    fn token_order() -> PaidOrder {
+        let (sk, _) = keypair(1);
+        let mut o = order();
+        o.reward.asset = Asset::Token { chain_id: 8453, address: [0x11; 20] };
+        o.reward.escrow_ref = b"base:0x1111111111111111111111111111111111111111".to_vec();
+        o.sign(&sk);
+        o
+    }
+
+    /// Полная связка: binding издателя + witness наблюдателя + claim бенефициара.
+    fn make_claim(order: &PaidOrder, sub: &Submission, registry_root: &Hash) -> PayoutClaim {
+        let (ver_sk, ver_vk) = keypair(3);
+        let (obs_sk, obs_vk) = keypair(5);
+        let (pub_sk, _) = keypair(1);
+        let (ben_sk, _) = keypair(2);
+        let mut receipt = Receipt {
+            order_ref: order.order_ref(),
+            submission_ref: sub.submission_ref(),
+            verdict: Verdict::Pass,
+            image_digest: order.verifier.image_digest,
+            toolchain: "leanprover/lean4:v4.9.1".to_string(),
+            axioms: vec!["propext".to_string()],
+            wall_clock_ms: 41_000,
+            budget_ms: u64::from(order.verifier.budget_seconds) * 1_000,
+            exit_code: 0,
+            stdout_sha256: sha256(b"stdout"),
+            stderr_sha256: sha256(b"stderr"),
+            deterministic: true,
+            verifier_pubkey: *ver_vk.as_bytes(),
+            signature: None,
+        };
+        receipt.sign(&ver_sk);
+        let mut binding = VerifierBinding::for_order(order, &sub.submitter, ver_vk.as_bytes());
+        binding.sign(&pub_sk);
+        let state = EscrowState {
+            chain_id: order.reward.asset.chain_id(),
+            asset: order.reward.asset.clone(),
+            amount: order.reward.amount,
+            status: EscrowStatus::Locked,
+        };
+        let mut witness =
+            EscrowWitness::for_state(order, &sub.submitter, &state, obs_vk.as_bytes(), *registry_root, b"block:18400000");
+        witness.sign(&obs_sk);
+        let mut claim = PayoutClaim::assemble(order, sub, receipt, binding, witness);
+        claim.sign(&ben_sk).expect("честное требование обязано кодироваться");
+        claim
+    }
+
+    /// Доверенный снимок моста: цепь заказа, ключ наблюдателя seed = 5 и корень данного реестра.
+    /// Списки утекают намеренно: тестовому бинарнику нужен `BridgeTrust<'static>`, а не ещё один
+    /// жизненный цикл в трёх строках.
+    fn trust(registry_root: &Hash) -> BridgeTrust<'static> {
+        let chains: &'static [u64] = &[8453];
+        let registries: &'static [Hash] = Box::leak(Box::new([*registry_root]));
+        let observers: &'static [PubKey] = Box::leak(Box::new([*keypair(5).1.as_bytes()]));
+        BridgeTrust { chains, observers, registries }
+    }
+
+    #[test]
+    fn term_hash_binds_order_and_beneficiary_only() {
+        let o = token_order();
+        let sub = submission(&o);
+        let t = term_hash(&o, &sub.submitter);
+        assert_eq!(t, term_hash(&o, &sub.submitter), "пересчёт обязана быть детерминированной");
+        let other = *keypair(9).1.as_bytes();
+        assert_ne!(t, term_hash(&o, &other), "получатель входит в связку");
+        let mut richer = o.clone();
+        richer.reward.amount += 1;
+        richer.sign(&keypair(1).0);
+        assert_ne!(t, term_hash(&richer, &sub.submitter), "сумма входит в связку");
+    }
+
+    #[test]
+    fn registry_is_data_not_code() {
+        let root2 = registry_root(&registry()).unwrap();
+        let mut three = registry();
+        three.push(ChainDescriptor {
+            chain_id: 1,
+            name: "ethereum".to_string(),
+            bridge_code: 3,
+            settle_asset_tag: 1,
+            min_amount: 1,
+            note: "added later".to_string(),
+        });
+        let root3 = registry_root(&three).unwrap();
+        assert_ne!(root2, root3, "новая цепь порождает новый корень");
+        assert_eq!(registry_root(&registry()).unwrap(), root2, "корень стабилен при повторном пересчёте");
+        let mut dup = registry();
+        dup.push(dup[0].clone());
+        assert_eq!(registry_root(&dup).unwrap_err().code, ErrorCode::E_ORDER_MALFORMED, "дубликат цепи — отказ, а не «победил последний»");
+        // Пустой реестр — легальное состояние, а не паника: корень существует, и он не доверен.
+        assert_eq!(registry_root(&[]).unwrap(), sha256_chain(&[DOMAIN_CHAIN, &[0x01]]));
+        // Посадка правила печатного ASCII: не-ASCII в заметке обязан быть отвергнут, а не
+        // промолчан. Это правило поймало наши же фикстуры на первом прогоне — и это его работа.
+        let mut cyrillic = registry();
+        cyrillic[0].note = "нативная цепь".to_string();
+        assert_eq!(registry_root(&cyrillic).unwrap_err().code, ErrorCode::E_ORDER_MALFORMED);
+        let mut odd_tag = registry();
+        odd_tag[1].settle_asset_tag = 2;
+        assert_eq!(registry_root(&odd_tag).unwrap_err().code, ErrorCode::E_UNSUPPORTED_ASSET);
+    }
+
+    #[test]
+    fn payout_claim_is_a_pure_function_of_bytes() {
+        let o = token_order();
+        let sub = submission(&o);
+        let root = registry_root(&registry()).unwrap();
+        let claim = make_claim(&o, &sub, &root);
+        let t = trust(&root);
+        assert!(claim.canonical_bytes().is_ok(), "связка собирается из байтов");
+        assert!(check_payout_claim(&claim, &o, &sub, &t, o.deadline + PAYBACK_WINDOW_SECONDS).is_ok());
+        // Тот же вызов на другом экземпляре тех же байтов даёт тот же исход: узел не нужен.
+        let again = make_claim(&o, &sub, &root);
+        assert_eq!(again, claim, "байты требований воспроизводимы");
+        assert!(check_payout_claim(&again, &o, &sub, &t, o.deadline).is_ok());
+    }
+
+    #[test]
+    fn empty_trust_fails_closed() {
+        let o = token_order();
+        let sub = submission(&o);
+        let root = registry_root(&registry()).unwrap();
+        let claim = make_claim(&o, &sub, &root);
+        let e = check_payout_claim(&claim, &o, &sub, &BridgeTrust::none(), o.deadline).unwrap_err();
+        assert_eq!(e.code, ErrorCode::E_ESCROW_UNKNOWN, "наблюдателя нет → про залог ничего достоверного");
+        // Реестр доверен, наблюдатель доверен, цепь — нет: ровно то же fail-closed, что §V9.7.
+        let mut t = trust(&root);
+        t.chains = &[];
+        assert_eq!(check_payout_claim(&claim, &o, &sub, &t, o.deadline).unwrap_err().code, ErrorCode::E_ESCROW_UNKNOWN);
+    }
+
+    /// Отказ с записью кода: инвариант закрытого списка («слой не вводит девятнадцатого имени»)
+    /// проверяется теми же посадками, что проверяют сами коды, а не отдельным перебором — иначе
+    /// вторая копия веток обязана разойтись с первой при любой правке шагов.
+    fn reject_code(
+        c: &PayoutClaim,
+        o: &PaidOrder,
+        sub: &Submission,
+        t: &BridgeTrust,
+        now: u64,
+        seen: &mut Vec<ErrorCode>,
+    ) -> ErrorCode {
+        let e = check_payout_claim(c, o, sub, t, now)
+            .err()
+            .expect("посадка обязана быть отвергнута");
+        assert!(
+            ErrorCode::all().contains(&e.code),
+            "код вне закрытого списка: {}",
+            e.code.as_str()
+        );
+        seen.push(e.code);
+        e.code
+    }
+
+    #[test]
+    fn every_payout_forgery_maps_to_a_known_code() {
+        // Инвариант закрытого списка: ни одна ветка слоя не вводит девятнадцатого имени.
+        assert_eq!(ErrorCode::all().len(), 18);
+        let o = token_order();
+        let sub = submission(&o);
+        let root = registry_root(&registry()).unwrap();
+        let t = trust(&root);
+        let base = make_claim(&o, &sub, &root);
+        let mut seen: Vec<ErrorCode> = Vec::new();
+
+        let mut c = base.clone();
+        c.term_hash = pattern(0x77);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_HASH_MISMATCH);
+
+        let mut c = base.clone();
+        c.receipt.exit_code = 1;
+        c.receipt.sign(&keypair(3).0);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_VERDICT_MISMATCH);
+
+        let mut c = base.clone();
+        let (strange_sk, strange_vk) = keypair(7);
+        c.receipt.verifier_pubkey = *strange_vk.as_bytes();
+        c.receipt.sign(&strange_sk);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_RECEIPT_UNSIGNED);
+
+        let mut c = base.clone();
+        c.binding.signature = Some([0u8; 64]);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_RECEIPT_INVALID);
+
+        let mut c = base.clone();
+        c.witness.amount_on_chain = o.reward.amount - 1;
+        c.witness.sign(&keypair(5).0);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_ESCROW_INSUFFICIENT);
+
+        let mut c = base.clone();
+        c.witness.registry_root = pattern(0x55);
+        c.witness.sign(&keypair(5).0);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_ESCROW_UNKNOWN);
+
+        // Свидетельство подписано чужим ключом, а названо ключом доверенного наблюдателя: подписи не
+        // проходит, и назвать из-за этого квитанцию неподписанной было бы неправдой.
+        let mut c = base.clone();
+        c.witness.sign(&keypair(9).0);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_ESCROW_UNKNOWN);
+
+        let mut c = base.clone();
+        c.witness.status = 9;
+        c.witness.sign(&keypair(5).0);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_ORDER_MALFORMED);
+
+        let mut c = base.clone();
+        c.signature = None;
+        assert_eq!(reject_code(&c, &o, &sub, &t, o.deadline, &mut seen), ErrorCode::E_ORDER_MALFORMED);
+
+        // Шаг (6): часы, а не форма.
+        assert_eq!(
+            reject_code(&base, &o, &sub, &t, o.deadline + PAYBACK_WINDOW_SECONDS + 1, &mut seen),
+            ErrorCode::E_DEADLINE_PASSED
+        );
+        let mut late = sub.clone();
+        late.created_at = o.deadline + 1;
+        late.sign(&keypair(2).0);
+        let c = make_claim(&o, &late, &root);
+        assert_eq!(reject_code(&c, &o, &late, &t, o.deadline, &mut seen), ErrorCode::E_DEADLINE_PASSED);
+
+        assert_eq!(seen.len(), 11, "перебрано обещанных веток отказа");
+        // Слой касается восемью разными именами ровно тех кодов, что уже объявлены §V9.8: ни одного
+        // нового (проверено в `reject_code`) и при этом ни одного «молчащего» отказа.
+        let mut distinct: Vec<&str> = seen.iter().map(|c| c.as_str()).collect();
+        distinct.sort_unstable();
+        distinct.dedup();
+        assert_eq!(distinct.len(), 8, "восьми различных кодов ожидания: {distinct:?}");
+    }
+
+    #[test]
+    fn second_claim_on_a_released_escrow_is_replay() {
+        let o = token_order();
+        let sub = submission(&o);
+        let root = registry_root(&registry()).unwrap();
+        let t = trust(&root);
+        let first = make_claim(&o, &sub, &root);
+        assert!(check_payout_claim(&first, &o, &sub, &t, o.deadline).is_ok());
+        // Мост отпустил залог: наблюдатель свидетельствует released, и повторное требование на тот же
+        // term_hash обязано умереть на E_REPLAY, а не «пройти молча».
+        let mut c = first.clone();
+        c.witness.status = 2;
+        c.witness.sign(&keypair(5).0);
+        c.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(check_payout_claim(&c, &o, &sub, &t, o.deadline).unwrap_err().code, ErrorCode::E_REPLAY);
+        let mut r = first.clone();
+        r.witness.status = 3;
+        r.witness.sign(&keypair(5).0);
+        r.sign(&keypair(2).0).expect("посадка обязана кодироваться");
+        assert_eq!(check_payout_claim(&r, &o, &sub, &t, o.deadline).unwrap_err().code, ErrorCode::E_REPLAY);
+    }
+
+    #[test]
+    fn order_ref_is_untouched_by_the_payout_layer() {
+        // Инвариант аддитивности: байты заказа не сдвинулись ни на байт после появления слоя.
+        // Число взято из замороженного якоря `lab/expectations/e0111.tsv` (`V9_ORDER_REF`).
+        let o = base_order_anchor();
+        assert_eq!(
+            hex_lower(&o.order_ref()),
+            "4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70",
+            "order_ref вектора V01 не имеет права измениться: слой живёт снаружи канонической записи"
+        );
+    }
+
+    /// Заказ-якорь из документа векторов (тот же, что печатает `V9_ORDER_REF`).
+    fn base_order_anchor() -> PaidOrder {
+        let (sk, vk) = keypair(1);
+        let statement = normalize_statement(
+            b"theorem add_zero_right (n : Nat) : n + 0 = n := by\n  induction n with\n    | zero => rfl\n    | succ k ih => simp [Nat.succ_add, ih]\n",
+        )
+        .unwrap();
+        let mut o = PaidOrder {
+            kind: Kind::LeanProof,
+            statement_hash: statement_hash(Kind::LeanProof, &statement).unwrap(),
+            statement,
+            verifier: VerifierSpec { image_digest: [0x2a; 32], entrypoint: "/usr/local/bin/verify".to_string(), budget_seconds: 120, network: false },
+            reward: Reward { amount: 1_000_000, asset: Asset::Native, escrow_ref: b"vecdht:escrow/0x01".to_vec() },
+            deadline: 1_800_000_000,
+            submit_limit: 8,
+            publisher: *vk.as_bytes(),
+            nonce: 7,
+            signature: None,
+        };
+        o.sign(&sk);
+        o
     }
 }
 
