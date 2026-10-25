@@ -1,0 +1,5 @@
+### PRE_FIX is_server = !nodes.is_empty() · 2026-10-25T02:00:39+03:00 · дерево 24ec477 (грязное: только строка is_server)
+## KADROLE_A_AUTH=2 KADROLE_A_KAD=2 KADROLE_B_AUTH=1 KADROLE_B_ANN=1 KADROLE_C_AUTH=1 KADROLE_FOUND=0 KADROLE_MS=340282366920938463463374607431768211455 ##
+thread 'index_node_without_shard_serves_the_dht' (39232) panicked at crates\vecdht-net\tests\kad_server_role.rs:255:5:
+index_node_without_shard_serves_the_dht --- FAILED
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.86s

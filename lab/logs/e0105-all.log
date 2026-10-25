@@ -1,0 +1,198 @@
+########## E-0105 · 2026-10-25T02:12:51+03:00 · дерево 24ec477 ##########
+### ШАГ 0 gate и носитель ### 2026-10-25T02:12:51+03:00
+ПРИОРАРТ H-0105: строк=1 классы=['реализация']
+LEAN H-0105: модель не сделана, рубрика обязательной не требует
+E-CARD E-0105: порог, окружение и команда названы
+CYCLE H-0105=OK нарушениий=0
+GATE_H0105_OK=1
+DISK_FREE_MB=18985 RAM_FREE_MB=14125 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 два прогона, оба прибора ### 2026-10-25T02:12:54+03:00
+## KADROLE_A_AUTH=2 KADROLE_A_KAD=2 KADROLE_B_AUTH=1 KADROLE_B_ANN=1 KADROLE_C_AUTH=1 KADROLE_FOUND=1 KADROLE_MS=426 ##
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.14s
+P1_SAMPLES=192 P1_RESOLVED=192 P1_MISS=0 P1_P50_MS=12 P1_P95_MS=257 P1_MAX_MS=443
+P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=2153 P1_ERRORS=433 P1_KINDS={"conn-lost": 155, "dial-other": 80, "eof": 16, "quic-handshake-timeout": 54, "rr-inbound-timeout": 1, "rr-timeout": 127}
+P1_OBS_AUTH=[199, 199, 199] P1_OBS_SHARD0=[3, 3, 3]
+P1_TIME_BUILD=2.1510879s P1_TIME_DIAL=1.9798199s P1_TIME_RESOLVE=8.3223734s ##
+P1_FIRST_ERRORS=["ответ 12D3KooWEbUiFnZVe2D4m4kUsnufxfGTwdq2WCKKKdkiuaCTy5Np: Timeout while waiting for a response", "ответ 12D3KooWEbUiFnZVe2D4m4kUsnufxfGTwdq2WCKKKdkiuaCTy5Np: Timeout while waiting for a response", "ответ 12D3KooWSrHuJBQ939P3AYEr1yuGRF32UUJUpht6sWLktYiCWaY9: IO error on outbound stream: connection lost", "ответ 12D3KooWSrHuJBQ939P3AYEr1yuGRF32UUJUpht6sWLktYiCWaY9: IO error on outbound stream: connection lost", "ответ 12D3KooWAiuDqrAu34MJemTVcjU4AtGeryEYP7BRcPRvQtkK87sm: Timeout while waiting for a response", "ответ 12D3KooWGcoWVZw2JC4rDcEVSKr328gh5dSkB7wTFE6LDokzSR4o: IO error on outbound stream: connection lost", "ответ 12D3KooWCmBiXQRKqTPiQFZ7YKCxvewPEqWaUyGgemowB5mpeUBC: Timeout while waiting for a response", "ответ 12D3KooWSfMx5BpXVMrzyfMGHVLQe6UWNWX13ZBPLDmVoAKZ4oun: IO error on outbound stream: connection lost", "ответ 12D3KooWJ9xjDfw8Mb4h5yv5VfyggWH4xqkeAUF18WDghWhWwfcZ: IO error on outbound stream: connection lost", "ответ 12D3KooWBhQ4v8Mg7tca2Toz7FDxqCkttwwgBeDb6aAWNxrYk5PL: IO error on outbound stream: connection lost"]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 100.41s
+прогон 1: KADROLE=1 p50=12 p95=257 max=443 errors=433
+E0105_MEASURED=1
+KADROLE_FOUND=1
+KADROLE_A_AUTH=2
+KADROLE_B_AUTH=1
+KADROLE_C_AUTH=1
+P1_SAMPLES=192
+P1_RESOLVED=192
+P1_MISS=0
+P1_AUTH_ZERO=0
+P1_KAD_ZERO=0
+P1_P95_UNDER_500=1
+## KADROLE_A_AUTH=2 KADROLE_A_KAD=2 KADROLE_B_AUTH=1 KADROLE_B_ANN=1 KADROLE_C_AUTH=1 KADROLE_FOUND=1 KADROLE_MS=234 ##
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.99s
+P1_SAMPLES=192 P1_RESOLVED=192 P1_MISS=0 P1_P50_MS=12 P1_P95_MS=151 P1_MAX_MS=338
+P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=2099 P1_ERRORS=281 P1_KINDS={"conn-lost": 111, "dial-other": 67, "eof": 7, "quic-handshake-timeout": 28, "rr-timeout": 68}
+P1_OBS_AUTH=[199, 199, 199] P1_OBS_SHARD0=[3, 3, 3]
+P1_TIME_BUILD=2.058428s P1_TIME_DIAL=2.1083347s P1_TIME_RESOLVE=6.4406342s ##
+P1_FIRST_ERRORS=["ответ 12D3KooWByZqYEvjf2mWz6Bhtn6iGoyV3JZ3gYDiXY6wok3NmD4i: IO error on outbound stream: connection lost", "ответ 12D3KooWPCTYCam1x47HzGg5U5cf6PVLtcEboJRmtfQR9U4aVv7i: IO error on outbound stream: connection lost", "ответ 12D3KooWBaiP1EGFrgSwndRz7wmk2zRb1jsHG9cdrq2nFn2foTpU: IO error on outbound stream: connection lost", "dial Some(PeerId(\"12D3KooWMpKQKCjbZf2ZRy8RBr8P9H3ewjRb31LKe5abY71WfjKZ\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/56839/quic-v1/p2p/12D3KooWMpKQKCjbZf2ZRy8RBr8P9H3ewjRb31LKe5abY71WfjKZ: : Timeout has been reached)]", "ответ 12D3KooWCDma4GpBGgCQURNjyCUivm9RgCbfgCpF99J4ULW4f9bD: IO error on outbound stream: connection lost", "ответ 12D3KooWFYVfnFKGTuL9KRfpGHyJXC48zqmwZnRLMiUcNGmGPA8E: IO error on outbound stream: connection lost", "dial Some(PeerId(\"12D3KooWJFgXQJVGPW7kYeBA9XTpundbPmaHwX75KU1WSHDMGdSq\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/56890/quic-v1/p2p/12D3KooWJFgXQJVGPW7kYeBA9XTpundbPmaHwX75KU1WSHDMGdSq: : Timeout has been reached)]", "dial Some(PeerId(\"12D3KooWFp58RwkVJW4QpxS78tJeotdwaFKn2Ddhb5UxXcaBjbn8\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/56882/quic-v1/p2p/12D3KooWFp58RwkVJW4QpxS78tJeotdwaFKn2Ddhb5UxXcaBjbn8: : Handshake with the remote timed out.: Handshake with the remote timed out.)]", "dial Some(PeerId(\"12D3KooWLphoyGj2uvi7foG8GH6dwEPp1BJAGcarM3Mo7YqPZNdo\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/56828/quic-v1/p2p/12D3KooWLphoyGj2uvi7foG8GH6dwEPp1BJAGcarM3Mo7YqPZNdo: : Timeout has been reached)]", "dial Some(PeerId(\"12D3KooWPwzqreUsQjZjCdCpZFsUNLBovYGmwnsmwBwk2AxVhL1d\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/56878/quic-v1/p2p/12D3KooWPwzqreUsQjZjCdCpZFsUNLBovYGmwnsmwBwk2AxVhL1d: : Handshake with the remote timed out.: Handshake with the remote timed out.)]"]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 94.08s
+прогон 2: KADROLE=1 p50=12 p95=151 max=338 errors=281
+E0105_MEASURED=1
+KADROLE_FOUND=1
+KADROLE_A_AUTH=2
+KADROLE_B_AUTH=1
+KADROLE_C_AUTH=1
+P1_SAMPLES=192
+P1_RESOLVED=192
+P1_MISS=0
+P1_AUTH_ZERO=0
+P1_KAD_ZERO=0
+P1_P95_UNDER_500=1
+### ШАГ 2 PRE_FIX (исполненный) ### 2026-10-25T02:16:54+03:00
+PRE_FIX на строке is_server = !nodes.is_empty(): KADROLE_FOUND=0
+KADROLE_PRE_FIX_FOUND=0
+VECTOR_STABLE=0
+### ШАГ 3 audit ### 2026-10-25T02:16:54+03:00
+CYCLE H-0105=OK нарушениий=0
+КАРТОЧКА H-0105: под правилом, оформлена
+AUDIT карточек=5 исторических=0 под_правилом=5
+AUDIT_VIOLATIONS=0
+### ШАГ 4 полная верификация ### 2026-10-25T02:16:55+03:00
+VERIFY_EXIT=1
+### ШАГ 5 стража текста и сверка ### 2026-10-25T02:45:12+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+РАСХОЖДЕНИЕ: VECTOR_STABLE ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: VERIFY_EXIT ждали «0», напечатано «1»
+ОЖИДАНИЙ=18 РАСХОЖДЕНИЙ=2
+СВЕРКА_EXIT=1
+### ШАГ 6 носитель после прогона ### 2026-10-25T02:45:12+03:00
+DISK_FREE_MB=19136 RAM_FREE_MB=15442 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+### Поправка 1 (прибор, не продукт) · 2026-10-25T02:47:27+03:00
+Причина VECTOR_STABLE=0: в ШАГЕ 2 helper'а строка \ после цикла писала PRE_FIX ещё раз только в facts_r2, поэтому diff файлов расходился при совпадающих фактах. Helper исправлен: сравнение идёт по 11 фактам прогона, PRE_FIX добавляется обоим файлам один раз (FACTS=/dev/null после шага).
+Пересчёт по этому же append-only логу: строк 26, по 13 на прогон, diff:
+1,2c1,2
+< P1_SAMPLES=192 P1_RESOLVED=192 P1_MISS=0 P1_P50_MS=12 P1_P95_MS=257 P1_MAX_MS=443
+< P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=2153 P1_ERRORS=433 P1_KINDS={"conn-lost": 155, "dial-other": 80, "eof": 16, "quic-handshake-timeout": 54, "rr-inbound-timeout": 1, "rr-timeout": 127}
+---
+> P1_SAMPLES=192 P1_RESOLVED=192 P1_MISS=0 P1_P50_MS=12 P1_P95_MS=151 P1_MAX_MS=338
+> P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=2099 P1_ERRORS=281 P1_KINDS={"conn-lost": 111, "dial-other": 67, "eof": 7, "quic-handshake-timeout": 28, "rr-timeout": 68}
+VECTOR_STABLE=1
+
+### Поправка 2 (прибор, не продукт) · 2026-10-25T02:49:21+03:00
+Заменяет «Поправку 1»: там diff захватил строки с P95_ERRORS/ANN, которые зависят от расписания, и печатал VECTOR_STABLE=1 безусловно. Здесь сравниваются только структурные ключи прогона (11 штук), ровно те, что сравнивает исправленный helper.
+Строк структурных ключей в логе: 26 (ожидается 22 = 11 на прогон, PRE_FIX-ключ сюда не входит)
+diff прогон1/прогон2 по структурным ключам:
+1,2d0
+< P1_SAMPLES=192 P1_RESOLVED=192 P1_MISS=0 P1_P50_MS=12 P1_P95_MS=257 P1_MAX_MS=443
+< P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=2153 P1_ERRORS=433 P1_KINDS={"conn-lost": 155, "dial-other": 80, "eof": 16, "quic-handshake-timeout": 54, "rr-inbound-timeout": 1, "rr-timeout": 127}
+11a10,11
+> P1_KAD_ZERO=0
+> P1_P95_UNDER_500=1
+VECTOR_STABLE=0
+Не входят в стабильность и записаны как измерение: P1_P50_MS/P95_MS/MAX_MS (12/257/443 и 12/151/338), P1_ANN (2153 и 2099), P1_ERRORS (433 и 281) — это время и транспорт, они по построению зависят от расписания хоста.
+Проверка после правки helper (lab/e0105-run.sh): сравнение по тем же 11 ключам, PRE_FIX пишется обоим файлам один раз; строка FACTS=/dev/null после шага.
+
+### Поправка 3 (прибор, не продукт) · 2026-10-25T02:51:16+03:00
+«Поправка 2» повторила тот же порок, который исправляла: шаблон был заякорен слева, но не справа, поэтому в выборку попали 4 сводные строки вида «P1_SAMPLES=192 P1_RESOLVED=…» (26 вместо 22), и печать VECTOR_STABLE=0 была артефактом шаблона, а не расхождением фактов.
+Урок тот же, что в E-0089: экстрактор фактов якорится границей токена с обеих сторон, иначе молчание/шум читается как факт. Правильная форма: ^(KEY1|…|KEY11)=[^[:space:]]+$
+Точная команда пересчёта:
+  grep -E "^(E0105_MEASURED|KADROLE_FOUND|KADROLE_A_AUTH|KADROLE_B_AUTH|KADROLE_C_AUTH|P1_SAMPLES|P1_RESOLVED|P1_MISS|P1_AUTH_ZERO|P1_KAD_ZERO|P1_P95_UNDER_500)=[^[:space:]]+$" lab/logs/e0105-all.log | … head/tail 11 + diff
+Результат: строк 22 (ровно 11 на прогон), diff пуст — VECTOR_STABLE=1.
+Оба прогона, структурные ключи:
+  E0105_MEASURED=1 KADROLE_FOUND=1 KADROLE_A_AUTH=2 KADROLE_B_AUTH=1 KADROLE_C_AUTH=1
+  P1_SAMPLES=192 P1_RESOLVED=192 P1_MISS=0 P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_P95_UNDER_500=1
+Итог: VECTOR_STABLE=1 — по неизменным структурным ключам; P95/ANN/ERRORS остаются измерением и в стабильность не входят.
+########## E-0105 · 2026-10-25T03:09:35+03:00 · дерево 24ec477 ##########
+### ШАГ 0 gate и носитель ### 2026-10-25T03:09:35+03:00
+ПРИОРАРТ H-0105: строк=1 классы=['реализация']
+LEAN H-0105: модель не сделана, рубрика обязательной не требует
+E-CARD E-0105: порог, окружение и команда названы
+CYCLE H-0105=OK нарушениий=0
+GATE_H0105_OK=1
+DISK_FREE_MB=18942 RAM_FREE_MB=12404 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 два прогона, оба прибора ### 2026-10-25T03:09:38+03:00
+## KADROLE_A_AUTH=2 KADROLE_A_KAD=2 KADROLE_B_AUTH=1 KADROLE_B_ANN=1 KADROLE_C_AUTH=1 KADROLE_FOUND=1 KADROLE_MS=482 ##
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.32s
+P1_SAMPLES=192 P1_RESOLVED=191 P1_MISS=1 P1_P50_MS=54 P1_P95_MS=189 P1_MAX_MS=387
+P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=3028 P1_ERRORS=1815 P1_KINDS={"conn-lost": 455, "dial-other": 199, "eof": 103, "other": 56, "quic-handshake-timeout": 154, "rr-inbound-timeout": 5, "rr-timeout": 843}
+P1_OBS_AUTH=[199, 199, 199] P1_OBS_SHARD0=[3, 3, 3]
+P1_TIME_BUILD=2.2070487s P1_TIME_DIAL=1.9156632s P1_TIME_RESOLVE=16.635066s ##
+P1_FIRST_ERRORS=["ответ 12D3KooWAaYVakMyznsMrUbM1TPKUnduj2tCfQiM6zujqQmepeqr: Timeout while waiting for a response", "ответ 12D3KooWCAw3VpuBpGhF4EuXda7qD6h3SNBS8qtBuMohw1myU1Lq: IO error on outbound stream: connection lost", "ответ 12D3KooWFZd5v1BPvVe5gXa19asqDpv7sTGzr4gvtbzmbC8gRUqE: Timeout while waiting for a response", "dial Some(PeerId(\"12D3KooWPSoUrTABkFASv343qFfoSKxvxNaT6zkFcCqRNPRKQa6V\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/42016/quic-v1/p2p/12D3KooWPSoUrTABkFASv343qFfoSKxvxNaT6zkFcCqRNPRKQa6V: : Handshake with the remote timed out.: Handshake with the remote timed out.)]", "ответ 12D3KooWFYmHU4hbB8wrWbKUn2uW8NmNvsfrCFXtNoc4y85MEKZH: Timeout while waiting for a response", "ответ 12D3KooWSd75Roa7kGe3uQcmQg3rEEajat98jfNwJU5KVuduTy19: IO error on outbound stream: connection lost", "ответ 12D3KooWJFgXQJVGPW7kYeBA9XTpundbPmaHwX75KU1WSHDMGdSq: Timeout while waiting for a response", "ответ 12D3KooWJFgXQJVGPW7kYeBA9XTpundbPmaHwX75KU1WSHDMGdSq: IO error on outbound stream: connection lost", "ответ 12D3KooWE25Jvk8mnSQZqnpvjidSZNR3xStexPgpjf8PYaqRZy7W: IO error on outbound stream: unexpected end of file", "ответ 12D3KooWCAw3VpuBpGhF4EuXda7qD6h3SNBS8qtBuMohw1myU1Lq: IO error on outbound stream: connection lost"]
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 148.61s
+прогон 1: KADROLE=1 p50=54 p95=189 max=387 errors=1815
+E0105_MEASURED=0
+KADROLE_FOUND=1
+KADROLE_A_AUTH=2
+KADROLE_B_AUTH=1
+KADROLE_C_AUTH=1
+P1_SAMPLES=192
+P1_RESOLVED=191
+P1_MISS=1
+P1_AUTH_ZERO=0
+P1_KAD_ZERO=0
+P1_P95_UNDER_500=1
+## KADROLE_A_AUTH=2 KADROLE_A_KAD=2 KADROLE_B_AUTH=1 KADROLE_B_ANN=1 KADROLE_C_AUTH=1 KADROLE_FOUND=1 KADROLE_MS=264 ##
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.15s
+P1_SAMPLES=192 P1_RESOLVED=192 P1_MISS=0 P1_P50_MS=67 P1_P95_MS=185 P1_MAX_MS=442
+P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=2610 P1_ERRORS=1022 P1_KINDS={"conn-lost": 249, "dial-other": 118, "eof": 77, "other": 4, "quic-handshake-timeout": 107, "rr-timeout": 467}
+P1_OBS_AUTH=[199, 199, 199] P1_OBS_SHARD0=[3, 3, 3]
+P1_TIME_BUILD=2.1868807s P1_TIME_DIAL=2.0421309s P1_TIME_RESOLVE=15.5494015s ##
+P1_FIRST_ERRORS=["ответ 12D3KooWQYKcTMFB9q5TVTCASg4y2GDJWNFLxu2sU8QXqjvFPyPQ: Timeout while waiting for a response", "ответ 12D3KooWAmpXgo8G6U1VBez5GP5it39FiZF1t6US7yQjWGChG7XF: Timeout while waiting for a response", "dial Some(PeerId(\"12D3KooWREbXmoa567QPDMwxTYrDiyiYDB5QNf3BK112LwUfVsnF\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/43948/quic-v1/p2p/12D3KooWREbXmoa567QPDMwxTYrDiyiYDB5QNf3BK112LwUfVsnF: : Handshake with the remote timed out.: Handshake with the remote timed out.)]", "ответ 12D3KooWGnJTo3CN65kbjriJFucXdwRaA24EMjaf4xxJCvdGYEkj: Timeout while waiting for a response", "ответ 12D3KooWCmBiXQRKqTPiQFZ7YKCxvewPEqWaUyGgemowB5mpeUBC: IO error on outbound stream: connection lost", "ответ 12D3KooWEaypBtdicCmrh1ZtVeLQCywoxUy2G1rTdDZumQ9wsstF: Timeout while waiting for a response", "dial Some(PeerId(\"12D3KooWKmYLPGaF87Jm7UyBZxajqHbypbveEeMSZi7fkP45cjWe\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/43922/quic-v1/p2p/12D3KooWKmYLPGaF87Jm7UyBZxajqHbypbveEeMSZi7fkP45cjWe: : Timeout has been reached)]", "ответ 12D3KooWQePwYQ5FgYWXEH23VqQS7jfqKxkmue9zTFrDGGd4ACWL: Timeout while waiting for a response", "dial Some(PeerId(\"12D3KooWLdPaMxwLN4WGD9gh2bBB9tY6ey4YPKKHr37xeZqo9z5U\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/43957/quic-v1/p2p/12D3KooWLdPaMxwLN4WGD9gh2bBB9tY6ey4YPKKHr37xeZqo9z5U: : Handshake with the remote timed out.: Handshake with the remote timed out.)]", "ответ 12D3KooWCdusDHKcdFi3DUaDzDcDjqD7xUSdpgt9ftEADwNYQDLp: Timeout while waiting for a response"]
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 159.54s
+прогон 2: KADROLE=1 p50=67 p95=185 max=442 errors=1022
+E0105_MEASURED=1
+KADROLE_FOUND=1
+KADROLE_A_AUTH=2
+KADROLE_B_AUTH=1
+KADROLE_C_AUTH=1
+P1_SAMPLES=192
+P1_RESOLVED=192
+P1_MISS=0
+P1_AUTH_ZERO=0
+P1_KAD_ZERO=0
+P1_P95_UNDER_500=1
+### ШАГ 2 PRE_FIX (исполненный) ### 2026-10-25T03:15:00+03:00
+PRE_FIX на строке is_server = !nodes.is_empty(): KADROLE_FOUND=0
+VECTOR_STABLE=0
+### ШАГ 3 audit ### 2026-10-25T03:15:01+03:00
+CYCLE H-0105=OK нарушениий=0
+КАРТОЧКА H-0105: под правилом, оформлена
+AUDIT карточек=5 исторических=0 под_правилом=5
+AUDIT_VIOLATIONS=0
+### ШАГ 4 полная верификация ### 2026-10-25T03:15:01+03:00
+VERIFY_EXIT=1
+### ШАГ 5 стража текста и сверка ### 2026-10-25T03:42:14+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0
+РАСХОЖДЕНИЕ: VECTOR_STABLE ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: VERIFY_EXIT ждали «0», напечатано «1»
+ОЖИДАНИЙ=18 РАСХОЖДЕНИЙ=2
+СВЕРКА_EXIT=1
+### ШАГ 6 носитель после прогона ### 2026-10-25T03:42:14+03:00
+DISK_FREE_MB=18890 RAM_FREE_MB=15531 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+
+### Поправка 4 (прибор, не продукт) · 2026-10-25T03:54:00+03:00
+Верификация повторного прогона дала VERIFY_EXIT=1 не по находке review (REVIEW_FINDINGS=0, REVIEW_EXIT=0), а по clippy: 8 замечаний в `crates/vecdht-net/tests/s182_p1_scale.rs` — `assertions_on_constants` ×3 (граница записей дважды и проверка debug-профиля) и `needless_range_loop` ×5 (циклы по узлам). Это отказ прибора, а не продукта; остальные выходы нулевые: TEST_EXIT=0, LEAN_EXIT=0, VERUS_EXIT=0, REVIEW_EXIT=0, LIBCHECK_EXIT=0.
+Исправлено без изменения поведения: граница `KEYS × K < TOTAL_LIMIT` перенесена в `const _: () = assert!(…)` (проверка теперь на компиляции), проверка профиля — `if cfg!(debug_assertions) { panic!(…) }` (в debug по-прежнему падает с объяснением), циклы — по срезам `&nodes[a..b]`, дубль границы в конце удалён.
+Проверка: `cargo clippy -j 2 -p vecdht-net --all-targets -- -D warnings` → 0.
+Повторная исполнимость после правки: роль — `KADROLE_FOUND=1 KADROLE_MS=271`, 1 passed за 1,03 с; P1 — `P1_SAMPLES=192 P1_RESOLVED=192 P1_MISS=0 P1_P50_MS=13 P1_P95_MS=117 P1_MAX_MS=488`, `P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=2264 P1_ERRORS=351`, `P1_TIME_RESOLVE=6.68s`, тест 90,89 с, 1 passed.
+Сводка пяти полных прогонов по 192 пробы (960 проб): 192, 192, 191 (1 промах), 192, 192; p95 = 257, 151, 189, 185, 117 мс — гейт 500 выполнен в 5/5. Промах случился в прогоне, где p50 = 54 мс (против 12–13 в чистых) и отказов 1 815 (против 281–433): хвост коррелирует со стеснением хоста, но остаётся промахом и вынесен в `H-0106`.
+Уточнение цены (вычитание из времени теста, отдельно не мерилось): между концом резолвов и выходом теста остаётся 68 с в чистом прогоне и 120 с в стеснённом — это сбор 200 отчётов плюс разбор соединений, а не «88 с разбора» (в прошлую запись попало прогревание 20 с).
+
+### Поправка 5 (прибор, не продукт) · 2026-10-25T03:16:00+03:00
+Пересборка фактов из этого лога (якорь `^[A-Z][A-Z0-9_]*=[^[:space:]]+$`) дала 15/18 в официальном блоке и 14/18 в повторном. Лишнее расхождение против прогона — `E0105_RUNS`: helper писал его только в файлы фактов (`printf … >> facts_rN`), а в лог не печатал. Сверка на прогоне его видела, поэтому 18 ожиданий сходились; лог как источник чисел его не воспроизводит. Это ровно тот класс, который ловит `threshold-lint`: ключ, которого никто не печатает, — обещание. Helper исправлен: `E0105_RUNS=2` теперь печатается в лог явно; задним числом лог не переписывается.
+Пересчёт по логу, итог: официальный блок — `VECTOR_STABLE=0` (артефакт helper'а, снят Поправкой 3), `VERIFY_EXIT=1` (незакрытая карточка), `E0105_RUNS` (не печатался); повторный — те же минус `E0105_RUNS` и `KADROLE_PRE_FIX_FOUND` (PRE_FIX во втором блоке не повторялся). Фактические расхождения гейта — только `P1_MISS=1` в повторе; остальное — прибор или открытая карточка.
+
+### Финальный блок верификации (нетронутое дерево) · 2026-10-25T04:57:00+03:00
+Блок `########## E-0105 · workspace-verify · 2026-10-25T04:26:34+03:00 ##########` (строка 82434 лога `workspace-verify-2026-10-22.log`) дописан до конца и не прерывался. Итог: `VERIFY_FAIL=0`, `SECONDS_total=1645`.
+Выходы по этапам (все нулевые): `TEST_EXIT=0 SECONDS_test=1361`, `CLIPPY_EXIT=0 SECONDS_clippy=2`, `LEAN_EXIT=0 SECONDS_lean=13`, `LEANGUARD_SELFTEST_EXIT=0 SECONDS_lean_selftest=126`, `VERUS_EXIT=0`, `VERUS_SELFTEST_EXIT=0`, `KCC_EXIT=0`, `CYCLEGATE_EXIT=0`, `EXPECT_SELFTEST_EXIT=0`, `FACTS_SELFTEST_EXIT=0`, `LINT_SELFTEST_EXIT=0`, `RUNLIB_SELFTEST_EXIT=0`, `LEDGER_SELFTEST_EXIT=0`, `REVIEW_SELFTEST_EXIT=0`, `LINT_LATEST_EXIT=0`, `LIBCHECK_EXIT=0`, `LIBDIGEST_EXIT=0`, `REVIEW_EXIT=0`.
+Страж репозитория: `REVIEW_FINDINGS=0`. Ресурсы блока: `DISK_FREE_MB=18905 → 19052`, `RAM_FREE_MB=14948 → 14047`, `PAGEFILE_PEAK_MB=7660` (порог (9) ≥ 15 000 выполнен).
+Отличия от недействительного блока 04:13: `LEDGER_INTERRUPTED=0` против 114 оборванных процессов — это ровно то, ради чего прибор написан.
+
+### Поправка 6 (прибор, не продукт) · 2026-10-25T04:57:00+03:00
+Первый же настоящий замер `lab/ledger.py report` по логу цикла плюс финальному блоку вскрыл в самом приборе два дефекта того класса, который он предназначен ловить у других.
+(1) Экстракторы метрик якорились только началом строки (`^DISK_FREE_MB=`), а `workspace-verify.sh` печатает три метки в одну строку — в баланс попали диск, а RAM и пик pagefile прибор объявил как `нет_двух_меток`/`нет_метки`, хотя метки в логе есть. Якорь исправлен на границу токена с обеих сторон (`(?:^|[ \t])КЛЮЧ=число(?![\w.])`), добавлены два посаженных кейса на инлайн-метки (RAM и pagefile). Правило из `E-0089`/`E-0105` оказалось неприменимым к собственному коду прибора — записано в `PLAN.md` п. 8м.
+(2) `LEDGER_SPENT_ON_FAILED=0` при проваленном `VERIFY_EXIT=1` читалось как «провал ничего не стоил», хотя сорванный блок стоил 415 с. Причина — у helper'а нет `SECONDS_verify`, только `VERIFY_EXIT`. Теперь это отдельная заметка `СТОИМОСТЬ_ПРОВАЛА_НЕИЗВЕСТНА: <этап>` и посаженный кейс: ноль без метки времени означает «не мерялось», а не «дёшево».
+Итог селфтеста после правок: `LEDGER_SELFTEST total=10 passed=10`. Числа баланса цикла после правок: `LEDGER_WALL_TOTAL=3288`, `LEDGER_STAGES=6`, `LEDGER_FAILED_STAGES=1`, `LEDGER_SPENT_ON_FAILED=0`, `LEDGER_DISK_DELTA_MB=67`, `LEDGER_RAM_DELTA_MB=-78`, `LEDGER_PAGEFILE_PEAK_MB=7660`, `LEDGER_GATE_RUNS=2`, `LEDGER_MISSING_STAGES=0`, `LEDGER_INTERRUPTED=0`, `LEDGER_OK=1`. Единственный ненулевой выход — два `VERIFY_EXIT=1` из прерванного блока (Поправка 4 и правило 8к), в финальном блоке несоответствий нет.
