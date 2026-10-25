@@ -1,0 +1,424 @@
+########## E-0114 PRE_FIX · 2026-10-25T20:52:26+03:00 · дерево 25556ae (носитель, прибор и генератор — рабочие, не закоммичены) ##########
+DISK_FREE_MB=29541 RAM_FREE_MB=8279 PAGEFILE_PEAK_MB=7660
+DOC_SHA=11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c
+SPEC_SHA=102fc69418f783a46bf397faea373b64c371a3382eab6c35f2910c31d3b532b7
+ODOC_SHA=cc3eae129dcd911f00a97464fe6d4a00555ab0cdcea1cbe823aa2bbdf18497ec
+NOTE_SHA=ece46dde8e9bd5bbf85db21f9b8768d01af48cd8686e3e40db6a1bab99812541
+BRIDGE_SHA=28bf8bb0eba81180da5cc310890f19cab78124bd2a547c0661e46c0cf89507a7
+PLANT_SHA=dfe69906b075de826ae35f26797b567a4960ae7208a0fd09590e6243efee775d
+GEN_SHA=4a8be70a2dc0229c1b7f65f77e38d1f10e22d0d87a5e6f96c41b3134a950eded
+RUST_SRC_SHA=d0424d889cfcfcde76e08287c117d9b85e8b0135e2862e14cd9a879f7e375108
+PYTHON=3.13.11
+### RUN 1 · контроль посадки: прежняя формула term_hash в копии носителя ###
+V9CTL_PLANT_EXIT=0
+ПОСАЖЕНО_РАСХОДЯЩИХСЯ_БАЙТ=238037
+ПОСАЖЕНО_ПЕРВОЕ_РАСХОЖДЕНИЕ=3534 ПОСАЖЕНО_СДВИГ_ХВОСТА=36
+ДЛИНА_КОПИИ=280493 ДЛИНА_НОСИТЕЛЯ=280457
+V9CTL_BRIDGE_EXIT=1
+V9CTL_TOOLCHAIN=3.13.11
+  # TOOLCHAIN: реализация моста, пересобирающая байты слоя
+V9CTL_UNICODE_DATA=15.1.0
+V9CTL_CARRIER_BYTES=280493
+V9CTL_CARRIER_SHA=ce81bb21211825ff319e2d1020419221f35f49be3f47e70c48392e05d41a9faa
+V9CTL_PRIMITIVES_FROM_E0113=1
+  # PRIMITIVES_FROM_E0113: hashlib, Ed25519 по RFC 8032, canonical_json, вывод §V9.5
+V9CTL_VECTORS_PARSED=31
+V9CTL_VECTOR_KEYS_UNIFORM=1
+  # VECTOR_KEYS_UNIFORM: у всех векторов один и тот же набор ключей
+V9CTL_VECTOR_KEY_COUNT=71
+V9CTL_DOMAIN_ROWS_GOT=5
+  # DOMAIN_ROWS_GOT: строк домена в §1
+V9CTL_DOMAIN_ROWS=1
+  # DOMAIN_ROWS: строк домена в §1: получено 5, ожидание 5
+V9CTL_LAYOUT_OBJECTS_GOT=4
+  # LAYOUT_OBJECTS_GOT: таблиц раскладки в §2
+V9CTL_LAYOUT_OBJECTS=1
+  # LAYOUT_OBJECTS: таблиц раскладки в §2: получено 4, ожидание 4
+V9CTL_LAYOUT_ROWS=24
+  # LAYOUT_ROWS: строк полей: связка 4, описатель 7, свидетельство 7, требование 6
+V9CTL_STEP_ROWS_GOT=7
+  # STEP_ROWS_GOT: нумерованных шагов в §4
+V9CTL_STEP_ROWS=1
+  # STEP_ROWS: нумерованных шагов в §4: получено 7, ожидание 7
+V9CTL_CODE_NAMES_GOT=18
+  # CODE_NAMES_GOT: имён в закрытом списке §3 и в §7
+V9CTL_CODE_NAMES=1
+  # CODE_NAMES: имён в закрытом списке §3 и в §7: получено 18, ожидание 18
+V9CTL_REGISTRY_ROWS_GOT=6
+  # REGISTRY_ROWS_GOT: строк реестра против числа в §5
+V9CTL_REGISTRY_ROWS=1
+  # REGISTRY_ROWS: строк реестра против числа в §5: получено 6, ожидание 6
+V9CTL_DOMAIN_LEN_DIFF=none
+V9CTL_DOMAIN_LEN_EQ=1
+  # DOMAIN_LEN_EQ: заявленная длина домена равна длине напечатанного литерала
+V9CTL_DOMAIN_RECEIPT_LEN_EQ=1
+  # DOMAIN_RECEIPT_LEN_EQ: домен подписи квитанции назван в §5 с верной длиной
+V9CTL_DOMAIN_RECEIPT_LEN=28
+V9CTL_DOMAIN_LEN_DECOY=1
+  # DOMAIN_LEN_DECOY: сверка длины ловит навранную длину, а не молчит
+V9CTL_REGISTRY_BYTES_EQ_GOT=6
+  # REGISTRY_BYTES_EQ_GOT: байты описателей совпали с напечатанными
+V9CTL_REGISTRY_BYTES_EQ=1
+  # REGISTRY_BYTES_EQ: байты описателей совпали с напечатанными: получено 6, ожидание 6
+V9CTL_REGISTRY_LEAF_EQ_GOT=6
+  # REGISTRY_LEAF_EQ_GOT: листья совпали с напечатанными
+V9CTL_REGISTRY_LEAF_EQ=1
+  # REGISTRY_LEAF_EQ: листья совпали с напечатанными: получено 6, ожидание 6
+V9CTL_REGISTRY_ROOT=382bdb9d8c718277c1c37c676ffacb8e5abb8a679b89b06c67348ff6f62aeeaf
+V9CTL_REGISTRY_ROOT_EQ=1
+  # REGISTRY_ROOT_EQ: корень по напечатанной формуле равен напечатанному в §5
+V9CTL_REGISTRY_PERMUTE_EQ=1
+  # REGISTRY_PERMUTE_EQ: порядок перечисления не влияет на корень
+V9CTL_REGISTRY_ROOT_SENSITIVE=1
+  # REGISTRY_ROOT_SENSITIVE: порча одного листа меняет корень
+V9CTL_REGISTRY_EMPTY_ROOT=907fe09146925363e96369fd296a0fdf0a22780918326a87118c0f5f66b91be1
+  # REGISTRY_EMPTY_ROOT: пустой реестр: законное состояние, а не сломанный протокол
+V9CTL_REGISTRY_BRIDGE_CODES=1|2|2|2|2|2
+V9CTL_KEYPAIR_MATCH=beneficiary=31/31|observer=30/31|publisher=31/31|verifier=30/31
+V9CTL_KEYPAIR_MASK=0xa5
+V9CTL_KEYPAIR_PUBLISHER_EQ=1
+  # KEYPAIR_PUBLISHER_EQ: ключ издателя во всех векторах выводим из соглашения
+V9CTL_KEYPAIR_BENEFICIARY_EQ=1
+V9CTL_KEYPAIR_VERIFIER_EQ=1
+  # KEYPAIR_VERIFIER_EQ: ключ верификатора выводим, кроме вектора с чужим ключом
+V9CTL_KEYPAIR_OBSERVER_EQ=1
+  # KEYPAIR_OBSERVER_EQ: ключ наблюдателя выводим, кроме вектора вне доверенного набора
+V9CTL_KEYPAIR_STRANGE_VECTORS=P05|P10
+V9CTL_KEYPAIR_DECOY_NAMED=1
+  # KEYPAIR_DECOY_NAMED: обе посадки с чужим ключом названы и отличимы от честных
+V9CTL_RECORD_EQ_GOT=31
+  # RECORD_EQ_GOT: байты заказа пересобраны везде
+V9CTL_RECORD_EQ=1
+  # RECORD_EQ: байты заказа пересобраны везде: получено 31, ожидание 31
+V9CTL_TERM_EQ_GOT=0
+  # TERM_EQ_GOT: term_hash пересобран везде
+V9CTL_TERM_EQ=0
+  # TERM_EQ: term_hash пересобран везде: получено 0, ожидание 31
+V9CTL_BINDING_EQ_GOT=31
+  # BINDING_EQ_GOT: байты связки пересобраны везде
+V9CTL_BINDING_EQ=1
+  # BINDING_EQ: байты связки пересобраны везде: получено 31, ожидание 31
+V9CTL_WITNESS_EQ_GOT=31
+  # WITNESS_EQ_GOT: байты свидетельства пересобраны везде
+V9CTL_WITNESS_EQ=1
+  # WITNESS_EQ: байты свидетельства пересобраны везде: получено 31, ожидание 31
+V9CTL_RECEIPT_JSON_EQ_GOT=31
+  # RECEIPT_JSON_EQ_GOT: канонический JSON квитанции пересобран
+V9CTL_RECEIPT_JSON_EQ=1
+  # RECEIPT_JSON_EQ: канонический JSON квитанции пересобран: получено 31, ожидание 31
+V9CTL_CLAIM_EQ_GOT=29
+  # CLAIM_EQ_GOT: байты требования пересобраны там, где они кодируются
+V9CTL_CLAIM_EQ=1
+  # CLAIM_EQ: байты требования пересобраны там, где они кодируются: получено 29, ожидание 29
+V9CTL_CLAIM_MISS=none
+  # CLAIM_MISS: векторы, где собранные байты требования не совпали с напечатанными
+V9CTL_SIGNATURES_CHECKED=150
+V9CTL_SIGNATURES_VALID_GOT=150
+  # SIGNATURES_VALID_GOT: каждая подпись проходит по пересобранным байтам своего объекта
+V9CTL_SIGNATURES_VALID=1
+  # SIGNATURES_VALID: каждая подпись проходит по пересобранным байтам своего объекта: получено 150, ожидание 150
+V9CTL_MIRROR_MATCH=4/31
+V9CTL_MIRROR_MISS=P01:term|P01:решение reject/E_HASH_MISMATCH, напечатано payout/-|P02:term|P03:term|P04:term|P04:решение reject/E_HASH_MISMATCH, напечатано reject/E_VERDICT_MISMATCH
+V9CTL_MIRROR_EQ=0
+  # MIRROR_EQ: решение моста совпало с напечатанным исходом и кодом
+V9CTL_INDEP_MATCH=0
+  # INDEP_MATCH: все байты слоя пересобраны из текста, без Rust и без узла
+V9CTL_V01_ORDER_REF=4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70
+V9CTL_ANCHOR_IN_LAYER_DOC=4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70
+V9CTL_ANCHOR_CARRIER_EQ=1
+  # ANCHOR_CARRIER_EQ: якорь инварианта A в носителе слоя равен вектору V01 носителя заказов
+V9CTL_ORDER_REF_REBUILT_EQ=1
+  # ORDER_REF_REBUILT_EQ: sha256 от пересобранных байтов заказа равен напечатанному order_ref
+V9CTL_ORDER_REF_SENSITIVE=1
+  # ORDER_REF_SENSITIVE: инвертированный бит записи меняет order_ref: сверка не слепая
+V9CTL_CODES_SEEN=E_HASH_MISMATCH|E_ORDER_MALFORMED|E_RECEIPT_INVALID|E_RECEIPT_UNSIGNED
+V9CTL_CODES_USED_MINE=4
+V9CTL_CODES_SUBSET=1
+  # CODES_SUBSET: каждый выведенный код есть в напечатном списке §3
+V9CTL_CODES_USED_EQ_COVERAGE=0
+  # CODES_USED_EQ_COVERAGE: число использованных кодов совпало с §7
+V9CTL_CODES_NAMED_EQ_COVERAGE=0
+  # CODES_NAMED_EQ_COVERAGE: имена использованных кодов совпали с перечнем §7
+V9CTL_CODES_EQ_SPEC=1
+  # CODES_EQ_SPEC: список §3 носителя совпадает с §V9.8 спеки имя в имя
+V9CTL_CODE_GUARD_DECOY=1
+  # CODE_GUARD_DECOY: девятнадцатое имя отвергается сверкой, а не принимается молча
+V9CTL_CODES_NAMED_IN_STEPS=E_DEADLINE_PASSED|E_ESCROW_INSUFFICIENT|E_ESCROW_UNKNOWN|E_HASH_MISMATCH|E_ORDER_MALFORMED|E_RECEIPT_INVALID|E_RECEIPT_UNSIGNED|E_REPLAY|E_UNSUPPORTED_ASSET|E_VERDICT_MISMATCH
+V9CTL_STEP_CODES_COUNT=10
+V9CTL_STEP_CODES_KNOWN=1
+  # STEP_CODES_KNOWN: каждое имя, названное в шагах §4, есть в закрытом списке
+V9CTL_STEP_CODES_PARSED=1
+  # STEP_CODES_PARSED: шаги §4 прочитаны с продолжениями: ноль имён — молчание экстрактора, а не отсутствие кодов
+V9CTL_USED_CODES_IN_STEPS=1
+  # USED_CODES_IN_STEPS: каждый код, на который выходит хоть один вектор, назван в напечатанном порядке шагов
+V9CTL_FAIL_CLOSED_LEAK=none
+V9CTL_FAIL_CLOSED=1
+  # FAIL_CLOSED: при пустом наборе доверия ни одно честное требование не проходит
+V9CTL_EMPTY_TRUST_CODES=E_HASH_MISMATCH
+V9CTL_VECTORS_COV_EQ_GOT=31
+  # VECTORS_COV_EQ_GOT: векторов в §6 и в §7
+V9CTL_VECTORS_COV_EQ=1
+  # VECTORS_COV_EQ: векторов в §6 и в §7: получено 31, ожидание 31
+V9CTL_PAYOUT_COV_EQ_GOT=7
+  # PAYOUT_COV_EQ_GOT: векторов «платить»
+V9CTL_PAYOUT_COV_EQ=1
+  # PAYOUT_COV_EQ: векторов «платить»: получено 7, ожидание 7
+V9CTL_DOUBLE_REPLAY_COUNT=12
+V9CTL_DOUBLE_REPLAY_EQ_COVERAGE=1
+  # DOUBLE_REPLAY_EQ_COVERAGE: отказов E_REPLAY пересчитано столько же, сколько напечатано в §7
+V9CTL_SIG_DECOY=1
+  # SIG_DECOY: инвертированный бит требования отвергнут подписью
+V9CTL_DECOY_STATUS_PAIR=reject/E_HASH_MISMATCH
+V9CTL_DECOY_STATUS=0
+  # DECOY_STATUS: посадка status поймана решением, а не пропущена
+V9CTL_DECOY_AMOUNT_PAIR=reject/E_HASH_MISMATCH
+V9CTL_DECOY_AMOUNT=0
+  # DECOY_AMOUNT: посадка amount поймана решением, а не пропущена
+V9CTL_DECOY_WITNESS_SIG_PAIR=reject/E_HASH_MISMATCH
+V9CTL_DECOY_WITNESS_SIG=0
+  # DECOY_WITNESS_SIG: свидетельство с чужим телом под прежней подписью — про залог ничего неизвестно
+V9CTL_DECOY_STATUS_SIGNED_PAIR=reject/E_HASH_MISMATCH
+V9CTL_DECOY_STATUS_SIGNED=0
+  # DECOY_STATUS_SIGNED: подписанный пятый тег состояния — ошибка структуры, а не молчание
+V9CTL_LAYOUT_DECOY=1
+  # LAYOUT_DECOY: урезанная ширина поля не воспроизводит напечатанные байты
+V9CTL_NOTE_DOMAINS=DOMAIN_BINDING|DOMAIN_CHAIN|DOMAIN_CLAIM|DOMAIN_TERM|DOMAIN_WITNESS
+V9CTL_NOTE_DOMAINS_EQ=1
+  # NOTE_DOMAINS_EQ: домены записки и носителя названы одинаково
+V9CTL_NOTE_TERM_SEQ=DOMAIN_TERM|order_ref|chain_id|asset_bytes|beneficiary_pubkey|amount|escrow_ref_len|escrow_ref
+V9CTL_CARRIER_TERM_SEQ=DOMAIN_TERM|order_ref|chain_id|asset_bytes|beneficiary_pubkey|amount|escrow_ref_len|escrow_ref
+V9CTL_NOTE_TERM_ORDER_EQ=1
+  # NOTE_TERM_ORDER_EQ: порядок полей term_hash в записке и носителе одинаков
+V9CTL_NOTE_FIELDS=ChainDescriptor=chain_id,name,bridge_code,settle_asset_tag,min_amount,note|EscrowWitness=term_hash,chain_id,status,amount_on_chain,block_ref,registry_root,observer_pubkey|PayoutClaim=term_hash,order_ref,receipt,binding,witness,beneficiary|VerifierBinding=order_ref,verifier_pubkey,image_digest,term_hash
+V9CTL_NOTE_FIELDS_PARSED=1
+  # NOTE_FIELDS_PARSED: все четыре объекта записки разобраны
+V9CTL_NOTE_FIELD_ORDER_EQ=1
+  # NOTE_FIELD_ORDER_EQ: порядок полей объектов в записке и в таблицах носителя совпадает
+V9CTL_NOTE_STEPS=6
+  # NOTE_STEPS: нумерованных шагов в записке
+V9CTL_STEP_COVERAGE=1
+  # STEP_COVERAGE: носитель добавил ровно шаг (0) про форму требования
+V9CTL_NOTE_OPENS=11|17|18|19|20|21
+  # NOTE_OPENS: пункты OPEN, названные запиской
+V9CTL_NOTE_OPENS_NUMBERED=1
+  # NOTE_OPENS_NUMBERED: записка называет не меньше четырёх новых пунктов
+V9CTL_WORST=1
+V9CTL_ALL_OK=0
+### RUN 2 · прибор на носителе как есть (ожидание зелёного прогона) ###
+E0114_BRIDGE_EXIT=0
+V9C_TOOLCHAIN=3.13.11
+  # TOOLCHAIN: реализация моста, пересобирающая байты слоя
+V9C_UNICODE_DATA=15.1.0
+V9C_CARRIER_BYTES=280457
+V9C_CARRIER_SHA=11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c
+V9C_PRIMITIVES_FROM_E0113=1
+  # PRIMITIVES_FROM_E0113: hashlib, Ed25519 по RFC 8032, canonical_json, вывод §V9.5
+V9C_VECTORS_PARSED=31
+V9C_VECTOR_KEYS_UNIFORM=1
+  # VECTOR_KEYS_UNIFORM: у всех векторов один и тот же набор ключей
+V9C_VECTOR_KEY_COUNT=71
+V9C_DOMAIN_ROWS_GOT=5
+  # DOMAIN_ROWS_GOT: строк домена в §1
+V9C_DOMAIN_ROWS=1
+  # DOMAIN_ROWS: строк домена в §1: получено 5, ожидание 5
+V9C_LAYOUT_OBJECTS_GOT=4
+  # LAYOUT_OBJECTS_GOT: таблиц раскладки в §2
+V9C_LAYOUT_OBJECTS=1
+  # LAYOUT_OBJECTS: таблиц раскладки в §2: получено 4, ожидание 4
+V9C_LAYOUT_ROWS=24
+  # LAYOUT_ROWS: строк полей: связка 4, описатель 7, свидетельство 7, требование 6
+V9C_STEP_ROWS_GOT=7
+  # STEP_ROWS_GOT: нумерованных шагов в §4
+V9C_STEP_ROWS=1
+  # STEP_ROWS: нумерованных шагов в §4: получено 7, ожидание 7
+V9C_CODE_NAMES_GOT=18
+  # CODE_NAMES_GOT: имён в закрытом списке §3 и в §7
+V9C_CODE_NAMES=1
+  # CODE_NAMES: имён в закрытом списке §3 и в §7: получено 18, ожидание 18
+V9C_REGISTRY_ROWS_GOT=6
+  # REGISTRY_ROWS_GOT: строк реестра против числа в §5
+V9C_REGISTRY_ROWS=1
+  # REGISTRY_ROWS: строк реестра против числа в §5: получено 6, ожидание 6
+V9C_DOMAIN_LEN_DIFF=none
+V9C_DOMAIN_LEN_EQ=1
+  # DOMAIN_LEN_EQ: заявленная длина домена равна длине напечатанного литерала
+V9C_DOMAIN_RECEIPT_LEN_EQ=1
+  # DOMAIN_RECEIPT_LEN_EQ: домен подписи квитанции назван в §5 с верной длиной
+V9C_DOMAIN_RECEIPT_LEN=28
+V9C_DOMAIN_LEN_DECOY=1
+  # DOMAIN_LEN_DECOY: сверка длины ловит навранную длину, а не молчит
+V9C_REGISTRY_BYTES_EQ_GOT=6
+  # REGISTRY_BYTES_EQ_GOT: байты описателей совпали с напечатанными
+V9C_REGISTRY_BYTES_EQ=1
+  # REGISTRY_BYTES_EQ: байты описателей совпали с напечатанными: получено 6, ожидание 6
+V9C_REGISTRY_LEAF_EQ_GOT=6
+  # REGISTRY_LEAF_EQ_GOT: листья совпали с напечатанными
+V9C_REGISTRY_LEAF_EQ=1
+  # REGISTRY_LEAF_EQ: листья совпали с напечатанными: получено 6, ожидание 6
+V9C_REGISTRY_ROOT=382bdb9d8c718277c1c37c676ffacb8e5abb8a679b89b06c67348ff6f62aeeaf
+V9C_REGISTRY_ROOT_EQ=1
+  # REGISTRY_ROOT_EQ: корень по напечатанной формуле равен напечатанному в §5
+V9C_REGISTRY_PERMUTE_EQ=1
+  # REGISTRY_PERMUTE_EQ: порядок перечисления не влияет на корень
+V9C_REGISTRY_ROOT_SENSITIVE=1
+  # REGISTRY_ROOT_SENSITIVE: порча одного листа меняет корень
+V9C_REGISTRY_EMPTY_ROOT=907fe09146925363e96369fd296a0fdf0a22780918326a87118c0f5f66b91be1
+  # REGISTRY_EMPTY_ROOT: пустой реестр: законное состояние, а не сломанный протокол
+V9C_REGISTRY_BRIDGE_CODES=1|2|2|2|2|2
+V9C_KEYPAIR_MATCH=beneficiary=31/31|observer=30/31|publisher=31/31|verifier=30/31
+V9C_KEYPAIR_MASK=0xa5
+V9C_KEYPAIR_PUBLISHER_EQ=1
+  # KEYPAIR_PUBLISHER_EQ: ключ издателя во всех векторах выводим из соглашения
+V9C_KEYPAIR_BENEFICIARY_EQ=1
+V9C_KEYPAIR_VERIFIER_EQ=1
+  # KEYPAIR_VERIFIER_EQ: ключ верификатора выводим, кроме вектора с чужим ключом
+V9C_KEYPAIR_OBSERVER_EQ=1
+  # KEYPAIR_OBSERVER_EQ: ключ наблюдателя выводим, кроме вектора вне доверенного набора
+V9C_KEYPAIR_STRANGE_VECTORS=P05|P10
+V9C_KEYPAIR_DECOY_NAMED=1
+  # KEYPAIR_DECOY_NAMED: обе посадки с чужим ключом названы и отличимы от честных
+V9C_RECORD_EQ_GOT=31
+  # RECORD_EQ_GOT: байты заказа пересобраны везде
+V9C_RECORD_EQ=1
+  # RECORD_EQ: байты заказа пересобраны везде: получено 31, ожидание 31
+V9C_TERM_EQ_GOT=31
+  # TERM_EQ_GOT: term_hash пересобран везде
+V9C_TERM_EQ=1
+  # TERM_EQ: term_hash пересобран везде: получено 31, ожидание 31
+V9C_BINDING_EQ_GOT=31
+  # BINDING_EQ_GOT: байты связки пересобраны везде
+V9C_BINDING_EQ=1
+  # BINDING_EQ: байты связки пересобраны везде: получено 31, ожидание 31
+V9C_WITNESS_EQ_GOT=31
+  # WITNESS_EQ_GOT: байты свидетельства пересобраны везде
+V9C_WITNESS_EQ=1
+  # WITNESS_EQ: байты свидетельства пересобраны везде: получено 31, ожидание 31
+V9C_RECEIPT_JSON_EQ_GOT=31
+  # RECEIPT_JSON_EQ_GOT: канонический JSON квитанции пересобран
+V9C_RECEIPT_JSON_EQ=1
+  # RECEIPT_JSON_EQ: канонический JSON квитанции пересобран: получено 31, ожидание 31
+V9C_CLAIM_EQ_GOT=29
+  # CLAIM_EQ_GOT: байты требования пересобраны там, где они кодируются
+V9C_CLAIM_EQ=1
+  # CLAIM_EQ: байты требования пересобраны там, где они кодируются: получено 29, ожидание 29
+V9C_CLAIM_MISS=none
+  # CLAIM_MISS: векторы, где собранные байты требования не совпали с напечатанными
+V9C_SIGNATURES_CHECKED=150
+V9C_SIGNATURES_VALID_GOT=150
+  # SIGNATURES_VALID_GOT: каждая подпись проходит по пересобранным байтам своего объекта
+V9C_SIGNATURES_VALID=1
+  # SIGNATURES_VALID: каждая подпись проходит по пересобранным байтам своего объекта: получено 150, ожидание 150
+V9C_MIRROR_MATCH=31/31
+V9C_MIRROR_MISS=none
+V9C_MIRROR_EQ=1
+  # MIRROR_EQ: решение моста совпало с напечатанным исходом и кодом
+V9C_INDEP_MATCH=1
+  # INDEP_MATCH: все байты слоя пересобраны из текста, без Rust и без узла
+V9C_V01_ORDER_REF=4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70
+V9C_ANCHOR_IN_LAYER_DOC=4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70
+V9C_ANCHOR_CARRIER_EQ=1
+  # ANCHOR_CARRIER_EQ: якорь инварианта A в носителе слоя равен вектору V01 носителя заказов
+V9C_ORDER_REF_REBUILT_EQ=1
+  # ORDER_REF_REBUILT_EQ: sha256 от пересобранных байтов заказа равен напечатанному order_ref
+V9C_ORDER_REF_SENSITIVE=1
+  # ORDER_REF_SENSITIVE: инвертированный бит записи меняет order_ref: сверка не слепая
+V9C_CODES_SEEN=E_DEADLINE_PASSED|E_ESCROW_INSUFFICIENT|E_ESCROW_UNKNOWN|E_HASH_MISMATCH|E_ORDER_MALFORMED|E_RECEIPT_INVALID|E_RECEIPT_UNSIGNED|E_REPLAY|E_VERDICT_MISMATCH
+V9C_CODES_USED_MINE=9
+V9C_CODES_SUBSET=1
+  # CODES_SUBSET: каждый выведенный код есть в напечатном списке §3
+V9C_CODES_USED_EQ_COVERAGE=1
+  # CODES_USED_EQ_COVERAGE: число использованных кодов совпало с §7
+V9C_CODES_NAMED_EQ_COVERAGE=1
+  # CODES_NAMED_EQ_COVERAGE: имена использованных кодов совпали с перечнем §7
+V9C_CODES_EQ_SPEC=1
+  # CODES_EQ_SPEC: список §3 носителя совпадает с §V9.8 спеки имя в имя
+V9C_CODE_GUARD_DECOY=1
+  # CODE_GUARD_DECOY: девятнадцатое имя отвергается сверкой, а не принимается молча
+V9C_CODES_NAMED_IN_STEPS=E_DEADLINE_PASSED|E_ESCROW_INSUFFICIENT|E_ESCROW_UNKNOWN|E_HASH_MISMATCH|E_ORDER_MALFORMED|E_RECEIPT_INVALID|E_RECEIPT_UNSIGNED|E_REPLAY|E_UNSUPPORTED_ASSET|E_VERDICT_MISMATCH
+V9C_STEP_CODES_COUNT=10
+V9C_STEP_CODES_KNOWN=1
+  # STEP_CODES_KNOWN: каждое имя, названное в шагах §4, есть в закрытом списке
+V9C_STEP_CODES_PARSED=1
+  # STEP_CODES_PARSED: шаги §4 прочитаны с продолжениями: ноль имён — молчание экстрактора, а не отсутствие кодов
+V9C_USED_CODES_IN_STEPS=1
+  # USED_CODES_IN_STEPS: каждый код, на который выходит хоть один вектор, назван в напечатанном порядке шагов
+V9C_FAIL_CLOSED_LEAK=none
+V9C_FAIL_CLOSED=1
+  # FAIL_CLOSED: при пустом наборе доверия ни одно честное требование не проходит
+V9C_EMPTY_TRUST_CODES=E_ESCROW_UNKNOWN
+V9C_VECTORS_COV_EQ_GOT=31
+  # VECTORS_COV_EQ_GOT: векторов в §6 и в §7
+V9C_VECTORS_COV_EQ=1
+  # VECTORS_COV_EQ: векторов в §6 и в §7: получено 31, ожидание 31
+V9C_PAYOUT_COV_EQ_GOT=7
+  # PAYOUT_COV_EQ_GOT: векторов «платить»
+V9C_PAYOUT_COV_EQ=1
+  # PAYOUT_COV_EQ: векторов «платить»: получено 7, ожидание 7
+V9C_DOUBLE_REPLAY_COUNT=12
+V9C_DOUBLE_REPLAY_EQ_COVERAGE=1
+  # DOUBLE_REPLAY_EQ_COVERAGE: отказов E_REPLAY пересчитано столько же, сколько напечатано в §7
+V9C_SIG_DECOY=1
+  # SIG_DECOY: инвертированный бит требования отвергнут подписью
+V9C_DECOY_STATUS_PAIR=reject/E_REPLAY
+V9C_DECOY_STATUS=1
+  # DECOY_STATUS: посадка status поймана решением, а не пропущена
+V9C_DECOY_AMOUNT_PAIR=reject/E_ESCROW_INSUFFICIENT
+V9C_DECOY_AMOUNT=1
+  # DECOY_AMOUNT: посадка amount поймана решением, а не пропущена
+V9C_DECOY_WITNESS_SIG_PAIR=reject/E_ESCROW_UNKNOWN
+V9C_DECOY_WITNESS_SIG=1
+  # DECOY_WITNESS_SIG: свидетельство с чужим телом под прежней подписью — про залог ничего неизвестно
+V9C_DECOY_STATUS_SIGNED_PAIR=reject/E_ORDER_MALFORMED
+V9C_DECOY_STATUS_SIGNED=1
+  # DECOY_STATUS_SIGNED: подписанный пятый тег состояния — ошибка структуры, а не молчание
+V9C_LAYOUT_DECOY=1
+  # LAYOUT_DECOY: урезанная ширина поля не воспроизводит напечатанные байты
+V9C_NOTE_DOMAINS=DOMAIN_BINDING|DOMAIN_CHAIN|DOMAIN_CLAIM|DOMAIN_TERM|DOMAIN_WITNESS
+V9C_NOTE_DOMAINS_EQ=1
+  # NOTE_DOMAINS_EQ: домены записки и носителя названы одинаково
+V9C_NOTE_TERM_SEQ=DOMAIN_TERM|order_ref|chain_id|asset_bytes|beneficiary_pubkey|amount|escrow_ref_len|escrow_ref
+V9C_CARRIER_TERM_SEQ=DOMAIN_TERM|order_ref|chain_id|asset_bytes|beneficiary_pubkey|amount|escrow_ref_len|escrow_ref
+V9C_NOTE_TERM_ORDER_EQ=1
+  # NOTE_TERM_ORDER_EQ: порядок полей term_hash в записке и носителе одинаков
+V9C_NOTE_FIELDS=ChainDescriptor=chain_id,name,bridge_code,settle_asset_tag,min_amount,note|EscrowWitness=term_hash,chain_id,status,amount_on_chain,block_ref,registry_root,observer_pubkey|PayoutClaim=term_hash,order_ref,receipt,binding,witness,beneficiary|VerifierBinding=order_ref,verifier_pubkey,image_digest,term_hash
+V9C_NOTE_FIELDS_PARSED=1
+  # NOTE_FIELDS_PARSED: все четыре объекта записки разобраны
+V9C_NOTE_FIELD_ORDER_EQ=1
+  # NOTE_FIELD_ORDER_EQ: порядок полей объектов в записке и в таблицах носителя совпадает
+V9C_NOTE_STEPS=6
+  # NOTE_STEPS: нумерованных шагов в записке
+V9C_STEP_COVERAGE=1
+  # STEP_COVERAGE: носитель добавил ровно шаг (0) про форму требования
+V9C_NOTE_OPENS=11|17|18|19|20|21
+  # NOTE_OPENS: пункты OPEN, названные запиской
+V9C_NOTE_OPENS_NUMBERED=1
+  # NOTE_OPENS_NUMBERED: записка называет не меньше четырёх новых пунктов
+V9C_WORST=0
+V9C_ALL_OK=1
+### RUN 3 · генератор носителя в temp: побайтное воспроизведение и V9P_* ###
+V9P_GEN_EXIT=0
+V9P_V01_ORDER_REF=4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70
+V9P_ORDER_REF_UNCHANGED=1
+V9P_VECTORS=31
+V9P_VECTOR_KEYS=71
+V9P_CODE_TOTAL=18
+V9P_CODES_USED=9
+V9P_CODES_SUBSET=1
+V9P_PAYOUTS=7
+V9P_DOUBLE_REPLAY=12
+V9P_REGISTRY_ROOT=382bdb9d8c718277c1c37c676ffacb8e5abb8a679b89b06c67348ff6f62aeeaf
+V9P_DOMAINS=5
+V9P_RECEIPT_KEYS=13
+V9P_ORDER_REF=99a366a0ec2bbd261365b7fb4ea8b6f0e28a4db2c8cf5d253d2aa70890576047
+V9P_TERM_HASH=3bb1390594b4c87cc00ef5be0604cf0833e614bbdb1449d931d5a68d46653b6c
+V9P_CLAIM_LEN=1310
+V9P_CLAIM_SHA=87270a59f99faa759fd5dec12a6c2d7b7913461fd5d7c8b6665f21b09ea38fff
+V9P_FORMULA_EQ=31
+V9P_TERM_TOKENS=9
+V9P_DOC_BYTES=280457
+V9P_DOC_SHA=11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c
+V9P_DOC_WRITTEN=C:/Users/Admin/AppData/Local/Temp/e0114pre.TLa1A8/carrier_regen.md
+V9P_REGEN_SHA=11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c
+V9P_COMMITTED_SHA=11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c
+V9C_CARRIER_REPRODUCED=1
+### КОНЕЦ PRE_FIX ###

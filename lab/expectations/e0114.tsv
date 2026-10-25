@@ -1,0 +1,186 @@
+# E-0114 — замороженные ожидания прогона (пре-регистрация, до замерного запуска).
+# Ключи — печатные факты прибора `lab/v9-payout-bridge.py` (приставка V9C_), генератора носителя
+# (`V9P_` из `crates/vecdht-orders/tests/payout_claim_vectors.rs`), контроля посадки (`V9CTL_`,
+# шаги 2 и 3 helper'а) и служебные факты helper'а. Значения выведены из напечатанных чисел
+# носителя (§1 пять доменов, §2 четыре таблицы = 24 строк полей, §3 18 имён, §4 семь шагов,
+# §5 шесть описателей, §7 31/7/9/12) и из PRE_FIX-снимка посадки (`lab/logs/e0114-prefix.log`),
+# а не из прогона после правки. Числа, которые выведены из кода прибора, а не из текста
+# (SIGNATURES_CHECKED=150, LAYOUT_ROWS=24, KEYPAIR_MATCH), запинены деревом: sha носителя, спеки,
+# прибора, посадчика и генератора стоят в шапке helper'а и проверяются фактами *_SHA_UNCHANGED —
+# править дерево во время замера нельзя, и здесь это тоже число.
+# Значения фактов — ASCII: helper вытаскивает их по границе токена, кириллица в значении читалась
+# бы как пустота, то есть как молчание там, где прибор ответил.
+
+# --- шаг 1: прибор (112 фактов) ---
+V9C_TOOLCHAIN	3.13.11	реализация моста, пересобирающая байты слоя
+V9C_UNICODE_DATA	15.1.0	версия Unicode-данных CPython: от неё зависит NFC, а значит и байты строк
+V9C_CARRIER_BYTES	280457	размер носителя слоя в байтах: запинен деревом замера
+V9C_CARRIER_SHA	11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c	sha256 носителя: то же число, что печатает генератор (V9P_DOC_SHA)
+V9C_PRIMITIVES_FROM_E0113	1	hashlib, Ed25519 по RFC 8032, canonical_json, вывод §V9.5
+V9C_VECTORS_PARSED	31	блоков векторов в §6: 31 = напечатано в §7
+V9C_VECTOR_KEYS_UNIFORM	1	у всех векторов один и тот же набор ключей
+V9C_VECTOR_KEY_COUNT	71	полей в блоке вектора: 71 = V9P_VECTOR_KEYS (набор печатает генератор)
+V9C_DOMAIN_ROWS_GOT	5	строк домена в §1
+V9C_DOMAIN_ROWS	1	строк домена в §1: получено 5, ожидание 5
+V9C_LAYOUT_OBJECTS_GOT	4	таблиц раскладки в §2
+V9C_LAYOUT_OBJECTS	1	таблиц раскладки в §2: получено 4, ожидание 4
+V9C_LAYOUT_ROWS	24	строк полей: связка 4, описатель 7, свидетельство 7, требование 6
+V9C_STEP_ROWS_GOT	7	нумерованных шагов в §4
+V9C_STEP_ROWS	1	нумерованных шагов в §4: получено 7, ожидание 7
+V9C_CODE_NAMES_GOT	18	имён в закрытом списке §3 и в §7
+V9C_CODE_NAMES	1	имён в закрытом списке §3 и в §7: получено 18, ожидание 18
+V9C_REGISTRY_ROWS_GOT	6	строк реестра против числа в §5
+V9C_REGISTRY_ROWS	1	строк реестра против числа в §5: получено 6, ожидание 6
+V9C_DOMAIN_LEN_DIFF	none	none = расхождений заявленной и фактической длины домена нет
+V9C_DOMAIN_LEN_EQ	1	заявленная длина домена равна длине напечатанного литерала
+V9C_DOMAIN_RECEIPT_LEN_EQ	1	домен подписи квитанции назван в §5 с верной длиной
+V9C_DOMAIN_RECEIPT_LEN	28	длина литерала домена квитанции, названного в §5: 28
+V9C_DOMAIN_LEN_DECOY	1	сверка длины ловит навранную длину, а не молчит
+V9C_REGISTRY_BYTES_EQ_GOT	6	байты описателей совпали с напечатанными
+V9C_REGISTRY_BYTES_EQ	1	байты описателей совпали с напечатанными: получено 6, ожидание 6
+V9C_REGISTRY_LEAF_EQ_GOT	6	листья совпали с напечатанными
+V9C_REGISTRY_LEAF_EQ	1	листья совпали с напечатанными: получено 6, ожидание 6
+V9C_REGISTRY_ROOT	382bdb9d8c718277c1c37c676ffacb8e5abb8a679b89b06c67348ff6f62aeeaf	корень реестра, пересобранный по формуле §2: равен напечатанному в §5
+V9C_REGISTRY_ROOT_EQ	1	корень по напечатанной формуле равен напечатанному в §5
+V9C_REGISTRY_PERMUTE_EQ	1	порядок перечисления не влияет на корень
+V9C_REGISTRY_ROOT_SENSITIVE	1	порча одного листа меняет корень
+V9C_REGISTRY_EMPTY_ROOT	907fe09146925363e96369fd296a0fdf0a22780918326a87118c0f5f66b91be1	пустой реестр: законное состояние, а не сломанный протокол
+V9C_REGISTRY_BRIDGE_CODES	1|2|2|2|2|2	коды мостов по порядку строк реестра: 0 — нативная (1), пять EVM-подобных (2)
+V9C_KEYPAIR_MATCH	beneficiary=31/31|observer=30/31|publisher=31/31|verifier=30/31	сколько векторов дают ключ каждой роли из соглашения §5 (из 31)
+V9C_KEYPAIR_MASK	0xa5	маска последнего байта keypair, прочитанная из §5: 0xa5
+V9C_KEYPAIR_PUBLISHER_EQ	1	ключ издателя во всех векторах выводим из соглашения
+V9C_KEYPAIR_BENEFICIARY_EQ	1	ключ получателя выплаты выводим из соглашения во всех векторах
+V9C_KEYPAIR_VERIFIER_EQ	1	ключ верификатора выводим, кроме вектора с чужим ключом
+V9C_KEYPAIR_OBSERVER_EQ	1	ключ наблюдателя выводим, кроме вектора вне доверенного набора
+V9C_KEYPAIR_STRANGE_VECTORS	P05|P10	векторы с чужими ключами: P05 — верификатор, P10 — наблюдатель вне набора
+V9C_KEYPAIR_DECOY_NAMED	1	обе посадки с чужим ключом названы и отличимы от честных
+V9C_RECORD_EQ_GOT	31	байты заказа пересобраны везде
+V9C_RECORD_EQ	1	байты заказа пересобраны везде: получено 31, ожидание 31
+V9C_TERM_EQ_GOT	31	term_hash пересобран везде
+V9C_TERM_EQ	1	term_hash пересобран везде: получено 31, ожидание 31
+V9C_BINDING_EQ_GOT	31	байты связки пересобраны везде
+V9C_BINDING_EQ	1	байты связки пересобраны везде: получено 31, ожидание 31
+V9C_WITNESS_EQ_GOT	31	байты свидетельства пересобраны везде
+V9C_WITNESS_EQ	1	байты свидетельства пересобраны везде: получено 31, ожидание 31
+V9C_RECEIPT_JSON_EQ_GOT	31	канонический JSON квитанции пересобран
+V9C_RECEIPT_JSON_EQ	1	канонический JSON квитанции пересобран: получено 31, ожидание 31
+V9C_CLAIM_EQ_GOT	29	байты требования пересобраны там, где они кодируются
+V9C_CLAIM_EQ	1	байты требования пересобраны там, где они кодируются: получено 29, ожидание 29
+V9C_CLAIM_MISS	none	векторы, где собранные байты требования не совпали с напечатанными
+V9C_SIGNATURES_CHECKED	150	150 = 31 вектор на 5 подписей слоя минус пять напечатанных как `-` (receipt 1, binding 1, claim 3)
+V9C_SIGNATURES_VALID_GOT	150	каждая подпись проходит по пересобранным байтам своего объекта
+V9C_SIGNATURES_VALID	1	каждая подпись проходит по пересобранным байтам своего объекта: получено 150, ожидание 150
+V9C_MIRROR_MATCH	31/31	решение моста совпало с напечатанным исходом и кодом: 31 из 31
+V9C_MIRROR_MISS	none	none = расхождений нет; иначе до шести адресов векторов
+V9C_MIRROR_EQ	1	решение моста совпало с напечатанным исходом и кодом
+V9C_INDEP_MATCH	1	все байты слоя пересобраны из текста, без Rust и без узла
+V9C_V01_ORDER_REF	4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70	якорь инварианта A: order_ref вектора V01, прочитанный из носителя заказов
+V9C_ANCHOR_IN_LAYER_DOC	4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70	тот же якорь, напечатанный в шапке носителя слоя: два текста называют одно число
+V9C_ANCHOR_CARRIER_EQ	1	якорь инварианта A в носителе слоя равен вектору V01 носителя заказов
+V9C_ORDER_REF_REBUILT_EQ	1	sha256 от пересобранных байтов заказа равен напечатанному order_ref
+V9C_ORDER_REF_SENSITIVE	1	инвертированный бит записи меняет order_ref: сверка не слепая
+V9C_CODES_SEEN	E_DEADLINE_PASSED|E_ESCROW_INSUFFICIENT|E_ESCROW_UNKNOWN|E_HASH_MISMATCH|E_ORDER_MALFORMED|E_RECEIPT_INVALID|E_RECEIPT_UNSIGNED|E_REPLAY|E_VERDICT_MISMATCH	имена кодов, выведенных машиной решения: девять, все из закрытого списка §3
+V9C_CODES_USED_MINE	9	9 = V9P_CODES_USED = число в §7
+V9C_CODES_SUBSET	1	каждый выведенный код есть в напечатном списке §3
+V9C_CODES_USED_EQ_COVERAGE	1	число использованных кодов совпало с §7
+V9C_CODES_NAMED_EQ_COVERAGE	1	имена использованных кодов совпали с перечнем §7
+V9C_CODES_EQ_SPEC	1	список §3 носителя совпадает с §V9.8 спеки имя в имя
+V9C_CODE_GUARD_DECOY	1	девятнадцатое имя отвергается сверкой, а не принимается молча
+V9C_CODES_NAMED_IN_STEPS	E_DEADLINE_PASSED|E_ESCROW_INSUFFICIENT|E_ESCROW_UNKNOWN|E_HASH_MISMATCH|E_ORDER_MALFORMED|E_RECEIPT_INVALID|E_RECEIPT_UNSIGNED|E_REPLAY|E_UNSUPPORTED_ASSET|E_VERDICT_MISMATCH	10 имён, названных в шагах §4: девять использованных плюс E_UNSUPPORTED_ASSET
+V9C_STEP_CODES_COUNT	10	10: ноль здесь означал бы, что экстрактор молчит на продолжениях строк §4
+V9C_STEP_CODES_KNOWN	1	каждое имя, названное в шагах §4, есть в закрытом списке
+V9C_STEP_CODES_PARSED	1	шаги §4 прочитаны с продолжениями: ноль имён — молчание экстрактора, а не отсутствие кодов
+V9C_USED_CODES_IN_STEPS	1	каждый код, на который выходит хоть один вектор, назван в напечатанном порядке шагов
+V9C_FAIL_CLOSED_LEAK	none	none = при пустом наборе доверия не оплачено ни одно честное требование
+V9C_FAIL_CLOSED	1	при пустом наборе доверия ни одно честное требование не проходит
+V9C_EMPTY_TRUST_CODES	E_ESCROW_UNKNOWN	к какому коду сводятся честные требования при пустом доверии
+V9C_VECTORS_COV_EQ_GOT	31	векторов в §6 и в §7
+V9C_VECTORS_COV_EQ	1	векторов в §6 и в §7: получено 31, ожидание 31
+V9C_PAYOUT_COV_EQ_GOT	7	векторов «платить»
+V9C_PAYOUT_COV_EQ	1	векторов «платить»: получено 7, ожидание 7
+V9C_DOUBLE_REPLAY_COUNT	12	12 = напечатано в §7: повторное требование на распорядившийся залог
+V9C_DOUBLE_REPLAY_EQ_COVERAGE	1	отказов E_REPLAY пересчитано столько же, сколько напечатано в §7
+V9C_SIG_DECOY	1	инвертированный бит требования отвергнут подписью
+V9C_DECOY_STATUS_PAIR	reject/E_REPLAY	чем закончилась посадка «отпущенный залог»: решение/код
+V9C_DECOY_STATUS	1	посадка status поймана решением, а не пропущена
+V9C_DECOY_AMOUNT_PAIR	reject/E_ESCROW_INSUFFICIENT	чем закончилась посадка «недобор залога»
+V9C_DECOY_AMOUNT	1	посадка amount поймана решением, а не пропущена
+V9C_DECOY_WITNESS_SIG_PAIR	reject/E_ESCROW_UNKNOWN	чем закончилась посадка «свидетельство с чужим телом под прежней подписью»
+V9C_DECOY_WITNESS_SIG	1	свидетельство с чужим телом под прежней подписью — про залог ничего неизвестно
+V9C_DECOY_STATUS_SIGNED_PAIR	reject/E_ORDER_MALFORMED	чем закончилась посадка «пятый подписанный тег status»
+V9C_DECOY_STATUS_SIGNED	1	подписанный пятый тег состояния — ошибка структуры, а не молчание
+V9C_LAYOUT_DECOY	1	урезанная ширина поля не воспроизводит напечатанные байты
+V9C_NOTE_DOMAINS	DOMAIN_BINDING|DOMAIN_CHAIN|DOMAIN_CLAIM|DOMAIN_TERM|DOMAIN_WITNESS	пять имён доменов, названных в записке
+V9C_NOTE_DOMAINS_EQ	1	домены записки и носителя названы одинаково
+V9C_NOTE_TERM_SEQ	DOMAIN_TERM|order_ref|chain_id|asset_bytes|beneficiary_pubkey|amount|escrow_ref_len|escrow_ref	порядок токенов формулы term_hash, прочитанный из записки
+V9C_CARRIER_TERM_SEQ	DOMAIN_TERM|order_ref|chain_id|asset_bytes|beneficiary_pubkey|amount|escrow_ref_len|escrow_ref	порядок токенов формулы term_hash, прочитанный из носителя
+V9C_NOTE_TERM_ORDER_EQ	1	порядок полей term_hash в записке и носителе одинаков
+V9C_NOTE_FIELDS	ChainDescriptor=chain_id,name,bridge_code,settle_asset_tag,min_amount,note|EscrowWitness=term_hash,chain_id,status,amount_on_chain,block_ref,registry_root,observer_pubkey|PayoutClaim=term_hash,order_ref,receipt,binding,witness,beneficiary|VerifierBinding=order_ref,verifier_pubkey,image_digest,term_hash	раскладка четырёх объектов, прочитанная из записки (сверяется с таблицами §2)
+V9C_NOTE_FIELDS_PARSED	1	все четыре объекта записки разобраны
+V9C_NOTE_FIELD_ORDER_EQ	1	порядок полей объектов в записке и в таблицах носителя совпадает
+V9C_NOTE_STEPS	6	нумерованных шагов в записке
+V9C_STEP_COVERAGE	1	носитель добавил ровно шаг (0) про форму требования
+V9C_NOTE_OPENS	11|17|18|19|20|21	пункты OPEN, названные запиской
+V9C_NOTE_OPENS_NUMBERED	1	записка называет не меньше четырёх новых пунктов
+V9C_WORST	0	0 = ни одна сверка не покраснела
+V9C_ALL_OK	1	1 — зелёный прогон прибора
+
+# --- шаг 2: генератор носителя на том же дереве (21 факт) ---
+V9P_GEN_EXIT	0	тест-таргет генератора носителя прошёл на том же дереве
+V9P_V01_ORDER_REF	4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70	якорь аддитивности, напечатанный самим генератором
+V9P_ORDER_REF_UNCHANGED	1	инвариант A: байты paid_order не сдвинулись от появления слоя
+V9P_VECTORS	31	векторов порождено — равно §6 и §7 носителя
+V9P_VECTOR_KEYS	71	полей в блоке вектора — равно V9C_VECTOR_KEY_COUNT
+V9P_CODE_TOTAL	18	закрытый список кодов: ни одного нового слой не ввёл
+V9P_CODES_USED	9	различных кодов отказа, использованных слоем (§7)
+V9P_CODES_SUBSET	1	множество использованных кодов — подмножество 18
+V9P_PAYOUTS	7	векторов с исходом payout (§7)
+V9P_DOUBLE_REPLAY	12	отказов E_REPLAY: второе требование на распорядившийся залог (§7)
+V9P_REGISTRY_ROOT	382bdb9d8c718277c1c37c676ffacb8e5abb8a679b89b06c67348ff6f62aeeaf	корень реестра, вычисленный кодом: равен напечатанному в §5
+V9P_DOMAINS	5	доменов канонизации слоя (§1)
+V9P_RECEIPT_KEYS	13	ключей квитанции — то же число, что сверял E-0113
+V9P_ORDER_REF	99a366a0ec2bbd261365b7fb4ea8b6f0e28a4db2c8cf5d253d2aa70890576047	order_ref честного вектора P01
+V9P_TERM_HASH	3bb1390594b4c87cc00ef5be0604cf0833e614bbdb1449d931d5a68d46653b6c	term_hash P01: его же пересобирает прибор из формулы §1
+V9P_CLAIM_LEN	1310	длина канонических байт требования P01 (§5)
+V9P_CLAIM_SHA	87270a59f99faa759fd5dec12a6c2d7b7913461fd5d7c8b6665f21b09ea38fff	sha256 байт требования P01 (§5): вход для пересчёта без Rust
+V9P_FORMULA_EQ	31	напечатанная формула term_hash перепроверена кодом на каждом векторе — текст не может соврать молча
+V9P_TERM_TOKENS	9	токенов в напечатанной формуле: ровно те, что исполняет term_bytes_per_formula
+V9P_DOC_BYTES	280457	размер порождённого носителя
+V9P_DOC_SHA	11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c	sha порождённого носителя: равен sha закоммиченного файла (V9C_CARRIER_SHA)
+
+# --- шаг 2: пин дерева и побайтное воспроизведение носителя (10 фактов) ---
+V9C_CARRIER_REGEN_SHA	11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c	sha носителя, перегенерированного в temp на дереве замера
+V9C_CARRIER_REPRODUCED	1	носитель воспроизводится из кода побайтно: править его руками нечем
+V9C_DOC_SHA	11468b493dcae7512d99b6e0bb7a462b828efc9dcf3eaaafde4e24e0520eb88c	sha носителя слоя на дереве замера — число, а не обещание
+V9C_SPEC_SHA	102fc69418f783a46bf397faea373b64c371a3382eab6c35f2910c31d3b532b7	sha спеки на дереве замера: после правки §V9.7 обязан смениться, а зелёный набор V9C_* — нет
+V9C_DOC_SHA_UNCHANGED	1	носитель слоя не изменился за время прогона (дерево не правим)
+V9C_SPEC_SHA_UNCHANGED	1	спека не изменилась за время прогона: внутри замерного цикла docs/ нетронут
+V9C_INSTRUMENT_SHA	28bf8bb0eba81180da5cc310890f19cab78124bd2a547c0661e46c0cf89507a7	sha прибора замера — запинен в шапке helper'а
+V9C_INSTRUMENT_SHA_UNCHANGED	1	прибор не правился во время замера: красное нельзя объяснить подгонкой
+V9C_PLANT_SHA	dfe69906b075de826ae35f26797b567a4960ae7208a0fd09590e6243efee775d	sha посадчика прежней формулы — запинен в шапке helper'а
+V9C_PLANT_SHA_UNCHANGED	1	посадка не правилась во время замера
+V9C_GENERATOR_SHA	4a8be70a2dc0229c1b7f65f77e38d1f10e22d0d87a5e6f96c41b3134a950eded	sha генератора носителя — запинен в шапке helper'а
+V9C_GENERATOR_SHA_UNCHANGED	1	генератор не правился во время замера
+
+# --- шаг 3: контроль посадки (11 фактов): PRE_FIX как исполняемый шаг ---
+V9CTL_PLANT_EXIT	0	посадка исполнилась: маркер fence найден, копия отличается от носителя
+V9CTL_BRIDGE_EXIT	1	на копии с прежней формулой прибор обязан выйти единичкой
+V9CTL_IS_RED	1	красный контроль = прибор видит дефект; зелёный контроль означал бы слепоту
+V9CTL_TERM_EQ_GOT	0	ни один term_hash не сходится: прежняя формула обещала терминаторы между полями
+V9CTL_TERM_EQ	0	ожидание именно нулевое: это и есть PRE_FIX, исполняемый на каждом прогоне
+V9CTL_ALL_OK	0	общий вердикт копии — красное
+V9CTL_MIRROR_MATCH	4/31	решений совпало четыре из 31: расхождение формулы уезжает в шаги (2) и (5)
+V9CTL_RECORD_EQ	1	байты заказа при этом зелёные: виновата формула term_hash, а не носитель целиком
+V9CTL_SIGNATURES_VALID	1	подписи над напечатанными байтами тоже зелёные: самосогасованность носителя сохранена
+V9CTL_DECOY_WITNESS_SIG	0	посадка залога спотыкается раньше, на шаге (1): порядок вывода решения значим
+V9CTL_DECOY_SHA	ce81bb21211825ff319e2d1020419221f35f49be3f47e70c48392e05d41a9faa	sha копии с посадкой: отличается от sha носителя — посадка не шутка
+
+# --- служебные факты helper'а (8) ---
+GATE_H0114_OK	1	гейт круга пройден ДО замера (порог (0) helper'а)
+DISK_GE_15000	1	свободный диск не ниже 15 000 МБ до начала замера
+E0114_RUNS	2	два прогона на неизменном дереве — правило 7 (е)
+E0114_BRIDGE_EXIT	0	прибор сошёлся выходом 0 на носителе дерева замера
+VECTOR_STABLE	1	наборы фактов двух прогонов побайтно равны
+AUDIT_VIOLATIONS	0	аудит пяти последних карточек: нарушений нет
+VERIFY_EXIT	0	полная верификация workspace
+TEXTGUARD_CYCLE_EXIT	0	стража текста по девяти файлам цикла
