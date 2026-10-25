@@ -1,0 +1,199 @@
+########## E-0118 · 2026-10-26T01:04:01+03:00 · дерево 9b890be ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T01:04:01+03:00
+ПРИОРАРТ H-0118: отказ от источников с причиной
+LEAN H-0118: модель не сделана, рубрика обязательной не требует
+E-CARD E-0118: порог, окружение и команда названы
+CYCLE H-0118=OK нарушений=0
+GATE_H0118_OK=1
+DISK_FREE_MB=30103 RAM_FREE_MB=9726 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве 8355c72 команд нет ### 2026-10-26T01:04:04+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_NO_COMMAND=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_COMMAND=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T01:04:04+03:00
+RUN1: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+RUN2: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+STABLE=1
+STABLE=1
+### ШАГ 3 ожидания ### 2026-10-26T01:04:11+03:00
+ОЖИДАНИЙ_ПОВРЕЖДЁН: строка без табуляции: 'GATE_H0118_OK=1'
+### ШАГ 4 посадка: неверное ожидание обязано краснеть ### 2026-10-26T01:04:11+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 5 clippy по пакету со всеми целями ### 2026-10-26T01:04:12+03:00
+CLIPPY_EXIT=0
+### ШАГ 6 стража текста ### 2026-10-26T01:04:17+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 7 носитель после прогона ### 2026-10-26T01:04:17+03:00
+DISK_FREE_MB=30099 RAM_FREE_MB=9468 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+########## E-0118 · 2026-10-26T01:04:34+03:00 · дерево 0675623 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T01:04:34+03:00
+ПРИОРАРТ H-0118: отказ от источников с причиной
+LEAN H-0118: модель не сделана, рубрика обязательной не требует
+E-CARD E-0118: порог, окружение и команда названы
+CYCLE H-0118=OK нарушений=0
+GATE_H0118_OK=1
+DISK_FREE_MB=30096 RAM_FREE_MB=10330 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве 8355c72 команд нет ### 2026-10-26T01:04:36+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_NO_COMMAND=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_COMMAND=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T01:04:36+03:00
+RUN1: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+RUN2: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+STABLE=1
+STABLE=1
+### ШАГ 3 ожидания ### 2026-10-26T01:04:40+03:00
+РАСХОЖДЕНИЕ: PLANT_EXIT ждали «1», напечатано «нет такого ключа»
+РАСХОЖДЕНИЕ: CLIPPY_EXIT ждали «0», напечатано «нет такого ключа»
+РАСХОЖДЕНИЕ: TEXTGUARD_CYCLE_EXIT ждали «0», напечатано «нет такого ключа»
+ОЖИДАНИЙ=12 РАСХОЖДЕНИЙ=3
+### ШАГ 4 посадка: неверное ожидание обязано краснеть ### 2026-10-26T01:04:40+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 5 clippy по пакету со всеми целями ### 2026-10-26T01:04:41+03:00
+CLIPPY_EXIT=0
+### ШАГ 6 стража текста ### 2026-10-26T01:04:42+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 7 носитель после прогона ### 2026-10-26T01:04:42+03:00
+DISK_FREE_MB=30096 RAM_FREE_MB=9666 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+########## E-0118 · 2026-10-26T01:04:59+03:00 · дерево 7de3748 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T01:04:59+03:00
+ПРИОРАРТ H-0118: отказ от источников с причиной
+LEAN H-0118: модель не сделана, рубрика обязательной не требует
+E-CARD E-0118: порог, окружение и команда названы
+CYCLE H-0118=OK нарушений=0
+GATE_H0118_OK=1
+DISK_FREE_MB=30095 RAM_FREE_MB=9373 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве 8355c72 команд нет ### 2026-10-26T01:05:02+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_NO_COMMAND=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_COMMAND=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T01:05:03+03:00
+RUN1: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+RUN2: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T01:05:06+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T01:05:07+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 ожидания ### 2026-10-26T01:05:08+03:00
+РАСХОЖДЕНИЕ: PLANT_EXIT ждали «1», напечатано «нет такого ключа»
+ОЖИДАНИЙ=12 РАСХОЖДЕНИЙ=1
+### ШАГ 6 посадка: неверное ожидание обязано краснеть ### 2026-10-26T01:05:08+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 7 носитель после прогона ### 2026-10-26T01:05:09+03:00
+DISK_FREE_MB=30092 RAM_FREE_MB=9045 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+########## E-0118 · 2026-10-26T01:05:20+03:00 · дерево ddc0940 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T01:05:20+03:00
+ПРИОРАРТ H-0118: отказ от источников с причиной
+LEAN H-0118: модель не сделана, рубрика обязательной не требует
+E-CARD E-0118: порог, окружение и команда названы
+CYCLE H-0118=OK нарушений=0
+GATE_H0118_OK=1
+DISK_FREE_MB=30091 RAM_FREE_MB=8982 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве 8355c72 команд нет ### 2026-10-26T01:05:23+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_NO_COMMAND=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_COMMAND=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T01:05:23+03:00
+RUN1: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+RUN2: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T01:05:27+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T01:05:28+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T01:05:28+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T01:05:29+03:00
+ОЖИДАНИЙ=12 РАСХОЖДЕНИЙ=0
+### ШАГ 7 носитель после прогона ### 2026-10-26T01:05:29+03:00
+DISK_FREE_MB=30091 RAM_FREE_MB=9012 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
+########## E-0118 · 2026-10-26T01:33:00+03:00 · дерево ddc0940 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T01:33:00+03:00
+ПРИОРАРТ H-0118: отказ от источников с причиной
+LEAN H-0118: модель не сделана, рубрика обязательной не требует
+E-CARD E-0118: порог, окружение и команда названы
+CYCLE H-0118=OK нарушений=0
+GATE_H0118_OK=1
+DISK_FREE_MB=30052 RAM_FREE_MB=8914 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве 8355c72 команд нет ### 2026-10-26T01:33:02+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_NO_COMMAND=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_COMMAND=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T01:33:03+03:00
+RUN1: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+RUN2: test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=5
+FAILED=0
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T01:33:06+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T01:33:07+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T01:33:07+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T01:33:08+03:00
+ОЖИДАНИЙ=12 РАСХОЖДЕНИЙ=0
+### ШАГ 7 носитель после прогона ### 2026-10-26T01:33:08+03:00
+DISK_FREE_MB=30048 RAM_FREE_MB=8718 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
