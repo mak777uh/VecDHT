@@ -349,7 +349,7 @@ fn node_run_publishes_finds_and_survives_restart() {
         &replica_dir,
         replica_seed,
         replica_cert,
-        &[primary_addr.clone()],
+        std::slice::from_ref(&primary_addr),
     ));
     let _replica_addr = replica.wait_ready();
     // Рукопожатие и объявление провайдера идут шагами узла; публикация сразу после NODE_READY
