@@ -77,12 +77,20 @@ impl Kind {
 }
 
 /// Allowlist аксиом для `kind = lean_proof` (§V9.5). Это три аксиомы ядра Lean 4 — `propext`,
-/// `Classical.choice`, `Quoted.sound`; они не «разрешены по догадке»: прибор читает список аксиом,
+/// `Classical.choice`, `Quot.sound`; они не «разрешены по догадке»: прибор читает список аксиом,
 /// который назвал kernel, и сверяет с этим множеством.
+///
+/// Третье имя именно `Quot.sound`, а не `Quoted.sound`: `lab/lean/KernelName.lean` подтверждает это
+/// исполнением — `lean` печатает `'q' depends on axioms: [Quot.sound]` (правило лаба: имя чужой
+/// системы сверяется по её выводу, а не по цитате; цитата тоже есть — `src/Init/Prelude.lean:543`
+/// на пине `c908828b7afd2e5a8e36c398971ba1608ec13034`, `L-0035`). Прежний список содержал
+/// `Quoted.sound`, которого в ядре нет, и от этого список портился в обе стороны: честная
+/// квитанция про `Quot.sound` получала `E_AXIOM_NOT_ALLOWED`, а имя, которое kernel выдать не
+/// может, — проходило (`E-0112`, `ADR-0062`, `OPEN-V9-10`).
 ///
 /// `OPEN`: привязка к конкретной версии тулчейна (digest образа) появляется вместе с первым
 /// опубликованным образом верификатора — см. §V9.10, горизонт H2.
-pub const AXIOM_ALLOWLIST: [&str; 3] = ["propext", "Classical.choice", "Quoted.sound"];
+pub const AXIOM_ALLOWLIST: [&str; 3] = ["propext", "Classical.choice", "Quot.sound"];
 
 /// Запрещённые маркеры в тексте Lean-задания (§V9.9, proof farming).
 pub const FORBIDDEN_MARKERS: [&str; 2] = ["sorry", "admit"];
