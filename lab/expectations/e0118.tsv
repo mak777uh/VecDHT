@@ -1,12 +1,12 @@
-GATE_H0118_OK=1
-DISK_GE_15000=1
-BASE_IS_ANCESTOR=1
-PRE_FIX_NO_COMMAND=1
-RESULT_EXIT=0
-TEST_RESULT_OK=1
-PASSED=5
-FAILED=0
-STABLE=1
-PLANT_EXIT=1
-CLIPPY_EXIT=0
-TEXTGUARD_CYCLE_EXIT=0
+GATE_H0118_OK	1	гейт круга пройден
+DISK_GE_15000	1	свободного диска не меньше 15 000 МБ
+BASE_IS_ANCESTOR	1	пин 8355c72 — предок текущего дерева
+PRE_FIX_NO_COMMAND	1	на дереве 8355c72 пути `cert issue` в диспетчере нет
+RESULT_EXIT	0	оракул завершился нулём
+TEST_RESULT_OK	1	итог либтеста — ok
+PASSED	5	пять тестов церемонии
+FAILED	0	ни одного провала
+STABLE	1	наборы фактов двух прогонов совпали
+PLANT_EXIT	1	посадка неверного ожидания отвергнута
+CLIPPY_EXIT	0	clippy по пакету со всеми целями чист
+TEXTGUARD_CYCLE_EXIT	0	стража текста цикла чиста

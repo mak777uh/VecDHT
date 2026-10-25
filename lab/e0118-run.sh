@@ -98,9 +98,10 @@ rce=${PIPESTATUS[0]}
 note "$rce"
 
 say "### ШАГ 4 посадка: неверное ожидание обязано краснеть ### $(date +%FT%T%:z)"
-sed 's/^PASSED=5$/PASSED=4/' "$EXPECT" > "$OUT/plant.tsv"
+sed_plant() { awk -F'\t' 'BEGIN{OFS="\t"} $1=="PASSED"{$2="4"} {print}' "$1"; }
+sed_plant "$EXPECT" > "$OUT/plant.tsv"
 if cmp -s "$EXPECT" "$OUT/plant.tsv"; then
-  say "ПОСАДКА НЕ СРАБОТАЛА: строка PASSED=5 не найдена в таблице"
+  say "ПОСАДКА НЕ СРАБОТАЛА: строка PASSED в таблице не найдена"
   plant=0
 else
   python lab/expect.py "$OUT/plant.tsv" "$OUT/facts1.txt" "$OUT/facts2.txt" > "$OUT/plant.out" 2>&1
