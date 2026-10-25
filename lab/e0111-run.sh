@@ -154,6 +154,7 @@ bash lab/check-text-clean.sh \
   crates/vecdht-orders/tests/paid_order_vectors.rs \
   lab/xcheck-paid-orders.py \
   lab/hypotheses/H-0111-paid-order-canonicalization.md \
+  lab/experiments/E-0111-paid-order-canonicalization.md \
   lab/expectations/e0111.tsv lab/e0111-run.sh "$DOC" 2>&1 | tail -3 | tee -a "$LOG"
 rc=${PIPESTATUS[0]}; note "$rc"
 
