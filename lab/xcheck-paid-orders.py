@@ -131,6 +131,56 @@ def empty_cells(rows):
     return n
 
 
+def initiator_rows(chunk):
+    """Строки таблицы инициаторов (§V9.6): переходы вида `src → tgt` в первом столбце.
+
+    Сканируются ВСЕ pipe-строки куска, а не только вторая таблица: между матрицей и таблицей
+    переходов есть проза, и «взять вторую таблицу» означало бы остановиться на первом разрыве и
+    потерять ровно те строки, ради которых проверка написана. Матрица стрелок в первом столбце не
+    содержит, поэтому фильтрация по `→` однозначно оставляет только таблицу инициаторов.
+    Возвращает список пар `(источник, цель)` — декартово раскрытие перечислений через `/`.
+    """
+    pairs = []
+    for line in chunk.splitlines():
+        s = line.strip()
+        if not s.startswith("|"):
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if all(set(c) <= set("-: ") for c in cells):
+            continue
+        first = cells[0].strip("` ")
+        if "→" not in first:
+            continue  # заголовок «переход | …», любые строки без стрелки, включая матрицу
+        left, right = first.split("→", 1)
+        srcs = [x.strip("` ") for x in left.split("/") if x.strip("` ")]
+        tgts = [x.strip("` ") for x in right.split("/") if x.strip("` ")]
+        for a in srcs:
+            for b in tgts:
+                pairs.append((a, b))
+    return pairs
+
+
+def init_unreachable(spec_text, doc_matrix):
+    """Число объявленных переходов, цели которых нет ни в одной клетке строки источника матрицы.
+
+    Матрица порождённая — норматив; таблица инициаторов — проза, которая может от неё отстать.
+    Ровно на этом `E-0111`-класс: `expired → disputed` объявлен в таблице, но ни одна клетка
+    строки `expired` не равна `disputed`, значит проза противоречит матрице.
+    """
+    m = re.search(r"^## §V9\.6[^\n]*\n(.*?)(?=^## |\Z)", spec_text, re.S | re.M)
+    if not m:
+        return -1, []
+    rows = doc_matrix
+    reach = {r[0]: set(r[1:]) for r in rows}
+    bad = []
+    for src, tgt in initiator_rows(m.group(1)):
+        if src not in reach:
+            bad.append((src, tgt, "нет_строки"))
+        elif tgt not in reach[src]:
+            bad.append((src, tgt, "цель_недостижима"))
+    return len(bad), bad
+
+
 def main(path):
     text = open(path, encoding="utf-8").read()
     ex = worked_examples(text)
@@ -171,8 +221,12 @@ def main(path):
     # `disputed × submit`. Посадка — ровно та же клетка с прежним черновым значением.
     spec_path = os.environ.get("V9_SPEC", "docs/VecDHT-SPEC-v9.md")
     try:
-        spec_rows = spec_matrix_rows(open(spec_path, encoding="utf-8").read())
+        spec_text = open(spec_path, encoding="utf-8").read()
     except OSError:
+        spec_text = ""
+    try:
+        spec_rows = spec_matrix_rows(spec_text)
+    except Exception:
         spec_rows = []
     print(f"V9_SPEC_ROWS={len(spec_rows)}")
     mismatch = matrix_mismatch(rows, spec_rows) if rows else -1
@@ -182,9 +236,31 @@ def main(path):
         if r[0] == "disputed":
             r[1] = "E_REPLAY"          # значение из черновика: ровно та ошибка, что поймали руками
     print(f"V9_SPEC_DECOY_FIRED={1 if spec_rows and matrix_mismatch(rows, planted_spec) > mismatch else 0}")
+
+    # Таблица инициаторов (§V9.6, вторая) обязана объявлять только те переходы, чья цель реально
+    # стоит в матрице. Это закрывает B3: строка `…/expired → disputed` противоречила матрице, и
+    # `V9_SPEC_DOC_MISMATCH=0` этого не ловил, потому что сверялись матрица⇄матрица, а не
+    # проза⇄матрица. Посадка — вставить в объявленный переход цель, которой нет в строке источника.
+    unreachable, detail = init_unreachable(spec_text, rows) if spec_text else (-1, [])
+    print(f"V9_INIT_UNREACHABLE={unreachable}")
+    if detail:
+        print("V9_INIT_DETAIL=" + "; ".join(f"{a}→{b}:{c}" for a, b, c in detail[:8]))
+    # Посадка на порождённой матрице: убрать из строки `published` клетку `disputed` (её даёт
+    # `verifier_offline`) — тогда объявленный в таблице переход `published → disputed` станет
+    # недостижимым, и прибор обязан увидеть рост числа недостижимых целей. Слепая зона: если матрица
+    # пуста, сверка не исполняется, и это печатается нулём фактов, а не молчанием.
+    planted_matrix = [list(r) for r in rows]
+    pub_row = next((r for r in planted_matrix if r[0] == "published"), None)
+    if pub_row:
+        for i in range(1, len(pub_row)):
+            if pub_row[i] == "disputed":
+                pub_row[i] = "E_STATE_UNKNOWN"
+    decoy_unreach, _ = init_unreachable(spec_text, planted_matrix) if spec_text else (-1, [])
+    print(f"V9_INIT_DECOY_FIRED={1 if spec_text and rows and decoy_unreach > unreachable else 0}")
+
     # Копия, разошедшаяся с генератором, — это провал команды, а не заметка: до этой строки скрипт
     # возвращал 0 всегда и расхождение можно было только прочитать.
-    return 1 if mismatch > 0 or (rows and not spec_rows) else 0
+    return 1 if mismatch > 0 or unreachable > 0 or (rows and not spec_rows) else 0
 
 
 if __name__ == "__main__":
