@@ -1,0 +1,123 @@
+########## E-0119 · 2026-10-26T02:37:35+03:00 · дерево 5dcde5e ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T02:37:35+03:00
+ПРИОРАРТ H-0119: отказ от источников с причиной
+LEAN H-0119: модель не сделана, рубрика обязательной не требует
+E-CARD E-0119: порог, окружение и команда названы
+CYCLE H-0119=OK нарушений=0
+GATE_H0119_OK=1
+DISK_FREE_MB=29205 RAM_FREE_MB=7529 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве f564a3e команды нет ### 2026-10-26T02:37:38+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_FILE=0 PRE_FIX_NO_NODE_RUN=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_NODE_RUN=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T02:37:39+03:00
+RUN1: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.49s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+RUN2: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.47s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T02:37:52+03:00
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.99.0/index.html#cloned_ref_to_slice_refs
+    = note: `-D clippy::cloned-ref-to-slice-refs` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::cloned_ref_to_slice_refs)]`
+
+error: could not compile `vecdht-cli` (test "node_run") due to 1 previous error
+CLIPPY_EXIT=101
+### ШАГ 4 стража текста ### 2026-10-26T02:37:55+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T02:37:55+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T02:37:56+03:00
+РАСХОЖДЕНИЕ: CLIPPY_EXIT ждали «0», напечатано «101»
+ОЖИДАНИЙ=12 РАСХОЖДЕНИЙ=1
+### ШАГ 7 носитель после прогона ### 2026-10-26T02:37:56+03:00
+DISK_FREE_MB=29199 RAM_FREE_MB=7485 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+########## E-0119 · 2026-10-26T02:38:10+03:00 · дерево 40ed03c ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T02:38:10+03:00
+ПРИОРАРТ H-0119: отказ от источников с причиной
+LEAN H-0119: модель не сделана, рубрика обязательной не требует
+E-CARD E-0119: порог, окружение и команда названы
+CYCLE H-0119=OK нарушений=0
+GATE_H0119_OK=1
+DISK_FREE_MB=29191 RAM_FREE_MB=7415 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве f564a3e команды нет ### 2026-10-26T02:38:12+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_FILE=0 PRE_FIX_NO_NODE_RUN=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_NODE_RUN=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T02:38:13+03:00
+RUN1: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.48s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+RUN2: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.45s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T02:38:33+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T02:38:34+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T02:38:35+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T02:38:35+03:00
+ОЖИДАНИЙ=12 РАСХОЖДЕНИЙ=0
+### ШАГ 7 носитель после прогона ### 2026-10-26T02:38:36+03:00
+DISK_FREE_MB=29203 RAM_FREE_MB=7423 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
+########## E-0119 · 2026-10-26T02:38:41+03:00 · дерево 40ed03c ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T02:38:41+03:00
+ПРИОРАРТ H-0119: отказ от источников с причиной
+LEAN H-0119: модель не сделана, рубрика обязательной не требует
+E-CARD E-0119: порог, окружение и команда названы
+CYCLE H-0119=OK нарушений=0
+GATE_H0119_OK=1
+DISK_FREE_MB=29202 RAM_FREE_MB=7405 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве f564a3e команды нет ### 2026-10-26T02:38:44+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_FILE=0 PRE_FIX_NO_NODE_RUN=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_NODE_RUN=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T02:38:44+03:00
+RUN1: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.04s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+RUN2: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.96s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T02:38:57+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T02:38:58+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T02:38:59+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T02:38:59+03:00
+ОЖИДАНИЙ=12 РАСХОЖДЕНИЙ=0
+### ШАГ 7 носитель после прогона ### 2026-10-26T02:39:00+03:00
+DISK_FREE_MB=29201 RAM_FREE_MB=7535 PAGEFILE_PEAK_MB=7660
+WORST_RC=0

@@ -1,15 +1,15 @@
 ---
 id: E-0119
 hypothesis: H-0119
-status: pending
+status: completed
 base_commit: "f564a3e"
 started: "2026-10-26"
-finished: ""
+finished: "2026-10-26"
 environment: "x86_64-pc-windows-gnu, хост владельца; Rust из PATH (cargo/rustc), Python 3 из PATH, PYTHONIOENCODING=utf-8; debug-сборка инкрементально поверх дерева f564a3e; сеть — 127.0.0.1, QUIC, два процесса `node run` и агент в тесте"
 command: "bash lab/e0119-run.sh"
 threshold: "(1) `cycle-gate.py gate H-0119` выход 0, диск ≥ 15 000 МБ до и после; (2) `cargo test -q -p vecdht-cli --test node_run -- --test-threads=1` дважды на неизменном дереве: RESULT_EXIT=0, PASSED=2, FAILED=0 в каждом прогоне, наборы фактов совпали (STABLE=1); (3) `expect.py lab/expectations/e0119.tsv` по обоим прогонам: EXPECT_EXIT=0; (4) посадка `PASSED=1` в копию таблицы даёт EXPECT_EXIT=1 (PLANT_EXIT=1); (5) PRE_FIX: на дереве `f564a3e` в `crates/vecdht-cli/src/lib.rs` нет пути `node run` и нет файла `node_cmd.rs` (PRE_FIX_NO_NODE_RUN=1); (6) `cargo clippy -q -p vecdht-cli --all-targets -- -D warnings` выход 0; (7) стража текста на новых файлах цикла выход 0. Порог заморожен до первого прогона `lab/e0119-run.sh`; изменение любого числа — новая карточка."
-result: "pending"
-verdict: "pending"
+result: "Порог выполнен полностью на дереве 5dcde5e+прибор: helper дважды WORST_RC=0, ожиданий 12, расхождений 0; оракул дважды PASSED=2 FAILED=0 STABLE=1; посадка PLANT_EXIT=1; clippy 0 (первый прогон красный — ДИАГНОЗ-1); стража 0; PRE_FIX на f564a3e — нет node_cmd.rs и нет node_cmd::CMD_RUN; диск 29199→29201 МБ, RAM 7485, pagefile peak 7660. Узел из файлов церемонии публикует и находит по QUIC, после рестарта без реплики находит запись из того же каталога, неполная и чужая церемония отвергаются до порта. Переживание отзыва/бана через CLI не измерялось: производителя нет (A3), механизм измерен E-0092/E-0094"
+verdict: "supports"
 ---
 
 ## Pre-registration (до прогона)
@@ -36,3 +36,29 @@ verdict: "pending"
 
 PRE_FIX — пин `f564a3e` (предок дерева): на нём `node_cmd.rs` нет, а в диспетчере нет строки
 `node_cmd::CMD_RUN`; поэтому «до» — ноль команд, а не красный тест, который нечем было получить.
+
+## Результат
+
+Порог выполнен: `WORST_RC=0` в прогонах 2 и 3 (прогон 1 красный по clippy — ДИАГНОЗ-1),
+`PASSED=2 FAILED=0` в каждом, `STABLE=1`, `EXPECT_EXIT=0` (12 ожиданий, 0 расхождений),
+`PLANT_EXIT=1`, `PRE_FIX_NO_NODE_RUN=1`, `TEXTGUARD_CYCLE_EXIT=0`.
+
+Измеренные величины внутри теста (debug, один хост): `Publish` 870,5 мс; `Find` до рестарта
+112,9 мс; после рестарта без реплики и без bootstrap — 96,5 мс. Это не гейт скорости, а
+доказательство, что путь исполняется, а не объявляется.
+
+### ДИАГНОЗ-1
+
+Первый прогон helper'а покраснел на `clippy::cloned_ref_to_slice_refs` в оракуле
+(`&[primary_addr.clone()]`): тест был зелёным, а порог (6) — нет. Это дефект прибора, а не
+предмета: исправлено `std::slice::from_ref(&primary_addr)` отдельным коммитом, красный блок
+остался в append-only логе.
+
+### ДИАГНОЗ-2
+
+Проверка «подменённый genesis» сначала портила последний байт файла — подпись кадра — и узел
+стартовал (код 0). Оказалось, `ShardNode::on_frame` проверяет **наличие** подписи кадра (§5.3),
+а не её корректность; тело genesis защищено подписями авторитетов, и `Chain::validate` их
+проверяет. Порог не менялся: подмена перенесена в тело (ёмкость члена), где отказ обязан быть.
+Факт «подпись кадра не проверяется» вынесен в `OPEN-QUESTIONS` п. 64 — отдельным циклом, а не
+тихой правкой чужого кода.
