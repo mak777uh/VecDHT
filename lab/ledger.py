@@ -13,10 +13,14 @@
     python lab/ledger.py lint  ЛОГ_ЦИКЛА                     # только находки (выход 1 = есть)
 
 Что читается из логов (ничего не домывается, молчание = провал):
+  * только последний блок прогона в каждом файле (граница — строка `########## `): прошлые прогоны
+    в append-only логе не участвуют в текущем итоге;
   * `SECONDS_<этап>=N` и `<ЭТАП>_EXIT=N` — время и вердикт каждого этапа верификации;
   * `DISK_FREE_MB` / `RAM_FREE_MB` / `PAGEFILE_PEAK_MB` — носитель до и после;
   * `VERIFY_FAIL=` — итог блока; `STATUS_DLL_INIT_FAILED` — оборванные дочерние процессы;
   * `GATE_*`, `PRE_FIX_*` — что цикл потребил до замера; `REVIEW_FINDINGS` — что нашёл страж.
+  * контрольные выходы (`V9CTL_*`, `*CTL_*`, `PRE_FIX*`), сводка `VERIFY` и собственный `LEDGER`
+    провалом цикла не считаются: они красные по замыслу, а не по отказу.
 
 Инварианты баланса (печатными фактами):
   `LEDGER_WALL_TOTAL`      — сумма времени этапов; без неё «дешёвый цикл» неотличим от «тихого»;
@@ -54,6 +58,30 @@ PREFIX_RE = re.compile(r"(?:^|[ \t])PRE_FIX\S*=", re.MULTILINE)
 
 REQUIRED_STAGES = ("test", "clippy", "lean", "lean_selftest")
 
+# Граница прогона в append-only логе: helper печатает `########## E-XXXX · дата · дерево … ##########`.
+# Без этой границы прибор читает прошлые прогоны и складывает их красные контроли в текущий итог —
+# ровно так `E-0114` получил `LEDGER_OK=0` на зелёном дереве (ДИАГНОЗ-2).
+RUN_HEADER_RE = re.compile(r"^########## .*$", re.MULTILINE)
+# Выходы, которые не являются вердиктом этапа: посаженный контроль (`V9CTL_*`, `*CTL_*`,
+# `PRE_FIX*`), сводка `VERIFY` (её уже считают этапы) и собственный `LEDGER` — иначе прибор
+# краснеет от собственной прошлой записи в тот же лог.
+CONTROL_EXIT_NAMES = ("VERIFY", "LEDGER")
+
+
+def is_control_exit(name):
+    if name in CONTROL_EXIT_NAMES:
+        return True
+    if name.startswith("V9CTL") or name.startswith("PRE_FIX"):
+        return True
+    return "CTL" in name.split("_")
+
+
+def last_block(corpus):
+    """Только последний прогон: от последней строки `########## …` до конца файла."""
+    hits = list(RUN_HEADER_RE.finditer(corpus))
+    return corpus[hits[-1].start():] if hits else corpus
+
+
 
 def read(path):
     with open(path, encoding="utf-8", errors="replace") as fh:
@@ -67,7 +95,7 @@ def balance(corpus):
     exits = {}
     for name, rc in EXIT_RE.findall(corpus):
         exits.setdefault(name, []).append(int(rc))
-    failed = [k for k, v in exits.items() if v and max(v) != 0]
+    failed = [k for k, v in exits.items() if v and max(v) != 0 and not is_control_exit(k)]
     disk = [int(x) for x in DISK_RE.findall(corpus)]
     ram = [int(x) for x in RAM_RE.findall(corpus)]
     pf = [int(x) for x in PF_RE.findall(corpus)]
@@ -125,7 +153,7 @@ def cmd_report(paths):
         if not os.path.isfile(p):
             print(f"LEDGER_OK=0 — нет файла лога {p}: баланс неоткуда считать")
             return 2
-        parts.append(read(p))
+        parts.append(last_block(read(p)))
     corpus = "\n".join(parts)
     if not corpus.strip():
         print("LEDGER_OK=0 — логи пусты")
@@ -142,7 +170,7 @@ def cmd_report(paths):
 
 
 def cmd_lint(paths):
-    facts, notes = balance("\n".join(read(p) for p in paths))
+    facts, notes = balance("\n".join(last_block(read(p)) for p in paths))
     bad = [n for n in notes if "ВПУСТУЮ" in n or "НЕ ИСПОЛНЕНЫ" in n]
     if not bad:
         print("LEDGER_LINT находок=0")
@@ -222,11 +250,27 @@ CASES = [
     ),
     (
         "промах без метки времени: ноль стоимости — это молчание, а не дёшево",
-        "SECONDS_test=5\nTEST_EXIT=0\nSECONDS_clippy=5\nCLIPPY_EXIT=0\nSECONDS_lean=5\nLEAN_EXIT=0\n"
+        "SECONDS_clippy=5\nCLIPPY_EXIT=0\nSECONDS_lean=5\nLEAN_EXIT=0\n"
         "SECONDS_lean_selftest=5\nLEANGUARD_SELFTEST_EXIT=0\nDISK_FREE_MB=10\nDISK_FREE_MB=10\n"
-        "VERIFY_EXIT=1\nVERIFY_FAIL=0\n",
+        "TEST_EXIT=1\nVERIFY_FAIL=0\n",
         "LEDGER_SPENT_ON_FAILED=0",
         "СТОИМОСТЬ_ПРОВАЛА_НЕИЗВЕСТНА",
+    ),
+    (
+        "посаженный контроль не провал цикла: V9CTL_* исключён",
+        "SECONDS_test=5\nTEST_EXIT=0\nSECONDS_clippy=5\nCLIPPY_EXIT=0\nSECONDS_lean=5\nLEAN_EXIT=0\n"
+        "SECONDS_lean_selftest=5\nLEANGUARD_SELFTEST_EXIT=0\nDISK_FREE_MB=10\nDISK_FREE_MB=10\n"
+        "V9CTL_BRIDGE_EXIT=1\nVERIFY_FAIL=0\n",
+        "LEDGER_OK=1",
+        None,
+    ),
+    (
+        "собственный прошлый выход не провал цикла: LEDGER_EXIT исключён",
+        "SECONDS_test=5\nTEST_EXIT=0\nSECONDS_clippy=5\nCLIPPY_EXIT=0\nSECONDS_lean=5\nLEAN_EXIT=0\n"
+        "SECONDS_lean_selftest=5\nLEANGUARD_SELFTEST_EXIT=0\nDISK_FREE_MB=10\nDISK_FREE_MB=10\n"
+        "LEDGER_EXIT=1\nVERIFY_FAIL=0\n",
+        "LEDGER_OK=1",
+        None,
     ),
 ]
 
@@ -254,7 +298,33 @@ def cmd_selftest():
         print("СЕЛФТЕСТ ПРОВАЛ: ложная находка на чистом блоке")
     else:
         print("СЕЛФТЕСТ ok: чистый блок не рождает находку")
-    print(f"LEDGER_SELFTEST total={len(CASES) + 1} passed={len(CASES) + 1 - bad}")
+    # Блочность: красный контроль первого прогона не имеет права протечь в последний зелёный.
+    two_runs = (
+        "########## RUN 1 ##########\n"
+        "SECONDS_test=1\nTEST_EXIT=1\nSECONDS_clippy=1\nCLIPPY_EXIT=0\nSECONDS_lean=1\nLEAN_EXIT=0\n"
+        "SECONDS_lean_selftest=1\nLEANGUARD_SELFTEST_EXIT=0\nDISK_FREE_MB=10\nDISK_FREE_MB=10\n"
+        "########## RUN 2 ##########\n"
+        "SECONDS_test=1\nTEST_EXIT=0\nSECONDS_clippy=1\nCLIPPY_EXIT=0\nSECONDS_lean=1\nLEAN_EXIT=0\n"
+        "SECONDS_lean_selftest=1\nLEANGUARD_SELFTEST_EXIT=0\nDISK_FREE_MB=10\nDISK_FREE_MB=10\n"
+        "VERIFY_FAIL=0\n"
+    )
+    facts, notes = balance(last_block(two_runs))
+    if "LEDGER_OK=1" in facts and "LEDGER_FAILED_STAGES=0" in facts:
+        print("СЕЛФТЕСТ ok: первый красный блок не протекает в последний зелёный")
+    else:
+        bad += 1
+        print(f"СЕЛФТЕСТ ПРОВАЛ: красный блок протёк в последний: {facts} / {notes}")
+    # Чувствительность: настоящий провал последнего блока обязан остаться провалом.
+    red_last = two_runs.replace("########## RUN 2 ##########\nSECONDS_test=1\nTEST_EXIT=0",
+                                "########## RUN 2 ##########\nSECONDS_test=1\nTEST_EXIT=1")
+    facts, notes = balance(last_block(red_last))
+    if "LEDGER_OK=0" in facts and "LEDGER_FAILED_STAGES=1" in facts:
+        print("СЕЛФТЕСТ ok: TEST_EXIT=1 в последнем блоке краснит")
+    else:
+        bad += 1
+        print(f"СЕЛФТЕСТ ПРОВАЛ: провал последнего блока не виден: {facts} / {notes}")
+    total = len(CASES) + 3
+    print(f"LEDGER_SELFTEST total={total} passed={total - bad}")
     return 0 if bad == 0 else 1
 
 

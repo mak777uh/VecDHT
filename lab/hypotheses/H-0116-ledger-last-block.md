@@ -1,6 +1,6 @@
 ---
 id: H-0116
-status: testing
+status: supported
 date: 2026-10-25
 claim: "если ledger считает только последний блок прогона в каждом входном логе и исключает из провалов контрольные выходы (V9CTL_*, *CTL_*, PRE_FIX*), собственный выход LEDGER и сводку VERIFY, то на закрытом зелёном цикле E-0114 он даёт LEDGER_OK=1 при LEDGER_STAGES=6 и LEDGER_MISSING_STAGES=0, а посадка настоящего TEST_EXIT=1 в последний блок даёт LEDGER_OK=0"
 falsifier: "либо на паре (lab/logs/e0114-all.log + последний блок lab/logs/workspace-verify-2026-10-22.log) прибор даёт LEDGER_OK=0 или STAGES<6, либо посадка TEST_EXIT=1 в последний блок не краснит, либо красный контроль первого блока протекает в итог второго, либо контрольный выход V9CTL_BRIDGE_EXIT=1 снова попадает в LEDGER_FAILED_STAGES"
@@ -63,4 +63,11 @@ distributed ledger), и ноль GitHub-репозиториев. Refusal зап
 
 ## Результат
 
-Заполняется после `E-0116`.
+`E-0116` — `supports`. На паре `lab/logs/e0114-all.log` + последний блок
+`lab/logs/workspace-verify-2026-10-22.log` прибор печатает `LEDGER_STAGES=6`, `LEDGER_FAILED_STAGES=0`,
+`LEDGER_MISSING_STAGES=0`, `LEDGER_OK=1`, `LEDGER_EXIT=0`; до правки тот же вызов давал
+`PRE_FIX_LEDGER_OK=0`, `PRE_FIX_LEDGER_EXIT=1`. Посадка `TEST_EXIT=1` в копию последнего блока —
+`LEDGER_OK=0`, `LEDGER_EXIT=1`, `LEDGER_SPENT_ON_FAILED=1285`. Selftest 14/14, два прогона на
+неизменном дереве совпали (58 строк фактов каждый). Основной вывод: граница блока — строка
+`########## `, а контрольные выходы (`VERIFY`, `LEDGER`, `V9CTL*`, `PRE_FIX*`, `*CTL_*`) не являются
+провалом цикла; без обоих правил гейт краснеет на зелёном дереве.

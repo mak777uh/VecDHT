@@ -35,7 +35,7 @@ note() { [ "${1:-1}" -ne 0 ] && WORST=1; return 0; }
 say() { printf '%s\n' "$*" | tee -a "$LOG"; }
 # Литеральная печать: линт порогов видит `KEY=` в источнике, а не шаблон с переменной.
 emit() { printf '%s\n' "$1" | tee -a "$LOG"; printf '%s\n' "$1" >> "$FACTS"; }
-pick() { grep -o "$1=[A-Za-z0-9_.:-]*" "$2" | tail -1 | cut -d= -f2; }
+pick() { grep -o "$1=[A-Za-z0-9_.:/=,%|-]*" "$2" | tail -1 | cut -d= -f2-; }
 
 say "########## E-0105 · $(date +%FT%T%:z) · дерево $(git rev-parse --short HEAD) ##########"
 

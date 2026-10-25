@@ -51,7 +51,7 @@ say() { printf '%s\n' "$*" | tee -a "$LOG"; }
 emit() { printf '%s\n' "$1" | tee -a "$LOG"; printf '%s\n' "$1" >> "$FACTS"; }
 # Класс символов включает `|`: список аксиом печатается именно так (`propext|Classical.choice|…`),
 # и без `|` в классе `pick` вернул бы первое имя — молчание прибора, а не факт.
-pick() { grep -o "$1=[A-Za-z0-9_.:|-]*" "$2" | tail -1 | cut -d= -f2-; }
+pick() { grep -o "$1=[A-Za-z0-9_.:/=,%|-]*" "$2" | tail -1 | cut -d= -f2-; }
 
 say "########## E-0112 · $(date +%FT%T%:z) · дерево $(git rev-parse --short HEAD) ##########"
 
