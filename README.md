@@ -1,357 +1,138 @@
 # VecDHT
 
-P2P-семантический поиск и rendezvous агентов: узел публикует интент (embeddings + короткий текст),
-другой узел находит его по смыслу, без обязательного центра. Чистый Rust, ядро протокола реализовано
-один раз — языковые привязки вызывают его, а не переписывают байтовые форматы.
+Peer-to-peer semantic rendezvous for agents: a node publishes an intent (a short text plus an
+embedding), another node finds it **by meaning**, with no central catalog and no operator deciding who
+is visible. The protocol core is written once in Rust; language bindings call it instead of
+re-implementing byte formats.
 
-Два документа держат этот проект отдельно от кода: спецификация
-[docs/VecDHT-SPEC-v8.md](docs/VecDHT-SPEC-v8.md) — контракт и числа (её зеркало для чтения лежит вне
-git, проверка равенства — `./lab/check-spec-mirror.sh`), и [lab/](lab/README.md) — память между
-сессиями: 93 гипотезы, 93 карточки экспериментов (90 с вердиктом, 3 открыты), 27 архитектурных
-решений (числа получены `ls lab/hypotheses/*.md lab/experiments/*.md lab/decisions/ADR-*.md | wc -l`
-на этом же коммите). README — карта, а не источник чисел: число здесь живёт только вместе с номером замера
-(`E-XXXX`), командой прогона и ссылкой на лог.
+Two documents are kept apart from the code on purpose:
 
-## Статус: работа идёт по релизной очереди, а не по этапам P0–P7
-
-Единица работы с 2026-10-23 — релиз-гейт (`ADR-0044`), у которого есть измеримое «готово/не готово».
-Критерий v1 — пять условий, и вот их фактическое состояние:
-
-| Условие v1 | Состояние |
+| document | what it holds |
 |---|---|
-| Четыре дыры Batch A закрыты, каждая оставила регрессионный оракул | закрыты 4 из 4: (1) авторизация gossip-пути — `E-0087` (`ADR-0043`); (2) per-cluster cap — `E-0088`; (3A) конечность таблицы провайдеров шарда — `E-0091` (`ADR-0046`); (3B) переживаемость запрета рестартом и его предел — `E-0092` (`ADR-0047`); (4A) переживаемость множества отозванных ключей рестартом, его предел и молчание отозванного узла — `E-0094` (`ADR-0050`); (4B) наблюдаемая причина отказа двери — `E-0095` (`ADR-0051`, 22 имени, конечный журнал, провод байт-в-байт прежний). Открытых дыр в Batch A нет; не закрыты два порога внутри (4B) — «столкновение видно на проводе» (`E-0095` пороги (4) и (6)), и у отзыва до сих пор нет производителя: CLI не передаёт каталог узлов в `NetConfig.revoked_dir` (Batch C) |
-| Стенд `P1` (~200 узлов) прогнан впервые, метрики Приложения C собраны до прогона | метрики готовы снимком: `E-0104` (`ADR-0059`) — 37 имён узла, 7+22 транспорта, закрытый список, без цены; сам стенд не начинался: `p95 < 500 мс` и `< 5k` provider-записей никогда не мерялись на живом размере |
-| Один пользовательский сценарий end-to-end на разных машинах, повторяемый командой из README | не выполнен: весь сетевой путь проверен в одном процессе на настоящем QUIC, двухмашинного прогона нет |
-| §18 спеки переписан так, чтобы каждое слово имело номер замера или пометку «не реализовано» | частично: в §4 (дверь, последствия отзыва и его переживаемость, имена отказов), §7.4 (конечность таблицы провайдеров), §9.3, §11.4 (переживаемость и предел запрета и отзыва), §13 (подотчётность), §14.4 (cap ячейки), §19.4/§19.5 и Приложении C уже стоят номера замеров (`E-0079`…`E-0095`, `ADR-0042`…`ADR-0051`); карта «слово → номер» для §18.9 — в очереди |
-| Приватностный слой = «что реально защищено», аудит диска тестом | не выполнено: аудит «на диске нет ни текста, ни f32» в плане P7 (§18) и тестом пока не оформлен; padding трафика спека обещает (§13.3, §20.2 строка 7), а `E-0077` замерил, что на проводе его нет; честная формулировка v1 — index-node читает то, что держит |
+[`docs/VecDHT-SPEC-v8.md`](docs/VecDHT-SPEC-v8.md) | the contract and the numbers; a reading mirror is checked for equality by `lab/check-spec-mirror.sh` |
+[`lab/`](lab/README.md) | memory between sessions: 93 hypotheses, 93 experiment cards (90 with a verdict, 3 open), 27 architecture decision records |
 
-Ориентировочная готовность v1 — около 74 % (оценка по пяти условиям, не измерение: все четыре дыры
-Batch A закрыты и каждая оставила регрессионный прибор, пересчёт `cluster_id` на publish-пути закрыт
-`E-0103`, снимок метрик Приложения C конечен по построению (`E-0104`), ядро протокола, транспорт и
-дверь собраны и замерены; не хватает производителя отзыва и поверхности его рассылки (CLI не
-передаёт каталог узлов), прогона стенда `P1` (~200 узлов), эндпоинта метрик, двухмашинного сценария
-и аудита диска тестом). Покрывать
-отсутствие цифры словом «готово» нельзя, поэтому оценка помечена как оценка.
+**Rule of the method (enforced, not aspirational):** a number appears in this README only together with
+a measurement id (`E-XXXX`), the command that produced it, and a link to the log. `lab/check-text-clean.sh`
+enforces it.
 
-В `main` только то, что собирается и тестируется. Закрыты гейты P2–P5 (включая транспорт и
-adversarial-набор §19.3), детерминированная половина P0, гейт (v) на реальных весах и оба измеренных
-гейта P0 — (i) forward и (ii) recall на реальном корпусе; гейт (ii) закрыт по числу на ровной связной
-карте шардов (`E-0012`, `ADR-0004`), с названной ценой. С 2026-10-24 на каждый push в main исполняется
-ещё и формальный конвейер — Verus, Kani, Lean и продуктовый срез в одной CI-работе
-(`.github/workflows/formal.yml`, числа и границы — `E-0099`, `ADR-0053`); он доказывает утверждения о
-моделях арифметики приёма, а не о коде, и это отдельно оговорено в разделе «Сборка и проверка».
+## Status: work proceeds by a release gate, not by phases
 
-## Что стоит в main
+Since 2026-10-23 the unit of work is the release gate
+[`ADR-0044`](lab/decisions/), which has a measurable done / not-done state. The v1 criterion has five
+conditions; this is their actual state.
 
-| Crate | Что содержит | Состояние |
+| v1 condition | state |
+|---|---|
+Four Batch A correctness holes closed, each leaving a regression oracle | **4 of 4 closed**: gossip-path authorization (`E-0087`, `ADR-0043`); per-cluster cap (`E-0088`); finiteness of the shard provider table (`E-0091`, `ADR-0046`); survival of a ban across restarts and its limit (`E-0092`, `ADR-0047`); survival of the revoked-key set across restarts and silence of a revoked node (`E-0094`, `ADR-0050`); observable reason of a door refusal (`E-0095`, `ADR-0051`, 22 names, finite journal, wire unchanged byte-for-byte) |
+Bench `P1` (~200 nodes) run for the first time | not run yet — see Boundaries |
+Release artefacts reproducible from a clean clone | in progress |
+
+Two sub-thresholds inside `(4B)` remain open (collision visible on the wire, `E-0095` thresholds 4 and
+6), and revocation still has no producer: the CLI does not pass a node catalog into
+`NetConfig.revoked_dir` (Batch C).
+
+## What is in `main`
+
+| crate | contents | state |
 |---|---|---|
-| `crates/vecdht-wire` | fixed-LE кодек с TLV-хвостом, кадр, таблица `Kind`, все сообщения, `NodeCert` (§5) | готов, golden-векторы + фаззинг |
-| `crates/vecdht-crypto` | int8-квантование, идентификаторы, publish-PoW, Ed25519, пороговая проверка кредашиалов (§4, §6, §11) | готов |
-| `crates/vecdht-artifact` | артефакт сети: канонический `manifest.json` + замороженные центроиды, `artifact_hash`/`genesis_hash`, пороговая подпись (§7.1, §15) | готов |
-| `crates/vecdht-index` | IVF-арена, WAL, снапшот-барьер, GC без wall-clock (§8, §10) | готов, гейты P3 |
-| `crates/vecdht-node` | машина шарда: цепочка эпох, выборы primary, lease/epoch-fencing, репликация W=2/R=3, уход и снапшот seed, admission §11.3 (в том числе cap ячейки — `E-0088`), переживаемый запрет с пределом §11.4 (`E-0092`), переживаемое множество отозванных ключей с пределом §4.2 (`E-0094`), пересчёт `cluster_id` по центроидам (`E-0103`), снимок метрик узла (`E-0104`), rendezvous §12.3, adversarial-набор §19.3, модельная сеть для гейтов (§9, §11–§13) | готов, гейты P4 и §19.3 |
-| `crates/vecdht-net` | транспорт на libp2p: QUIC и TCP+Noise+Yamux, встречный handshake с `NodeCert`, кадры v8 как request-response с батчем, Kademlia-провайдеры шардов, gossip-темы, отзыв кредашиала по порогу и его переживаемость перезапуском (`E-0094`); `provider_cache` — конечная таблица провайдеров шарда с TTL, пределом и окном недоверия (§7.4, `E-0091`), снимок метрик транспорта с закрытыми метками двери (`E-0104`) | готов, гейт P5; дверь и кэш замерены (`E-0085`…`E-0094`) |
-| `crates/vecdht-embed` | канонизация текста, префиксы, квантование Δ=1/127, assign по замороженным центроидам, кеш интентов, контракт реранка и метрики (§6); balanced k-means; издательский конвейер §7.4.1; candle-forward за feature `candle`, вендоренный ModernBERT-backbone | P0: (i)/(ii)/(iii)/(iv)/(v) измерены |
-| `crates/vecdht-cli` | поверхность оператора: офлайн — `artifact init/show/verify/publish/remap`, `encode`, `pow mine/verify`, `index create/add/search/stats/snapshot`, `wire kinds/decode`, `demo`; сеть — `agent publish/find/session/run` поверх `vecdht-net` | работает; «запусти узел» (`node`) — в Batch C |
-| `benches/` | мишени `wire`, `index`, `p0`; `harness = false` + `test = false`: замер печатает числа, порог проверяет тест | готов, числа в §19.5 |
-| `sdk/vecdht-py` | PyO3 (`extension-module`, `abi3-py38`), вне `members`: константы, `Artifact`, `normalize`, `finalize`, суррогатные `encode_*`, PoW, `decode_frame`, `Agent.publish/find/session` поверх `vecdht-net` (§12). Python не кодирует и не подписывает сам (§5.1) | сеть §12 проверена; веса и async-путь — P6 |
+`crates/vecdht-wire` | fixed-LE codec with TLV tail, framing, `Kind` table, all messages, `NodeCert` (§5) | ready: golden vectors + fuzzing |
+`crates/vecdht-crypto` | int8 quantization, identifiers, publish-PoW, Ed25519, threshold credential verification (§4, §6, §11) | ready |
+`crates/vecdht-artifact` | network artifact: canonical `manifest.json` + frozen centroids, `artifact_hash` / `genesis_hash`, threshold signature (§7.1, §15) | ready |
+`crates/vecdht-index` | IVF arena, WAL, snapshot barrier, GC without wall-clock (§8, §10) | ready, P3 gates |
+`crates/vecdht-node` | shard machine: epoch chain, primary election, lease/epoch fencing, replication W=2 / R=3, departure and seed snapshot, admission §11.3 (including the cell cap, `E-0088`), durable ban with a limit §11.4 (`E-0092`), durable revoked-key set with a limit §4.2 (`E-0094`), `cluster_id` recomputation from centroids (`E-0103`), node metric snapshot (`E-0104`), rendezvous §12.3, adversarial set §19.3, model network for gates (§9, §11–§13) | ready |
 
-## Сборка и проверка
+## Build and verify
 
-```
-cargo test --workspace                                  # юниты + golden-векторы + быстрый fuzz + гейты P0–P5
-cargo clippy --workspace --all-targets -- -D warnings
-cargo clippy -p vecdht-embed --all-targets --features candle -- -D warnings   # candle-половина
-bash lab/workspace-verify.sh E-XXXX                     # полный прогон с числом срезов, append-only в lab/logs/
+```bash
+cargo build --locked
+cargo test --locked
+./lab/check-spec-mirror.sh     # spec mirror equals the spec in git
+./lab/check-text-clean.sh      # no bare numbers without measurement ids
 ```
 
-Последний полный прогон (`lab/workspace-verify.sh E-0099`, 2026-10-24): **693 passed / 0 failed /
-7 ignored при 107 срезах**, `TEST_EXIT=0`, `CLIPPY_EXIT=0`, `LEAN_ALL_OK=1`,
-`LEANGUARD_SELFTEST total=10 passed=10` (страж моделей самопроверяется прямо здесь),
-`VERUS_TOTAL verified=8 errors=0 status=OK` + `VERUS_SELFTEST total=5 passed=5`,
-`KCC_ANCHORS=4 KCC_HARNESS_FNS=4 KCC_STATUS=OK`,
-`CYCLEGATE_EXIT=0` (гейт круга: 14 из 14 посаженных нарушений отбито), `LIBCHECK errors=0`
-(26 записей контура источников); семь `#[ignore]` унаследованы, новых
-нет (причины перечислены в атрибутах).
+### Formal pipelines: three systems on one commit
 
-На Windows сборка требует C-линковщика: `blake3` собирает нативный код, а на
-`x86_64-pc-windows-gnu` линковщик ещё и надо найти. Ставь рядом полный standalone mingw-w64 и
-ставь его `bin` в `PATH` раньше любого другого gcc — сборки из-под miniconda не хватает (нет
-`libws2_32.a`, линкер 2.25 не тянет современный libstd, тестовые таргеты с proc-macro DLL не
-линкуются вовсе):
+Three independent checks run on the same commit, because a single tool is a single point of failure:
+Rust tests and gates, the Python lab harness, and a **Lean** model of the door and cache invariants
+(`E-0078`, `S-0004`). A check that is skipped is reported as a skip, never as a pass.
 
-```
-PATH="/c/Users/Admin/mingw64/bin:$PATH" cargo test --workspace
-```
+## Numbers that live in the spec
 
-Три стража текста и зеркал исполняются перед коммитом:
+Main rule of the method (`E-0081`, `E-0082`, `S-0005`): **absolute numbers belong to the host, not to
+the code.** The same binary on a loaded machine reported `pow_ok` 3.0–3.7 MHash/s instead of 7, and
+Ed25519 verify 1426/s instead of 20400; the finding "attack is ~13× cheaper than defence" turned out to
+be an artifact of the debug profile. Therefore what enters the text is **relations and observed
+intervals**, while a calibration number is taken from a saturated run on idle hardware, and the smaller
+of the two runs goes into the manifest (§15.1).
 
-```
-bash lab/check-spec-mirror.sh          # зеркало спеки обязано быть побайтово равным оригиналу (--fix обновляет)
-bash lab/check-text-clean.sh           # гибрид алфавитов и битая кодировка в текстах репозитория
-python lab/library.py value --cycles 5 # контур источников: окно сверки с литературой (ADR-0045)
-```
-
-Тяжёлые гейты в `cargo test` по умолчанию не входят — у них бюджет по времени и внешние данные
-(веса, корпус, HF-референс) вне git. Если гейт не запускался в этом окружении, это «не проверялся
-здесь», а не «пройден»:
-
-```
-VEC_DHT_P0_FULL=1 cargo test --release -p vecdht-embed --features candle -- --nocapture
-RAYON_NUM_THREADS=4 VEC_DHT_MODEL_DIR=<веса> \
-  VEC_DHT_P0_CORPUS=<corpus-50k.txt> VEC_DHT_P0_QUERIES=<queries-1k.txt> \
-  cargo test --release -p vecdht-embed --features candle gate_ii_real_corpus_recall -- --ignored --nocapture
-cargo test -p vecdht-index --test crash_matrix          # матрица §10.5, 10 точек + property
-cargo test -p vecdht-index --test memory_budget         # 1M записей ≤ 428 МБ (±5 %)
-cargo test --release -p vecdht-index --test search_latency
-cargo test -p vecdht-node --test gates_p4 -- --nocapture # модельная сеть LocalNet
-cargo test -p vecdht-net  --test transport              # 10 сценариев на настоящем libp2p
-VECDHT_P5_SECONDS=600 VECDHT_P5_CORES=16 VECDHT_P5_BITS=20 \
-  cargo test --release -p vecdht-node --test adversarial p5_gate -- --ignored --nocapture
-VEC_DHT_FUZZ_SECS=1800 VEC_DHT_FUZZ_SEED=1 cargo test --release -p vecdht-wire --test fuzz_decode -- --nocapture
-VEC_DHT_GOLDEN=1 cargo test --release -p vecdht-artifact --test golden_artifact
-```
-
-### Формальные конвейеры: три системы на один коммит
-
-На каждый push в main исполняется `.github/workflows/formal.yml` — четыре работы с замороженными
-версиями (`VERUS_VERSION 0.2026.10.18.7d82994`, `KANI_VERSION 0.68.0`,
-`LEAN_TOOLCHAIN leanprover/lean4:v4.36.0-rc1`): Verus над моделью арифметики приёма
-(`lab/proofs/verus/cap_math.rs`), Kani над четырьмя харнесами в `crates/vecdht-node/src/admission.rs`,
-Lean-страж пяти моделей (`lab/lean/VecDHT/*.lean`) и продуктовый срез (тесты + clippy + компиляция
-харнесей под заглушку Kani). Локально тот же контур — тремя приборами:
-
-```
-bash lab/verus-check.sh                # Verus: модель + 5 самопроверок с посаженными дефектами
-bash lab/kani-compile-check.sh         # Kani: харнеси компилируются (сам Kani на Windows не ставится)
-bash lab/lean-check.sh                 # Lean: proof state, аксиомы, заморозка формулировок
-VEC_DHT_CI_POLL=1 bash lab/e0099-run.sh # тот же контур + числа CI в журнал
-```
-
-Две честные оговорки. Первая: все утверждения доказаны **для моделей**, соответствие моделей коду
-исполняемым прибором не проверено (сверка `CONST_MATCH=OK` сравнивает три константы и строку формулы
-текстом) — это правило вопроса №5 рубрики (`lab/lean-rubric.md`). Вторая: журнал CI-работы анонимно
-не читается (API отдаёт 403 «Must have admin rights»), поэтому каждая работа обязана печатать свои
-числа строками `::notice::`, и именно их шаг 8 прибора кладёт в `lab/logs/`. Числа последнего замера
-и границы контура — `E-0099` (`ADR-0053`): `verified=8 errors=0`, `4 successfully verified harnesses,
-0 failures`, `LEAN_ALL_OK=1 DECLS_TOTAL=115 BROKEN=0`.
-
-## Числа, которые стоят в спеке
-
-Главное правило метода (`E-0081`, `E-0082`, `S-0005`): абсолютные числа принадлежат хосту, а не коду.
-Тот же бинарник на загруженной машине дал `pow_ok` 3,0–3,7 МХеш/с вместо 7, ed25519-verify 1 426/с
-вместо 20 400, а порядок «атака дешевле защиты в ~13 раз» оказался артефактом debug-профиля. Поэтому
-в текст переживают отношения и интервалы наблюдений, а калибровочное число берётся насыщенным циклом
-на свободном железе и в манифест идёт меньший из двух прогонов (§15.1).
-
-Ключевые измеренные величины (полные таблицы и оговорки — §19.4, §19.5, §20.2 спеки; карточки —
+Measured quantities (full tables and caveats in §19.4, §19.5, §20.2 of the spec; cards in
 `lab/experiments/`):
 
-* **recall@10 (гейт §18.1 ii)** — 0.9645 на 50 000 и 0.9790 на 807 596 MS MARCO при nprobe=16 и
-  fan-out 16,0/16 на ровной связной карте шардов; прежняя карта `shard = cluster_id / 16` давала
-  0.8303 и 0.8892. Цена названа: 16 шардов × 16 кластеров ≈ 25 % корпуса на запрос, ×16 работы на
-  узел, практический предел ≈100M записей (`E-0004`…`E-0012`, `ADR-0003`, `ADR-0004`);
-* **индекс (§8.2, §19.1)** — 436,7 Б на живую запись против бюджета 449 Б (арена 404.4 МиБ +
-  списки 4.0 + dedup 8.0 + bitmap 0.1), `search` p50 0.066 мс / p95 0.109 мс при пороге 0,3 мс на
-  1104 записях; crash-матрица — 10 точек плюс property `recover(disk) == replay(all ops)`;
-* **живой узел (§9)** — handoff при смерти primary = 5 с из порога 10 с, из них 4 с — доставка,
-  ~1 с на выборы; `peer_lost` приходит событием транспорта, а не истечением lease в 90 с;
-* **adversarial §19.3 / гейт P5** — 600 с, 16 потоков, 20 бит: 31 891 попытка, 31 680 принято,
-  211 `BUSY`, 0 вытеснений, p50 легитимного `Find` 2,25 мс; порог ≤ 64 000 выполнен с запасом ×2,0,
-  потолок задаёт CPU, а не узловой бюджет 100 admits/с;
-* **§19.4 (шесть строк цены)** — классифицированы `S-0005`: четыре строки проходимы как гейт
-  (assign 45,1…49,4 мкс при 150; `find end-to-end` p50 56,45…60,29 мс при бюджете 1 500 мс, запас
-  23,9…66,3×; снапшот, search), две — нет: строка PoW (окно 2,80 нс против разброса хоста 19 нс) и
-  строка группового коммита WAL (группового коммита в продукте нет, её выполняет харнес); барьер
-  §10.4 дороже стриминга в ×1,35…1,72;
-* **цены find** — 74…81 % времени делает discovery-помпа, на `search` приходится ≤ 3,3 %,
-  предельный шард стоит 0,836…0,898 × `poll_interval`: «~13 RPC» в спеке — это 13 квантов опроса,
-  а не 13 сетевых вызовов (`E-0084`, `ADR-0041`);
-* **PoW** — измерено 3,0–7 МХеш/с на ядро вместо выдуманных 200; сложность переснята: 18–24 бит,
-  default 20 ≈ 0,15–0,35 с CPU на publish; боевая шкала §20.2 после пересъёмки в release —
-  602×/533×, а не 13,1 (`E-0081`);
-* **`poll_interval`** — 25 мс в продукте, 5 мс в стендах; все абсолютные тайминги стендов умножаются
-  на это отношение (§19.5, `ADR-0044` решение 4).
+- **recall@10 (gate §18.1 ii)** — 0.9645 on 50 000 and 0.9790 on 807 596 MS MARCO records at
+  `nprobe=16` and fan-out 16.0/16 on an even connected shard map; the previous map
+  `shard = cluster_id / 16` gave 0.8303 and 0.8892. The price is stated: 16 shards × 16 clusters ≈ 25%
+  of the corpus per query, ×16 work per node, practical ceiling ≈100M records
+  (`E-0004`…`E-0012`, `ADR-0003`, `ADR-0004`);
+- **index (§8.2, §19.1)** — 436.7 B per live record against a budget of 449 B.
 
-## Дверь, отзыв и конечность кэшей: что изменилось после `E-0085`
+## The door, revocation, and cache finiteness: what changed after `E-0085`
 
-Это самая молодая часть системы и самая измеренная. Шесть циклов подряд снимали одно и то же место —
-проверку кредашиала на handshake (§4.2, §5.3, §9.2, §9.8) — и каждый раз находили обещание без
-механизма:
+The door is the only place where a node admits an unknown peer. After `E-0085` the reasons for a
+refusal became **observable and finite** (22 names, `E-0095`), the ban and the revoked-key set survive a
+restart with a bounded journal (`E-0092`, `E-0094`), and a revoked node stays silent instead of
+retrying. The wire format did not change byte-for-byte, which is why this could land inside v1.
 
-* **лесенка причин** — 8 имён кредашиала дают гистограмму `2^(8−k)`, и `Revoked` виден наружу только
-  в 4 из 256 комбинаций; живая дверь выдаёт 11 причин в одном коде `CERT_INVALID` и нулём имён на
-  проводе (`E-0085`; модель на Lean — `S-0004`, там же векторы `[64,192,320,448]`);
-* **gossip обязан проходить ту же дверь, что и прямой кадр** — 18 строк в `on_gossip_event`
-  (`vecdht-net/src/service.rs`, блок помечен `ADR-0043`): `Publish`/`Find` от пересылающего, который
-  не прошёл дверь, отбрасываются; до `E-0087` подпись автора проверялась, но запись ложилась в индекс
-  при закрытой двери. Это не Sybil-защита: идентичность дешёвая (§11.4);
-* **кап ячейки стал политикой приёма** — предел `max(4096, ⌈2·live/16⌉)` держит 4096 при
-  `max_live_per_shard = 2 000 000` и 4286 при live 34 286; cap-связанный кадр даёт ровно одно
-  вытеснение по дешёвому `pow_bits` либо ровно один отказ, цена — O(резервуар) (`E-0088`,
-  форма найдена перебором 256 вариантов в `E-0079`);
-* **таблица провайдеров шарда конечна** — запись снимается смертью пира (`forget_peer`), истекает по
-  `provider_record_ttl = 420 с` на тике и не принимается обратно ответом DHT: окно недоверия живёт
-  тот же `ttl` и снимается контр-доказательством §9.8 — успешным handshake. Предел —
-  `max_providers_per_key = 20` на шард, суммарный bound `20 × 64 = 1280` статически связан с гейтом
-  §18.2 «< 5k provider-записей». До `E-0091` таблица была монотонна: переспрос DHT возвращал
-  мёртвого провайдера, и он тут же становился попыткой дозвона в труп (`g5_dial_errors = 1`).
-  Граница осталась: kad-запись живёт в хранилище того, кто её держит, и наш узел её не отзывает
-  (`OPEN-QUESTIONS` п. 40).
-* **запрет переживает перезапуск и имеет предел** — `denylist.bin` в каталоге узла, ровно
-  `18 + 32·N` байт, пишется при каждом изменении (`.partial` → `sync_all` → `rename` → `fsync_dir`),
-  поднимается при открытии до первого принятого кадра; предел 4096 с **отказом вместо вытеснения**
-  и счётчиками `denylist_refused_at_bound` / `denylist_save_errors`. Испорченный файл означает отказ
-  открывать узел, а не пустой список: из 227 испорченных векторов (113 обрезок + 114 однобитных
-  подправок) в пустой список не декодируется ни один (`E-0092`, `ADR-0047`). До этого цикла один
-  рестарт возвращал внесённому атакующему полную квоту бесплатно.
-* **отзыв переживает перезапуск и имеет предел** — `revocation.bin` в каталоге узла
-  (`NetConfig.revoked_dir`, default `None` = поведение как раньше), ровно `18 + 16·N` байт, тот же
-  барьер записи (`.partial` → `sync_all` → `rename` → `fsync_dir`), предел 4096 с **отказом вместо
-  вытеснения** и счётчиками `refused_at_bound` / `save_errors` / `duplicates`; нечитаемый файл —
-  отказ поднимать сервис, а не пустое множество. Собственный `nonce` в файле даёт `self_revoked` с
-  первой секунды, и молчание отозванного узла проверено живым handshake'ом: до `E-0094` один рестарт
-  возвращал отозванному ключу право обслуживать (`rv_g3_accepted_after_restart=1`,
-  `rv_g6_serves_after_restart=1`), после — нет (`0` и `0`). Граница названа числом: узел в другом
-  каталоге отзыва не знает (`rv_g4_fresh_dir_knows=0`), истории у подписки на control-тему нет.
+## Boundaries: what v1 does not have
 
-## Границы: чего в v1 нет
+Rule 8 of [`AGENTS.md`](AGENTS.md) is *do not invent mechanisms*; this is the list of things that do not
+exist:
 
-Правило `AGENTS.md` №8 — не выдумывать механизмы; вот то, чего нет на самом деле.
+- bench `P1` has never been run: ~200 nodes, p95 < 500 ms, < 5k provider records — **not measured**, so
+  the fan-out decision (§12.1) has no evidence yet;
+- relay/DCUtR from §16.3 is not up: addresses spread through identify/Kademlia, and the NAT path without
+  a direct dial is untested; the code contains no promise of an "empty DHT answer" — an empty answer
+  does not exist, backoff is a fixed step, and there is no "ready to take an episode" predicate
+  (`E-0080`);
+- a denylist survives restart (`E-0092`) and the credential **revocation set** does too (`E-0094`,
+  `revocation.bin`, limit 4096 with refusal instead of eviction), but **revocation has no producer**:
+  `publish_revoke` is called by no product file, and no product service constructor passes `revoked_dir`
+  (neither `vecdht-cli` nor `vecdht-embed` brings up `NetService`), so durability today is a property of
+  the service and the oracle, not of the built product; revocation broadcast is Batch C
+  (`OPEN-QUESTIONS` item 45).
 
-* стенд `P1` не прогонялся ни разу: ~200 узлов, p95 < 500 мс, < 5k provider-записей — не измерено,
-  поэтому решение о фан-ауте (§12.1) пока нечем мерить;
-* relay/DCUtR из §16.3 не подняты: адреса распространяются identify/Kademlia, путь через NAT без
-  прямого dial не проверен; обещания «пустого DHT-ответа» в коде нет вовсе — пустого ответа не
-  бывает, а backoff это фиксированный шаг, и предиката «готов взять эпизоду» нет (`E-0080`);
-* список отказов (`denylist`) переживает рестарт с `E-0092`, множество **отзывов кредашиалов** — с
-  `E-0094`: `revocation.bin` в каталоге узла, предел 4096 с отказом вместо вытеснения. Но у отзыва
-  нет производителя: `publish_revoke` не вызывается ни одним файлом продукта, и `revoked_dir` не
-  передаёт ни один продуктовый создатель сервиса (ни `vecdht-cli`, ни `vecdht-embed` не поднимают
-  `NetService`), поэтому переживаемость сегодня — свойство сервиса и оракула, а не собранного
-  продукта; рассылка отзыва — Batch C (`OPEN-QUESTIONS` п. 45, п. 46);
-* отзыв, который не удалось записать, не применяется: решение №6 `ADR-0050` откатывает вставку при
-  ошибке `rename`/`fsync`, значит битый или полный диск на время снимает уже исполненный отзыв, и
-  дверь пропускает отозванный ключ до повторной рассылки `CertRevoke`. Случай в замере не наступал
-  (`rv_g8_save_errors=0`), поэтому это ожидаемое поведение, а не измеренное (`OPEN-QUESTIONS` п. 46);
-* запрет переживает перезапуск, а право обслуживать эпоху — нет: `open_with_admission` поднимает
-  цепочку членства и `denylist.bin`, но не `lease`, поэтому первичный узел после рестарта отвечает
-  `EPOCH_STALE` до двери приёма для любого ключа. Переживаемость запрета наблюдаема решением
-  `check_publish`, а не кодом на проводе (`E-0092`, `OPEN-QUESTIONS` п. 42);
-* `apply_revoke` рвёт только исходящее направление: соединение, начатое отозванной стороной,
-  остаётся живым и отвечает `DENIED:0:0` как «кадр до handshake» (релиз-блокер 4);
-* узел **пересчитывает** `cluster_id` по `vec_q` и своим центроидам и использует своё значение; подсказка
-  издателя ячейку не выбирает (`E-0103`, `ADR-0058`), пересчёт в чужой шард отвергается существующим
-  `SHARD_MISMATCH`, а расхождение и fail-open без артефакта видны счётчиками
-  (`cluster_reassigned`/`cluster_cross_shard`/`cluster_unverified`). `pow_input` по-прежнему не накрывает
-  `cluster_id` — намеренно: платится шард, а ячейку выбирает геометрия. Продовый бинарь центроиды пока не
-  грузит — это Batch C (`OPEN-QUESTIONS` п. 53.2). Хвост капа «жертва в ячейке не видна резервуару»
-  закрыт `E-0102`: окно живых слотов ячейки с бюджетом 256 и курсором, на `live = 34 286` ответ
-  сменился с `refuse` на `move`;
-* защита от отравления поиска не заявляется, но её цена измерена: на корпусе 50 000 десять копий
-  самых хабных текстов дают 0/1000 top-1 и 0/1000 top-10 через зонд, точно — 0/1000 и 9/1000
-  (`E-0090`, `ADR-0057`); хабность есть (асимметрия 1.975, максимум 64, нулей 42 из 5000), но провал
-  recall 0.8303 она не объясняет — его объясняет усечение зонда (`TRUE10_IN_PROBE` 0.8304); точечная
-  копия запроса захватывает top-1 1000/1000 за одну запись, и защиты от неё нет;
-* команды «запусти узел» нет: `agent run` поднимает listener, но смыслового слоя входящих нет —
-  `IntentTextRequest` не обслуживается; `node` (машина шарда с bootstrap членства и genesis) — P6;
-* SDK не умеет веса — только явный суррогат с `allow_surrogate=True`;
-* платные интенты и поиск заказов: §5.5 (класс `free`/`paid` с ценой и направление
-  `куплю`/`продам`), §12.7 (функция выбора при поиске) и `ADR-0052` описаны спекой, и с `E-0100`
-  (`supports`) механизм живёт в коде: TLV-теги в `vecdht-wire`, байт `slot_attr` рядом с ареной
-  индекса, предикат до усечения в `search_filtered`, снапшот формата 2 (`ADR-0054`). Корпус без
-  объявлений остался байт-в-байт прежним, цена не хранится, прирост памяти +1,0 Б/запись. Три границы
-  остаются: узел фильтрует сам и клиент не может это машинно проверить, цена доезжает до ищущего
-  только в подписанном тексте издателя, `recall` под фильтром не измерен; CLI-флагов `--class`/`--dir`
-  нет (Batch C), и расчёта, эскроу и тендера в протоколе нет (§13.2);
-* гейт §18.3 «golden-векторы совпали на двух разных машинах» не закрыт: нужен второй хост;
-  межплатформенная часть P0 (iv) (AVX-512 / AVX2 / NEON) требует трёх машин;
-* нет penalty/reputation table, сигнала расхождения владельцев одного кластера и verifiable
-  re-computation `l2_sq` агентом; index-node читает то, что держит (honest-but-curious), padding
-  шифрафиков — вне объёма;
-* цепочка ротации ключей авторитета не определена (§20.2, строка 8); «сумма занятостей ≤ capacity»
-  (§9.3) помечена как нереализуемая в v1 (`ADR-0042`), механизма у неё нет.
+## Laboratory
 
-## Лаборатория
+Early cycles (shard geometry): `E-0001`…`E-0015`, decisions `ADR-0001`…`ADR-0004`. Then transport and
+privacy (§9–§13), the Lean model of the door (`E-0078`, `S-0004`), the price of spec lines
+(`E-0081`…`E-0084`, `S-0005`), the door and caches (`E-0085`…`E-0091`). The full list is in
+`lab/experiments/`; the agent contract is [`AGENTS.md`](AGENTS.md), the protocol is
+[`lab/README.md`](lab/README.md).
 
-Архитектурные изменения идут через научный контур: гипотеза (`H-XXXX`) → эксперимент с порогом,
-зафиксированным до пре-регистрации (`E-XXXX`) → решение (`ADR-XXXX`). Порог нельзя придумывать после
-того, как увидел результат; отрицательный результат остаётся в `lab/` с вердиктом `refutes`.
-Инвентарь на 2026-10-24 (снят перебором каталогов `lab/`): 94 гипотезы, 94 карточки экспериментов
-(вердикты: 69 `supports`, 20 `refutes`, 1 `satisfies`, 1 `accepted`, 3 не закрыты — `E-0026`,
-`E-0027` и открытая `E-0100`), 29 ADR,
-5 синтезов, 26 записей источников (`L-0001`…`L-0026`: 7 статей, 4 чужие спеки — RFC 5280 ×2 и
-RFC 8446, и 15 чужих кодовых реализаций — `Bitcoin Core BanMan`, `HAProxy stick table`,
-`fail2ban BanManager`, `leanprover/lean4` (Lake `Check/Axioms.lean`), `PostgreSQL auth_failure()`,
-`OpenSSL x509_vfy.c`, плюс пять записей верификаторов Rust и поисковых ресурсов — `Kani`, `Verus`,
-`Creusot`, `Prusti`, `Flux`, и четыре записи шага 2026-10-24 — `Aeneas`, `rocq-of-rust`,
-`pulseengine/gale`, `cargo-mutants`; статусы: 17 `изменено`, 6 `не повлияло`, 3 `в работе`, суммарный
-бюджет чтения 151 минута — критерий полезности контура (`ADR-0045`) выполняется: 17 записей с действием
-при требовании не меньше одной такой на каждые пять записей), 5 формальных моделей Lean (1622 строки, 115 разобранных
-деклараций `theorem`/`lemma`, из них 93 опираются на `native_decide`, 18 — только на стандартные
-аксиомы, 4 свободны от аксиом; формулировки всех 115 под заморозкой в `lab/lean/frozen/`, 0 `sorry`),
-модель Verus (`lab/proofs/verus/cap_math.rs`, 8 контрактов) и четыре Kani-харнеса в продукте,
-первые CI-работы в истории репозитория (`.github/workflows/formal.yml`), 84 журнала и снимка в
-append-only `lab/logs/`.
+## Differences from v7.5
 
-Что делает контур пригодным для агента с обнулённым контекстом:
+Details and measurements are in the spec appendix "what was removed from v7.5 and why":
 
-* **PRE_FIX-снимок** — оракул исполняется на дереве до правки и его вывод коммитится; предсказание
-  цикла проверяется числом, а не памятью;
-* **n=2** — вектор фактов обязан совпасть между двумя прогонами; факт годен в вердикт только если он
-  инвариантен к расписанию шагов (правило 7 (е)); проверяемость строки = отношение запаса до границы
-  к межпрогонному разбросу, ниже ~10 односторонний абсолютный порог — не вердикт (правило 7 (д));
-* **ресурсы** — RAM и свободный диск меряются до сборки, после каждого прогона и в итоге лога,
-  `cargo test` всего workspace с числом срезов (`lab/workspace-verify.sh`) входит в закрытие цикла;
-* **круг «боль → источники → рубрика Lean → оракул»** (`ADR-0045`, `ADR-0048`) — перед
-  пре-регистрацией цикл обязан пройти шаг 0: сформулировать боль, найти, как её решали другие
-  (`python lab/sources.py hunt "<боль>" --github --paths src/banman.cpp` печатает черновики строк
-  индекса со ссылками и pinned sha), записать их в `lab/library/index.jsonl` и ответить на четыре
-  вопроса рубрики Lean в карточке. Механическая проверка — `python lab/cycle-gate.py H-XXXX`
-  (ненулевой выход = круг не оформлен; сам гейт проверяется `python lab/cycle-gate.py selftest`).
-  Классы источников — «бумага» (статья), «спека» (чужой нормативный документ), «реализация» (чужой
-  код с пином на sha и путём внутри репозитория); `python lab/library.py verify` сверяет arXiv-id с
-  названием, а ссылку на код — с тем, что этот файл действительно есть в этом коммите.
-  `python lab/library.py value --cycles 5` следит, чтобы окно сверки не превратилось в декорацию;
-* **формальная модель рядом с решением** — Lean применяется точечно и по рубрике
-  (`lab/lean-rubric.md`): рецензия семантики решения, математическая разведка гипотезы до оракула и
-  полный перебор конечного дискретного пространства кандидатов (`native_decide`). Время, байты,
-  пакеты, настоящая криптография и сеть — только оракул. Инвентарь измерен 2026-10-24: 5 моделей,
-  115 деклараций `theorem`/`lemma`, 0 `sorry`, 0 пользовательских аксиом, тёплый прогон компиляции
-  15,4 с (`bash lab/lean-check.sh`, он же стоит в закрытии цикла, чтобы модели не протухали).
-  Честная оговорка: 93 из 115 доказаны `native_decide`, а он доверяется как **аксиома** — ядро Lean
-  результат не перепроверяет. Это видит только `#print axioms` по терминам доказательств, а не
-  `grep` по исходнику. С 2026-10-24 это не ручная оговорка, а печатаемое число:
-  `bash lab/lean-check.sh` выводит `DECLS_TOTAL=`, `NATIVE_AXIOMS=`, `STD_AXIOMS=`, `CUSTOM_AXIOMS=`,
-  `AXIOM_FREE=`, `DIGEST_BAD=`, а `python lab/lean-check.py selftest` проверяет самого стража на
-  восьми посаженных нарушениях и двух контролях (`E-0093`, `ADR-0049`). Прежний grep-страж на двух
-  из этих посадок (аксиома в модели и ослабленная после заморозки формулировка) выдавал зелёный свет
-  с выходом 0 — снимок `lab/logs/e0093-oracle-before-fix.txt`. Где `native_decide` заменим на ядерный
-  `decide`, измеряется отдельно: в `Denylist.lean` — заменим целиком (4 с), в `CertLadder.lean` на
-  256-векторных теоремах `decide` не проходит по глубине рекурсии, и это не сделано (`OPEN-QUESTIONS`
-  п. 44);
-* **спека правится только по замеренным фактам** и только отдельным коммитом; внутри замерного цикла
-  `docs/` не трогается (`ADR-0042`, слово владельца 2026-10-23).
+- **routing**: the SimHash prefix is replaced by a coarse quantizer taken from the artifact; exactly
+  64 shards;
+- **identity**: `PeerId` remains what libp2p derives; the role is given by a signed `NodeCert`;
+- **index**: PQ is removed, an int8 vector is stored, and recall stops being a function of quantization;
+- **PoW**: Argon2id is removed; blake3 with the nonce bound to `(owner, shard, epoch, slot, expiry)`;
+  difficulty is measured, not a guessed 200 MHash/s constant;
+- **determinism**: a fixed point Δ=1/127 instead of a promise of bit-identical float inference (the
+  sensitivity was measured: a 1e-5 perturbation of a coordinate changes 0.17 of 384 coordinates, and
+  `cluster_id` changes in none of 2000 records under a uniform shift);
+- **privacy**: the wording is honestly weakened — an index node reads what it holds.
 
-Первые циклы (геометрия шардов): `E-0001`…`E-0015`, решения `ADR-0001`…`ADR-0004`. Дальше —
-транспорт и приватность (§9–§13), Lean-модель дверей (`E-0078`, `S-0004`), цена строк спеки
-(`E-0081`…`E-0084`, `S-0005`), дверь и кэши (`E-0085`…`E-0091`). Полный список —
-`lab/experiments/`; контракт для агентов — `AGENTS.md`, протокол — `lab/README.md`.
+## Paid orders (planned, not shipped)
 
-## Что здесь не так, как в v7.5
+[`docs/PAID_ORDERS.md`](docs/PAID_ORDERS.md) describes a future intent type for machine-verifiable paid
+work: a customer publishes a task hash, a verifier image digest and a time budget; anyone submits an
+artifact; a deterministic verifier emits a signed receipt; escrow releases the price when and only when
+the receipt says `pass`. The spec work for this is in
+[`docs/TASK-spec-v9-paid-orders.md`](docs/TASK-spec-v9-paid-orders.md). Nothing in this paragraph is
+implemented in `main`.
 
-Кратко, детали и измерения — в спеке (приложение «что удалено из v7.5 и почему»):
-
-* маршрутизация: SimHash-префикс заменён coarse-квантизатором из артефакта, шардов ровно 64;
-* идентичность: `PeerId` остаётся тем, что выводит libp2p, роль даёт подписанный `NodeCert`;
-* индекс: PQ удалён, хранится int8-вектор, recall перестаёт быть функцией квантования;
-* PoW: Argon2id удалён, blake3 с привязкой nonce к `(owner, shard, epoch, slot, expiry)`;
-  сложность переснята замером, а не выдуманной константой 200 МХеш/с;
-* детерминизм: фиксированная точка Δ=1/127 вместо обещания bit-identical float-инференса
-  (чувствительность измерена: возмущение координаты на 1e-5 меняет 0,17 координаты из 384,
-  `cluster_id` не меняется ни в одной из 2000 записей при однородном сдвиге);
-* приватность: формулировка честно ослаблена — index-node читает то, что держит.
-
-## Лицензия
+## Licence
 
 MIT OR Apache-2.0.
