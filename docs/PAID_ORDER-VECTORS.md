@@ -27,7 +27,7 @@ V9_VECTORS_OUT=docs/PAID_ORDER-VECTORS.md \
 - statement_hash: `6d37fa9fab2c40b1c1fc3af187be28a008c49380ab9a7e03cf892c181b56bc98`
 - order_ref: `4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70`
 - artifact_set_hash подачи: `a04418601fbbc82886e5a6a4496a08542c34766a791af6a4d2cbe8eb602a0f39`
-- AXIOM_ALLOWLIST: [propext, Classical.choice, Quoted.sound]
+- AXIOM_ALLOWLIST: [propext, Classical.choice, Quot.sound]
 - PAYBACK_WINDOW_SECONDS: 3600
 - OFFLINE_FACTOR: 3
 - DEFAULT_TRUSTED_CHAINS: []
@@ -141,7 +141,7 @@ V9_VECTORS_OUT=docs/PAID_ORDER-VECTORS.md \
 ### V18 — аксиома вне AXIOM_ALLOWLIST
 
 ```json
-{"id":"V18","title":"аксиома вне AXIOM_ALLOWLIST","outcome":"reject","code":"E_AXIOM_NOT_ALLOWED","action":"reject","facts":{"axioms":"[propext, mine.private]","allowlist":"propext, Classical.choice, Quoted.sound"}}
+{"id":"V18","title":"аксиома вне AXIOM_ALLOWLIST","outcome":"reject","code":"E_AXIOM_NOT_ALLOWED","action":"reject","facts":{"axioms":"[propext, mine.private]","allowlist":"propext, Classical.choice, Quot.sound"}}
 ```
 
 ### V19 — нулевой exit_code после потолка бюджета

@@ -1,6 +1,6 @@
 ---
 id: ADR-0062
-status: proposed
+status: accepted
 date: 2026-10-25
 cycle: H-0112 / E-0112 (`AXIOM_ALLOWLIST`: имя, которое печатает ядро)
 depends: [E-0112, E-0111, ADR-0061]
@@ -103,3 +103,17 @@ decisions: ["третья позиция AXIOM_ALLOWLIST = Quot.sound", "имя 
 * Урок метода, выходящий за этот ADR: имя, взятое из чужого алфавита по памяти, обязано быть
   подтверждено исполнением чужого прибора. Тот же класс дефекта в модели угроз (§V9.9) ловится
   теперь тестом, который проверяет обе стороны расхождения, а не «наше имя присутствует».
+
+## Итог исполнения
+
+`E-0112` — `satisfies`. Замер: два прогона на неизменном дереве (`E0112_RUNS=2`,
+`VECTOR_STABLE=1`), 44 ожидания из `lab/expectations/e0112.tsv`, 0 расходов
+(`ОЖИДАНИЙ=44 РАСХОЖДЕНИЙ=0`), `AUDIT_VIOLATIONS=0`, `VERIFY_EXIT=0`, верификация
+125 срезов / 751 passed / 0 failed / 9 ignored. Ключевые факты: `V912_ALLOWLIST_SIZE=3` и
+`V912_ALLOWLIST=propext|Classical.choice|Quot.sound`, честная ссылка на `Quot.sound` принята
+(`V912_HONEST_QUOT_ACCEPTED=1`), выдуманное `Quoted.sound` отвергнуто
+(`V912_FAKE_QUOTED_REJECTED=1`), имя сверяется исполнением ядра, а не цитатой
+(`V912_KERNEL_NAME=Quot.sound`, `V912_ALLOWLIST_HAS_QUOTED_SOUND=0`).
+PRE_FIX исполнен до пре-регистрации и заморожен в `lab/logs/e0112-prefix.log`. Порог toolchain-версии
+входит в expectations намеренно: `V912_LEAN_TOOLCHAIN=4.36.0-rc1` — продление этого замера есть
+обязанность следующего цикла, работающего с Lean, а не молчаливое совпадение.
