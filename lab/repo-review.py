@@ -10,19 +10,40 @@
   ignored-no-reason     `#[ignore]` без причины: отключённый тест без объяснения — это тишина;
   expect-orphans        таблица ожиданий без helper'а или карточки эксперимента;
   helper-orphans        helper цикла не назван в своей карточке (воспроизвести прогон нечем);
-  missing-experiments   карточка гипотезы ссылается на несуществующий эксперимент.
+  missing-experiments   карточка гипотезы ссылается на несуществующий эксперимент;
+  refs-dangling         поименованный дескриптор (`H-XXXX`, `E-XXXX`, `ADR-XXXX`, `L-XXXX`)
+                        в tracked `.md` не разрешается ни в один артефакт (класс печатается
+                        отдельной строкой `РАЗРЫВ`, в `REVIEW_FINDINGS` НЕ входит — см. ниже).
 
 Плюс инвентарь без вердикта: размеры больших `.rs`, число `TODO/FIXME`, число `#[ignore]`.
 Вывод детерминирован: `REVIEW_*`-факты и строки `НАХОДКА <класс>: <путь> — <причина>`.
 `selftest` строит временное дерево с посаженными дефектами каждого класса и чистый контроль.
 
-Запуск: python lab/repo-review.py [check|selftest] [--root ПУТЬ]
+Про разрешимость имён (находка 5 аудита 2026-10-25, `lab/notes/AUDIT-2026-10-25-repo-spec-readme.md`).
+Дескриптор считается разрешённым, если под ним лежит файл: `lab/hypotheses/H-XXXX[-slug].md`,
+`lab/experiments/E-XXXX[-slug].md`, `lab/decisions/ADR-XXXX[-slug].md`, запись `L-XXXX` в
+`lab/library/index.jsonl`. Неразрешённый дескриптор — находка класса `refs-dangling`, она печатается
+строкой `РАЗРЫВ …` и делает выход ненулевым. Исключение — явный и версионируемый список
+`lab/ref-allow-list.txt`: номер, зарезервированный в очереди (`ADR-0039`…`ADR-0041`, кандидаты
+`OPEN-QUESTIONS`), пропущенный намеренно (`E-0014`) или посаженный для самопроверки (`L-9001`),
+обязан стоять там с ПРИЧИНОЙ; без причины запись списка ничего не разрешает.
+
+Счётчики разрешимости — ОТДЕЛЬНЫЕ ключи (`REVIEW_REFS_UNRESOLVED_ALLOWED`,
+`REVIEW_REFS_UNRESOLVED_VIOLATIONS`, `REVIEW_ID_*`), а `REVIEW_FINDINGS`, `REVIEW_REFS_UNRESOLVED`,
+`REVIEW_TOP` и остальные ключи, замороженные в `lab/expectations/*.tsv` закрытых циклов, печатают
+ровно то же, что печатали до этой правки: закрытый цикл обязан пере-проверяться прежним числом.
+
+Запуск: python lab/repo-review.py [check|selftest|refselftest] [--root ПУТЬ]
+Список разрешений по умолчанию берётся из проверяемого дерева; для прогона по чужому дереву
+(архив старого коммита) можно задать файл переменной окружения `VEC_DHT_REF_ALLOW_LIST`.
 """
 import glob
 import io
+import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 
@@ -33,6 +54,20 @@ RESULT_MIN = 80
 RESULT_HEADINGS = re.compile(r"^##\s+(Результат|Итог)\b", re.M | re.I)
 HEADING_ANY = re.compile(r"^##\s+", re.M)
 REF = re.compile(r"(?<![\w/.:-])([A-Za-z0-9_][A-Za-z0-9_./\\-]*\.(?:rs|py|sh|md|toml|jsonl|tsv|lean)):(\d+)")
+
+# Дескриптор артефакта лаборатории: H-/E-/ADR-/L- плюс ровно четыре цифры и необязательная
+# строчная буква-хвост (`H-0088b` — отдельный адрес, а не `H-0088`). Дефис после цифр означает
+# имя файла (`ADR-0044-release-queue…md`), поэтому хвостом считается только [a-z].
+DESCRIPTOR = re.compile(r"(?<![\w:./-])((?:ADR|[HEL])-\d{4})([a-z]?)")
+DESCRIPTOR_ID = re.compile(r"^(?:ADR|[HEL])-\d{4}[a-z]?$")
+ALLOW_LIST = os.path.join("lab", "ref-allow-list.txt")
+ALLOW_LIST_ENV = "VEC_DHT_REF_ALLOW_LIST"
+# Артефакт, которым разрешается дескриптор: каталог, маска файла и (для L-) индекс источников.
+ID_DIRS = {
+    "H": ("lab", "hypotheses"),
+    "E": ("lab", "experiments"),
+    "ADR": ("lab", "decisions"),
+}
 
 
 def read(path):
@@ -92,6 +127,7 @@ def line_count(path):
 
 def check_refs(root):
     stale, ok, unresolved = [], 0, 0
+    hits_cache = {}
     for path in walk(root, ".md"):
         text = read(path)
         for m in REF.finditer(text):
@@ -99,8 +135,12 @@ def check_refs(root):
             target = ref if os.path.isfile(os.path.join(root, ref)) else None
             if target is None:
                 base = os.path.basename(ref)
-                hits = [p for p in glob.glob(os.path.join(root, "**", base), recursive=True)
-                        if os.path.isfile(p) and not any(s in p.split(os.sep) for s in SKIP_DIRS)]
+                if base not in hits_cache:
+                    # Кэш по имени: обход `**` для одного и того же basename повторялся десятки раз
+                    # и превращал `check` в двухминутный прибор (мера — по `time` на хосте владельца).
+                    hits_cache[base] = [p for p in glob.glob(os.path.join(root, "**", base), recursive=True)
+                                        if os.path.isfile(p) and not any(s in p.split(os.sep) for s in SKIP_DIRS)]
+                hits = hits_cache[base]
                 if len(hits) == 1:
                     target = hits[0]
                 else:
@@ -112,6 +152,136 @@ def check_refs(root):
             else:
                 ok += 1
     return ok, stale, unresolved
+
+
+def tracked_markdown(root):
+    """Размеченные файлы, которые видит git (`lab/ref-allow-list.txt` и находки считаются по
+    закоммиченному дереву, а не по всему, что лежит на диске). Вне репозитория — временное дерево
+    самопроверки или архив старого коммита — git отвечает ошибкой, и тогда берём обход
+    файловой системы тем же `walk`, что и остальные проверки."""
+    try:
+        proc = subprocess.run(["git", "-C", root, "ls-files", "-z", "--", "*.md"],
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+        if proc.returncode != 0:
+            raise OSError("git ls-files вернул %d" % proc.returncode)
+        files = sorted(os.path.join(root, name.decode("utf-8", "replace"))
+                       for name in proc.stdout.split(b"\0") if name)
+        here = os.path.realpath(root) + os.sep
+        files = [p for p in files
+                 if os.path.isfile(p) and os.path.realpath(p).startswith(here)]
+        if files:
+            return files, "git"
+    except Exception:
+        pass
+    return walk(root, ".md"), "walk"
+
+
+def id_artefacts(root):
+    """Номера, под которыми лежит артефакт: карточка гипотезы/эксперимента/решения или запись
+    индекса источников. Имя файла с суффиксом (`H-0065.md` без slug) тоже артефакт."""
+    have = {"H": set(), "E": set(), "ADR": set(), "L": set()}
+    for kind, parts in ID_DIRS.items():
+        d = os.path.join(root, *parts)
+        for path in glob.glob(os.path.join(d, "%s-*.md" % kind)):
+            m = re.match(r"^%s-(\d{4})" % kind, os.path.basename(path))
+            if m:
+                have[kind].add(m.group(1))
+    index = os.path.join(root, "lab", "library", "index.jsonl")
+    for line in read(index).splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue  # испорченную строку уже разбирает `lab/library.py check`
+        ident = rec.get("id") if isinstance(rec, dict) else None
+        m = re.fullmatch(r"L-(\d{4})", ident or "")
+        if m:
+            have["L"].add(m.group(1))
+    return have
+
+
+def id_resolves(token, have):
+    kind, serial = token.split("-", 1)
+    num, tail = serial[:4], serial[4:]
+    if tail:
+        return False  # `H-0088b` — отдельный адрес: свой файл или запись списка разрешений
+    return num in have.get(kind, set())
+
+
+def load_allow_list(root):
+    """`lab/ref-allow-list.txt`: `ID` плюс причина после `#`. Пустая причина — запись ничего
+    не разрешает (список обязан объяснять, иначе он превращается в заглушку для глаз)."""
+    path = os.environ.get(ALLOW_LIST_ENV) or os.path.join(root, ALLOW_LIST)
+    allowed, unjustified, malformed, order = {}, [], [], []
+    if not os.path.isfile(path):
+        return allowed, unjustified, malformed, order, path, False
+    for n, raw in enumerate(read(path).splitlines(), 1):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        head, sep, comment = line.partition("#")
+        fields = head.split()
+        if len(fields) > 1:
+            malformed.append((n, line, "в строке больше одного идентификатора до `#`"))
+            continue
+        token = fields[0]
+        if not DESCRIPTOR_ID.match(token):
+            malformed.append((n, line, "не похоже на дескриптор артефакта"))
+            continue
+        reason = comment.strip() if sep else " ".join(fields[1:]).strip()
+        if not reason:
+            unjustified.append(token)
+            continue
+        if token not in allowed:
+            order.append(token)
+        allowed[token] = reason
+    return allowed, unjustified, malformed, order, path, True
+
+
+def check_descriptors(root):
+    """Разрешимость именованных адресов в tracked `.md`. Считается по уникальным дескрипторам:
+    одно висячее имя в двадцати файлах — это один адрес, а не двадцать находок."""
+    files, mode = tracked_markdown(root)
+    have = id_artefacts(root)
+    mentions = {}
+    for path in files:
+        text = read(path)
+        for m in DESCRIPTOR.finditer(text):
+            token = m.group(1) + (m.group(2) or "")
+            mentions.setdefault(token, set()).add(rel(root, path))
+    allowed, unjustified, malformed, order, allow_path, allow_present = load_allow_list(root)
+    resolved, violation_list, allowed_list = [], [], []
+    for token in sorted(mentions):
+        if id_resolves(token, have):
+            resolved.append(token)
+        elif token in allowed:
+            allowed_list.append((token, allowed[token], sorted(mentions[token])))
+        else:
+            violation_list.append((token, sorted(mentions[token])))
+    used = {t for t, _, _ in allowed_list}
+    unused = [t for t in order if t not in used and t not in mentions]
+    facts = {
+        "REVIEW_ID_DOCS": len(files),
+        "REVIEW_ID_SCAN": mode,
+        "REVIEW_ID_TOKENS": len(mentions),
+        "REVIEW_ID_RESOLVED": len(resolved),
+        "REVIEW_REFS_UNRESOLVED_ALLOWED": len(allowed_list),
+        "REVIEW_REFS_UNRESOLVED_VIOLATIONS": len(violation_list),
+        "REVIEW_ALLOW_LIST_PRESENT": 1 if allow_present else 0,
+        "REVIEW_ALLOW_LIST_ENTRIES": len(allowed) + len(unjustified),
+        "REVIEW_ALLOW_LIST_UNJUSTIFIED": len(set(unjustified)),
+        "REVIEW_ALLOW_LIST_MALFORMED": len(malformed),
+        "REVIEW_ALLOW_LIST_UNUSED": len(unused),
+    }
+    detail = {
+        "allow_path": allow_path,
+        "unjustified": sorted(set(unjustified)),
+        "malformed": malformed,
+        "unused": unused,
+    }
+    return facts, violation_list, allowed_list, detail
 
 
 def check_cards(root):
@@ -228,6 +398,7 @@ def review(root):
     findings += ign
     findings += check_orphans(root)
     todos, big = check_inventory(root)
+    ref_facts, violations, allowed_list, ref_detail = check_descriptors(root)
     md = len(walk(root, ".md"))
     facts = {
         "REVIEW_MD_FILES": md,
@@ -244,6 +415,7 @@ def review(root):
         "REVIEW_TODOS": todos,
         "REVIEW_BIG_RS": len(big),
     }
+    facts.update(ref_facts)
     ranked = sorted(findings, key=lambda f: (f[0], rel(root, f[1]) if os.path.isabs(f[1]) else f[1]))
     facts["REVIEW_FINDINGS"] = len(ranked)
     if ranked:
@@ -254,10 +426,10 @@ def review(root):
         facts["REVIEW_TOP"] = "%s:%d" % top
     else:
         facts["REVIEW_TOP"] = "none:0"
-    return facts, ranked, big
+    return facts, ranked, big, (violations, allowed_list, ref_detail)
 
 
-def print_report(root, facts, ranked, big):
+def print_report(root, facts, ranked, big, refs=None):
     for key in sorted(facts):
         print("%s=%s" % (key, facts[key]))
     for path, n in sorted(big, key=lambda x: (-x[1], x[0])):
@@ -265,6 +437,23 @@ def print_report(root, facts, ranked, big):
     for cls, path, why in ranked:
         shown = rel(root, path) if os.path.isabs(path) else path.replace("\\", "/")
         print("НАХОДКА %s: %s — %s" % (cls, shown, why))
+    if not refs:
+        return
+    violations, allowed_list, detail = refs
+    # Отдельный префикс, а не `НАХОДКА`: класс `refs-dangling` не входит в `REVIEW_FINDINGS`,
+    # чтобы закрытые циклы (`lab/expectations/e0101.tsv`) пере-проверялись прежним числом.
+    for token, docs in violations:
+        print("РАЗРЫВ refs-dangling: %s — артефакта нет, упомянут в %d файлах: %s" %
+              (token, len(docs), ", ".join(docs[:4]) + ("" if len(docs) <= 4 else ", …")))
+    for token, reason, docs in allowed_list:
+        print("ПОЗВОЛЕНО refs-dangling: %s — %s (%d файлов: %s)" %
+              (token, reason, len(docs), ", ".join(docs[:2]) + ("" if len(docs) <= 2 else ", …")))
+    for line_no, text, why in detail["malformed"]:
+        print("СПИСОК refs-allow-list: строка %d `%s` — %s" % (line_no, text, why))
+    for token in detail["unjustified"]:
+        print("СПИСОК refs-allow-list: %s — запись без причины, разрешения нет" % token)
+    for token in detail["unused"]:
+        print("СПИСОК refs-allow-list: %s — запись не упомянута ни в одном tracked .md" % token)
 
 
 def make_tree(base):
@@ -294,12 +483,12 @@ def selftest():
                "ignored-no-reason", "expect-orphans", "helper-orphans",
                "missing-experiments"]
     try:
-        facts, ranked, _ = review(make_tree(tmp))
+        facts, ranked, _, _ = review(make_tree(tmp))
         classes = {f[0] for f in ranked}
         missed = [c for c in planted if c not in classes]
         clean_root = tempfile.mkdtemp(prefix="repo-review-clean-")
         try:
-            clean_facts, clean_ranked, _ = review(clean_root)
+            clean_facts, clean_ranked, _, _ = review(clean_root)
         finally:
             shutil.rmtree(clean_root, ignore_errors=True)
         clean_ok = clean_facts["REVIEW_FINDINGS"] == 0
@@ -316,6 +505,123 @@ def selftest():
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+# Посадки для `refselftest`: (имя кейса, текст заметки, ожидаемый вердикт). `РАЗРЫВ` — обязан
+# попасть в violations, `ВОШЁЛ` — в allowed (список разрешений работает), `ЧИСТО` — не попасть
+# никуда (артефакт на месте: страж не имеет права валить заведомо разрешимое имя).
+REF_DEFECTS = [
+    ("гипотеза_без_карточки", "Отложено в `H-9001` без карточки.", "РАЗРЫВ"),
+    ("эксперимент_без_карточки", "Порог заморожен в `E-9002`.", "РАЗРЫВ"),
+    ("решение_без_файла", "Ждём слово владельца по `ADR-9003`.", "РАЗРЫВ"),
+    ("источник_вне_индекса", "Ссылка на `L-9004`, записи нет.", "РАЗРЫВ"),
+    ("хвост_буквой", "Очередь помечает `H-9005b`; карточка `H-9005` на месте, но адрес иной.",
+     "РАЗРЫВ"),
+    ("разрешено_с_причиной", "Резерв номера — `ADR-9006`.", "ВОШЁЛ"),
+    ("разрешено_без_причины", "Дыра без объяснения — `E-9007`.", "РАЗРЫВ"),
+    ("номер_скачки_файла", "Карточка лежит в `ADR-9001-reserved-slot.md`.", "ЧИСТО"),
+    ("карточка_без_slug", "Гипотеза `H-9006`, файл `H-9006.md` без имени.", "ЧИСТО"),
+    ("индекс_источников", "Подтверждено источником `L-9001`.", "ЧИСТО"),
+    ("гипотеза_живая", "Измерено циклом `E-9001`, карточка `H-9001` рядом — оба на месте.", "ЧИСТО"),
+]
+
+
+def make_ref_tree(base):
+    """Временное дерево: артефакты под настоящими номерами плюс одна заметка со всеми посадками."""
+    def put(relpath, text):
+        full = os.path.join(base, relpath)
+        os.makedirs(os.path.dirname(full), exist_ok=True)
+        io.open(full, "w", encoding="utf-8", newline="\n").write(text)
+    put("lab/hypotheses/H-9005-candidate.md", "---\nid: H-9005\nstatus: open\n---\n")
+    put("lab/hypotheses/H-9006.md", "---\nid: H-9006\nstatus: open\n---\n")
+    put("lab/experiments/E-9001-live.md", "---\nid: E-9001\nhypothesis: H-9005\nverdict: pending\n---\n")
+    put("lab/decisions/ADR-9001-reserved-slot.md", "---\nid: ADR-9001\nstatus: proposed\n---\n")
+    put("lab/library/index.jsonl", '{"id": "L-9001", "kind": "бумага"}\n')
+    put("lab/ref-allow-list.txt",
+        "# список разрешений для самопроверки\n"
+        "ADR-9006   # резерв номера, заведенный в очереди этого дерева\n"
+        "E-9007\n"
+        "L-9009 не-идентификатор\n"
+        "H-9010   # запись списка, которую никто не упоминает\n")
+    note = "# Заметка с посаженными адресами\n\n"
+    for _, text, _ in REF_DEFECTS:
+        note += text + "\n\n"
+    put("lab/notes/refselftest.md", note)
+    return base
+
+
+def ref_selftest():
+    """Страж разрешимости обязан отбивать посаженные висячие адреса, пропускать разрешимые и
+    не считать разрешением запись списка без причины."""
+    saved = os.environ.pop(ALLOW_LIST_ENV, None)
+    tmp = tempfile.mkdtemp(prefix="repo-review-refs-")
+    try:
+        facts, _, _, (violations, allowed_list, detail) = review(make_ref_tree(tmp))
+        bad = {t for t, _ in violations}
+        good = {t for t, _, _ in allowed_list}
+        fired, missed = 0, []
+        for name, text, expect in REF_DEFECTS:
+            token = DESCRIPTOR.search(text)
+            token = (token.group(1) + (token.group(2) or "")) if token else "?"
+            if expect == "РАЗРЫВ":
+                hit = token in bad
+            elif expect == "ВОШЁЛ":
+                hit = token in good and token not in bad
+            else:
+                hit = token not in bad and token not in good
+            if hit:
+                fired += 1
+            else:
+                missed.append("%s(%s->%s)" % (name, token, expect))
+            print("  КЕЙС %s [%s]: %s" % (name, expect, "ОТБИТ" if hit else "ПРОПУЩЕН"))
+        checks = {
+            "список_без_причины_не_разрешает": "E-9007" in bad,
+            "строка_списка_некорректна": facts["REVIEW_ALLOW_LIST_MALFORMED"] >= 1,
+            "строка_списка_не_использована": facts["REVIEW_ALLOW_LIST_UNUSED"] >= 1,
+            "сканируется_tracked_дерево": facts["REVIEW_ID_DOCS"] >= 1,
+            "выход_по_находкам_ненулевой": len(violations) > 0,
+            "счётчики_сошлись": (facts["REVIEW_ID_TOKENS"] ==
+                                 facts["REVIEW_ID_RESOLVED"] +
+                                 facts["REVIEW_REFS_UNRESOLVED_ALLOWED"] +
+                                 facts["REVIEW_REFS_UNRESOLVED_VIOLATIONS"]),
+            "чистое_дерево_не_валится": _ref_clean_control(),
+        }
+        for name, ok in sorted(checks.items()):
+            if ok:
+                fired += 1
+            else:
+                missed.append(name)
+            print("  ПРОВЕРКА %s: %s" % (name, "ОТБИТА" if ok else "ПРОПУЩЕНА"))
+        total = len(REF_DEFECTS) + len(checks)
+        passed = fired
+        print("REFGUARD_DECOY_FIRED=%d/%d" % (fired, total))
+        print("REFGUARD_SELFTEST total=%d passed=%d" % (total, passed))
+        if missed:
+            print("  ПРОПУЩЕНО: %s" % ", ".join(missed))
+        return 0 if passed == total else 1
+    finally:
+        if saved is not None:
+            os.environ[ALLOW_LIST_ENV] = saved
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _ref_clean_control():
+    """Позитивный контроль: дерево, где все адреса разрешимы, обязано дать нуль разрывов. Без него
+    удовлетворяет страж, который валит всё подряд."""
+    root = tempfile.mkdtemp(prefix="repo-review-refs-clean-")
+    try:
+        def put(relpath, text):
+            full = os.path.join(root, relpath)
+            os.makedirs(os.path.dirname(full), exist_ok=True)
+            io.open(full, "w", encoding="utf-8", newline="\n").write(text)
+        put("lab/hypotheses/H-0001-a.md", "См. `E-0001`, решение `ADR-0001`, источник `L-0001`.\n")
+        put("lab/experiments/E-0001-a.md", "есть\n")
+        put("lab/decisions/ADR-0001-a.md", "есть\n")
+        put("lab/library/index.jsonl", '{"id": "L-0001"}\n')
+        facts, _, _, (violations, _, _) = review(root)
+        return facts["REVIEW_REFS_UNRESOLVED_VIOLATIONS"] == 0 and not violations
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
+
+
 def main(argv):
     mode = "check"
     root = os.environ.get("VEC_DHT_ROOT") or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -326,12 +632,17 @@ def main(argv):
         root = args[args.index("--root") + 1]
     if mode == "selftest":
         return selftest()
+    if mode == "refselftest":
+        return ref_selftest()
     if mode != "check":
-        print("режим %r неизвестен: check|selftest" % mode)
+        print("режим %r неизвестен: check|selftest|refselftest" % mode)
         return 2
-    facts, ranked, big = review(root)
-    print_report(root, facts, ranked, big)
-    return 0
+    facts, ranked, big, refs = review(root)
+    print_report(root, facts, ranked, big, refs)
+    # Висячий адрес — провал проверки (находка 5 аудита): раньше счётчик печатался, а выход
+    # оставался нулевым. Нулевой список разрешений при этом не спасает: разрешение обязано быть
+    # в version-controlled `lab/ref-allow-list.txt` с причиной.
+    return 1 if facts["REVIEW_REFS_UNRESOLVED_VIOLATIONS"] else 0
 
 
 if __name__ == "__main__":
