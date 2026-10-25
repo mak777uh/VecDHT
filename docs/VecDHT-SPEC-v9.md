@@ -78,7 +78,7 @@
 | 5 | `verifier.budget_seconds` | `u32` | little-endian, затем `0x00` | обязан быть `> 0`, иначе `E_ORDER_MALFORMED` |
 | 6 | `verifier.network` | `bool` | один байт `0`/`1`, затем `0x00` | `false` по умолчанию; `true` требует отдельного ADR |
 | 7 | `reward.amount` | `u128` | little-endian, затем `0x00` | минимальные единицы актива; дробых величин нет |
-| 8 | `reward.asset` | tagged | тег `0` = `native`; тег `1` = `token`, затем `chain_id : u64` LE и `address : 20` байт; в обоих случаях затем `0x00` | всё иное — `E_UNSUPPORTED_ASSET`; узел не угадывает чужой актив |
+| 8 | `reward.asset` | tagged | тег `0` = `native`, тело пустое, затем `0x00`; тег `1` = `token`, затем `chain_id : u64` LE, `address : 20` байт, затем `0x00` | всё иное — `E_UNSUPPORTED_ASSET`; узел не угадывает чужой актив |
 | 9 | `reward.escrow_ref` | байты | `u32` LE длина ‖ содержимое, затем `0x00` | ссылка на эскроу; пустая — `E_ESCROW_UNKNOWN` |
 | 10 | `deadline` | `u64` | unix-секунды, little-endian, затем `0x00` | **включительно**: подача ровно в `deadline` законна, в `deadline + 1` — нет; `0` — `E_ORDER_MALFORMED` |
 | 11 | `submit_limit` | `u16` | little-endian, затем `0x00` | предел принятых подач; при `seen_count ≥ submit_limit` — `E_SUBMIT_LIMIT` |
