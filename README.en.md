@@ -69,6 +69,7 @@ bash lab/check-spec-mirror.sh      # the readable copy of the spec must equal th
 bash lab/check-text-clean.sh --all # alphabet and encoding guard over every tracked text (git ls-files)
 cargo test -p vecdht-orders        # prints V9_* literals: hashes, vector count, error-code coverage
 python lab/xcheck-paid-orders.py docs/PAID_ORDER-VECTORS.md   # recomputes hashes from the document text
+python lab/v9-independent-client.py             # rebuilds the bytes from spec + vectors only, never reading crates/
 ```
 
 Every number in the spec and README carries an experiment id, the command that produced it, and a log
@@ -83,7 +84,9 @@ budget, and a signed receipt — verdict, axiom list, timings, image digest — 
 rule that matters is that the receipt is checkable without a judge: the verdict must be derivable from
 the receipt's own fields by anyone holding the order. See `docs/PAID_ORDERS.md` for the design,
 `docs/VecDHT-SPEC-v9.md` for the byte rules and the state machine, and `docs/PAID_ORDER-VECTORS.md`
-for the vectors a client must match. This is planned, not shipped: no verifier image, no escrow
+for the vectors a client must match. A client written from those two documents alone now rebuilds
+the same bytes: `lab/v9-independent-client.py` opens only the spec and the vectors, never `crates/`,
+and it caught seven text and carrier defects before it passed (`E-0113`). This is planned, not shipped: no verifier image, no escrow
 contract, no testnet.
 
 ## Licence and contribution
