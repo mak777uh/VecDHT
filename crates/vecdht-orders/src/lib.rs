@@ -2331,8 +2331,7 @@ mod tests {
         seen: &mut Vec<ErrorCode>,
     ) -> ErrorCode {
         let e = check_payout_claim(c, o, sub, t, now)
-            .err()
-            .expect("посадка обязана быть отвергнута");
+            .expect_err("посадка обязана быть отвергнута");
         assert!(
             ErrorCode::all().contains(&e.code),
             "код вне закрытого списка: {}",

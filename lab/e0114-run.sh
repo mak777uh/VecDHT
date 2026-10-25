@@ -76,7 +76,7 @@ say() { printf '%s\n' "$*" | tee -a "$LOG"; }
 emit() { printf '%s\n' "$1" | tee -a "$LOG"; printf '%s\n' "$1" >> "$FACTS"; }
 # Граница токена: значение может содержать `=`, `%`, `,`, `/`, `|`, `-` и двоеточие (KEYPAIR_MATCH,
 # DECOY_*_PAIR, NOTE_FIELDS, пути), но не пробел и не кириллицу — прибор печатает значения ASCII.
-pick() { grep -o "$1=[A-Za-z0-9_.:/=,%-]*" "$2" | tail -1 | cut -d= -f2-; }
+pick() { grep -o "$1=[A-Za-z0-9_.:/=,%|-]*" "$2" | tail -1 | cut -d= -f2-; }
 
 say "########## E-0114 · $(date +%FT%T%:z) · дерево $(git rev-parse --short HEAD) ##########"
 
