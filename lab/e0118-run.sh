@@ -91,15 +91,27 @@ emit0 "STABLE=${st}"
 say "STABLE=${st}"
 [ "$st" -eq 1 ] || note 1
 
-say "### ШАГ 3 ожидания ### $(date +%FT%T%:z)"
+say "### ШАГ 3 clippy по пакету со всеми целями ### $(date +%FT%T%:z)"
+cargo clippy -q -p vecdht-cli --all-targets -- -D warnings > "$OUT/clippy.txt" 2>&1
+rcc=$?
+note "$rcc"
+tail -n 5 "$OUT/clippy.txt" | tee -a "$LOG"
+emit0 "CLIPPY_EXIT=${rcc}"
+
+say "### ШАГ 4 стража текста ### $(date +%FT%T%:z)"
+bash lab/check-text-clean.sh lab/e0118-run.sh "$EXPECT"   lab/hypotheses/H-0118-a0-ceremony-cli.md   lab/experiments/E-0118-a0-ceremony-cli.md 2>&1 | tail -3 | tee -a "$LOG"
+rct=${PIPESTATUS[0]}
+note "$rct"
+emit0 "TEXTGUARD_CYCLE_EXIT=${rct}"
+
+say "### ШАГ 5 ожидания ### $(date +%FT%T%:z)"
 for f in "$OUT/facts1.txt" "$OUT/facts2.txt"; do cat "$G" >> "$f"; done
 python lab/expect.py "$EXPECT" "$OUT/facts1.txt" "$OUT/facts2.txt" 2>&1 | tail -n 20 | tee -a "$LOG"
 rce=${PIPESTATUS[0]}
 note "$rce"
 
-say "### ШАГ 4 посадка: неверное ожидание обязано краснеть ### $(date +%FT%T%:z)"
-sed_plant() { awk -F'\t' 'BEGIN{OFS="\t"} $1=="PASSED"{$2="4"} {print}' "$1"; }
-sed_plant "$EXPECT" > "$OUT/plant.tsv"
+say "### ШАГ 6 посадка: неверное ожидание обязано краснеть ### $(date +%FT%T%:z)"
+awk -F'	' 'BEGIN{OFS="	"} $1=="PASSED"{$2="4"} {print}' "$EXPECT" > "$OUT/plant.tsv"
 if cmp -s "$EXPECT" "$OUT/plant.tsv"; then
   say "ПОСАДКА НЕ СРАБОТАЛА: строка PASSED в таблице не найдена"
   plant=0
@@ -110,21 +122,6 @@ fi
 emit0 "PLANT_EXIT=${plant}"
 say "PLANT_EXIT=${plant}"
 [ "$plant" -eq 1 ] || note 1
-
-say "### ШАГ 5 clippy по пакету со всеми целями ### $(date +%FT%T%:z)"
-cargo clippy -q -p vecdht-cli --all-targets -- -D warnings > "$OUT/clippy.txt" 2>&1
-rcc=$?
-note "$rcc"
-tail -n 5 "$OUT/clippy.txt" | tee -a "$LOG"
-emit0 "CLIPPY_EXIT=${rcc}"
-
-say "### ШАГ 6 стража текста ### $(date +%FT%T%:z)"
-bash lab/check-text-clean.sh lab/e0118-run.sh "$EXPECT" \
-  lab/hypotheses/H-0118-a0-ceremony-cli.md \
-  lab/experiments/E-0118-a0-ceremony-cli.md 2>&1 | tail -3 | tee -a "$LOG"
-rct=${PIPESTATUS[0]}
-note "$rct"
-emit0 "TEXTGUARD_CYCLE_EXIT=${rct}"
 
 say "### ШАГ 7 носитель после прогона ### $(date +%FT%T%:z)"
 bash lab/disk-report.sh 2>&1 | tail -n 3 | tee -a "$LOG"
