@@ -999,7 +999,11 @@ fn dev_centroids(seed: &[u8; 32]) -> Centroids {
     Centroids::from_f64(&flat).expect("1024 строк по 384 значения")
 }
 
-fn dev_key_seed(seed: &[u8; 32], index: u16) -> [u8; 32] {
+/// Seed dev-ключа авторитета по индексу. `pub(crate)`, потому что церемония (`cert issue`,
+/// `genesis build`) обязана выводить ровно те же ключи, что и `artifact init --dev-keys`:
+/// вторая формула вывода означала бы, что dev-креды не совпадают с манифестом, и порог не
+/// соберётся. Наружу не отдаётся — dev-ключи не часть библиотечного API.
+pub(crate) fn dev_key_seed(seed: &[u8; 32], index: u16) -> [u8; 32] {
     *blake3::Hasher::new()
         .update(DOMAIN_DEV_KEY)
         .update(seed)

@@ -36,6 +36,7 @@
 pub mod agent_cmd;
 pub mod args;
 pub mod artifact_cmd;
+pub mod bootstrap_cmd;
 pub mod demo_cmd;
 pub mod encode_cmd;
 pub mod index_cmd;
@@ -139,6 +140,20 @@ pub static COMMANDS: &[Command] = &[
         flags: artifact_cmd::FLAGS_REMAP,
         help: artifact_cmd::HELP_REMAP,
         run: artifact_cmd::exec_remap,
+    },
+    Command {
+        path: bootstrap_cmd::CMD_CERT,
+        summary: "выпустить NodeCert, подписанный порогом авторитетов артефакта (§4.2)",
+        flags: bootstrap_cmd::FLAGS_CERT,
+        help: bootstrap_cmd::HELP_CERT,
+        run: bootstrap_cmd::exec_cert,
+    },
+    Command {
+        path: bootstrap_cmd::CMD_GENESIS,
+        summary: "собрать genesis-состав шарда, подписанный порогом авторитетов (§9.2)",
+        flags: bootstrap_cmd::FLAGS_GENESIS,
+        help: bootstrap_cmd::HELP_GENESIS,
+        run: bootstrap_cmd::exec_genesis,
     },
     Command {
         path: encode_cmd::CMD,
