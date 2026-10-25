@@ -1,0 +1,30 @@
+########## E-0112 PRE_FIX · 2026-10-25T09:49:10+03:00 · дерево c8e5d6e · lib.rs = HEAD (Quoted.sound) ##########
+Команда: cargo test -q -p vecdht-orders --test v912_axiom_names -- --nocapture
+Назначение: заморозить красные числа ДО коммита пре-регистрации (шаг 2 жизненного цикла, lab/README.md).
+Проверка древа: git show HEAD:crates/vecdht-orders/src/lib.rs -> AXIOM_ALLOWLIST = ["propext", "Classical.choice", "Quoted.sound"]
+
+
+running 1 test
+V912_ALLOWLIST_SIZE=3
+V912_ALLOWLIST=propext|Classical.choice|Quoted.sound
+V912_HONEST_QUOT_ACCEPTED=0
+V912_FAKE_QUOTED_REJECTED=0
+V912_EMPTY_AXIOM_CONTROL=1
+V912_NONLEAN_NAMES_AXIOMS=1
+V912_ALLOWLIST_HAS_QUOT_SOUND=0
+V912_ALLOWLIST_HAS_QUOTED_SOUND=1
+V912_ALL_OK=0
+
+thread 'v912_axiom_allowlist_matches_the_kernel_name' (25360) panicked at crates\vecdht-orders\tests\v912_axiom_names.rs:164:5:
+allowlist аксиом расходится с именем, которое печатает kernel Lean: честная квитанция принята=false, выдуманное имя отвергнуто=false, контроль пустого списка=true, не-Lean с аксиомами отвергнут=true
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+v912_axiom_allowlist_matches_the_kernel_name --- FAILED
+
+failures:
+
+failures:
+    v912_axiom_allowlist_matches_the_kernel_name
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+error: test failed, to rerun pass `-p vecdht-orders --test v912_axiom_names`
