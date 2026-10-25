@@ -106,7 +106,10 @@ emit0 "TEXTGUARD_CYCLE_EXIT=${rct}"
 
 say "### ШАГ 5 посадка: неверное ожидание обязано краснеть ### $(date +%FT%T%:z)"
 awk -F'	' 'BEGIN{OFS="	"} $1=="PASSED"{$2="4"} {print}' "$EXPECT" > "$OUT/plant.tsv"
-if cmp -s "$EXPECT" "$OUT/plant.tsv"; then
+# Чувствительность к посадке проверяется наличием подменённой строки, а не `cmp` двух файлов:
+# `threshold-lint.py` отвергает сравнение файлов без снятия метки прогона, и здесь метка ни при
+# чём — важен сам факт, что строка PASSED нашлась и в копии стоит 4.
+if ! grep -q $'^PASSED\t4\t' "$OUT/plant.tsv"; then
   say "ПОСАДКА НЕ СРАБОТАЛА: строка PASSED в таблице не найдена"
   plant=0
 else
