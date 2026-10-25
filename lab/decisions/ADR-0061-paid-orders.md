@@ -27,8 +27,15 @@ decisions: ["sha256 в домене платных заказов", "statement_h
 
 1. **SHA-256, а не blake3, в домене платных заказов** (`DOMAIN_STATEMENT` =
    `vecdht/paid_order/v1`, `DOMAIN_RECEIPT` = `vecdht/paid_order_receipt/v1`, `DOMAIN_FILESET` =
-   `vecdht/paid_order/fileset/v1`). v8 использует blake3 там, где скорость важна (PoW, f64
-   — §19.5), и это не противоречие: у платного заказа другая цель. `opencontainers/image-spec`
+   `vecdht/paid_order_fileset/v1`). Поправка по замеру `E-0113`: третий литерал печатался здесь как
+   `vecdht/paid_order/fileset/v1` (со слэшем перед `fileset`) — тот же символ, что и в двух других
+   доменах; продукт хешует вариант с подчёркиванием (`DOMAIN_FILESET`, `lib.rs:38`), и именно он
+   даёт зафиксированный `artifact_set_hash = a0441860…a0f39`. Клиент, собравший листья по
+   напечатанному здесь литералу, получает для того же множества файлов
+   `93694c80370fcf055cb5ca3e8fdb2c10d6f1298cf7914979e52ab6c6cb9f25b1` и отвергает честную подачу.
+   Литерал приведён к байтам продукта, байты не менялись. Тот же дефект был в §V9.4 спеки и
+   закрыт тем же замером. v8 использует blake3 там, где скорость важна (PoW, f64 — §19.5), и это
+   не противоречие: у платного заказа другая цель. `opencontainers/image-spec`
    рекомендует SHA-256 (`descriptor.md`, раздел «Registered algorithms»: «compliant implementations
    SHOULD use SHA-256»; пин `4feed4a6674e59d301b9294f187ac46acb2de99f`, `L-0034`) и допускает другие
    алгоритмы в строке digest; v9 этот выбор сужает — поле `verifier.image_digest` хранит 32 сырых

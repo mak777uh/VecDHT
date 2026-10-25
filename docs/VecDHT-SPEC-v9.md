@@ -70,19 +70,19 @@
 
 | # | поле | тип | кодировка в `canonical_record` | правило |
 |---|---|---|---|---|
-| — | домен | 19 байт | `vecdht/paid_order/v1` затем `0x00` | общий префикс всех записей этого класса |
-| 1 | `kind` | enum, тег `u8` | один байт тега | `lean_proof = 0`, `test_conformance = 1`, `repro_run = 2`; иной тег — `E_ORDER_MALFORMED` |
+| — | домен | 20 байт | `vecdht/paid_order/v1` затем `0x00` | общий префикс всех записей этого класса |
+| 1 | `kind` | enum, тег `u8` | один байт тега, затем `0x00` | `lean_proof = 0`, `test_conformance = 1`, `repro_run = 2`; иной тег — `E_ORDER_MALFORMED` |
 | 2 | `statement_hash` | 32 байта | сырые байты, затем `0x00` | см. §V9.3 |
 | 3 | `verifier.image_digest` | 32 байта | сырые байты, затем `0x00` | sha256 манифеста образа |
 | 4 | `verifier.entrypoint` | строка | `u32` LE длина ‖ UTF-8 без терминального нуля, затем `0x00` | непустая после `trim`, иначе `E_ORDER_MALFORMED` |
 | 5 | `verifier.budget_seconds` | `u32` | little-endian, затем `0x00` | обязан быть `> 0`, иначе `E_ORDER_MALFORMED` |
 | 6 | `verifier.network` | `bool` | один байт `0`/`1`, затем `0x00` | `false` по умолчанию; `true` требует отдельного ADR |
 | 7 | `reward.amount` | `u128` | little-endian, затем `0x00` | минимальные единицы актива; дробых величин нет |
-| 8 | `reward.asset` | tagged | тег `0` = `native`; тег `1` = `token`, затем `chain_id : u64` LE и `address : 20` байт, затем `0x00` | всё иное — `E_UNSUPPORTED_ASSET`; узел не угадывает чужой актив |
+| 8 | `reward.asset` | tagged | тег `0` = `native`; тег `1` = `token`, затем `chain_id : u64` LE и `address : 20` байт; в обоих случаях затем `0x00` | всё иное — `E_UNSUPPORTED_ASSET`; узел не угадывает чужой актив |
 | 9 | `reward.escrow_ref` | байты | `u32` LE длина ‖ содержимое, затем `0x00` | ссылка на эскроу; пустая — `E_ESCROW_UNKNOWN` |
 | 10 | `deadline` | `u64` | unix-секунды, little-endian, затем `0x00` | **включительно**: подача ровно в `deadline` законна, в `deadline + 1` — нет; `0` — `E_ORDER_MALFORMED` |
 | 11 | `submit_limit` | `u16` | little-endian, затем `0x00` | предел принятых подач; при `seen_count ≥ submit_limit` — `E_SUBMIT_LIMIT` |
-| 12 | `publisher` | 32 байта |Ed25519 verification key, затем `0x00` | ключ издателя; обязан быть равен подписавшему |
+| 12 | `publisher` | 32 байта | Ed25519 verification key, затем `0x00` | ключ издателя; обязан быть равен подписавшему |
 | 13 | `nonce` | `u64` | little-endian | область воспроизведения — **на издателя** |
 | — | `signature` | 64 байта | **в канонические байты не входит** | подпись издателя над `canonical_record()` |
 
@@ -143,7 +143,7 @@
 statement_hash = sha256( "vecdht/paid_order/v1" ‖ 0x00 ‖ kind_tag:u8 ‖ 0x00 ‖ normalize(raw) )
 ```
 
-Доменное разделение (`DOMAIN_STATEMENT`, 19 байт) обязано быть в хеше, иначе один и тот же текст,
+Доменное разделение (`DOMAIN_STATEMENT`, 20 байт) обязано быть в хеше, иначе один и тот же текст,
 использованный в двух ролях протокола, стал бы одним и тем же идентификатором. Алгоритм — SHA-256,
 а не blake3, и это осознанное решение с собственным ADR (`ADR-0061`). Причина и граница названы
 цитатой: `opencontainers/image-spec`, `descriptor.md`, раздел «Registered algorithms» (пин
@@ -196,8 +196,8 @@ nonce:u64le ‖ 0x00 ‖ created_at:u64le
 что «Merkle root» без правила — это место, где две реализации расходятся:
 
 ```
-leaf(path, content) = sha256( "vecdht/paid_order/fileset/v1" ‖ 0x00 ‖ path ‖ 0x00 ‖ sha256(content) )
-artifact_hash       = sha256( "vecdht/paid_order/fileset/v1" ‖ 0x01 ‖ concat(sorted(leaf_i)) )
+leaf(path, content) = sha256( "vecdht/paid_order_fileset/v1" ‖ 0x00 ‖ path ‖ 0x00 ‖ sha256(content) )
+artifact_hash       = sha256( "vecdht/paid_order_fileset/v1" ‖ 0x01 ‖ concat(sorted(leaf_i)) )
 ```
 
 Листья сортируются по байтовому порядку склейки, поэтому порядок перечисления файлов в подаче не
