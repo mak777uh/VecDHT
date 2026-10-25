@@ -812,6 +812,13 @@ fn full_example_rows() -> Vec<String> {
     lines.push(format!("- подпись издателя над `canonical_record`, hex: `{}`", hex_lower(&o.signature.unwrap())));
     lines.push(format!("- `canonical_bytes` подачи, hex: `{}`", hex_lower(&s.canonical_bytes())));
     lines.push(format!("- `submission_ref` = sha256(выше): `{}`", hex_lower(&s.submission_ref())));
+    // Входы пересчёта листьев: без пары «путь + sha256 содержимого» сторонний читатель не может
+    // вычислить `leaf(path, content)` ни при каком описании формулы, то есть корень множества для
+    // него остаётся утверждением. Порядок — тот же, что в самой подаче (не отсортирован), чтобы
+    // читатель видел: сортировка происходит по листьям, а не по тому, как напечатаны пути (E-0113).
+    for f in files() {
+        lines.push(format!("- файл `{}` sha256 `{}`", f.path, hex_lower(&f.content_sha256)));
+    }
     lines.push(format!("- листья множества файлов (отсортированы по байтам), hex: `{}`", leaves.join("` , `")));
     lines.push(format!("- `artifact_hash` = корень множества: `{}`", hex_lower(&s.artifact_hash)));
     lines.push(format!("- подпись подающего, hex: `{}`", hex_lower(&s.signature.unwrap())));
