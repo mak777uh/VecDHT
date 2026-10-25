@@ -5,6 +5,8 @@
 репозитории, а не «вообще плохие практики»:
 
   stale-refs            ссылка `путь:строка` в документе указывает за конец файла;
+  refs-pin-malformed    ссылка вида `путь@пин:строка`, где пин не похож на hex-хеш коммита;
+  promise-double-definition один открытый пункт (`OPEN-V9-NN`) описан строкой списка в двух файлах;
   closed-empty-result   карточка закрыта, а результата в ней нет (или остался заголовок-пустышка);
   testing-closed        гипотеза `testing`, а её эксперимент уже вынес вердикт;
   ignored-no-reason     `#[ignore]` без причины: отключённый тест без объяснения — это тишина;
@@ -18,6 +20,15 @@
 Плюс инвентарь без вердикта: размеры больших `.rs`, число `TODO/FIXME`, число `#[ignore]`.
 Вывод детерминирован: `REVIEW_*`-факты и строки `НАХОДКА <класс>: <путь> — <причина>`.
 `selftest` строит временное дерево с посаженными дефектами каждого класса и чистый контроль.
+
+Про две формы ссылок на строку. `путь:строка` — ЖИВОЙ указатель: он обязан указывать в файл,
+который существует сейчас, и на строку, которая в нём есть. `путь@пин:строка` — ИСТОРИЧЕСКИЙ
+указатель: номер строки снят с дерева `пин`, а не с HEAD, поэтому сверять его с текущим файлом
+бессмысленно (так устроены аудиторские срезы: `lab/notes/AUDIT-2026-10-25-repo-spec-readme.md`
+цитирует README до переписки, а переписка сдвинула все номера). Цена формы: страж не проверяет,
+что под историческим именем вообще лежал файл, — ловится только битый пин и только тем, что пин
+назван. Число исторических ссылок печатается фактом `REVIEW_REFS_PINNED`, чтобы молчание не
+выглядело проверкой.
 
 Про разрешимость имён (находка 5 аудита 2026-10-25, `lab/notes/AUDIT-2026-10-25-repo-spec-readme.md`).
 Дескриптор считается разрешённым, если под ним лежит файл: `lab/hypotheses/H-XXXX[-slug].md`,
@@ -54,6 +65,15 @@ RESULT_MIN = 80
 RESULT_HEADINGS = re.compile(r"^##\s+(Результат|Итог)\b", re.M | re.I)
 HEADING_ANY = re.compile(r"^##\s+", re.M)
 REF = re.compile(r"(?<![\w/.:-])([A-Za-z0-9_][A-Za-z0-9_./\\-]*\.(?:rs|py|sh|md|toml|jsonl|tsv|lean)):(\d+)")
+# Историческая ссылка `путь@пин:строка`. `@` не входит в класс символов пути у `REF`, поэтому
+# живая регулярная схема её не матчит и двойного счёта нет; проверка пина отделена.
+REF_PIN = re.compile(r"(?<![\w/.:-])([A-Za-z0-9_][A-Za-z0-9_./\\-]*\.(?:rs|py|sh|md|toml|jsonl|tsv|lean))"
+                     r"@([0-9A-Za-z_-]+):(\d+)")
+PIN_HEX = re.compile(r"^[0-9a-f]{7,40}$")
+
+# Определение открытого пункта: строка списка, где за id стоит тире и описание
+# (`- **`OPEN-V9-11`** — published → expired по часам …`). Формат с `**` и без него равноправен.
+PROMISE_DEF = re.compile(r"^\s*[-*+]\s+(?:\*\*)?\s*`?(OPEN-[A-Z0-9]+-\d+)`?\s*(?:\*\*)?\s*—", re.M)
 
 # Дескриптор артефакта лаборатории: H-/E-/ADR-/L- плюс ровно четыре цифры и необязательная
 # строчная буква-хвост (`H-0088b` — отдельный адрес, а не `H-0088`). Дефис после цифр означает
@@ -127,9 +147,16 @@ def line_count(path):
 
 def check_refs(root):
     stale, ok, unresolved = [], 0, 0
+    pinned, bad_pin = 0, []
     hits_cache = {}
     for path in walk(root, ".md"):
         text = read(path)
+        for m in REF_PIN.finditer(text):
+            ref, pin = m.group(1), m.group(2)
+            pinned += 1
+            if not PIN_HEX.match(pin):
+                bad_pin.append((rel(root, path), "%s@%s:%s" % (ref, pin, m.group(3)),
+                                "пин `%s` не похож на hex-хеш коммита (7–40)" % pin))
         for m in REF.finditer(text):
             ref, line_no = m.group(1), int(m.group(2))
             target = ref if os.path.isfile(os.path.join(root, ref)) else None
@@ -151,7 +178,32 @@ def check_refs(root):
                 stale.append((rel(root, path), ref, line_no, total))
             else:
                 ok += 1
-    return ok, stale, unresolved
+    return ok, stale, unresolved, pinned, bad_pin
+
+
+def check_promises(root):
+    """Открытый пункт (`OPEN-V9-NN`) обязан иметь ОДНО определение. Номер — это адрес обещания:
+    два файла, где под одним номером напечатаны разные описания, — это уже два разных обещания,
+    и читатель, который идёт по номеру в `OPEN-QUESTIONS`, получает не то, что ему обещали.
+    Класс родился из собственной посадки: `lab/notes/DESIGN-2026-10-25-chain-binding.md` занял
+    `OPEN-V9-11…13` под свои смыслы, тогда как п. 59 `OPEN-QUESTIONS` определил там часы,
+    детектор `verifier_offline` и окно выплаты.
+
+    Считается только форма «id — описание» в строке списка: упоминание номера в прозе определением
+    не считается, иначе любой пересказ плодил бы находки. Проверка «номер упомянут, но нигде не
+    определён» здесь сознательно НЕ делается: из 21 номера так не оформлены 10 (`OPEN-V9-1…10`
+    описаны текстом спеки, а не списком), и находка была бы шумом до тех пор, пока реестр не
+    станет одним файлом — это отдельный пункт очереди."""
+    where = {}
+    for path, text in ((p, read(p)) for p in tracked_markdown(root)[0]):
+        for m in PROMISE_DEF.finditer(text):
+            where.setdefault(m.group(1), set()).add(rel(root, path).replace("\\", "/"))
+    doubles = sorted((k, sorted(v)) for k, v in where.items() if len(v) > 1)
+    facts = {"REVIEW_PROMISE_IDS": len(where), "REVIEW_PROMISE_DOUBLE": len(doubles)}
+    findings = [("promise-double-definition", p,
+                 "%s определён в двух файлах: %s" % (k, ", ".join(v)))
+                for k, v in doubles for p in v]
+    return facts, findings
 
 
 def tracked_markdown(root):
@@ -388,10 +440,14 @@ def check_inventory(root):
 
 def review(root):
     findings = []
-    ok, stale, unresolved = check_refs(root)
+    ok, stale, unresolved, pinned, bad_pin = check_refs(root)
     for doc, ref, line_no, total in stale:
         findings.append(("stale-refs", os.path.join(root, doc),
                          "%s:%d, а в файле %d строк" % (ref, line_no, total)))
+    for doc, ref, why in bad_pin:
+        findings.append(("refs-pin-malformed", os.path.join(root, doc), "%s — %s" % (ref, why)))
+    promise_facts, promise_findings = check_promises(root)
+    findings += promise_findings
     card_findings, experiments = check_cards(root)
     findings += card_findings
     annotations, ign = check_ignored(root)
@@ -404,6 +460,8 @@ def review(root):
         "REVIEW_MD_FILES": md,
         "REVIEW_REFS_OK": ok,
         "REVIEW_REFS_STALE": len(stale),
+        "REVIEW_REFS_PINNED": pinned,
+        "REVIEW_REFS_PIN_MALFORMED": len(bad_pin),
         "REVIEW_REFS_UNRESOLVED": unresolved,
         "REVIEW_CLOSED_EMPTY": sum(1 for f in findings if f[0] == "closed-empty-result"),
         "REVIEW_TESTING_CLOSED": sum(1 for f in findings if f[0] == "testing-closed"),
@@ -415,6 +473,7 @@ def review(root):
         "REVIEW_TODOS": todos,
         "REVIEW_BIG_RS": len(big),
     }
+    facts.update(promise_facts)
     facts.update(ref_facts)
     ranked = sorted(findings, key=lambda f: (f[0], rel(root, f[1]) if os.path.isabs(f[1]) else f[1]))
     facts["REVIEW_FINDINGS"] = len(ranked)
@@ -544,7 +603,17 @@ def make_ref_tree(base):
     note = "# Заметка с посаженными адресами\n\n"
     for _, text, _ in REF_DEFECTS:
         note += text + "\n\n"
+    # Посадки формы ссылок (не дескрипторов): историческая ссылка обязана НЕ считаться stale,
+    # битый пин — считаться находкой. `docs/spec.md` выше — одна строка, поэтому `:4000` без пина
+    # был бы stale, и проверка `REVIEW_REFS_STALE == 0` ловит случай, когда пин не распознан.
+    note += "Срез аудита: `docs/spec.md@2925bf2:4000` — номера сняты с дерева пина.\n\n"
+    note += "Битый пин: `docs/spec.md@zz:1` — это находка, а не историческая ссылка.\n\n"
+    # Посадка двойного определения открытого пункта: тот же номер описан в двух файлах. Это ровно
+    # та ошибка, которую заметка волны 3 сделала по-настоящему (заняла `OPEN-V9-11…13` повторно).
+    note += "- **`OPEN-V9-9001`** — первое определение, здесь оно выглядит владельцем номера.\n\n"
     put("lab/notes/refselftest.md", note)
+    put("docs/spec.md", "# Спека в одной строке\n\n"
+                        "- `OPEN-V9-9001` — второе определение того же номера, смысл другой.\n")
     return base
 
 
@@ -554,9 +623,10 @@ def ref_selftest():
     saved = os.environ.pop(ALLOW_LIST_ENV, None)
     tmp = tempfile.mkdtemp(prefix="repo-review-refs-")
     try:
-        facts, _, _, (violations, allowed_list, detail) = review(make_ref_tree(tmp))
+        facts, ranked, _, (violations, allowed_list, detail) = review(make_ref_tree(tmp))
         bad = {t for t, _ in violations}
         good = {t for t, _, _ in allowed_list}
+        classes = {f[0] for f in ranked}
         fired, missed = 0, []
         for name, text, expect in REF_DEFECTS:
             token = DESCRIPTOR.search(text)
@@ -577,6 +647,12 @@ def ref_selftest():
             "строка_списка_некорректна": facts["REVIEW_ALLOW_LIST_MALFORMED"] >= 1,
             "строка_списка_не_использована": facts["REVIEW_ALLOW_LIST_UNUSED"] >= 1,
             "сканируется_tracked_дерево": facts["REVIEW_ID_DOCS"] >= 1,
+            "исторический_пин_не_stale": (facts["REVIEW_REFS_PINNED"] == 2 and
+                                          facts["REVIEW_REFS_STALE"] == 0),
+            "битый_пин_валится": (facts["REVIEW_REFS_PIN_MALFORMED"] == 1 and
+                                  "refs-pin-malformed" in classes),
+            "двойное_определение_обещания_валится": (facts["REVIEW_PROMISE_DOUBLE"] == 1 and
+                                                     "promise-double-definition" in classes),
             "выход_по_находкам_ненулевой": len(violations) > 0,
             "счётчики_сошлись": (facts["REVIEW_ID_TOKENS"] ==
                                  facts["REVIEW_ID_RESOLVED"] +
@@ -642,7 +718,13 @@ def main(argv):
     # Висячий адрес — провал проверки (находка 5 аудита): раньше счётчик печатался, а выход
     # оставался нулевым. Нулевой список разрешений при этом не спасает: разрешение обязано быть
     # в version-controlled `lab/ref-allow-list.txt` с причиной.
-    return 1 if facts["REVIEW_REFS_UNRESOLVED_VIOLATIONS"] else 0
+    #
+    # Тот же класс, второй его половиной: находки (`REVIEW_FINDINGS`) печатались, но на выход не
+    # влияли — в логах есть строка `REVIEW_EXIT=0 REVIEW_FINDINGS=1` (`docs/METRICS.md`). Теперь
+    # валит и то и другое: прибор, который видит слабость и молчит, — это не прибор.
+    if facts["REVIEW_FINDINGS"] or facts["REVIEW_REFS_UNRESOLVED_VIOLATIONS"]:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
