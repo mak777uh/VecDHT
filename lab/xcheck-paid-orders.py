@@ -7,16 +7,20 @@
 
 1. хеши трёх примеров канонизации пересчитываются из напечатанных нормализованных байтов чистой
    реализацией (`hashlib`), без доступа к Rust;
-2. матрица состояний в документе не имеет пустых клеток.
+2. матрица состояний в документе не имеет пустых клеток;
+3. копия матрицы в спеке (§V9.6) совпадает с порождённой клетка в клетку — это закрывает `OPEN-V9-9`,
+   где раньше сверка была только глазами.
 
-Для обоих классов есть посадка: три заведомо неверных способа сборки байтов обязаны дать другие
-хеши, а искусственно обнулённая клетка — быть пойманной. Без посадок ноль находок означает молчание
+Для каждого класса есть посадка: три заведомо неверных способа сборки байтов обязаны дать другие
+хеши, искусственно обнулённая клетка — быть пойманной, а подмена клетки копии на черновое значение —
+быть посчитанной расхождением. Без посадок ноль находок означает молчание
 прибора, а не чистоту (ДИАГНОЗ `E-0108`, `E-0089`).
 
 Факты печатаются литеральными `KEY=value`, потому что `lab/threshold-lint.py` требует, чтобы каждый
 ключ ожиданий встречался в источнике как `KEY=`.
 """
 import hashlib
+import os
 import re
 import sys
 
@@ -61,19 +65,61 @@ def matrix_rows(text):
     m = re.search(r"^## Матрица состояний\.*\n(.*?)(?=^## |\Z)", text, re.S | re.M)
     if not m:
         return []
+    return table_rows(m.group(1))
+
+
+def spec_matrix_rows(text):
+    """Строки копии матрицы из спеки: таблица раздела `## §V9.6 …`.
+
+    Раздел опознаётся по заголовку, а не по номеру строки, потому что спека правится кусками и
+    смещение заголовка — не факт. Если заголовок не найден, возвращается пустой список: отсутствие
+    копии это расхождение, и печатается оно отдельным фактом, а не молчанием.
+    """
+    m = re.search(r"^## §V9\.6[^\n]*\n(.*?)(?=^## |\Z)", text, re.S | re.M)
+    if not m:
+        return []
+    return table_rows(m.group(1))
+
+
+def table_rows(chunk):
+    """Первая таблица куска текста, строки без заголовка-разделителя.
+
+    Берётся именно первая таблица, потому что в §V9.6 за матрицей идёт вторая — таблица переходов,
+    и смешивание двух дало бы расхождение там, где его нет.
+    """
     rows = []
-    for line in m.group(1).splitlines():
+    started = False
+    for line in chunk.splitlines():
         s = line.strip()
-        if not s.startswith("|"):
-            continue
-        cells = [c.strip() for c in s.strip("|").split("|")]
-        if all(set(c) <= set("-: ") for c in cells):
-            continue  # строка-разделитель
-        rows.append(cells)
-    # первая таблица в разделе — заголовок + данные; заголовок опознаётся по ключевому слову
+        if s.startswith("|"):
+            started = True
+            cells = [c.strip() for c in s.strip("|").split("|")]
+            if all(set(c) <= set("-: ") for c in cells):
+                continue  # строка-разделитель
+            rows.append(cells)
+        elif started:
+            break
+    # первая таблица — заголовок + данные; заголовок опознаётся по ключевому слову
     if rows and rows[0][0] in ("state \\ event", "state"):
         rows = rows[1:]
     return rows
+
+
+def matrix_mismatch(doc_rows, spec_rows):
+    """Число клеток, где две копии расходятся; строка без пары считается расхождением целиком."""
+    doc = {r[0]: r[1:] for r in doc_rows}
+    spec = {r[0]: r[1:] for r in spec_rows}
+    bad = 0
+    for state in sorted(set(doc) | set(spec)):
+        a, b = doc.get(state), spec.get(state)
+        if a is None or b is None:
+            bad += 11
+            continue
+        # лишняя или недостающая клетка тоже расхождение: сравнивается максимум длин, а не 11
+        for k in range(max(len(a), len(b))):
+            if (a[k] if k < len(a) else None) != (b[k] if k < len(b) else None):
+                bad += 1
+    return bad
 
 
 def empty_cells(rows):
@@ -119,7 +165,26 @@ def main(path):
     if planted:
         planted[0][1] = ""
     print(f"V9_DOC_DECOY_FIRED={1 if empty_cells(planted) > empty_cells(rows) else 0}")
-    return 0
+
+    # Копия матрицы в спеке (§V9.6) обязана совпадать с порождённой клетка в клетку. До этой строки
+    # расхождение ловилось только глазами: ДИАГНОЗ-2 цикла `E-0111` нашёл его вручную на паре
+    # `disputed × submit`. Посадка — ровно та же клетка с прежним черновым значением.
+    spec_path = os.environ.get("V9_SPEC", "docs/VecDHT-SPEC-v9.md")
+    try:
+        spec_rows = spec_matrix_rows(open(spec_path, encoding="utf-8").read())
+    except OSError:
+        spec_rows = []
+    print(f"V9_SPEC_ROWS={len(spec_rows)}")
+    mismatch = matrix_mismatch(rows, spec_rows) if rows else -1
+    print(f"V9_SPEC_DOC_MISMATCH={mismatch}")
+    planted_spec = [list(r) for r in spec_rows]
+    for r in planted_spec:
+        if r[0] == "disputed":
+            r[1] = "E_REPLAY"          # значение из черновика: ровно та ошибка, что поймали руками
+    print(f"V9_SPEC_DECOY_FIRED={1 if spec_rows and matrix_mismatch(rows, planted_spec) > mismatch else 0}")
+    # Копия, разошедшаяся с генератором, — это провал команды, а не заметка: до этой строки скрипт
+    # возвращал 0 всегда и расхождение можно было только прочитать.
+    return 1 if mismatch > 0 or (rows and not spec_rows) else 0
 
 
 if __name__ == "__main__":
