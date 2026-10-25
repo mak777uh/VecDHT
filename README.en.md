@@ -62,7 +62,7 @@ somebody else can measure, and a list of things we deliberately do not do.
 
 ```
 bash lab/check-spec-mirror.sh      # the readable copy of the spec must equal the repo copy byte for byte
-bash lab/check-text-clean.sh       # alphabet and encoding guard over the repository texts
+bash lab/check-text-clean.sh --all # alphabet and encoding guard over every tracked text (git ls-files)
 cargo test -p vecdht-orders        # prints V9_* literals: hashes, vector count, error-code coverage
 python lab/xcheck-paid-orders.py docs/PAID_ORDER-VECTORS.md   # recomputes hashes from the document text
 ```

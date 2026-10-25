@@ -73,20 +73,31 @@ cargo clippy -p vecdht-embed --all-targets --features candle -- -D warnings   # 
 bash lab/workspace-verify.sh E-XXXX                     # полный прогон с числом срезов, append-only в lab/logs/
 ```
 
-Байтовые правила v9 (`docs/VecDHT-SPEC-v9.md`) проверяются отдельно и без узла — три команды из
-§V9.11: `V9_VECTORS_OUT=docs/PAID_ORDER-VECTORS.md cargo test -q -p vecdht-orders -- --nocapture`
+Байтовые правила v9 (`docs/VecDHT-SPEC-v9.md`) проверяются отдельно и без узла — ровно три команды
+из §V9.11: `V9_VECTORS_OUT=docs/PAID_ORDER-VECTORS.md cargo test -q -p vecdht-orders -- --nocapture`
 печатает `V9_*` и порождает векторы, `python lab/xcheck-paid-orders.py docs/PAID_ORDER-VECTORS.md`
-пересобирает `statement_hash` чужим `hashlib` по тексту документа, `bash lab/check-spec-mirror.sh`
-сверяет оригинал спеки с её зеркалом для чтения (v8 и v9 в одном цикле, выход 2 — зеркала нет на месте).
+пересобирает `statement_hash` чужим `hashlib` по тексту документа и сверяет клетка в клетку копию
+матрицы §V9.6, `bash lab/e0111-run.sh` прогоняет цикл целиком (два прогона на неизменном дереве,
+сверка двух порождённых документов, верификация среза). Страж зеркала — отдельный:
+`bash lab/check-spec-mirror.sh` сверяет оригинал спеки с её зеркалом для чтения (v8 и v9 в одном
+цикле, выход 2 — зеркала нет на месте).
 
-Последний полный прогон (`lab/workspace-verify.sh E-0099`, 2026-10-24): **693 passed / 0 failed /
-7 ignored при 107 срезах**, `TEST_EXIT=0`, `CLIPPY_EXIT=0`, `LEAN_ALL_OK=1`,
+Последний полный прогон (`lab/workspace-verify.sh DOCS-V9`, 2026-10-25, блок
+`########## DOCS-V9 ·` в `lab/logs/workspace-verify-2026-10-22.log`, строки 87 411…89 090):
+**750 passed / 0 failed / 9 ignored при 124 срезах** (114 бинарей + 10 doc-тестов), `TEST_EXIT=0`,
+`CLIPPY_EXIT=0`, `LEAN_ALL_OK=1`,
 `LEANGUARD_SELFTEST total=10 passed=10` (страж моделей самопроверяется прямо здесь),
 `VERUS_TOTAL verified=8 errors=0 status=OK` + `VERUS_SELFTEST total=5 passed=5`,
 `KCC_ANCHORS=4 KCC_HARNESS_FNS=4 KCC_STATUS=OK`,
-`CYCLEGATE_EXIT=0` (гейт круга: 14 из 14 посаженных нарушений отбито), `LIBCHECK errors=0`
-(26 записей контура источников); семь `#[ignore]` унаследованы, новых
-нет (причины перечислены в атрибутах).
+`CYCLEGATE_EXIT=0` (гейт круга: 18 из 18 посаженных нарушений отбито), `LIBCHECK errors=0`
+(35 записей контура источников), `VERIFY_FAIL=0` за 1580 с; девять `#[ignore]` унаследованы, новых
+нет — прогон `E-0111` (строки 85 723…87 410 того же журнала) дал те же 750 / 0 / 9 при том же числе
+срезов, то есть этот раунд не добавил тестов и не сломал ни одного ранее зелёного среза
+(причины каждого `#[ignore]` перечислены в атрибутах). С этого прогона в него входит и страж текста:
+`TEXTGUARD_EXIT=0` при `файлов_с_грязью=0`, `исключено=1` (файл с настоящей японской фикстурой
+выведен из проверки маркером, и это напечатано), `подозрений=3` — это не дефекты, а технические
+имена в русской строке (`19 MiB/2 it` — число итераций Argon2, `d with stroke` — название кодовой
+точки U+0111); advisory-канал, на код выхода он не влияет. Ресурсы: диск 28 131 → 28 225 МБ свободно, RAM 11 590 → 15 751 МБ, pagefile peak 7 660 МБ.
 
 На Windows сборка требует C-линковщика: `blake3` собирает нативный код, а на
 `x86_64-pc-windows-gnu` линковщик ещё и надо найти. Ставь рядом полный standalone mingw-w64 и
@@ -102,7 +113,7 @@ PATH="/c/Users/Admin/mingw64/bin:$PATH" cargo test --workspace
 
 ```
 bash lab/check-spec-mirror.sh          # зеркало спеки обязано быть побайтово равным оригиналу (--fix обновляет)
-bash lab/check-text-clean.sh           # гибрид алфавитов и битая кодировка в текстах репозитория
+bash lab/check-text-clean.sh --all     # гибрид алфавитов и битая кодировка: перебором по git ls-files (не по диффу)
 python lab/library.py value --cycles 5 # контур источников: окно сверки с литературой (ADR-0045)
 ```
 
