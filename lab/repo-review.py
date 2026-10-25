@@ -7,6 +7,8 @@
   stale-refs            ссылка `путь:строка` в документе указывает за конец файла;
   refs-pin-malformed    ссылка вида `путь@пин:строка`, где пин не похож на hex-хеш коммита;
   promise-double-definition один открытый пункт (`OPEN-V9-NN`) описан строкой списка в двух файлах;
+  spec-code-line-citation нормативная спека (`docs/VecDHT-SPEC-v*.md`) ссылается на код номером
+                        строки — форма, запрещённая §17.3 (`путь.rs:NN` и голое `:NNN`);
   closed-empty-result   карточка закрыта, а результата в ней нет (или остался заголовок-пустышка);
   testing-closed        гипотеза `testing`, а её эксперимент уже вынес вердикт;
   ignored-no-reason     `#[ignore]` без причины: отключённый тест без объяснения — это тишина;
@@ -74,6 +76,14 @@ PIN_HEX = re.compile(r"^[0-9a-f]{7,40}$")
 # Определение открытого пункта: строка списка, где за id стоит тире и описание
 # (`- **`OPEN-V9-11`** — published → expired по часам …`). Формат с `**` и без него равноправен.
 PROMISE_DEF = re.compile(r"^\s*[-*+]\s+(?:\*\*)?\s*`?(OPEN-[A-Z0-9]+-\d+)`?\s*(?:\*\*)?\s*—", re.M)
+
+# Нормативная спека не имеет права ссылаться на код номером строки (§17.3 `docs/VecDHT-SPEC-v8.md`).
+# Две формы: `путь.rs:NN` (файл назван) и голое продолжение абзаца — код-спан `:NNN`, где файла нет.
+# Первая снимается вместе с пином (`\.rs@`), иначе запрещённый жанр стал бы ещё и нечитаемым;
+# вторая обязана стоять в код-спане, иначе под запрет попадёт любое «14:30» в прозе.
+SPEC_DOC = re.compile(r"(^|[\\/])VecDHT-SPEC-v[0-9]+\.md$")
+SPEC_LINE_REF = re.compile(r"\.rs(?![0-9A-Za-z]):[0-9]")
+SPEC_LINE_SPAN = re.compile(r"`:[0-9]{2,5}")
 
 # Дескриптор артефакта лаборатории: H-/E-/ADR-/L- плюс ровно четыре цифры и необязательная
 # строчная буква-хвост (`H-0088b` — отдельный адрес, а не `H-0088`). Дефис после цифр означает
@@ -179,6 +189,37 @@ def check_refs(root):
             else:
                 ok += 1
     return ok, stale, unresolved, pinned, bad_pin
+
+
+def check_spec_citations(root):
+    """Нормативная спека ссылается на код именем символа, а не номером строки (§17.3). Класс
+    родился из замера: в срезе `docs/VecDHT-SPEC-v8.md` до правки было 20 ссылок с номером строки,
+    16 из них указывали мимо объекта, который называли (разброс — от трёх строк до 166), и при этом
+    `REVIEW_REFS_STALE` был нулём — существующий прибор их не видел, потому что номер не вылезал за
+    конец файла. Проверка «номер совпал с тем, что он называл» не реализуема без парсера Rust, зато
+    запрет формы реализуем: в файле спеки номера строк продукта не встречается.
+
+    Снимаются обе формы: `путь.rs:NN` (файл назван) и голое продолжение абзаца — код-спан `:NNN`.
+    Пин `путь@коммит:строка` под запрет не попадает: снимок обязан его ставить, и требовать символ
+    в аудитном срезе — значит заставлять его врать про чужое дерево."""
+    hits = []
+    for path in tracked_markdown(root)[0]:
+        relp = rel(root, path).replace("\\", "/")
+        if not SPEC_DOC.search(relp):
+            continue
+        text = read(path)
+        for m in SPEC_LINE_REF.finditer(text):
+            line = text[:m.start()].count("\n") + 1
+            hits.append((relp, line, text[max(0, m.start() - 40):m.end() + 12].replace("\n", " / ")))
+        for m in SPEC_LINE_SPAN.finditer(text):
+            line = text[:m.start()].count("\n") + 1
+            hits.append((relp, line, text[max(0, m.start() - 40):m.end() + 12].replace("\n", " / ")))
+    hits.sort()
+    facts = {"REVIEW_SPEC_LINE_CITES": len(hits)}
+    findings = [("spec-code-line-citation", p,
+                 "§17.3: спека не ссылается на код номером строки (строка %d: «%s»)" % (ln, frag))
+                for p, ln, frag in hits]
+    return facts, findings
 
 
 def check_promises(root):
@@ -448,6 +489,8 @@ def review(root):
         findings.append(("refs-pin-malformed", os.path.join(root, doc), "%s — %s" % (ref, why)))
     promise_facts, promise_findings = check_promises(root)
     findings += promise_findings
+    spec_facts, spec_findings = check_spec_citations(root)
+    findings += spec_findings
     card_findings, experiments = check_cards(root)
     findings += card_findings
     annotations, ign = check_ignored(root)
@@ -474,6 +517,7 @@ def review(root):
         "REVIEW_BIG_RS": len(big),
     }
     facts.update(promise_facts)
+    facts.update(spec_facts)
     facts.update(ref_facts)
     ranked = sorted(findings, key=lambda f: (f[0], rel(root, f[1]) if os.path.isabs(f[1]) else f[1]))
     facts["REVIEW_FINDINGS"] = len(ranked)
@@ -614,6 +658,15 @@ def make_ref_tree(base):
     put("lab/notes/refselftest.md", note)
     put("docs/spec.md", "# Спека в одной строке\n\n"
                         "- `OPEN-V9-9001` — второе определение того же номера, смысл другой.\n")
+    # Посадка §17.3: нормативная спека не имеет права ссылаться на код номером строки. Сажаются
+    # обе запрещённые формы (`путь.rs:NN` и голое `:NNN`), а рядом — две разрешённые: исторический
+    # пин и обычное число формата. Кейс «валится» не проходит, если прибор считает их тоже.
+    put("docs/VecDHT-SPEC-v8.md",
+        "# Спека\n\n"
+        "Живой указатель: `crates/x/src/lib.rs:1` — запрещённая форма.\n\n"
+        "Голое продолжение абзаца: `:866…867` — тоже запрещённая.\n\n"
+        "Снимок с пином: `crates/x/src/lib.rs@2925bf2:4000` — разрешён.\n\n"
+        "Число формата: `18 + 16·N` байт, предел 4096 — не ссылка на строку.\n")
     return base
 
 
@@ -647,10 +700,12 @@ def ref_selftest():
             "строка_списка_некорректна": facts["REVIEW_ALLOW_LIST_MALFORMED"] >= 1,
             "строка_списка_не_использована": facts["REVIEW_ALLOW_LIST_UNUSED"] >= 1,
             "сканируется_tracked_дерево": facts["REVIEW_ID_DOCS"] >= 1,
-            "исторический_пин_не_stale": (facts["REVIEW_REFS_PINNED"] == 2 and
+            "исторический_пин_не_stale": (facts["REVIEW_REFS_PINNED"] == 3 and
                                           facts["REVIEW_REFS_STALE"] == 0),
             "битый_пин_валится": (facts["REVIEW_REFS_PIN_MALFORMED"] == 1 and
                                   "refs-pin-malformed" in classes),
+            "номер_строки_в_спеке_валится": (facts["REVIEW_SPEC_LINE_CITES"] == 2 and
+                                             "spec-code-line-citation" in classes),
             "двойное_определение_обещания_валится": (facts["REVIEW_PROMISE_DOUBLE"] == 1 and
                                                      "promise-double-definition" in classes),
             "выход_по_находкам_ненулевой": len(violations) > 0,
