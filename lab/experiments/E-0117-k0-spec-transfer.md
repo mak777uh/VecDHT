@@ -1,15 +1,15 @@
 ---
 id: E-0117
 hypothesis: H-0117
-status: pre-registered
+status: completed
 base_commit: "ef7700e"
 started: "2026-10-26"
-finished: ""
+finished: "2026-10-26"
 environment: "x86_64-pc-windows-gnu, Python 3 из PATH, git в PATH, хост владельца; Rust не пересобирается (правка только docs/ и lab/), PYTHONIOENCODING=utf-8"
 command: "bash lab/e0117-run.sh"
 threshold: "(1) `K0_TRANSFER_DIFF=0` — набор строк фактов `V9C_|V9P_`, напечатанных мостом на тексте `git show HEAD:docs/VecDHT-SPEC-v9.md` и на новом тексте, совпадает байт в байт; (2) `K0_BASELINE_KEYS=112` и `K0_NEW_KEYS=112` — сравнение непустое и одинаковой мощности, иначе «0 расхождений» означало бы «нечего сравнивать»; (3) `K0_OLD_SPEC_IS_E0114=1` — sha старого текста равен пину `E-0114` `102fc694…`, `K0_SPEC_CHANGED=1` — новый текст отличается; (4) `V9C_ALL_OK=1`, `V9C_WORST=0`, `E0117_BRIDGE_EXIT=0` на каждом из четырёх прогонов, `VECTOR_STABLE=1` — пары прогонов внутри каждой редакции совпали; (5) `lab/xcheck-paid-orders.py` выход 0, `TEXTGUARD_CYCLE_EXIT=0`, `lab/expectations/e0117.tsv` — 0 расхождений; (6) диск до и после прогона ≥ 15 000 МБ"
-result: ""
-verdict: ""
+result: "Пороги (1)–(6) выполнены. `K0_TRANSFER_DIFF=0` при `K0_BASELINE_KEYS=K0_NEW_KEYS=112`: мост на тексте из HEAD (`102fc694…`) и на новом (`a121878a…`) напечатал один и тот же набор фактов `V9C_|V9P_`. `K0_OLD_SPEC_IS_E0114=1`, `K0_SPEC_CHANGED=1`. Четыре прогона `EXIT=0`, `V9C_ALL_OK=1`, `V9C_WORST=0`; `VECTOR_STABLE=1`. `XCHECK_EXIT=0` (`V9_SPEC_DOC_MISMATCH=0`, три посадки сработали), `TEXTGUARD_CYCLE_EXIT=0`, ожидания 27/0. Носитель 30 724 → 30 676 МБ, RAM 8 653 → 8 005, pagefile peak 7 660. Прогон 544 с."
+verdict: supports
 ---
 
 ## Pre-registration (до прогона)
@@ -39,4 +39,47 @@ Helper — `lab/e0117-run.sh`, ожидания — `lab/expectations/e0117.tsv`
 
 ## Результат
 
-Заполняется после прогона.
+Прогон один, дерево `633af59` (пре-регистрация), длительность 544 с. Все шесть порогов выполнены.
+
+Порог (1): `K0_TRANSFER_DIFF=0`. Мост на тексте из `HEAD` (`K0_OLD_SPEC_SHA=102fc694…`) и на новом
+(`K0_SPEC_SHA=a121878a…`) напечатал один и тот же набор строк фактов — ни одного `+`/`-` в diff.
+
+Порог (2): `K0_BASELINE_KEYS=112`, `K0_NEW_KEYS=112`. Сравнение непустое и равной мощности: 112
+уникальных строк `V9C_|V9P_` с обеих сторон, поэтому ноль расхождений означает совпадение, а не
+молчание экстрактора.
+
+Порог (3): `K0_OLD_SPEC_IS_E0114=1` — sha текста из `git show HEAD:docs/VecDHT-SPEC-v9.md` равен
+пину `E-0114` `102fc694…`; `K0_SPEC_CHANGED=1` — новый текст отличается (`a121878a…`).
+
+Порог (4): все четыре прогона `BRIDGE_prev1/prev2/new1/new2_EXIT=0`, `V9C_ALL_OK=1` и `V9C_WORST=0`
+на каждом; `VECTOR_STABLE=1` (пары внутри каждой редакции совпали).
+
+Порог (5): `XCHECK_EXIT=0` (`V9_SPEC_DOC_MISMATCH=0`, `V9_SPEC_ROWS=10`, обе посаженные ловушки
+сработали: `V9_SPEC_DECOY_FIRED=1`, `V9_INIT_DECOY_FIRED=1`, `V9_DOC_DECOY_FIRED=1`);
+`TEXTGUARD_CYCLE_EXIT=0`; ожидания `ОЖИДАНИЙ=27 РАСХОЖДЕНИЙ=0`.
+
+Порог (6): носитель до прогона `DISK_FREE_MB=30724`, после — `30676`; RAM 8 653 → 8 005 МБ,
+pagefile peak 7 660 МБ.
+
+### ДИАГНОЗ-1: baseline не мог быть взят из лога прошлого цикла
+
+Блок `lab/logs/e0114-all.log` смешивает строки двух авторов — сам мост (`V9C_...`, напечатанные
+проверки) и helper `lab/e0114-run.sh` (пины `V9C_SPEC_SHA`, `V9C_CARRIER_REPRODUCED`, `V9C_DOC_SHA`),
+различить их по префиксу нельзя. Сверка «новый прогон против лога» поэтому сравнивала бы наборы разной
+природы и краснела бы на пинах helper'а, а не на тексте. Исправлено до замера: baseline — тот же
+файл из `git show HEAD:`, то есть ровно тот вход, который читает прибор.
+
+### ДИАГНОЗ-2: до заморозки проверено, что вывод моста не зависит от пути к спеке
+
+Мост вызывается с путём аргументом, поэтому до правки текста было проверено, что копия спеки в
+`/tmp` даёт побайтово тот же вывод, что и файл в `docs/` (`PATH_INDEPENDENT=1`, два прогона, diff
+пуст). Без этой проверки сверка «старый файл из `/tmp` против нового из `docs/`» могла бы краснеть
+на пути, а не на содержании.
+
+### Цена
+
+Один прогон — 544 с, из них почти всё — четыре запуска моста (проверка 150 подписей Ed25519 в Python).
+Полная верификация дерева (`bash lab/workspace-verify.sh E-0117`) — `VERIFY_FAIL=0`, `SECONDS_total=1516`
+(`TEST_EXIT=0`, `CLIPPY_EXIT=0`, `LEAN_EXIT=0`, `VERUS_EXIT=0`, `REVIEW_EXIT=0`,
+`LINT_LATEST_EXIT=0`, `LIBCHECK_EXIT=0`, `TEXTGUARD_EXIT=0`), в том же append-only логе.
+
