@@ -104,13 +104,7 @@ rct=${PIPESTATUS[0]}
 note "$rct"
 emit0 "TEXTGUARD_CYCLE_EXIT=${rct}"
 
-say "### ШАГ 5 ожидания ### $(date +%FT%T%:z)"
-for f in "$OUT/facts1.txt" "$OUT/facts2.txt"; do cat "$G" >> "$f"; done
-python lab/expect.py "$EXPECT" "$OUT/facts1.txt" "$OUT/facts2.txt" 2>&1 | tail -n 20 | tee -a "$LOG"
-rce=${PIPESTATUS[0]}
-note "$rce"
-
-say "### ШАГ 6 посадка: неверное ожидание обязано краснеть ### $(date +%FT%T%:z)"
+say "### ШАГ 5 посадка: неверное ожидание обязано краснеть ### $(date +%FT%T%:z)"
 awk -F'	' 'BEGIN{OFS="	"} $1=="PASSED"{$2="4"} {print}' "$EXPECT" > "$OUT/plant.tsv"
 if cmp -s "$EXPECT" "$OUT/plant.tsv"; then
   say "ПОСАДКА НЕ СРАБОТАЛА: строка PASSED в таблице не найдена"
@@ -122,6 +116,12 @@ fi
 emit0 "PLANT_EXIT=${plant}"
 say "PLANT_EXIT=${plant}"
 [ "$plant" -eq 1 ] || note 1
+
+say "### ШАГ 6 ожидания ### $(date +%FT%T%:z)"
+for f in "$OUT/facts1.txt" "$OUT/facts2.txt"; do cat "$G" >> "$f"; done
+python lab/expect.py "$EXPECT" "$OUT/facts1.txt" "$OUT/facts2.txt" 2>&1 | tail -n 20 | tee -a "$LOG"
+rce=${PIPESTATUS[0]}
+note "$rce"
 
 say "### ШАГ 7 носитель после прогона ### $(date +%FT%T%:z)"
 bash lab/disk-report.sh 2>&1 | tail -n 3 | tee -a "$LOG"
