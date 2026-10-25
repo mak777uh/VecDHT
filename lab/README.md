@@ -210,6 +210,31 @@ Rust-коде.** Соответствие модели реализации — 
 
 ## Запуски
 
+### Канонический блок проверки
+
+Один и тот же блок напечатан в [`../README.md`](../README.md), в [`../docs/METRICS.md`](../docs/METRICS.md)
+и здесь; расхождение между этими тремя местами — дефект текста, а не допустимый вариант. Чисел прогона в
+`lab/` больше нет: они живут в `../docs/METRICS.md` и называются меткой прогона — формулировка «последний
+полный прогон» не используется, потому что устаревает на каждом закрытом цикле. Счётчики инвентаря
+печатает не проза, а генератор: [`INVENTORY.md`](INVENTORY.md), команда
+`python lab/inventory.py --date <YYYY-MM-DD> --write lab/INVENTORY.md`; команды пересъёмки измеренных
+величин — там же, в `../docs/METRICS.md`.
+
+```
+bash lab/check-spec-mirror.sh                                # the readable copy of the spec equals the repo copy byte for byte
+bash lab/check-text-clean.sh --all                           # alphabet and encoding guard over every tracked text
+python lab/inventory.py --date <YYYY-MM-DD> --write lab/INVENTORY.md   # counters are generated, never typed
+python lab/xcheck-paid-orders.py docs/PAID_ORDER-VECTORS.md  # an independent hashlib rebuild of the published vectors
+bash lab/workspace-verify.sh <run-id>                        # cargo test --workspace + clippy -D warnings + every lab instrument
+```
+
+`<run-id>` — это метка append-only блока в `lab/logs/`, и именно по этой метке на прогон ссылываются
+документы. Прибор печатает токены выходов стадий (`TEST_EXIT`, `CLIPPY_EXIT`, `LEAN_EXIT`, `VERUS_EXIT`,
+`KCC_EXIT`, `CYCLEGATE_EXIT`, `REVIEW_EXIT`, `LIBCHECK_EXIT`, `TEXTGUARD_EXIT`, `SECONDS_*`) и вердикт
+блока `VERIFY_FAIL`; числа срезов он не печатает — срез считается по строкам cargo `test result:`, и
+команда съёмки стоит в `../docs/METRICS.md`. Из этого блока дешёвые стражи 2026-10-25 вернули ноль;
+полный cargo-контур того дня — прогон `E-0113`.
+
 Быстрое (обязательно для любого PR):
 
 ```

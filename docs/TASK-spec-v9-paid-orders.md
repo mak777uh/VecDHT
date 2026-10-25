@@ -36,7 +36,7 @@
 D1 | `docs/VecDHT-SPEC-v9.md` — spec delta over v8 (normative) | implementable, all fields typed, all state transitions total, error codes enumerated |
 D2 | `docs/PAID_ORDER-VECTORS.md` — test vectors (JSON) | at least 12 vectors: happy path, replay, wrong hash, timeout, insufficient escrow, malformed receipt |
 D3 | `lab/decisions/ADR-00XX-paid-orders.md` | context/decision/alternatives/consequences/tests |
-D4 | `README.en.md` — English README (pitch + map of the repo) | 600–900 words, links to spec, lab, vectors; no marketing superlatives |
+D4 | `README.en.md` — English README (pitch + map of the repo); delivered as `README.md`, since the English text became the canonical README and the Russian one is `README.ru.md` | 600–900 words, links to spec, lab, vectors; no marketing superlatives |
 D5 | `ROADMAP.md` — product roadmap | 3 horizons with measurable exit criteria, no dates without a dependency |
 D6 | spec mirror check updated (`lab/check-spec-mirror.sh`) | `./lab/check-spec-mirror.sh` exits 0 for v9 |
 D7 | `lab/experiments/E-XXXX-*.md` cards for each new normative behavior that we actually ran | card format matches existing cards |
@@ -184,6 +184,9 @@ Do not write "as designed"; write "verified, reference X":
 
 ## 5. README.en.md — required shape (D4)
 
+(The file this section names is now `README.md`: the English README became the canonical front map and
+the Russian text moved to `README.ru.md`. Everything below is unchanged in substance.)
+
 1. **What this is** (3 sentences, no adjectives);
 2. **What problem it removes** (central discovery chokepoint), one paragraph;
 3. **How it works** (publish intent → discover by meaning → records are content-addressed);
@@ -222,6 +225,7 @@ judging, custody of funds) and a "**kill criteria**" list (conditions under whic
 
 ## 8. Definition of done
 
-A reviewer who has never seen the project can: read `README.en.md`, open the spec, run the three
+A reviewer who has never seen the project can: read `README.md` (the English front map; the Russian
+translation is `README.ru.md`), open the spec, run the three
 verification commands, replay two experiments, and implement a minimal `paid_order` client from the
 spec + test vectors alone. If any of those steps requires asking us a question, the task is not done.

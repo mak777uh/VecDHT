@@ -6,8 +6,10 @@ and the dependencies that must resolve first. No dates: nothing here is pinned t
 
 The unit of work is the release gate described in `lab/decisions/ADR-0044`: a gate has a measurable
 ready/not-ready state, and the readiness figure in `README.md` is an estimate over those gates, not a
-measurement. This roadmap does not change that estimate; it states what would make each horizon
-exit-able.
+measurement. Measured quantities themselves are not typed in this file: they live in
+[`docs/METRICS.md`](docs/METRICS.md) together with the run id that carries them, and inventory counters
+are generated into [`lab/INVENTORY.md`](lab/INVENTORY.md). This roadmap does not change that estimate; it
+states what would make each horizon exit-able.
 
 ## H1 — a v1 that two independent operators run
 
@@ -16,14 +18,14 @@ scenario executed by someone who did not write it.
 
 | Exit criterion | How it is measured |
 |---|---|
-| A release tag exists with a build recipe and a changelog from v7.5 | `git tag` is non-empty; the tag's CI run of `bash lab/workspace-verify.sh` exits 0 |
+| A release tag exists with a build recipe and a changelog from v7.5 | `git tag` is non-empty; the tag's CI run of `bash lab/workspace-verify.sh <run-id>` exits 0, and the tag names the `<run-id>` block it produced |
 | Two operators on different machines complete one publish→find scenario | the scenario is a command in `README.md`; both operators paste the same log shape, and their `order_ref`/record hashes agree with the golden vectors |
 | Conformance vectors pass on both machines | `cargo test -p vecdht-wire` golden set plus `python lab/xcheck-paid-orders.py docs/PAID_ORDER-VECTORS.md` exit 0 on each host |
 | ≥30 days of uptime across the two operators | each node writes a startup-anchored counter; the report is the counter, not a human claim |
 | Zero open P1 bugs | the issue tracker's P1 filter is empty at the tag commit |
-| Batch A holes stay closed with a regression instrument each | already 4 of 4 (`E-0087`, `E-0088`, `E-0091`/`E-0092`, `E-0094`/`E-0095`); each closure names the test that would fail if the fix regressed |
-| The ~200-node stand has been run on a host we do not control | already run once, by us, in release: `E-0105` (192 cold resolves, p95 152…257 ms against the 500 ms threshold). What is missing is a second host and the tail `E-0105` refuted — one probe in 192 found no provider in 3 s, tracked as `H-0106` |
-| The revocation has a producer | a CLI path writes to a node directory and the running node refuses that key without restart (`OPEN-QUESTIONS` п. 45/46) |
+| Batch A holes stay closed with a regression instrument each | closed 4 of 4 in six closures — holes 3 and 4 each split into A and B once measured: `E-0087`, `E-0088`, `E-0091`/`E-0092`, `E-0094`/`E-0095` (`docs/STATUS-v1.md`); each closure names the test that would fail if the fix regressed |
+| The ~200-node stand has been run on a host we do not control | already run once, by us, in release: `E-0105` — 192 cold resolves per run, the two official runs giving p95 = 257 and 151 ms against the 500 ms threshold (five runs: 257/151/189/185/117 ms). What is missing is a second host and the tail `E-0105` refuted — one probe of 192 found no provider in 3 s in the squeezed repeat; that tail is not yet a registered hypothesis |
+| The revocation has a producer | a CLI path writes to a node directory and the running node refuses that key without restart (items 45 and 46 of `lab/decisions/OPEN-QUESTIONS.md`) |
 
 Depends on: the spec freeze for v8 semantics, Python bindings that do not re-encode bytes, a second
 host. The two-machine gate (§18.3) and the inter-platform part of P0 (iv) are blocked on hardware we do
@@ -54,7 +56,7 @@ Make the receipt an interface other people implement without our code.
 |---|---|
 | Two independent implementations produce byte-identical receipts on the same 20 vectors | each implementation's `V9_RECEIPT_JSON_SHA` equals the published vector; a judge reads only the two logs |
 | Neither implementation links our crate | build manifests of both contain no `vecdht-orders` dependency |
-| A hostile reader test passes | a reviewer who has not contributed gets from `README.en.md` + spec + vectors to a working client without asking us anything (§8 of the task document) |
+| A hostile reader test passes | a reviewer who has not contributed gets from `README.md` + spec + vectors to a working client without asking us anything (§8 of the task document) |
 | The canonical JSON rule survives mutation | planted-decoy run: changing key order, integer form, or escaping changes the sha |
 
 Depends on: H2, and the receipt format being frozen — an implementation count of one is not evidence
@@ -92,6 +94,8 @@ Stop a line when its own measurement says the premise is wrong, and write the ne
 
 ## Reading order
 
-`README.en.md` → `docs/VecDHT-SPEC-v8.md` (v1 protocol) → `docs/VecDHT-SPEC-v9.md` (paid-order delta) →
-`docs/PAID_ORDER-VECTORS.md` (the vectors a client must match) → `lab/decisions/` (why each rule is that
-shape) → `lab/experiments/` (the numbers and their thresholds).
+`README.md` → `docs/VecDHT-SPEC-v8.md` (v1 protocol) → `docs/VecDHT-SPEC-v9.md` (paid-order delta) →
+`docs/PAID_ORDER-VECTORS.md` (the vectors a client must match) → `docs/STATUS-v1.md` and
+`docs/METRICS.md` (state and measured numbers) → `lab/decisions/` (why each rule is that
+shape) → `lab/experiments/` (the numbers and their thresholds). The Russian translation of the front map
+is `README.ru.md`.

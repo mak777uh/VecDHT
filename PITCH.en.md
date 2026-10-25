@@ -22,24 +22,48 @@ The project keeps two documents separate from the code, on purpose:
 | document | what it holds |
 |---|---|
 `docs/VecDHT-SPEC-v8.md` | the contract and the numbers; a reading mirror is checked for equality by `lab/check-spec-mirror.sh` |
-`lab/` | memory between sessions: 93 hypotheses, 93 experiment cards (90 with a verdict, 3 open), 27 architecture decision records (`ADR-*`) |
+`lab/` | memory between sessions: hypotheses, experiment cards, architecture decision records (`ADR-*`), append-only logs |
 
-A number in this README lives only together with a measurement id (`E-XXXX`), the command that produced
-it, and a link to the log. That rule is enforced by `lab/check-text-clean.sh`.
+How many of each object `lab/` holds is never typed here: it is generated into
+[`lab/INVENTORY.md`](lab/INVENTORY.md) by `python lab/inventory.py`, which exits non-zero if a counter it
+prints cannot be computed from the filesystem. A measured number lives only together with the measurement
+id (`E-XXXX`) that produced it, the command that ran it, and a link to the log; the full set of measured
+quantities and the run that carries them is in [`docs/METRICS.md`](docs/METRICS.md). That rule is enforced
+by `lab/check-text-clean.sh`.
 
 ## Where it stands (measured, not claimed)
 
 Work proceeds by a **release gate** (`ADR-0044`) with five measurable conditions rather than by phases.
-Four correctness holes of Batch A are closed, each leaving a regression oracle:
+The four correctness holes of Batch A are closed — in six closures, because holes 3 and 4 each split into
+A and B once measured — and each closure left a regression oracle:
 
 | hole | fix | oracle |
 |---|---|---|
-gossip path authorization | `ADR-0043` | `E-0087` |
-per-cluster cap | — | `E-0088` |
-finiteness of the shard provider table | `ADR-0040` | `E-0091` |
+| (1) gossip path authorization | `ADR-0043` | `E-0087` |
+| (2) per-cluster cap | — | `E-0088` |
+| (3A) finiteness of the shard provider table | `ADR-0046` | `E-0091` |
+| (3B) the ban surviving a restart, and its bound | `ADR-0047` | `E-0092` |
+| (4A) the revoked-key set surviving a restart, its bound, and the silence of a revoked node | `ADR-0050` | `E-0094` |
+| (4B) an observable door refusal reason | `ADR-0051` | `E-0095` |
 
-Status today: **no release tag yet**, no English pitch README before this file, and no external operator.
-The honest next step is v1 plus two independent pilots, not more prototyping.
+No Batch A hole is open. Two thresholds inside (4B) are not closed ("a collision is visible on the
+wire", `E-0095` thresholds (4) and (6)), and revocation still has no producer: no product file calls
+`publish_revoke`, and the CLI passes no node directory into `NetConfig.revoked_dir` (Batch C). The full
+table of the five v1 conditions and the boundary list is in
+[`docs/STATUS-v1.md`](docs/STATUS-v1.md).
+
+The load condition has one measured answer, on our own host: the ~200-node stand ran in release
+(`E-0105`, `ADR-0060`) — 192 cold resolves per run, the two official pre-registered runs giving
+**p95 = 257 ms and 151 ms against the 500 ms threshold**; across five runs the same series is
+257/151/189/185/117 ms, and the gate held 5 of 5. The card still closes `refutes`, because the frozen
+falsifier fired: in the squeezed repeat run one probe of 192 found no provider within the 3 s budget
+(1 miss in 960 probes over the five runs), so "192/192 in every run" is not invariant to host load. The
+stand is LAN and in one process; there is no second machine, and the tail of that sample is not yet a
+registered hypothesis.
+
+Status today: **no release tag**, no published binary, no command that starts a shard node, no
+two-machine end-to-end scenario, and no external operator. The honest next step is v1 plus two
+independent pilots, not more prototyping.
 
 ## Why it matters for an open internet
 
@@ -52,7 +76,8 @@ auditable instead of trusted.
 - Not "untraceable" and not "censorship-proof": traffic can still be blocked at the transport.
 - Not production-ready: the release gate exists because it is not.
 - Not "decentralised" in the marketing sense: it is a P2P protocol with measurable behaviour, and the
-  lab publishes negative results (3 experiments are open, and verdicts include failures).
+  lab publishes negative results — the verdict tally (including open experiments) is generated in
+  [`lab/INVENTORY.md`](lab/INVENTORY.md), not typed here.
 
 ## Links
 
