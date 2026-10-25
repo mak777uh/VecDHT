@@ -127,7 +127,7 @@ say "### ШАГ 4 audit ### $(date +%FT%T%:z)"
 python lab/cycle-gate.py audit -n 5 > "$OUT/audit.txt" 2>&1
 rc=$?; note "$rc"
 tail -n 3 "$OUT/audit.txt" | tee -a "$LOG"
-aud=$(sed -n 's/.*нарушениий=\([0-9]*\).*/\1/p' "$OUT/audit.txt" | tail -1)
+aud=$(sed -n 's/.*нарушени[^=]*=\([0-9]*\).*/\1/p' "$OUT/audit.txt" | tail -1)
 printf "AUDIT_VIOLATIONS=%s\n" "${aud:-NONE}" | tee -a "$LOG"
 
 say "### ШАГ 5 полная верификация ### $(date +%FT%T%:z)"

@@ -105,6 +105,12 @@ T0=$(now); BLOCK_T0=$T0
   rc=$?; echo "LIBCHECK_EXIT=$rc"; note $rc
   python lab/library.py digest 2>&1 | grep -E "^(LIBDIGEST|LIBCLASSES|КЛАССЫ|ДАЙДЖЕСТ)|ВНИМАНИЕ"
   rc=${PIPESTATUS[0]}; echo "LIBDIGEST_EXIT=$rc"; note $rc
+  # Страж текста гоняется по ВСЕМУ дереву, а не по списку вызывающего: 2026-10-25 перебор нашёл
+  # 23 слово-гибрида в 14 карточках `lab/`, и ни один прогон их не видел, потому что каждый раз
+  # передавались только тронутые файлы. Цена — секунды, выгода — дефект алфавита не уезжает в main.
+  echo "### text guard (--all) ### $(date +%FT%T%:z)"
+  bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
+  rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc
   echo "### носитель после сборки ###"
   bash lab/disk-report.sh 2>&1
   echo "SECONDS_total=$(( $(now) - BLOCK_T0 )) "

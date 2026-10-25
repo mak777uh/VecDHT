@@ -5,7 +5,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 export RAYON_NUM_THREADS="${RAYON_NUM_THREADS:-2}"
 LOG="lab/logs/e0038-all.log"
-# Лог не truncатится: в файле обязаны остаться оба прогона (первый — с неполным оракулом (2)).
+# Лог не обрезается: в файле обязаны остаться оба прогона (первый — с неполным оракулом (2)).
 run_cargo() { # $@ = аргументы cargo; печатает настоящий EXIT
   local out; out=$(mktemp)
   cargo "$@" > "$out" 2>&1

@@ -108,7 +108,7 @@ def check_prior_art(fm, rows, hid, bad, say):
         refs = [refs]
     if not isinstance(refs, list) or not refs:
         bad.append("prior_art пуст: шаг «литература и код до эксперимента» не сделан "
-                   "(поиск — `python lab/library.py hunt`)")
+                   "(поиск — `python lab/sources.py hunt`)")
         return
     excuse = [r for r in refs if str(r).startswith("не искали")]
     if excuse:
@@ -139,7 +139,7 @@ def check_prior_art(fm, rows, hid, bad, say):
         if len(reason) < 25:
             bad.append("ни одной записи класса «спека» или «реализация»: решаем боль, которую "
                        "кто-то уже решал кодом, и не смотрим, как (причина — prior_art_no_code, "
-                       "поиск — `python lab/library.py hunt --github`)")
+                       "поиск — `python lab/sources.py hunt --github`)")
         else:
             say(f"ПРИОРАРТ {hid}: чужой код не читали, причина записана ({len(reason)} зн.)")
     say("ПРИОРАРТ " + f"{hid}: строк={len(refs)} классы={sorted(k for k in kinds if k)}")
@@ -306,7 +306,7 @@ def cmd_gate(args):
         print(line)
     for b in bad:
         print(f"  НАРУШЕНИЕ: {b}")
-    print(f"CYCLE {args.hid}={'OK' if not bad else 'FAIL'} нарушениий={len(bad)}")
+    print(f"CYCLE {args.hid}={'OK' if not bad else 'FAIL'} нарушений={len(bad)}")
     return 0 if not bad else 1
 
 
