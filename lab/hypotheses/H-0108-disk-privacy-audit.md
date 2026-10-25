@@ -1,6 +1,6 @@
 ---
 id: H-0108
-status: pre-registered
+status: supported
 follow_up: null
 date: 2026-10-25
 spec: "§13.1 (что узел хранит: 384 Б int8 + метаданные, «без исходного текста, без отображения
