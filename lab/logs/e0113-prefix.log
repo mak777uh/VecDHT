@@ -1,0 +1,269 @@
+########## E-0113 PRE_FIX · 2026-10-25T11:29:51+03:00 · дерево e22511d ##########
+DISK_FREE_MB=28103 RAM_FREE_MB=15998 PAGEFILE_PEAK_MB=7660
+SPEC_SHA=0498855d1a1e8a2e5a2814cbe872a13f53b1552becb1d056c2375525ca1be057
+DOC_SHA=5d60cfc57c6a34f9e9fc5dea0dfaace87f3a3f8bd7ffe5b3e9deed7dd2c56667
+CLIENT_SHA=5eb2d56d478966ee8d5a7f5e6725e796f50574a6b28d48a2141f288859553966
+PYTHON=3.13.11
+### RUN 1 ###
+E0113_CLIENT_EXIT=1
+V913_TOOLCHAIN=3.13.11
+  # TOOLCHAIN: реализация, пересобирающая байты
+V913_UNICODE_DATA=15.1.0
+  # UNICODE_DATA: версия Unicode-данных у этой реализации
+V913_DOMAIN_ORDER_READ=1
+  # DOMAIN_ORDER_READ: домен прочитан из напечатанной формулы
+V913_DOMAIN_ORDER_BYTES=20
+V913_DOMAIN_FILESET_READ=1
+  # DOMAIN_FILESET_READ: домен прочитан из напечатанной формулы
+V913_DOMAIN_FILESET_BYTES=28
+V913_DOMAIN_RECEIPT_READ=1
+  # DOMAIN_RECEIPT_READ: домен прочитан из напечатанной формулы
+V913_DOMAIN_RECEIPT_BYTES=28
+V913_KIND_TAGS_READ=3
+  # KIND_TAGS_READ: тегов kind прочитано из таблицы §V9.2
+V913_DOMAIN_DECLARED_BYTES=19
+  # DOMAIN_DECLARED_BYTES: заявлено в таблице §V9.2
+V913_DOMAIN_ROW_BYTES=20
+  # DOMAIN_ROW_BYTES: длина строки, напечатанной в таблице
+V913_DOMAIN_LEN_OK=0
+  # DOMAIN_LEN_OK: заявленная длина равна длине напечатанной строки
+V913_DOMAIN_ROW_VS_FORMULA_EQ=1
+  # DOMAIN_ROW_VS_FORMULA_EQ: домен в таблице §V9.2 и в формуле statement_hash одинаков
+V913_STATEMENT_FORMULA_TOKENS=5
+  # STATEMENT_FORMULA_TOKENS: токенов в напечатанной формуле statement_hash
+V913_W1_NORM_EQ=1
+V913_W1_HASH_EQ=1
+V913_W2_NORM_EQ=1
+V913_W2_HASH_EQ=1
+V913_W3_NORM_EQ=1
+V913_W3_HASH_EQ=1
+V913_EXAMPLES=3
+  # EXAMPLES: примеров канонизации собраны побайтно
+V913_EXAMPLE_HASHES=3
+  # EXAMPLE_HASHES: statement_hash примеров сошлись
+V913_NFC_UNICODE_VERSION=15.1.0
+  # NFC_UNICODE_VERSION: версия Unicode, чей NFC применяет эта реализация
+V913_FIELDS_PARSED=13
+  # FIELDS_PARSED: строк полей в таблице §V9.2
+V913_INPUTS_MISSING=0
+V913_RECORD_REBUILT_LEN=215
+V913_RECORD_PRINTED_LEN=217
+V913_RECORD_LEN_EQ=0
+V913_RECORD_EQ_DOC=0
+  # RECORD_EQ_DOC: байты, собранные по таблице §V9.2, равны напечатанным
+V913_RECORD_FIRST_DIFF_OFFSET=22
+V913_RECORD_FIRST_DIFF_REBUILT=6d37fa9fab2c40b1
+V913_RECORD_FIRST_DIFF_PRINTED=006d37fa9fab2c40
+V913_ORDER_REF_EQ=0
+  # ORDER_REF_EQ: sha256 от собранных байт = напечатанный order_ref
+V913_KEYPAIR_LAYOUT_WORDS=1
+  # KEYPAIR_LAYOUT_WORDS: в документе напечатано, куда кладётся seed и что идёт в последний байт
+V913_KEYPAIR_CONVENTION_PRINTED=1
+V913_PUBKEY_PUBLISHER_EQ=1
+  # PUBKEY_PUBLISHER_EQ: ключ издателя выводим из напечатанного соглашения
+V913_ORDER_SIGNATURE_VALID=0
+  # ORDER_SIGNATURE_VALID: подпись заказа проходит по байтам, собранным из спеки
+V913_ORDER_SIGNATURE_DECOY=1
+V913_ORDER_SIG_OVER_PRINTED=1
+  # ORDER_SIG_OVER_PRINTED: подпись проходит над напечатанными байтами записи, то есть кодирование верное
+V913_ORDER_REF_OVER_PRINTED=1
+  # ORDER_REF_OVER_PRINTED: order_ref = sha256 от напечатанных байтов записи
+V913_SUBMISSION_FORMULA_TOKENS=14
+  # SUBMISSION_FORMULA_TOKENS: токенов в напечатанной формуле подачи
+V913_SUBMISSION_BYTES_PRINTED=1
+V913_SUBMISSION_WIDTHS_READ=6
+  # SUBMISSION_WIDTHS_READ: ширин полей подачи прочитано из таблицы §V9.4
+V913_SUBMISSION_TAIL_OK=1
+  # SUBMISSION_TAIL_OK: разбор формулы израсходовал ровно напечатанные байты
+V913_SUBMISSION_ROUNDTRIP_EQ=1
+  # SUBMISSION_ROUNDTRIP_EQ: байты, собранные по той же формуле, равны напечатанным
+V913_SUBMISSION_REF_EQ=1
+  # SUBMISSION_REF_EQ: sha256 от собранных байт подачи = напечатанный submission_ref
+V913_SUBMISSION_FIELDS_READ=7
+  # SUBMISSION_FIELDS_READ: полей подачи прочитано из байт по формуле
+V913_FILESET_LEAF_TOKENS=5
+  # FILESET_LEAF_TOKENS: токенов в формуле листа
+V913_FILESET_ROOT_TOKENS=3
+  # FILESET_ROOT_TOKENS: токенов в формуле корня
+V913_FILESET_INPUTS_PRINTED=0
+  # FILESET_INPUTS_PRINTED: пар «путь + sha256 содержимого» напечатано: без них листья не пересчитать
+V913_JSON_CANON_EQ=1
+  # JSON_CANON_EQ: сериализация по §V9.5 повторяет напечатанную байт в байт
+V913_RECEIPT_FIELDS=13
+  # RECEIPT_FIELDS: ключей в напечатанном JSON квитанции
+V913_JSON_KEYS_MATCH_RULE=1
+  # JSON_KEYS_MATCH_RULE: множество ключей JSON совпадает с перечнем правила §V9.5
+V913_JSON_FLOAT_FIELDS=0
+  # JSON_FLOAT_FIELDS: дробных чисел в подписываемых байтах быть не должно
+V913_RECEIPT_SIGNED_LEN=697
+  # RECEIPT_SIGNED_LEN: длина подписываемых байтов, собранная по формуле
+V913_KEYPAIR_LAYOUT_WORDS=1
+  # KEYPAIR_LAYOUT_WORDS: в документе напечатано, куда кладётся seed и что идёт в последний байт
+V913_KEYPAIR_CONVENTION_PRINTED=1
+V913_PUBKEY_PUBLISHER_EQ=1
+  # PUBKEY_PUBLISHER_EQ: ключ издателя выводим из напечатанного соглашения
+V913_RECEIPT_PUBKEY_EQ=1
+  # RECEIPT_PUBKEY_EQ: ключ верификатора выводим из напечатанного соглашения о ключах
+V913_RECEIPT_SIGNATURE_VALID=1
+  # RECEIPT_SIGNATURE_VALID: подпись квитанции проходит по её подписываемым байтам
+V913_RECEIPT_SIGNATURE_DECOY=1
+  # RECEIPT_SIGNATURE_DECOY: инвертированный бит в сообщении отвергнут
+V913_ALLOWLIST_DOC=propext|Classical.choice|Quot.sound
+V913_ALLOWLIST_SPEC=propext|Classical.choice|Quot.sound
+V913_ALLOWLIST_SPEC_READ=1
+  # ALLOWLIST_SPEC_READ: allowlist прочитан из строки спеки, а не из догадки
+V913_ALLOWLIST_SPEC_VS_DOC_EQ=1
+  # ALLOWLIST_SPEC_VS_DOC_EQ: allowlist в спеке и в документе векторов назван одинаково
+V913_DERIVE_RULES_PRINTED=10
+  # DERIVE_RULES_PRINTED: нумерованных правил вывода вердикта в §V9.5
+V913_VERDICT_DERIVABLE=1
+  # VERDICT_DERIVABLE: выведено 'pass' (код None), напечатано 'pass'
+V913_PAYOUT_ALLOWED_EQ=1
+V913_RFC8032_PUBKEY_EQ=1
+V913_RFC8032_VERIFY=1
+V913_RFC8032_SIGN_EQ=1
+V913_RFC8032_DECOY_REJECTED=1
+V913_RFC8032_SWEEP_SIGS=128
+  # RFC8032_SWEEP_SIGS: подписей в сетке само-теста
+V913_RFC8032_SWEEP_ODD_X=64
+  # RFC8032_SWEEP_ODD_X: подписей с нечётным x у точки R
+V913_RFC8032_SWEEP_EVEN_X=64
+  # RFC8032_SWEEP_EVEN_X: подписей с чётным x у точки R
+V913_RFC8032_SWEEP_ALL_VERIFY=1
+  # RFC8032_SWEEP_ALL_VERIFY: верификатор принимает все подписи сетки (ловит выбор корня по знаковому биту)
+V913_RFC8032_SWEEP_BOTH_PARITIES=1
+  # RFC8032_SWEEP_BOTH_PARITIES: само-тест покрывает обе чётности x, иначе одна ветка декодирования не проверена
+V913_WORST=1
+V913_ALL_OK=0
+### RUN 2 ###
+E0113_CLIENT_EXIT=1
+V913_TOOLCHAIN=3.13.11
+  # TOOLCHAIN: реализация, пересобирающая байты
+V913_UNICODE_DATA=15.1.0
+  # UNICODE_DATA: версия Unicode-данных у этой реализации
+V913_DOMAIN_ORDER_READ=1
+  # DOMAIN_ORDER_READ: домен прочитан из напечатанной формулы
+V913_DOMAIN_ORDER_BYTES=20
+V913_DOMAIN_FILESET_READ=1
+  # DOMAIN_FILESET_READ: домен прочитан из напечатанной формулы
+V913_DOMAIN_FILESET_BYTES=28
+V913_DOMAIN_RECEIPT_READ=1
+  # DOMAIN_RECEIPT_READ: домен прочитан из напечатанной формулы
+V913_DOMAIN_RECEIPT_BYTES=28
+V913_KIND_TAGS_READ=3
+  # KIND_TAGS_READ: тегов kind прочитано из таблицы §V9.2
+V913_DOMAIN_DECLARED_BYTES=19
+  # DOMAIN_DECLARED_BYTES: заявлено в таблице §V9.2
+V913_DOMAIN_ROW_BYTES=20
+  # DOMAIN_ROW_BYTES: длина строки, напечатанной в таблице
+V913_DOMAIN_LEN_OK=0
+  # DOMAIN_LEN_OK: заявленная длина равна длине напечатанной строки
+V913_DOMAIN_ROW_VS_FORMULA_EQ=1
+  # DOMAIN_ROW_VS_FORMULA_EQ: домен в таблице §V9.2 и в формуле statement_hash одинаков
+V913_STATEMENT_FORMULA_TOKENS=5
+  # STATEMENT_FORMULA_TOKENS: токенов в напечатанной формуле statement_hash
+V913_W1_NORM_EQ=1
+V913_W1_HASH_EQ=1
+V913_W2_NORM_EQ=1
+V913_W2_HASH_EQ=1
+V913_W3_NORM_EQ=1
+V913_W3_HASH_EQ=1
+V913_EXAMPLES=3
+  # EXAMPLES: примеров канонизации собраны побайтно
+V913_EXAMPLE_HASHES=3
+  # EXAMPLE_HASHES: statement_hash примеров сошлись
+V913_NFC_UNICODE_VERSION=15.1.0
+  # NFC_UNICODE_VERSION: версия Unicode, чей NFC применяет эта реализация
+V913_FIELDS_PARSED=13
+  # FIELDS_PARSED: строк полей в таблице §V9.2
+V913_INPUTS_MISSING=0
+V913_RECORD_REBUILT_LEN=215
+V913_RECORD_PRINTED_LEN=217
+V913_RECORD_LEN_EQ=0
+V913_RECORD_EQ_DOC=0
+  # RECORD_EQ_DOC: байты, собранные по таблице §V9.2, равны напечатанным
+V913_RECORD_FIRST_DIFF_OFFSET=22
+V913_RECORD_FIRST_DIFF_REBUILT=6d37fa9fab2c40b1
+V913_RECORD_FIRST_DIFF_PRINTED=006d37fa9fab2c40
+V913_ORDER_REF_EQ=0
+  # ORDER_REF_EQ: sha256 от собранных байт = напечатанный order_ref
+V913_KEYPAIR_LAYOUT_WORDS=1
+  # KEYPAIR_LAYOUT_WORDS: в документе напечатано, куда кладётся seed и что идёт в последний байт
+V913_KEYPAIR_CONVENTION_PRINTED=1
+V913_PUBKEY_PUBLISHER_EQ=1
+  # PUBKEY_PUBLISHER_EQ: ключ издателя выводим из напечатанного соглашения
+V913_ORDER_SIGNATURE_VALID=0
+  # ORDER_SIGNATURE_VALID: подпись заказа проходит по байтам, собранным из спеки
+V913_ORDER_SIGNATURE_DECOY=1
+V913_ORDER_SIG_OVER_PRINTED=1
+  # ORDER_SIG_OVER_PRINTED: подпись проходит над напечатанными байтами записи, то есть кодирование верное
+V913_ORDER_REF_OVER_PRINTED=1
+  # ORDER_REF_OVER_PRINTED: order_ref = sha256 от напечатанных байтов записи
+V913_SUBMISSION_FORMULA_TOKENS=14
+  # SUBMISSION_FORMULA_TOKENS: токенов в напечатанной формуле подачи
+V913_SUBMISSION_BYTES_PRINTED=1
+V913_SUBMISSION_WIDTHS_READ=6
+  # SUBMISSION_WIDTHS_READ: ширин полей подачи прочитано из таблицы §V9.4
+V913_SUBMISSION_TAIL_OK=1
+  # SUBMISSION_TAIL_OK: разбор формулы израсходовал ровно напечатанные байты
+V913_SUBMISSION_ROUNDTRIP_EQ=1
+  # SUBMISSION_ROUNDTRIP_EQ: байты, собранные по той же формуле, равны напечатанным
+V913_SUBMISSION_REF_EQ=1
+  # SUBMISSION_REF_EQ: sha256 от собранных байт подачи = напечатанный submission_ref
+V913_SUBMISSION_FIELDS_READ=7
+  # SUBMISSION_FIELDS_READ: полей подачи прочитано из байт по формуле
+V913_FILESET_LEAF_TOKENS=5
+  # FILESET_LEAF_TOKENS: токенов в формуле листа
+V913_FILESET_ROOT_TOKENS=3
+  # FILESET_ROOT_TOKENS: токенов в формуле корня
+V913_FILESET_INPUTS_PRINTED=0
+  # FILESET_INPUTS_PRINTED: пар «путь + sha256 содержимого» напечатано: без них листья не пересчитать
+V913_JSON_CANON_EQ=1
+  # JSON_CANON_EQ: сериализация по §V9.5 повторяет напечатанную байт в байт
+V913_RECEIPT_FIELDS=13
+  # RECEIPT_FIELDS: ключей в напечатанном JSON квитанции
+V913_JSON_KEYS_MATCH_RULE=1
+  # JSON_KEYS_MATCH_RULE: множество ключей JSON совпадает с перечнем правила §V9.5
+V913_JSON_FLOAT_FIELDS=0
+  # JSON_FLOAT_FIELDS: дробных чисел в подписываемых байтах быть не должно
+V913_RECEIPT_SIGNED_LEN=697
+  # RECEIPT_SIGNED_LEN: длина подписываемых байтов, собранная по формуле
+V913_KEYPAIR_LAYOUT_WORDS=1
+  # KEYPAIR_LAYOUT_WORDS: в документе напечатано, куда кладётся seed и что идёт в последний байт
+V913_KEYPAIR_CONVENTION_PRINTED=1
+V913_PUBKEY_PUBLISHER_EQ=1
+  # PUBKEY_PUBLISHER_EQ: ключ издателя выводим из напечатанного соглашения
+V913_RECEIPT_PUBKEY_EQ=1
+  # RECEIPT_PUBKEY_EQ: ключ верификатора выводим из напечатанного соглашения о ключах
+V913_RECEIPT_SIGNATURE_VALID=1
+  # RECEIPT_SIGNATURE_VALID: подпись квитанции проходит по её подписываемым байтам
+V913_RECEIPT_SIGNATURE_DECOY=1
+  # RECEIPT_SIGNATURE_DECOY: инвертированный бит в сообщении отвергнут
+V913_ALLOWLIST_DOC=propext|Classical.choice|Quot.sound
+V913_ALLOWLIST_SPEC=propext|Classical.choice|Quot.sound
+V913_ALLOWLIST_SPEC_READ=1
+  # ALLOWLIST_SPEC_READ: allowlist прочитан из строки спеки, а не из догадки
+V913_ALLOWLIST_SPEC_VS_DOC_EQ=1
+  # ALLOWLIST_SPEC_VS_DOC_EQ: allowlist в спеке и в документе векторов назван одинаково
+V913_DERIVE_RULES_PRINTED=10
+  # DERIVE_RULES_PRINTED: нумерованных правил вывода вердикта в §V9.5
+V913_VERDICT_DERIVABLE=1
+  # VERDICT_DERIVABLE: выведено 'pass' (код None), напечатано 'pass'
+V913_PAYOUT_ALLOWED_EQ=1
+V913_RFC8032_PUBKEY_EQ=1
+V913_RFC8032_VERIFY=1
+V913_RFC8032_SIGN_EQ=1
+V913_RFC8032_DECOY_REJECTED=1
+V913_RFC8032_SWEEP_SIGS=128
+  # RFC8032_SWEEP_SIGS: подписей в сетке само-теста
+V913_RFC8032_SWEEP_ODD_X=64
+  # RFC8032_SWEEP_ODD_X: подписей с нечётным x у точки R
+V913_RFC8032_SWEEP_EVEN_X=64
+  # RFC8032_SWEEP_EVEN_X: подписей с чётным x у точки R
+V913_RFC8032_SWEEP_ALL_VERIFY=1
+  # RFC8032_SWEEP_ALL_VERIFY: верификатор принимает все подписи сетки (ловит выбор корня по знаковому биту)
+V913_RFC8032_SWEEP_BOTH_PARITIES=1
+  # RFC8032_SWEEP_BOTH_PARITIES: само-тест покрывает обе чётности x, иначе одна ветка декодирования не проверена
+V913_WORST=1
+V913_ALL_OK=0
+VECTOR_STABLE=1
