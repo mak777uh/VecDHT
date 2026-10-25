@@ -241,7 +241,11 @@ impl NetService {
         let self_revoked = own_cert_nonce.is_some_and(|n| revoked.contains(&n));
         let keypair = keys::keypair(&local);
         let local_peer = keypair.public().to_peer_id();
-        let is_server = !nodes.is_empty();
+        // `ADR-0060`: сервер DHT — это роль, а не наличие шарда. Индексный узел без загруженных
+        // шардов (наблюдатель, узел между назначениями) всё равно обязан принимать
+        // `ADD_PROVIDER`: клиент libp2p-kad отвечает `DeniedUpgrade` и запись провайдера не
+        // сохраняет. Агент остаётся клиентом — он только спрашивает.
+        let is_server = role != Role::Agent;
         let model_version = cfg.model_version.clone();
         let agent_version = cfg.agent_version.clone();
         let request_timeout = cfg.request_timeout;
@@ -255,7 +259,18 @@ impl NetService {
                 yamux::Config::default,
             )
             .map_err(|e| NetError::Build(e.to_string()))?
-            .with_quic()
+            .with_quic_config(|mut c| {
+                // `libp2p-quic` по умолчанию даёт 5 с на TLS-handshake и 10 с простоя — меньше
+                // прикладного `request_timeout` (10 с). На стенде P1 (`E-0105`) 60 узлов в debug
+                // дали 664 таймаута прикладного рукопожатия и 0/8 резолвов: часть соединений
+                // умирала «Handshake with the remote timed out» раньше, чем приложение начинало
+                // свой handshake. Порог рукопожатия берём не меньше `request_timeout`, а простой —
+                // из `idle_timeout`, чтобы транспорт и `Swarm` не расходились в сроках.
+                c.handshake_timeout = request_timeout.max(Duration::from_secs(10));
+                c.max_idle_timeout =
+                    idle_timeout.as_millis().min(u128::from(u32::MAX)) as u32;
+                c
+            })
             .with_behaviour(move |key| {
                 let peer = key.public().to_peer_id();
                 let mut kad_cfg = kad::Config::new(StreamProtocol::new("/vecdht/v8/kad"));
