@@ -4,6 +4,7 @@ resolver = "2"
 # exclude — чтобы `cargo test` в main всегда был зелёным на машине без нужного рантайма.
 members = [
     "crates/vecdht-wire",
+    "crates/vecdht-orders",
     "crates/vecdht-crypto",
     "crates/vecdht-artifact",
     "crates/vecdht-index",
@@ -39,6 +40,10 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 hex = "0.4"
 unicode-normalization = "0.1"
+# Хеш-домен платных заказов (спека v9 §V9, ADR-0061) — SHA-256: `image_digest` обязано быть
+# sha256 по формату OCI-манифеста, а сторонний верификатор должен уметь посчитать то же самое
+# штатным `sha256sum`. В wire-формате v8 (§5.2) остаётся blake3; домены не смешиваются.
+sha2 = "0.10"
 
 # Транспорт (§17.2). `libp2p` 0.54 — та версия, под которую писан §4.1: PeerId выводит
 # транспорт, а не мы. `request-response` не новый crate, а фича того же libp2p: кадры v8 —

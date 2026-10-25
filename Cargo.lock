@@ -3958,6 +3958,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "vecdht-orders"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "sha2",
+ "unicode-normalization",
+]
+
+[[package]]
 name = "vecdht-wire"
 version = "0.1.0"
 dependencies = [

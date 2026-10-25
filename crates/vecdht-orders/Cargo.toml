@@ -1,0 +1,13 @@
+[package]
+name = "vecdht-orders"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "VecDHT v9 (§V9): платные заказы, подачи и квитанции верификатора — канонизация и машина состояний (ADR-0061)"
+
+[dependencies]
+sha2.workspace = true
+ed25519-dalek.workspace = true
+unicode-normalization.workspace = true
