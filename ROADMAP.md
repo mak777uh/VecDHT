@@ -42,7 +42,7 @@ Run the v9 byte rules against real work and real money that we can lose.
 | Verifier image published, its digest pinned | `verifier.image_digest` in every order resolves by `skopeo inspect`/`docker pull` to that digest |
 | Every error code has been observed at least once in the wild, or is listed as unobserved | the instrument table in `docs/PAID_ORDER-VECTORS.md` compared against the node journal |
 
-Depends on: H1; a published verifier image; an escrow contract on a chain we name; `OPEN-V9-1`…`OPEN-V9-8` and `OPEN-V9-10` (`OPEN-V9-9` closed 2026-10-25: the spec's state matrix copy is now compared cell-by-cell with the generated document by `lab/xcheck-paid-orders.py`)
+Depends on: H1; a published verifier image; an escrow contract on a chain we name; `OPEN-V9-1`…`OPEN-V9-8` and (closed 2026-10-25: `OPEN-V9-9` — the spec's state matrix copy is now compared cell-by-cell with the generated document by `lab/xcheck-paid-orders.py`; `OPEN-V9-10` — the axiom allowlist named `Quoted.sound`, an identifier no Lean kernel prints, fixed by cycle `E-0112` under `ADR-0062`)
 from §V9.10 resolved or explicitly accepted. The first three of those are outside our repository: an
 image we build and sign, a contract we audit, a chain we track.
 

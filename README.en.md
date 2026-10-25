@@ -43,7 +43,11 @@ test suite (`bash lab/workspace-verify.sh E-XXXX` prints the slice count and app
 admission door, provider-cache bounds, durable denylist, durable revocation set and observable denial
 reasons were each closed by a measured cycle (`E-0087`…`E-0095`). The paid-order byte rules in
 `docs/VecDHT-SPEC-v9.md` are reproduced by an executable instrument and re-checked by an independent
-`hashlib` recomputation of the published vectors (`E-0111`).
+`hashlib` recomputation of the published vectors (`E-0111`). The verdict rule itself was then corrected
+by a measured cycle (`E-0112`, `ADR-0062`): the axiom allowlist had named `Quoted.sound`, an identifier
+that no Lean kernel prints, so an honest quotient-based proof was rejected as `E_AXIOM_NOT_ALLOWED`;
+the list now names `Quot.sound`, and the name is confirmed by executing the pinned kernel rather than
+by quoting it. Byte rules, hashes and the 30 vectors did not change.
 
 Not done, said plainly: there is no release tag and no published binary. No external operator runs
 this network, and no two-machine end-to-end scenario has been executed. The ~200-node stand has been
