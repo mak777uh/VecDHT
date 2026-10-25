@@ -1,0 +1,27 @@
+GATE_H0117_OK	1	гейт цикла пройден
+DISK_GE_15000	1	свободный диск до прогона не ниже порога владельца
+E0117_BRIDGE_EXIT	0	мост завершился нулём на каждом из четырёх прогонов
+V9C_ALL_OK	1	все проверки моста зелёные на обеих редакциях текста
+V9C_WORST	0	ни одного провала проверки
+V9C_TERM_EQ_GOT	31	порогов term_hash сверено
+V9C_MIRROR_MATCH	31/31	вердикт Python-моста совпал с Rust на всех векторах
+V9C_CLAIM_EQ_GOT	29	требований выплаты собрано
+V9C_SIGNATURES_CHECKED	150	подписей проверено
+V9C_DOMAIN_ROWS_GOT	5	строк домена в §1 носителя
+V9C_STEP_ROWS_GOT	7	шагов в §4 носителя
+V9C_CODES_EQ_SPEC	1	список §3 носителя совпал с §V9.8 имя в имя
+V9C_CODES_USED_MINE	9	различных кодов выведено на векторах
+V9C_REGISTRY_ROWS_GOT	6	строк реестра цепей
+V9C_REGISTRY_ROOT	382bdb9d8c718277c1c37c676ffacb8e5abb8a679b89b06c67348ff6f62aeeaf	корень реестра не изменился
+V9C_V01_ORDER_REF	4167d021a099e6efcbce24212117757136eb0823e3dd5d756ed3a2caf6f2ac70	якорь инварианта A не изменился
+V9C_KEYPAIR_MATCH	beneficiary=31/31|observer=30/31|publisher=31/31|verifier=30/31	совпадение ключей по ролям
+V9C_DOUBLE_REPLAY_COUNT	12	векторов двойной выплаты
+V9C_INDEP_MATCH	1	независимый пересчёт из спеки совпал
+K0_BASELINE_KEYS	112	строк фактов на тексте эпохи E-0114
+K0_NEW_KEYS	112	строк фактов на новом тексте: сравнение непустое
+K0_TRANSFER_DIFF	0	ни одной расходящейся строки фактов
+K0_OLD_SPEC_IS_E0114	1	baseline из HEAD действительно несёт текст, на котором закрыт E-0114
+K0_SPEC_CHANGED	1	новый текст отличается от baseline
+VECTOR_STABLE	1	пары прогонов внутри каждой редакции совпали
+XCHECK_EXIT	0	сверка матрицы §V9.6 и якорей прошла
+TEXTGUARD_CYCLE_EXIT	0	стража текста по файлам цикла
