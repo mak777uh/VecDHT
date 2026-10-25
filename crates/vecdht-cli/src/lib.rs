@@ -18,8 +18,9 @@
 //! Честная граница v1: `agent run` поднимает listener и шагает, но смыслового слоя входящих нет —
 //! `IntentTextRequest` узлом не обслуживается (в `ShardNode` нет держателя текста), поэтому
 //! команда делает агента достижимым для handshake/ack/приёма, а не «сервером, который отвечает на
-//! всё». Команда `node` (машина шарда из CLI) не сделана: ей нужен bootstrap членства и genesis,
-//! и «заглушка, которая печатает успех», была бы дороже её отсутствия. Relay/DCUtR не подняты,
+//! всё». Команда `node run` (машина шарда из CLI) собирает узел из файлов, которые выпускают
+//! `cert issue` и `genesis build`, — но без производителя отзыва и без смыслового слоя входящих:
+//! что именно узел делает и чего не делает, написано в шапке `node_cmd`. Relay/DCUtR не подняты,
 //! поэтому `agent session` идёт прямым dial'ом по адресу из address book или Kademlia.
 //!
 //! Разбор аргументов свой и без зависимостей ([`args`]), а весь вывод пишется в буфер внутри
@@ -41,6 +42,7 @@ pub mod demo_cmd;
 pub mod encode_cmd;
 pub mod index_cmd;
 pub mod model;
+pub mod node_cmd;
 pub mod pow_cmd;
 pub mod wire_cmd;
 
@@ -154,6 +156,13 @@ pub static COMMANDS: &[Command] = &[
         flags: bootstrap_cmd::FLAGS_GENESIS,
         help: bootstrap_cmd::HELP_GENESIS,
         run: bootstrap_cmd::exec_genesis,
+    },
+    Command {
+        path: node_cmd::CMD_RUN,
+        summary: "поднять шард-узел: индекс на диске, кредашиал и genesis из файлов (§9, §12)",
+        flags: node_cmd::FLAGS_RUN,
+        help: node_cmd::HELP_RUN,
+        run: node_cmd::exec_run,
     },
     Command {
         path: encode_cmd::CMD,
