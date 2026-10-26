@@ -87,7 +87,16 @@ for i in 1 2; do
   emit "TEST_RESULT_OK=${ok}"
   emit "PASSED=${passed:-0}"
   emit "FAILED=${failed:-0}"
-  grep '^CT_' "$OUT/test${i}.txt" | sort | tee -a "$LOG" >> "$FACTS"
+  # ДИАГНОЗ: `cargo test -q` печатает точки прогресса без перевода строки, и первая `CT_*`-строка
+  # теста склеивается с точкой (`.CT_MISSING_CODE=2`). Поэтому факт извлекается по шаблону, а не
+  # якорем `^`: якорь терял ровно ту строку, которая печатается сразу после точки.
+  grep -o 'CT_[A-Z0-9_]*=[^[:space:]]*' "$OUT/test${i}.txt" | sort | tee -a "$LOG" >> "$FACTS"
+  if [ "$rc" -ne 0 ]; then
+    # Красный прогон обязан оставить улику: helper удаляет `$OUT` на выходе, и без копии
+    # причина падения исчезает вместе с ним (так была потеряна первая красная итерация).
+    cp "$OUT/test${i}.txt" "lab/logs/e0121-run${i}-fail.txt"
+    say "RED RUN${i}: вывод сохранён в lab/logs/e0121-run${i}-fail.txt"
+  fi
   [ "$ok" -eq 1 ] || note 1
 done
 
