@@ -1,0 +1,55 @@
+########## E-0120 · 2026-10-26T03:07:14+03:00 · дерево c868a30 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T03:07:14+03:00
+ПРИОРАРТ H-0120: отказ от источников с причиной
+LEAN H-0120: модель не сделана, рубрика обязательной не требует
+E-CARD E-0120: порог, окружение и команда названы
+CYCLE H-0120=OK нарушений=0
+GATE_H0120_OK=1
+DISK_FREE_MB=28899 RAM_FREE_MB=9469 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве a251334 команды нет ### 2026-10-26T03:07:16+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_LINES=0 PRE_FIX_FILE=0 PRE_FIX_NO_REVOKE_CMD=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_REVOKE_CMD=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T03:07:17+03:00
+RUN1: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.39s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+RV_BASELINE_DOOR_ZERO=1
+RV_LIVE_DOOR_GT_BASELINE=1
+RV_LIVE_FILE_NONEMPTY=1
+RV_LIVE_REVOCATIONS=1
+RV_RESTART_DOOR_GT=1
+RV_RESTART_REVOCATIONS=1
+RV_SIGS=3
+RV_THRESHOLD=3
+RUN2: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.39s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+RV_BASELINE_DOOR_ZERO=1
+RV_LIVE_DOOR_GT_BASELINE=1
+RV_LIVE_FILE_NONEMPTY=1
+RV_LIVE_REVOCATIONS=1
+RV_RESTART_DOOR_GT=1
+RV_RESTART_REVOCATIONS=1
+RV_SIGS=3
+RV_THRESHOLD=3
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T03:07:57+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T03:07:58+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T03:07:58+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T03:07:58+03:00
+ОЖИДАНИЙ=20 РАСХОЖДЕНИЙ=0
+### ШАГ 7 носитель после прогона ### 2026-10-26T03:07:59+03:00
+DISK_FREE_MB=28897 RAM_FREE_MB=9488 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
