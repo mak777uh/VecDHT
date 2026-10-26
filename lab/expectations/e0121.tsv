@@ -1,0 +1,19 @@
+GATE_H0121_OK	1	гейт карточки H-0121
+DISK_GE_15000	1	свободно на диске до прогона, МБ
+BASE_IS_ANCESTOR	1	пин PRE_FIX — предок дерева
+PRE_FIX_NO_CENTROIDS_WIRING	1	на пине нет ни with_centroids, ни счётчиков в NODE_STATUS
+CT_MISSING_CODE	2	артефакт без centroid.bin: код отказа старта
+CT_MISSING_NAMED	1	ошибка называет файл centroid.bin
+CT_HONEST_REASSIGNED	0	честное присваивание не считается пересборкой
+CT_FORGED_REASSIGNED_GE1	1	подделанный cluster_id пересчитан: счётчик вырос
+CT_FORGED_UNVERIFIED_ZERO	1	с центроидами cluster_unverified остаётся нулём
+CT_FORGED_CELL_HONEST	1	запись найдена по пересчитанному кластеру
+CT_STATUS_CLUSTER_FIELDS	1	NODE_STATUS печатает оба счётчика
+RESULT_EXIT	0	выход оракула в прогоне
+TEST_RESULT_OK	1	строка test result: ok
+PASSED	2	тестов прошло
+FAILED	0	тестов упало
+STABLE	1	наборы CT_*-фактов двух прогонов совпали
+CLIPPY_EXIT	0	clippy по vecdht-cli со всеми целями
+TEXTGUARD_CYCLE_EXIT	0	стража текста на файлах цикла
+PLANT_EXIT	1	таблица ожиданий чувствительна к посадке
