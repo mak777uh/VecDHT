@@ -3846,7 +3846,7 @@ checksum = "b6c140620e7ffbb22c2dee59cafe6084a59b5ffc27a8859a5f0d494b5d52b6be"
 
 [[package]]
 name = "vecdht-artifact"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "ed25519-dalek",
@@ -3858,7 +3858,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-benches"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "vecdht-artifact",
@@ -3870,7 +3870,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-cli"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "hex",
@@ -3888,7 +3888,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-crypto"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "ed25519-dalek",
@@ -3901,7 +3901,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-embed"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "candle-core",
@@ -3920,7 +3920,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-index"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "crc32fast",
@@ -3932,7 +3932,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-net"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-trait",
  "hex",
@@ -3947,7 +3947,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-node"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "blake3",
  "thiserror 1.0.69",
@@ -3959,7 +3959,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-orders"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "ed25519-dalek",
  "sha2",
@@ -3968,7 +3968,7 @@ dependencies = [
 
 [[package]]
 name = "vecdht-wire"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "hex",
  "thiserror 1.0.69",

@@ -23,6 +23,18 @@ ram_mb() { powershell -NoProfile -Command "[int][Math]::Round((Get-CimInstance W
 disk_mb() { powershell -NoProfile -Command "[int][Math]::Round((Get-PSDrive C).Free / 1MB)" 2>/dev/null | tr -d '\r' | tail -1; }
 pagefile_mb() { powershell -NoProfile -Command "[int][Math]::Round((Get-CimInstance Win32_PageFileUsage).PeakUsage / 1)" 2>/dev/null | tr -d '\r' | tail -1; }
 size_mb() { [ -e "$1" ] && du -sm "$1" 2>/dev/null | cut -f1 || echo 0; }
+# Вне Windows `powershell` нет, и три функции выше вернули бы пустоту: пустое значение у напечатанного
+# ключа — молчание, а не замер. Для GNU/Linux (раннер CI, где `lab/workspace-verify.sh` тоже
+# исполняется) источник чисел свой, а pagefile печатается как `none`: этого объекта там нет вовсе,
+# и выдумывать ему число значило бы напечатать то, чего нет.
+case "$(uname -s 2>/dev/null)" in
+  MINGW*|MSYS*|CYGWIN*|Windows*) : ;;
+  *)
+    ram_mb() { free -m 2>/dev/null | awk '/^Mem:/{print $7}'; }
+    disk_mb() { df -m "$ROOT" 2>/dev/null | awk 'NR==2{print $4}'; }
+    pagefile_mb() { printf 'none'; }
+    ;;
+esac
 incremental_mb() {
   local total=0 d s
   for d in "${ROOT}"/target/*/incremental; do

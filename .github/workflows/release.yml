@@ -1,0 +1,216 @@
+# Релизный workflow v1. Он появился потому, что первая строка горизонта H1 в `ROADMAP.md` требует
+# «тег с рецептом сборки и changelog от v7.5», а цикл `E-0126` требует, чтобы такая строка была
+# исполняемым фактом, а не пунктом плана (`lab/decisions/ADR-0067-release-kit-is-checked-not-promised.md`).
+#
+# Три работы и почему их именно три:
+#   * `kit` — на самом дереве под тегом исполняется тот же прибор, которым круг меряет готовность
+#     (`lab/check-release-kit.sh`). Смысл дублирования: если тег поставили на дерево без CHANGELOG,
+#     без версии или без рецепта, работа обязана покраснеть здесь и сейчас, а не «мы же проверили до
+#     тега»;
+#   * `verify` — исполняет дословно способ измерения из H1: `bash lab/workspace-verify.sh <run-id>`,
+#     где `<run-id>` — ИМЯ ТЕГА (`$GITHUB_REF_NAME`), а не придуманный оператором id. Иначе журнал
+#     тега нельзя опознать постфактум, и критерий «тег называет свой блок» превращается в «где-то
+#     когда-то было зелено» (флаг прибора `CK_WORKFLOW_RUNID`).
+#     Тулчейны Веруса и Лины ставятся в этой же работе: `lab/workspace-verify.sh` зовёт
+#     `lab/verus-check.sh` с `VEC_DHT_VERUS_REQUIRED=1` и `lab/lean-check.sh`, а без бинаря это
+#     красный круг по причине «на раннере нет тулчейна», а не по причине «дерево плохо». Тот же
+#     класс, что ДИАГНОЗ-4 в карточке `E-0126`: невыполнимый по построению порог не является
+#     результатом. Пины тулчейнов здесь — те же символы, что в `formal.yml`; расхождение двух
+#     копий ловится не прибором, а человеком, и это записано честно, потому что отдельного
+#     сверителя пинов в контуре нет;
+#   * `binary` — собирает ровно ту строку, которую печатают `README.md` и `README.ru.md`
+#     (`cargo build --release -p vecdht-cli`), и поднимает её как артефакт. Это НЕ бинарь для
+#     машины оператора: раннер — `ubuntu-24.04`, значит артефакт — `x86_64-unknown-linux-gnu`.
+#     Ограничение того же класса задокументировано для чужой сборки в `L-0018` (ассеты Kani
+#     существуют только под Linux и macOS). Сборка под `x86_64-pc-windows-gnu` остаётся руками
+#     оператора по рецепту из README, где standalone mingw-w64 обязан стоять в `PATH` раньше
+#     любого другого `gcc`.
+#
+# Чего эта работа НЕ доказывает: она не доказана исполнением. На хосте контура `gh` не установлен,
+# тег не ставится (красная зона владельца), значит «зелёная работа на теге» впервые проверяется
+# тем прогоном, который запускает тег. Здесь проверены только синтаксис файла (он обязан
+# разбираться `yaml.safe_load` — это флаг `CK_YAML_PARSE`) и наличие в нём названных строк.
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Репетиция без тега: имя блока в журнале тогда берётся из ветки, а не из тега, и это
+  # честно отражено в `RUN_ID`, который печатает шаг верификации.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  # Для релизного прогона отмена небезопасна: оборванный артефакт под именем тега хуже долгой работы.
+  cancel-in-progress: false
+
+env:
+  # Те же пины, что в `.github/workflows/formal.yml` (номер версии пинует ИМЯ файла, а хэш — его
+  # содержимое: без проверки хэша «зелёный» круг мог бы опираться на подменённый архив).
+  VERUS_VERSION: 0.2026.10.18.7d82994
+  VERUS_SHA256: e9af03732d4bdd32b93a8fcf471706739c24c1473fa5086618d96c47237845dd
+  LEAN_TOOLCHAIN: leanprover/lean4:v4.36.0-rc1
+  ELAN_COMMIT: 9605b24b08cf68b78dce0014b6fa01be1f8e2cee
+  ELAN_SHA256: a620ff1641616222c8d37c54845492004bb84d6877cdbc944dd65c1aa685bf53
+
+jobs:
+  kit:
+    name: "Комплект: прибор `E-0126` на дереве под тегом"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # Приборы контура зовут `python`, в образе Ubuntu есть только `python3` (тот же приём, что в
+      # работах `guards` файла `verify.yml` и `lean` файла `formal.yml`).
+      - name: Алиас python -> python3
+        run: sudo ln -sf "$(command -v python3)" /usr/local/bin/python
+
+      # `CK_YAML_PARSE` внутри прибора разбирает этот же файл через PyYAML: без библиотеки флаг
+      # деградировал бы в ноль по причине «нет модуля», а не по причине «workflow сломан».
+      - name: PyYAML для флага CK_YAML_PARSE
+        run: python -m pip install --quiet pyyaml
+
+      - name: Прибор релизного комплекта
+        run: |
+          set -uo pipefail
+          L=/tmp/kit.log
+          bash lab/check-release-kit.sh > "$L" 2>&1; r=$?
+          echo "KIT_EXIT=$r" >> "$L"
+          cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -aE '^CK_[A-Z_]+=' "$L" | tail -20 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+          exit $r
+
+      # Рецепт обязан быть одной и той же строкой в английском README, в его русском переводе и в
+      # CHANGELOG: иначе
+      # «то, что читает оператор», и «то, из чего делают артефакт», — две разные сборки.
+      - name: Рецепт сборки назван в трёх местах
+        run: |
+          set -uo pipefail
+          grep -F 'cargo build --release -p vecdht-cli' README.md README.ru.md CHANGELOG.md
+
+  verify:
+    name: "Верификация тега: bash lab/workspace-verify.sh <имя тега>"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Алиас python -> python3
+        run: sudo ln -sf "$(command -v python3)" /usr/local/bin/python
+
+      - name: PyYAML для гейта круга
+        run: python -m pip install --quiet pyyaml
+
+      # Верус просит ровно тот тулчейн, что зашит в его сборку, и его номер лежит в `version.json`
+      # рядом с бинарём (тот же порядок, что в работе `verus` файла `formal.yml`).
+      - name: Установка Verus
+        run: |
+          set -uo pipefail
+          curl -sSLo /tmp/verus.zip \
+            "https://github.com/verus-lang/verus/releases/download/release/${VERUS_VERSION}/verus-${VERUS_VERSION}-x86-linux.zip"
+          printf '%s  %s\n' "$VERUS_SHA256" /tmp/verus.zip | sha256sum -c - > /tmp/verus-sha.log 2>&1
+          r=$?; echo "VERUS_SHA_RC=$r" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice::VERUS_SHA_RC=$r"
+          [ "$r" -eq 0 ] || exit 1
+          mkdir -p "$HOME/verus-dist"
+          unzip -q /tmp/verus.zip -d "$HOME/verus-dist"
+          VERUS_BIN="$(find "$HOME/verus-dist" -maxdepth 3 -type f -name verus | head -1)"
+          test -n "$VERUS_BIN"
+          # zip может не донести бит исполнения: без него verus и его z3 молча отказываются стартовать.
+          chmod -R +x "$(dirname "$VERUS_BIN")"
+          TOOLCHAIN="$(sed -n 's/.*"toolchain": "\([0-9][0-9.]*\).*/\1/p' "$(dirname "$VERUS_BIN")/version.json" | head -1)"
+          test -n "$TOOLCHAIN"
+          echo "VEC_DHT_VERUS=$VERUS_BIN" >> "$GITHUB_ENV"
+          echo "VEC_DHT_VERUS_TOOLCHAIN=$TOOLCHAIN" >> "$GITHUB_ENV"
+          echo "VERUS_TOOLCHAIN=$TOOLCHAIN"
+
+      - name: Тулчейн Веруса из version.json
+        run: |
+          set -uo pipefail
+          rustup toolchain install "$VEC_DHT_VERUS_TOOLCHAIN" --profile minimal --component rust-src
+
+      # `elan-init.sh` ставится по ЗАКРЕПЛЁННОМУ КОММИТУ и с проверкой хэша; тулчейн назначается
+      # отдельно, потому что записи в `$GITHUB_PATH` хватает только на СЛЕДУЮЩИЕ шаги (оба факта
+      # измерены в работе `lean` файла `formal.yml`).
+      - name: Установка elan и замороженного тулчейна Lean
+        run: |
+          set -uo pipefail
+          S="$GITHUB_STEP_SUMMARY"
+          curl -sSfL "https://raw.githubusercontent.com/leanprover/elan/${ELAN_COMMIT}/elan-init.sh" -o /tmp/elan-init.sh
+          printf '%s  %s\n' "$ELAN_SHA256" /tmp/elan-init.sh | sha256sum -c - > /tmp/elan-sha.log 2>&1
+          r=$?; echo "ELAN_SHA_RC=$r" | tee -a "$S"; echo "::notice::ELAN_SHA_RC=$r"
+          [ "$r" -eq 0 ] || exit 1
+          sh /tmp/elan-init.sh -y --no-modify-path > /tmp/elan-init.log 2>&1
+          r=$?; echo "ELAN_INIT_RC=$r" | tee -a "$S"; tail -4 /tmp/elan-init.log | tee -a "$S"
+          [ "$r" -eq 0 ] || exit 1
+          export PATH="$HOME/.elan/bin:$PATH"
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+          elan toolchain install "$LEAN_TOOLCHAIN" > /tmp/elan-tool.log 2>&1
+          r=$?; echo "ELAN_TOOLCHAIN_RC=$r" | tee -a "$S"; tail -6 /tmp/elan-tool.log | tee -a "$S"
+          [ "$r" -eq 0 ] || exit 1
+          elan default "$LEAN_TOOLCHAIN"
+          echo "ELAN_DEFAULT_RC=$?" | tee -a "$S"
+          lean --version | tee -a "$S"
+
+      # Сама строка способа измерения H1. Аргумент — имя тега: блок в
+      # `lab/logs/workspace-verify-2026-10-22.log` обязан называться тем же, чем назван релиз.
+      - name: "Верификация воркспейса: блок журнала называется именем тега"
+        run: |
+          set -uo pipefail
+          echo "RUN_ID=$GITHUB_REF_NAME  EVENT=$GITHUB_EVENT_NAME  SHA=$GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice::RUN_ID=$GITHUB_REF_NAME"
+          bash lab/workspace-verify.sh "$GITHUB_REF_NAME"; r=$?
+          L=lab/logs/workspace-verify-2026-10-22.log
+          grep -aE '^(TEST_EXIT|CLIPPY_EXIT|LEAN_EXIT|VERUS_EXIT|KCC_EXIT|VERIFY_FAIL|SECONDS_total)=' "$L" \
+            | tail -12 | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "WORKSPACE_VERIFY_EXIT=$r" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "::notice::WORKSPACE_VERIFY_EXIT=$r"
+          exit $r
+
+      # Журнал верификации выкладывается наружу: «тег называет блок, который он произвёл» должно
+      # читаться из релиза, а не из временных логов работы.
+      - name: Артефакт — журнал верификации
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: workspace-verify-${{ github.ref_name }}
+          path: lab/logs/workspace-verify-2026-10-22.log
+          if-no-files-found: error
+          retention-days: 90
+
+  binary:
+    name: "Артефакт: cargo build --release -p vecdht-cli"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Тулчейн раннера (не пинствуем: rust-toolchain.toml в дереве нет намеренно)"
+        run: |
+          set -uo pipefail
+          { rustc --version; cargo --version; uname -a; } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Сборка
+        run: |
+          set -uo pipefail
+          cargo build --release -p vecdht-cli
+
+      - name: Что именно выкладывается
+        run: |
+          set -uo pipefail
+          file target/release/vecdht-cli | tee -a "$GITHUB_STEP_SUMMARY"
+          ./target/release/vecdht-cli --version 2>&1 | tee -a "$GITHUB_STEP_SUMMARY" || true
+          echo "PLATFORM=x86_64-unknown-linux-gnu (runner ubuntu-24.04)" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Артефакт — бинарь vecdht-cli
+        uses: actions/upload-artifact@v4
+        with:
+          name: vecdht-cli-${{ github.ref_name }}-x86_64-unknown-linux-gnu
+          path: target/release/vecdht-cli
+          if-no-files-found: error
+          retention-days: 90
