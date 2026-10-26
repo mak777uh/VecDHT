@@ -57,7 +57,15 @@ const P95_BUDGET_MS: u128 = 500;
 const TOTAL_LIMIT: usize = 5_000;
 /// Холодный резолв одного шарда: бюджет ожидания. 3 с — в 6 раз выше гейта, чтобы «медленно»
 /// отличалось от «не нашлось» и провал не занимал 64 × 10 с на каждого наблюдателя.
-const RESOLVE_BUDGET: Duration = Duration::from_secs(3);
+/// Для посадки (`E-0125`) бюджет переопределяется переменной `VEC_P1_BUDGET_MS`: прибор обязан
+/// уме́ть выдать промах по требованию, иначе утверждение «каждый промах назван» нельзя проверить
+/// исполнением — в штатном прогоне промахов, как правило, нет вовсе.
+fn resolve_budget() -> Duration {
+    match std::env::var("VEC_P1_BUDGET_MS").ok().and_then(|s| s.parse::<u64>().ok()) {
+        Some(ms) if ms > 0 => Duration::from_millis(ms),
+        _ => Duration::from_secs(3),
+    }
+}
 const WARMUP: Duration = Duration::from_secs(20);
 
 fn now_sec() -> u64 {
@@ -246,7 +254,7 @@ async fn errors(n: &Node) -> Vec<String> {
 
 async fn resolve(n: &Node, shard: u16) -> Option<u128> {
     let (tx, rx) = oneshot::channel();
-    n.tx.send(Cmd::Resolve(shard, RESOLVE_BUDGET, tx)).unwrap();
+    n.tx.send(Cmd::Resolve(shard, resolve_budget(), tx)).unwrap();
     rx.await.unwrap()
 }
 
