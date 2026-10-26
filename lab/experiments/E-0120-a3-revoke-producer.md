@@ -1,15 +1,15 @@
 ---
 id: E-0120
 hypothesis: H-0120
-status: running
+status: completed
 base_commit: "a251334"
 started: "2026-10-26"
 finished: "2026-10-26"
 environment: "x86_64-pc-windows-gnu, хост владельца; Rust из PATH (cargo/rustc), Python 3 из PATH, PYTHONIOENCODING=utf-8; debug-сборка инкрементально поверх дерева a251334; сеть — 127.0.0.1, QUIC, два процесса `node run`, `revoke` CLI как эфемерный агент"
 command: "bash lab/e0120-run.sh"
 threshold: "(1) `cycle-gate.py gate H-0120` выход 0, диск ≥ 15 000 МБ до и после; (2) `cargo test -q -p vecdht-cli --test revoke_publish -- --test-threads=1 --nocapture` дважды на неизменном дереве: RESULT_EXIT=0, PASSED=2, FAILED=0 в каждом прогоне, наборы `RV_*`-фактов совпали (STABLE=1); (3) `expect.py lab/expectations/e0120.tsv` по обоим прогонам: EXPECT_EXIT=0 при `RV_BASELINE_DOOR_ZERO=1`, `RV_SIGS=3`, `RV_THRESHOLD=3`, `RV_LIVE_REVOCATIONS=1`, `RV_LIVE_FILE_NONEMPTY=1`, `RV_LIVE_DOOR_GT_BASELINE=1`, `RV_RESTART_REVOCATIONS=1`, `RV_RESTART_DOOR_GT=1`; (4) посадка `PASSED=1` в копию таблицы даёт EXPECT_EXIT=1 (PLANT_EXIT=1); (5) PRE_FIX: на дереве `a251334` в `crates/vecdht-cli/src/lib.rs` нет пути `revoke` и нет файла `revoke_cmd.rs` (PRE_FIX_NO_REVOKE_CMD=1); (6) `cargo clippy -q -p vecdht-cli --all-targets -- -D warnings` выход 0; (7) стража текста на новых файлах цикла выход 0. Порог заморожен до первого прогона `lab/e0120-run.sh`; изменение любого числа — новая карточка."
-result: "pending"
-verdict: "pending"
+result: "helper `WORST_RC=0`, два прогона `RESULT_EXIT=0` по `2 passed` за 18,39 с, `STABLE=1`, 20 ожиданий без расхождений, `PLANT_EXIT=1`; восемь `RV_*` в обоих прогонах: `RV_SIGS=3`, `RV_THRESHOLD=3`, `RV_BASELINE_DOOR_ZERO=1`, `RV_LIVE_REVOCATIONS=1`, `RV_LIVE_FILE_NONEMPTY=1`, `RV_LIVE_DOOR_GT_BASELINE=1`, `RV_RESTART_REVOCATIONS=1`, `RV_RESTART_DOOR_GT=1`; PRE_FIX на a251334 — нет файла и нет пути (PRE_FIX_NO_REVOKE_CMD=1); clippy 0, стража текста 0; полная верификация VERIFY_FAIL=0, 129 срезов, 768 passed, 0 failed, 9 ignored, 1471 с; диск 28 897 → 28 904 МБ"
+verdict: "supports"
 ---
 
 ## Pre-registration (до прогона)
@@ -46,4 +46,46 @@ PRE_FIX — пин `a251334` (предок дерева): на нём коман
 
 ## Результат
 
-Ожидает прогона; заполняется после двух зелёных прогонов helper'а.
+Вердикт `supports`: все семь пунктов порога выполнены в первом же прогоне, ни одна итерация не
+краснела. `bash lab/e0120-run.sh` — `WORST_RC=0`, лог `lab/logs/e0120-all.log`; оракул прогнан
+дважды на неизменном дереве, оба раза `test result: ok. 2 passed; 0 failed; 0 ignored` за 18,39 с,
+наборы `RV_*` совпали (`STABLE=1`), `expect.py` — 20 ожиданий без расхождений, посадка
+`PASSED=1` покраснела (`PLANT_EXIT=1`), PRE_FIX на `a251334` дал `PRE_FIX_NO_REVOKE_CMD=1`
+(файла `revoke_cmd.rs` нет, пути в диспетчере нет), `cargo clippy -p vecdht-cli --all-targets
+-- -D warnings` — 0, стража текста — 0.
+
+Что видно в восьми инвариантных фактах (одинаково в обоих прогонах):
+
+* `RV_SIGS=3`, `RV_THRESHOLD=3` — отзыв собран тремя подписями при пороге три, и тест **сам**
+  прочитал файл `--out` и проверил его тем же `verify_revoke`, что и получатель; недонабранный
+  порог и ключ вне набора в том же тесте дали код 2 и **отсутствие** файла.
+* `RV_BASELINE_DOOR_ZERO=1` при `peers>0` — дверь владельца до отзыва не отказывала ни разу;
+  `RV_LIVE_DOOR_GT_BASELINE=1` — после рассылки по control-теме тот же кредашиал отвергается.
+* `RV_LIVE_REVOCATIONS=1`, `RV_LIVE_FILE_NONEMPTY=1` — узел применил отзыв **без рестарта** и
+  записал `revocation.bin` в свой `--dir`; причина отказа в логе — `cert is revoked by nonce`,
+  то есть сработал именно отзыв, а не истёкший срок или чужая подпись.
+* `RV_RESTART_REVOCATIONS=1`, `RV_RESTART_DOOR_GT=1` — после рестарта владельца из того же
+  `--dir` **без bootstrap** отзыв поднят с диска и отказ повторён.
+
+Абсолютные счётчики доставок и отказов в порог не входили: `E-0077`/`E-0088` показали, что они
+зависят от расписания шагов; проверялось только «ноль/не ноль» и «больше baseline».
+
+Хвост 3 из `OPEN-QUESTIONS` п. 64 закрыт этой карточкой: отзыв, собранный CLI, применяется живым
+узлом и переживает рестарт. Хвост 2 (подпись кадра отзыва проверяется лишь на наличие) этой
+карточкой не закрыт: `publish_revoke` рассылает `encode_unsigned`, авторитетность даёт порог
+внутри тела.
+
+### Цена верификации
+
+Полная `bash lab/workspace-verify.sh E-0120` — один блок в
+`lab/logs/workspace-verify-2026-10-22.log` от `2026-10-26T03:08:08+03:00`: `VERIFY_FAIL=0`,
+`SECONDS_total=1471` (тесты 1267, clippy 1, Lean 16, самопроверка Lean 146, формальные и гейты 36),
+129 срезов, 768 passed, 0 failed, 9 ignored; `TEST_EXIT=0`, `CLIPPY_EXIT=0`, `LEAN_ALL_OK=1`
+(5 файлов, 115 объявлений), `VERUS_EXIT=0`, `KCC_STATUS=OK`, самопроверки приборов зелёные.
+Носитель: до сборки диск 28 897 МБ, RAM 9518 МБ, после — 28 904 МБ, RAM 7983 МБ, pagefile peak
+7660 МБ (≥ 15 000 МБ выполнено оба раза).
+
+ДИАГНОЗ: при закрытии `E-0119` в его карточку было записано «854 passed» — пересчёт по тому же
+логу двумя способами (сумма `test result:` и счёт строк `^test ... ok$`) даёт **766** при 128
+срезах. Число исправлено в карточке `E-0119`; метод счёта теперь назван там же.
+
