@@ -1,6 +1,6 @@
 ---
 id: H-0128
-status: pre-registered
+status: supported
 date: 2026-10-27
 claim: "Ни в одном workflow дерева не осталось захвата кода возврата формой `cmd …; r=$?`: каждый
 statement, который берёт `$?` после команды через точку с запятой, обязан быть развёрнут в
@@ -152,8 +152,32 @@ or ||». Форма `bash lab/check-spec-mirror.sh > "$L" 2>&1; r=$?` под э�
 до починки, `MIRROR_SCRIPT_REPORT_KEPT=1` после. Что прибор знает, есть ли в шаге чем вынести
 вердикт: он знает форму захвата, а «шаг без вердикта» остаётся хвостом `E-0127` (п. 3).
 
-## Ожидаемый результат
+## Результат
 
-> **Результат: ещё не снят.** Числа шагов 1…8 helper'а сняты до пре-регистрации теми же командами на
-> подготовленном дереве и заморожены в `lab/expectations/e0128.tsv` (139 строк); вердикт пишется после
-> двух совпавших исполнений `lab/e0128-run.sh` и полного контура `lab/workspace-verify.sh E-0128`.
+> **Результат: `supports` (`E-0128`).** Утверждение выполнено дословно: на дереве `472f6e9` прибор
+> печатает `RCC_UNGUARDED=0`, `RCC_LINES_UNGUARDED=0`, `RCC_RECOUNT_EQ=1`, `RCC_BLIND=0`, `RCC_FAIL=0`
+> при `RCC_EXIT=0` и `RCC_CAPTURES=26` в `RCC_RUN_BLOCKS=42`, пустое множество названо словом
+> (`RCC_UNGUARDED_FILE=none`, `RCC_UNGUARDED_MORE=none` в контуре, `RCC_NONE_PRINTED=1` и
+> `RCC_MORE_NONE_PRINTED=1` в носителе цикла); на пине `f62b681` тот же прибор красен
+> (`PRE_FIX_RCC_UNGUARDED=24`, `PRE_FIX_RCC_FAIL=1`, `PRE_FIX_RCC_EXIT=1`). Класс подтверждён
+> исполнением, а не статикой: тело живого шага «зеркало спеки» под настоящим `bash -e` до починки
+> `PRE_FIX_MIRROR_SILENT_ABORT=1` (код 1, `PRE_FIX_MIRROR_ABSENT_NOTICE=0`,
+> `PRE_FIX_MIRROR_REPORT_LINES=0`), после — `MIRROR_ABSENT_EXIT=0` при `MIRROR_ABSENT_NOTICE=1`, а
+> расхождение зеркала остаётся красным (`MIRROR_DIVERGE_EXIT=1`, `MIRROR_DIVERGE_ERROR=1`).
+> Механика названа пятью формами и шестью сводными утверждениями, в том числе
+> `MECHOK_ABORT_INDISTINGUISHABLE_BY_RC=1` при `MECH_A_UNGUARDED_RC=3`/`REACHED=0`/`NOTICES=0` и
+> `MECH_B_GUARDED_RC=3`/`REACHED=1`/`NOTICES=1`; освобождение `set +e` учтено отдельным числом
+> (`PLANT_SETE_BLOCKS_SET_PLUS_E=1` при `PLANT_SETE_EXIT=0`), а не молчанием. Границы удержаны:
+> `CODE_CHANGED_RS=0`, `SPEC_DOCS_UNTOUCHED=1`, `RCC_E0127_INSTRUMENT_UNTOUCHED=1`. Страж вписан в
+> контур тем же циклом (`RCC_CI_STEP_ADDED=1`, `RCC_VERIFY_BLOCK_ADDED=1`), самопроверка прибора —
+> `RCC_SELFTEST_TOTAL=12`, `RCC_SELFTEST_PASSED=12`, `RCC_SELFTEST_FIRED=0`, четыре посадки красны как
+> надо (`PLANT_LANDED=4`, `PLANT_RED_COUNT=3`, `PLANT_ALL_RED=1`), замер исполнен дважды на неизменном
+> дереве (`STABLE=1`), посадка неверного ожидания красна (`PLANT_EXPECT_RED=1`), сверка —
+> `ОЖИДАНИЙ=139 РАСХОЖДЕНИЙ=0`, полный контур — `VERIFY_FAIL=0` (132 среза, 775 passed / 0 failed /
+> 9 ignored, 1649 с).
+
+Чего цикл не утверждает, и это не оговорка, а отсутствие замера: зелёность работы `verify` на GitHub
+после пуша — факт чужого прогона (раннера), на хосте контура не наблюдаемый; ожидание «шаги 11…14
+обязаны дойти до своих вердиктов» перечитывается отдельным прогоном API и этому циклу не засчитано.
+Прибор по-прежнему читает форму захвата `$?`, а не протокольную семантику, и не знает, есть ли в шаге
+чем вынести вердикт — этот хвост `E-0127` (п. 3) не закрыт.

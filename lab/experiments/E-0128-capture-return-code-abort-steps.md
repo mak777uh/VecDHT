@@ -1,10 +1,10 @@
 ---
 id: E-0128
 hypothesis: H-0128
-status: pre-registered
+status: completed
 base_commit: "f62b681"
 started: "2026-10-27"
-finished: ""
+finished: "2026-10-27"
 environment: "x86_64-pc-windows-gnu, хост владельца; bash + sed + awk + grep + python 3 из PATH,
 PyYAML 6.0.3 (нужен `lab/cycle-gate.py`); PATH дополнен /c/Users/Admin/mingw64/bin. Код Rust цикл
 не трогает (`CODE_CHANGED_RS=0`), `cargo` в этом helper'е не вызывается: предмет — текст трёх
@@ -92,8 +92,62 @@ GitHub после этого пуша — факт ЧУЖОГО прогона (
 форму захвата `$?` в workflow-файлах и не знает, есть ли в шаге чем вынести вердикт (хвост `E-0127`,
 п. 3); файлы `lab/*.sh` вне области прибора, кроме одного исключения, найденного чтением и закрытого
 этим же циклом; тег и GitHub Release — красная зона владельца."
-result: "(заполняется закрывающим коммитом после двух прогонов helper'а)"
-verdict: pending
+result: "Починка зелёна на дереве `472f6e9` при красном PRE_FIX на пине `f62b681`, и это один и тот же
+прибор. Два прогона на неизменном дереве совпали построчно (`STABLE=1`), свёрстано 139 фактов без
+расхождений (`ОЖИДАНИЙ=139 РАСХОЖДЕНИЙ=0`, `EXPECT_ROWS=139`, напечатанный `EXPECT_EXIT=0`), итог
+носителя — `WORST_RC=0`, цена helper'а 68 с по меткам носителя (01:15:32 -> 01:16:40).
+
+PRE_FIX (дерево пина из `git archive`, нынешний прибор внутри): `PRE_FIX_RCC_FILES=3`,
+`PRE_FIX_RCC_RUN_BLOCKS=40`, `PRE_FIX_RCC_CAPTURES=24`, `PRE_FIX_RCC_GUARDED=0`,
+`PRE_FIX_RCC_UNGUARDED=24`, `PRE_FIX_RCC_LINES_UNGUARDED=24`, `PRE_FIX_RCC_FINDINGS_PRINTED=24`,
+`PRE_FIX_RCC_RECOUNT_EQ=1`, `PRE_FIX_RCC_BLOCKS_SET_PLUS_E=0`, `PRE_FIX_RCC_BLIND=0`,
+`PRE_FIX_RCC_RED_NOT_BLIND=1`, `PRE_FIX_RCC_FAIL=1`, `PRE_FIX_RCC_EXIT=1` — краснота найдена (24
+адресованных строки в трёх файлах), а не произведена слепотой. Живой прогон после починки:
+`RCC_FILES=3`, `RCC_RUN_BLOCKS=42`, `RCC_CAPTURES=26`, `RCC_GUARDED=26`, `RCC_UNGUARDED=0`,
+`RCC_LINES_UNGUARDED=0`, `RCC_RECOUNT_EQ=1`, `RCC_BLOCKS_SET_PLUS_E=0`, `RCC_BLIND=0`, `RCC_FAIL=0`,
+`RCC_EXIT=0`, пустое множество напечатано словом (`RCC_UNGUARDED_FILE=none`,
+`RCC_UNGUARDED_MORE=none`, `RCC_NONE_PRINTED=1`, `RCC_MORE_NONE_PRINTED=1`).
+
+Симуляция живого шага «зеркало спеки» (`extractstep`: тело шага с пина под настоящим `bash -e` с
+пустым `HOME`): до починки `PRE_FIX_RCS_MATCHES=1`, `PRE_FIX_RCS_BLOCK_LINES=13`,
+`PRE_FIX_MIRROR_ABSENT_EXIT=1`, `PRE_FIX_MIRROR_ABSENT_NOTICE=0`, `PRE_FIX_MIRROR_REPORT_LINES=0`,
+`PRE_FIX_MIRROR_SILENT_ABORT=1`, `PRE_FIX_MIRROR_STEP_DENIES_EXECUTION=1` — ровно то, что насчитал
+чужой прогон; после починки `MIRROR_ABSENT_EXIT=0` при `MIRROR_ABSENT_NOTICE=1`,
+`MIRROR_OK_EXIT=0`/`MIRROR_OK_NOTICE=1`, `MIRROR_DIVERGE_EXIT=1`/`MIRROR_DIVERGE_ERROR=1` (вердикт по
+прежнему красен), `MIRROR_ABSENT_LOG_NAMED=2`, `MIRROR_STEP_DENIES_EXECUTION=0`. Скрипт сверки
+зеркала: `PRE_FIX_MIRROR_SCRIPT_DIVERGE_RC=1` при `PRE_FIX_MIRROR_SCRIPT_REPORT_LOST=1` ->
+`MIRROR_SCRIPT_DIVERGE_RC=1` при `MIRROR_SCRIPT_REPORT_KEPT=1` (код тот же, отчёт вернулся).
+
+Механика пятью формами под `bash -e`: `MECH_A_UNGUARDED_RC=3`/`REACHED=0`/`NOTICES=0`,
+`MECH_B_GUARDED_RC=3`/`REACHED=1`/`NOTICES=1` (guard сохраняет и вердикт, и отчёт),
+`MECH_C_GREEN_RC=0`/`REACHED=1`/`NOTICES=1`, `MECH_D_SET_PLUS_E_RC=3`/`REACHED=1`/`NOTICES=1`,
+`MECH_E_GREP_ABORT_RC=1`/`REACHED=0`/`NOTICES=0` (класс `E-0127` отличается по коду обрыва: 1 против
+3); шесть сводных утверждений `MECHOK_*` равны 1, в том числе
+`MECHOK_ABORT_INDISTINGUISHABLE_BY_RC=1` — по одному коду возврата обрыв неотличим от задуманного
+вердикта. Синтаксис: `RCC_SYNTAX_BLOCKS=42`, `RCC_SYNTAX_DUMP_EXIT=0`, `RCC_SYNTAX_BAD=0`,
+`RCC_SYNTAX_BLOCKS_EQ_RUN_BLOCKS=1`. Самопроверка: `RCC_SELFTEST_TOTAL=12`,
+`RCC_SELFTEST_PASSED=12`, `RCC_SELFTEST_FIRED=0`, `RCC_SELFTEST_FAILED_NAMES=0`,
+`RCC_SELFTEST_RC=0`, `RCC_SELFTEST_OK=1`.
+
+Посадки в копии (живое дерево не тронуто): `PLANT_FLIP_*` -> `to_unguarded`, `UNGUARDED=1`,
+`GUARDED=25`, `CAPTURES=26`, `RECOUNT_EQ=1`, `EXIT=1`, `NAMED=1`, `NONE=0`; `PLANT_BARE_*` ->
+`to_bare_assign`, те же числа; `PLANT_SETE_*` -> `to_set_plus_e`, `UNGUARDED=0`, `GUARDED=26`,
+`BLOCKS_SET_PLUS_E=1`, `EXIT=0`, `NAMED=0`, `NONE=1` (освобождение — учёт, а не
+дефект); слепой каталог `PLANT_BLIND_LANDED=1`, `PLANT_BLIND_BLIND=1`, `PLANT_BLIND_EXIT=1`. Свод:
+`PLANT_LANDED=4`, `PLANT_RED_COUNT=3`, `PLANT_ALL_RED=1`; посадка неверного ожидания красна
+(`PLANT_EXPECT_RED=1`).
+
+Границы и wiring: `CODE_CHANGED_RS=0`, `SPEC_DOCS_UNTOUCHED=1`, `RCC_CI_STEP_ADDED=1`,
+`RCC_VERIFY_BLOCK_ADDED=1`, `RCC_E0127_INSTRUMENT_UNTOUCHED=1`, `MIRROR_SCRIPT_PIPE_GUARDED=1`,
+`SEMICOLON_CAPTURE_LINES=0`. Носитель: `HELPER_BLIND_DIR=0`, `GATE_H0128_OK=1`,
+`PRE_PIN_ARCHIVE_OK=1`. Диск и RAM до и после измерений: 21 892 -> 21 839 МБ, RAM 7 426 -> 6 149 МБ,
+pagefile peak 7 660 МБ (`DISK_GE_15000=1`, `DISK_AFTER_MEASURE_GE_15000=1`).
+
+Полный контур `bash lab/workspace-verify.sh E-0128`: `VERIFY_FAIL=0`, 132 среза со статусом,
+775 passed / 0 failed / 9 ignored, `SECONDS_total=1649`, `TEST_EXIT=0`, `CLIPPY_EXIT=0`, новый блок
+стража в контуре даёт `RCC_SELFTEST_EXIT=0`, `RCC_FAIL=0`, `RCC_EXIT=0`; рядом с ним прежний страж
+`E-0127` — `CRG_SELFTEST_EXIT=0`, `CRG_UNGUARDED_AT=none`, `CRG_FAIL=0`, `CRG_EXIT=0`."
+verdict: supports
 ---
 
 # E-0128 — зелёный продукт прятал второй класс: `cmd; r=$?` обрывает шаг до присваивания
@@ -118,9 +172,9 @@ verdict: pending
 
 ## Ход цикла (E-0128)
 
-Коммиты: пре-регистрация (прибор `lab/check-ci-rc-capture.py`, helper `lab/e0128-run.sh`, таблица 139
+Коммиты: пре-регистрация `c5a4c45` (прибор `lab/check-ci-rc-capture.py`, helper `lab/e0128-run.sh`, таблица 139
 фактов, карточки, `ADR-0069` `proposed`, запись `L-0039`, носитель `lab/logs/ci-runner-read-2026-10-27.log`)
-→ фикс (24 захвата в трёх workflow-файлах получают форму `r=0` + `cmd || r=$?`; `diff | head -40` в
+→ фикс `472f6e9` (24 захвата в трёх workflow-файлах получают форму `r=0` + `cmd || r=$?`; `diff | head -40` в
 `lab/check-spec-mirror.sh` получает guard в конце трубы; шаг «зеркало спеки» переименован честно; два
 новых шага в `verify.yml`; блок в `lab/workspace-verify.sh`) → закрытие.
 
@@ -159,6 +213,13 @@ verdict: pending
 `set -euo pipefail`; проверяется исполнением (`PRE_FIX_MIRROR_SCRIPT_REPORT_LOST=1` →
 `MIRROR_SCRIPT_REPORT_KEPT=1`), а не новой регуляркой. Прибор не знает, есть ли в шаге чем вынести
 вердикт, — хвост `E-0127`, п. 3, остаётся.
+
+**Что показал полный контур.** `bash lab/workspace-verify.sh E-0128` на закрытом дереве заканчивается
+`VERIFY_FAIL=0` при 132 срезе со статусом, 775 passed / 0 failed / 9 ignored и `SECONDS_total=1649`;
+`TEST_EXIT=0` и `CLIPPY_EXIT=0` — то есть продуктовый код не шевельнулся (`CODE_CHANGED_RS=0`), а
+новый блок стража отработал внутри контура (`RCC_SELFTEST_EXIT=0`, `RCC_FAIL=0`, `RCC_EXIT=0`) рядом с
+прежним (`CRG_UNGUARDED_AT=none`, `CRG_EXIT=0`). Числа контура — вердикт хоста, а не раннера: шаги
+`verify.yml` на GitHub этим прогоном не засчитаны, они читаются отдельно (`L-0025`).
 
 ## Ожидаемое наблюдение чужого прогона
 
