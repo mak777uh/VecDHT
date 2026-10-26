@@ -1,0 +1,27 @@
+# A6 / E-0123: §18.9 — карта «слово → id». Порог заморожен до первого прогона lab/e0123-run.sh.
+GATE_H0123_OK	1	гейт карточки H-0123
+DISK_GE_15000	1	свободно на диске до прогона, МБ
+SELFTEST_EXIT	0	селфтест прибора зелёный
+SELFTEST_TOTAL	8	случаев в селфтесте клауз
+SELFTEST_PASSED	8	все восемь случаев решили правильно
+SELFTEST_PLANTED	3	посадок (клаузы без метки) в селфтесте
+SELFTEST_CAUGHT	3	посадки пойманы
+SELFTEST_REFS_VERDICT	1	выдуманный id и выдуманный .rs пойманы сверкой ссылок
+BASE_IS_ANCESTOR	1	пин PRE_FIX — предок дерева
+PRE_CLAIMMAP_SENTENCES	8	клауз в §18.9 до правки
+PRE_CLAIMMAP_UNMAPPED	6	немаркированных клауз до правки
+PRE_CLAIMMAP_MISSING_IDS	0	выдуманных id до правки (их там не было)
+PRE_CLAIMMAP_MISSING_INSTRUMENTS	0	несуществующих приборов до правки
+PRE_CLAIMMAP_EXIT	1	страж на прежнем разделе краснеет
+CLAIMMAP_UNMAPPED	0	после правки немаркированных клауз нет
+CLAIMMAP_MISSING_IDS	0	каждый названный id имеет карточку в lab/
+CLAIMMAP_MISSING_INSTRUMENTS	0	каждый названный .rs существует в crates/
+CLAIMMAP_EXIT	0	страж на отредактированном разделе зелёный
+CLAIMMAP_SENTENCES_GE8	1	число клауз не уменьшилось относительно 8
+STABLE	1	два прогона на неизменном дереве дали одинаковый набор фактов
+PLANT_GUARD	1	посаженная клауза без метки поймана стражем (выход 1)
+PLANT_UNMAPPED	1	страж видит ровно одну немаркированную клаузу в посадке
+PLANT_EXIT	1	подделанное ожидание отклонено expect.py
+MIRROR_EXIT	0	зеркало спеки синхронно с оригиналом
+TEXTGUARD_CYCLE_EXIT	0	страж текста на файлах цикла
+REPOREVIEW_EXIT	0	страж репозитория (структура карточек) зелёный
