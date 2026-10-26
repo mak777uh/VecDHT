@@ -1,0 +1,63 @@
+# E-0126 · заморожено до первого прогона `lab/e0126-run.sh` (2026-10-26).
+# Ключ — имя печатного факта без `=`; значение — точное. Правка любого числа — новая карточка.
+# CK_TAG_EXISTS сознательно ожидает 0: тег ставит владелец (красная зона), и карточка проверяет
+# готовность к тегу, а не сам тег. Если тег появится до закрытия цикла — сверка покраснеет, и это
+# сигнал переснять карточку, а не «починить ожидание».
+GATE_H0126_OK	1	гейт карточки H-0126 пройден (`python lab/cycle-gate.py H-0126`)
+DISK_GE_15000	1	свободно на диске до прогона, МБ
+PRE_FIX_CK_CHANGELOG_EXISTS	0	на дереве `d18ad2b` файла CHANGELOG.md нет
+PRE_FIX_CK_WORKFLOW_EXISTS	0	на дереве `d18ad2b` workflow релиза нет
+PRE_FIX_CK_ADR_LISTED	0	на дереве `d18ad2b` перечислять ADR негде
+PRE_FIX_CK_ADR_RANGE_TOTAL	23	прибор считает ADR и без CHANGELOG: нуль перечисления не путается со слепой маской
+PRE_FIX_KIT_FAIL	1	на дереве `d18ad2b` комплект красен
+PRE_FIX_EXIT	1	выход прибора на PRE_FIX-дереве равен 1
+CK_CHANGELOG_EXISTS	1	после правки CHANGELOG.md в дереве есть
+CK_CHANGELOG_FROM_V75	1	в нём названа отправная точка `v7.5`
+CK_ADR_RANGE_TOTAL	23	диапазон релизной очереди выведен из дерева
+CK_ADR_LISTED	23	все ADR очереди названы в CHANGELOG
+CK_ADR_ALL	1	число перечисленных равно числу существующих
+CK_WORKFLOW_EXISTS	1	`.github/workflows/release.yml` есть
+CK_WORKFLOW_ON_TAG	1	он триггерится на `on.push.tags`
+CK_WORKFLOW_RUNS_VERIFY	1	он вызывает `lab/workspace-verify.sh`
+CK_WORKFLOW_RUNID	1	аргумент — `$GITHUB_REF_NAME`, тег называет свой блок лога
+CK_WORKFLOW_BUILDS_RECIPE	1	сборка в workflow — та же строка, что в README
+CK_WORKFLOW_ARTIFACT	1	бинарь `vecdht-cli` выкладывается артефактом
+CK_YAML_PARSE	1	файл читается как YAML, а не как «набор строк»
+CK_VERSION_CARGO	1.0.0	версия в `[workspace.package]`
+CK_VERSION_SDK	1.0.0	версия в `sdk/vecdht-py/Cargo.toml`
+CK_VERSION_CHANGELOG	1.0.0	заголовок верхней секции CHANGELOG
+CK_VERSION_EQ	1	Cargo.toml и CHANGELOG согласованы
+CK_VERSION_ALL	1	все три носителя согласованы
+CK_README_RECIPE	1	рецепт сборки назван литералом в обоих README
+CK_TAG_EXISTS	0	замер: на хосте контура тега ещё нет (красная зона владельца)
+KIT_FAIL	0	ни одного нулевого обязательного флага
+KIT_EXIT	0	выход прибора на рабочем дереве равен 0
+ADR_INDEP_COUNT	23	независимый пересчёт (другим кодом) того же диапазона
+ADR_COUNT_EQ	1	прибор и пересчёт согласованы
+PLANT_A_CHANGELOG	0	посадка (а): удалён CHANGELOG.md
+PLANT_A_EXIT	1	прибор на посадке (а) красен
+PLANT_B_ADR_ALL	0	посадка (б): из CHANGELOG вычеркнута строка `ADR-0050`
+PLANT_B_LISTED	22	в посадке (б) перечислено на одного меньше, чем есть
+PLANT_B_EXIT	1	прибор на посадке (б) красен
+PLANT_C_ON_TAG	0	посадка (в): `push:` заменён на `pull_request:`, YAML остаётся валидным
+PLANT_C_EXIT	1	прибор на посадке (в) красен
+PLANT_D_RUNID	0	посадка (г): аргумент верификации — литеральный id вместо имени тега
+PLANT_D_RUNS_VERIFY	1	в посадке (г) вызов верификации остался: два флага независимы
+PLANT_D_EXIT	1	прибор на посадке (г) красен
+PLANT_E_VERSION_ALL	0	посадка (д): SDK вернулся к `0.1.0`
+PLANT_E_VERSION_EQ	1	в посадке (д) Cargo/CHANGELOG согласованы: флаг не зависит от SDK
+PLANT_E_EXIT	1	прибор на посадке (д) красен
+PLANT_F_YAML	0	посадка (ё): в workflow вставлен неразбираемый YAML
+PLANT_F_ARTIFACT	1	в посадке (ё) артефакт назван: parse-флаг не наследует чужие нули
+PLANT_F_EXIT	1	прибор на посадке (ё) красен
+PLANT_LANDED	6	все шесть мутаций реально изменили байты в copy-дереве
+PLANT_ALL_RED	1	все шесть посадок дали выход 1
+CODE_CHANGED_RS	0	ни одного `.rs` файла правка цикла не тронула
+CARGO_METADATA_LOCKED_EXIT	0	`Cargo.lock` не отстал от новой версии
+PLANT_EXIT	1	посадка неверного ожидания обязана краснеть (`lab/expect.py`)
+STABLE	1	инвариантные факты двух исполнений helper'а совпали
+TEXTGUARD_EXIT	0	страж текста на файлах цикла
+LINT_EXIT	0	`lab/threshold-lint.py` на таблице e0126: сирот нет
+CLAIMMAP_EXIT	0	страж §18.9 (правки спеки в этом цикле нет, проверка обязана быть)
+REPO_REVIEW_EXIT	0	`lab/repo-review.py` без замечаний
+MIRROR_EXIT	0	зеркало спеки синхронно
