@@ -16,6 +16,9 @@
 //!   (`genesis build` пишет именно его).
 //! * **Своё место в составе** — §7.3: индексный узел, которого нет в genesis, не обслуживает
 //!   шард; принимать кадры он мог бы, но ответов по шарду не давал бы «по праву».
+//! * **Центроиды** — `centroid.bin` из `--artifact` обязателен: без него узел принимал бы
+//!   `cluster_id` издателя (fail-open, `c103`), поэтому отсутствие файла — отказ старта, а
+//!   принятый артефакт отдаётся узлу через `with_centroids` (§7.3).
 //!
 //! # Откуда берётся отправитель кадра genesis
 //!
@@ -45,6 +48,7 @@
 
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use libp2p::Multiaddr;
@@ -231,6 +235,10 @@ pub fn exec_run(p: &Parsed, _out: &mut String) -> Result<(), CliError> {
         .map_err(|e| fail(format!("открытие шарда {shard} в `{}`", dir.display()), e))?;
     node.on_frame(signer, &genesis_bytes, Clock::at(now))
         .map_err(|e| fail("genesis не принят узлом", e))?;
+    // §7.3: с центроидами артефакта узел пересчитывает присваивание по `vec_q`, а не верит
+    // `cluster_id` издателя. Без этого вызова продуктовая команда попадала бы в fail-open-ветку,
+    // которую `c103` измеряет как `cluster_unverified`, — «узел принимает чужой кластер».
+    let node = node.with_centroids(Arc::new(a.centroids.clone()));
 
     let timeout = p.num_or::<u64>(CMD_RUN, "timeout", 20)?;
     if timeout == 0 {
@@ -315,8 +323,18 @@ async fn serve(
         }
         if let Some(mut at) = next_status {
             if now >= at {
+                // Наблюдаемость §7.3: без этих двух счётчиков «узел пересчитывает присваивание»
+                // и «узел верит подсказке издателя» неотличимы снаружи.
+                let (cluster_reassigned, cluster_unverified) = service
+                    .node(shard)
+                    .map(|n| {
+                        let s = n.admission.borrow().stats;
+                        (s.cluster_reassigned, s.cluster_unverified)
+                    })
+                    .unwrap_or((0, 0));
                 emit(&format!(
-                    "NODE_STATUS t={:.0} peers={} kad={} revocations={} door_refusals={} shard={shard}",
+                    "NODE_STATUS t={:.0} peers={} kad={} revocations={} door_refusals={} shard={shard} \
+                     cluster_reassigned={cluster_reassigned} cluster_unverified={cluster_unverified}",
                     now.duration_since(started).as_secs_f64(),
                     service.authenticated_peers().len(),
                     service.kad_peer_count(),
