@@ -1,0 +1,39 @@
+# E-0124 · заморожено до первого прогона `lab/e0124-run.sh` (2026-10-26).
+# Ключ — имя печатного факта без `=`; значение — точное. Правка любого числа — новая карточка.
+GATE_H0124_OK	1	гейт карточки H-0124 пройден
+DISK_GE_15000	1	свободно на диске до прогона, МБ
+PRE_FIX_LEASE_FILE	0	на дереве до правки `lease.bin` не появляется
+PRE_FIX_PRIMARY_SERVING	0	на дереве до правки reopen не возвращает право писать
+PRE_FIX_PRIMARY_PUBLISH_OK	0	на дереве до правки публикация после reopen не проходит
+PRE_FIX_PLANT_REJECTED	0	на дереве до правки честный кадр тоже не поднимается (прибор красен целиком)
+PRE_FIX_REFUSAL	EPOCH_STALE	на дереве до правки отказ назван именно так
+PRE_FIX_STATUS_LEASE_FIELD	0	на дереве до правки в NODE_STATUS нет поля lease=
+PRE_FIX_STATUS_SERVING_FIELD	0	на дереве до правки в NODE_STATUS нет поля serving_epoch=
+PRE_FIX_RESTART_PUBLISH_OK	0	на дереве до правки CLI-узел после рестарта не принимает запись
+NODE_EXIT	0	тест lease_after_restart зелёный
+NODE_FAILED	0	упавших тестов в крейте узлов нет
+CLI_EXIT	0	тест node_lease_status зелёный
+CLI_FAILED	0	упавших тестов в CLI нет
+RESTART_RECOVERY_EXIT	0	прежний контракт «рестарт без гранта» жив
+LR_LEASE_FILE	1	primary кладёт подписанный грант в каталог шарда
+LR_FILE_EQ_FRAME	1	файл — ровно тот кадр, что ушёл по проводу
+LR_PRE_REFUSAL	EPOCH_STALE	без файла отказ преждний: EPOCH_STALE
+LR_NO_GRANT_SERVING	0	без файла права писать нет
+LR_EPOCH_UNCHANGED	1	рестарт не двигает эпоху
+LR_PRIMARY_SERVING	1	действующий грант возвращает serving_epoch
+LR_PRIMARY_PUBLISH_OK	1	публикация после reopen проходит на той же эпохе
+LR_PLANT_EPOCH_FUTURE	1	грант «будущей» эпохи не поднимается
+LR_PLANT_BAD_SIGNATURE	1	грант с битой подписью не поднимается
+LR_PLANT_EXPIRED	1	грант с истёкшим бакетом не поднимается
+LR_PLANT_REJECTED	3	все три посадки отвергнуты, и контрольный кадр поднимается в той же директории
+LR_EXPIRED_GRANT_NOT_SERVING	1	истёкший грант не обслуживает по часам проводника
+LR_REPLICA_NO_LEASE	1	реплика поднимается без lease и без файла
+LR_REPLICA_PUBLISH_NOT_OWNER	1	запись у реплики отсекается NOT_OWNER
+LR_STATUS_LEASE_FIELD	1	NODE_STATUS печатает lease=
+LR_STATUS_SERVING_FIELD	1	NODE_STATUS печатает serving_epoch=
+LR_CLI_EPOCH_ONE	1	после рестарта процесса узел обслуживает эпоху 1
+LR_RESTART_PUBLISH_OK	1	публикация через CLI-узел после рестарта проходит
+STABLE	1	наборы фактов двух прогонов совпали
+PLANT_EXIT	1	посадка неверного ожидания обязана краснеть
+TEXTGUARD_CYCLE_EXIT	0	страж текста на файлах цикла
+REPO_REVIEW_EXIT	0	repo-review без замечаний к файлам цикла
