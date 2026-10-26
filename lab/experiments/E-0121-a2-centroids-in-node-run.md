@@ -1,15 +1,15 @@
 ---
 id: E-0121
 hypothesis: H-0121
-status: running
+status: completed
 base_commit: "dc6a9d6"
 started: "2026-10-26"
-finished: ""
+finished: "2026-10-26"
 environment: "x86_64-pc-windows-gnu, хост владельца; Rust из PATH (cargo/rustc), Python 3 из PATH, PYTHONIOENCODING=utf-8; debug-сборка инкрементально поверх дерева dc6a9d6; сеть — 127.0.0.1, QUIC, два процесса `node run`, публикация и поиск настоящим `vecdht_net::Agent`"
 command: "bash lab/e0121-run.sh"
 threshold: "(1) `cycle-gate.py gate H-0121` выход 0, диск ≥ 15 000 МБ до и после; (2) `cargo test -q -p vecdht-cli --test node_centroids -- --test-threads=1 --nocapture` дважды на неизменном дереве: RESULT_EXIT=0, PASSED=2, FAILED=0 в каждом прогоне, наборы `CT_*`-фактов совпали (STABLE=1); (3) `expect.py lab/expectations/e0121.tsv` по обоим прогонам: EXPECT_EXIT=0 при `CT_MISSING_CODE=2`, `CT_MISSING_NAMED=1`, `CT_HONEST_REASSIGNED=0`, `CT_FORGED_REASSIGNED_GE1=1`, `CT_FORGED_UNVERIFIED_ZERO=1`, `CT_FORGED_CELL_HONEST=1`, `CT_STATUS_CLUSTER_FIELDS=1`; (4) посадка `CT_FORGED_REASSIGNED_GE1=0` в копию таблицы даёт EXPECT_EXIT=1 (PLANT_EXIT=1); (5) PRE_FIX: на дереве `dc6a9d6` в `crates/vecdht-cli/src/node_cmd.rs` нет ни `with_centroids`, ни поля `cluster_reassigned=` в строке `NODE_STATUS` (PRE_FIX_NO_CENTROIDS_WIRING=1); (6) `cargo clippy -q -p vecdht-cli --all-targets -- -D warnings` выход 0; (7) стража текста на новых файлах цикла выход 0. Порог заморожен до первого прогона `lab/e0121-run.sh`; изменение любого числа — новая карточка."
-result: "pending"
-verdict: "pending"
+result: "helper `WORST_RC=0`, два прогона `RESULT_EXIT=0` по `2 passed` за 6,54 и 6,45 с, `STABLE=1`, 19 ожиданий без расхождений, `PLANT_EXIT=1`; семь фактов в обоих прогонах: `CT_MISSING_CODE=2`, `CT_MISSING_NAMED=1`, `CT_HONEST_REASSIGNED=0`, `CT_FORGED_REASSIGNED_GE1=1`, `CT_FORGED_UNVERIFIED_ZERO=1`, `CT_FORGED_CELL_HONEST=1`, `CT_STATUS_CLUSTER_FIELDS=1`; PRE_FIX на `dc6a9d6` — нет `with_centroids` и нет полей в `NODE_STATUS` (`PRE_FIX_NO_CENTROIDS_WIRING=1`); clippy 0, стража текста 0; полная верификация `VERIFY_FAIL=0`: 109 тестовых бинарей, 858 passed, 0 failed, 9 ignored, 1459 с; диск 28 588 → 28 566 МБ у helper'а и 28 349 → 28 355 МБ у верификации. Цена верификации: один ложный красный — в шапке стояла пустая пара кавычек вместо `pending`, и страж `repo-review.py` счёл её вердиктом (`closed-empty-result`) при всех зелёных кодовых стадиях; после перевода в `pending` — повторный прогон 1459 с."
+verdict: "supports"
 ---
 
 ## Поправки прибора до закрытия (порог не менялся)
@@ -71,4 +71,27 @@ PRE_FIX — пин `dc6a9d6` (текущая вершина до фикса): н
 
 ## Результат
 
-(заполняется после прогона)
+Вердикт `supports`: все семь пунктов порога выполнены, дыра A2 закрыта на уровне продуктовой
+команды, а не только API узла.
+
+1. **Отказ вместо fail-open при отсутствии центроидов.** `node run` с артефактом без
+   `centroid.bin` выходит кодом 2, текст называет файл, каталог узла не создаётся
+   (`CT_MISSING_CODE=2`, `CT_MISSING_NAMED=1`).
+2. **Пересчёт на живом узле.** Два настоящих процесса `node run` принимают публикацию настоящего
+   `Agent`: честное присваивание — `cluster_reassigned=0`; публикация с чужим `cluster_id` того же
+   шарда принята, но запись лежит в пересчитанной ячейке и находится `Find` по честному кластеру
+   (`CT_FORGED_CELL_HONEST=1`), при этом `cluster_reassigned ≥ 1` и `cluster_unverified=0`.
+3. **Наблюдаемость.** Оба счётчика печатаются в `NODE_STATUS` рядом с `shard`
+   (`CT_STATUS_CLUSTER_FIELDS=1`); без них «узел пересчитал» и «узел поверил подсказке» снаружи
+   неотличимы, кроме как поиском.
+
+**Цена верификации.** Один ложный красный: шапка карточки содержала пустую пару кавычек вместо
+`pending`, и страж `repo-review.py` (проверка `verdict` не учитывает форму пустой строки, в отличие
+от проверки `result`) выдал `closed-empty-result` при всех зелёных кодовых стадиях того же прогона.
+Карточка приведена к прецеденту, верификация перезапущена на том же дереве: `VERIFY_FAIL=0`,
+109 тестовых бинарей, 858 passed, 0 failed, 9 ignored, 1459 с, диск 28 349 → 28 355 МБ.
+Порог при этом не менялся: семь пунктов были зелены в обоих прогонах.
+
+**Чего результат не говорит.** Цена `assign` на publish-пути не перемерялась (`E-0103`);
+расхождение центроидов артефакта у узла и клиента не проверялось; `artifact remap` и смена
+артефакта на живом узле — отдельный вопрос; без `--artifact` узел не поднимается (так с A1).
