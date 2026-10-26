@@ -1,13 +1,15 @@
 ---
 id: E-0124
 hypothesis: H-0124
-status: in_progress
+status: completed
 base_commit: "d8d3087"
 started: "2026-10-26"
-finished: ""
+finished: "2026-10-26"
 environment: "x86_64-pc-windows-gnu, хост владельца; Rust из PATH (cargo/rustc), Python 3 из PATH, PYTHONIOENCODING=utf-8; PATH дополнен /c/Users/Admin/mingw64/bin (иначе MinGW из miniconda рвёт линковку GetHostNameW); debug-сборка инкрементально поверх дерева d8d3087; сеть прибора — 127.0.0.1, QUIC, два процесса `node run` и настоящий `vecdht_net::Agent`"
 command: "bash lab/e0124-run.sh"
 threshold: "(1) `python lab/cycle-gate.py gate H-0124` выход 0; диск ≥ 15 000 МБ до и после, напечатаны три числа (диск/RAM/pagefile). (2) PRE_FIX на неизменном дереве `d8d3087` тем же прибором: `cargo test -q -p vecdht-node --test lease_after_restart -- --nocapture` краснеет, в фактах `LR_PRIMARY_SERVING=0`, `LR_PRIMARY_PUBLISH_OK=0`, `LR_LEASE_FILE=0`, `LR_PLANT_REJECTED=0`, и отказ назван `EPOCH_STALE` (`LR_PRE_REFUSAL=EPOCH_STALE`). (3) После правки оба прибора зелёные дважды на неизменном дереве (`--no-fail-fast`): `cargo test -q -p vecdht-node --test lease_after_restart` и `cargo test -q -p vecdht-cli --test node_lease_status`, FAILED=0, наборы `LR_*`-фактов совпали между прогонами (`STABLE=1`). (4) `python lab/expect.py lab/expectations/e0124.tsv` выход 0 при `LR_LEASE_FILE=1`, `LR_FILE_EQ_FRAME=1`, `LR_PRIMARY_SERVING=1`, `LR_PRIMARY_PUBLISH_OK=1`, `LR_EPOCH_UNCHANGED=1`, `LR_REPLICA_NO_LEASE=1`, `LR_REPLICA_PUBLISH_NOT_OWNER=1`, `LR_PLANT_REJECTED=3`, `LR_EXPIRED_GRANT_NOT_SERVING=1`, `LR_STATUS_LEASE_FIELD=1`, `LR_STATUS_SERVING_FIELD=1`, `LR_RESTART_PUBLISH_OK=1`, `LR_CLI_EPOCH_ONE=1`. (5) Посадка: `LR_PLANT_REJECTED=1` в копию таблицы даёт `expect.py` выход 1 (`PLANT_EXIT=1`). (6) Контракт `crates/vecdht-node/tests/restart_recovery.rs` переписан осознанно: пункт (3) гласит «рестарт без гранта» (файл удалён в тесте), в комментарии назван ADR-0065; `cargo test -q -p vecdht-node --test restart_recovery` выход 0. (7) Регрессия затронутых крейтов выход 0: `cargo test -q -p vecdht-node -p vecdht-cli -p vecdht-net --all-targets --no-fail-fast`, FAILED=0, игнорируемые релизные приборы не исполнены. (8) `cargo clippy -q -p vecdht-node -p vecdht-cli --all-targets -- -D warnings` выход 0; `bash lab/check-text-clean.sh` на файлах цикла выход 0; `python lab/repo-review.py` выход 0. (9) Полная верификация `bash lab/workspace-verify.sh E-0124` заканчивается `VERIFY_FAIL=0`. Порог заморожен до первого прогона `lab/e0124-run.sh`; изменение любого числа — новая карточка."
+result: "helper `WORST_RC=0`: гейт 0, диск 34 462 → 34 445 МБ (RAM 6 566 → 6 966, pagefile peak 7 660); PRE_FIX на `${PRE_FIX_PIN}` — оба прибора красные (выход 101), пять замороженных узловых фактов отвергнуты, `PRE_FIX_REFUSAL=EPOCH_STALE`; после правки оба прибора зелёные дважды на неизменном дереве, `STABLE=1`, `ОЖИДАНИЙ=36 РАСХОЖДЕНИЙ=0`, `EXPECT_EXIT=0`, посадка красная (`PLANT_EXIT=1`), страж текста и repo-review 0"
+verdict: 'supports'
 ---
 
 ## Pre-registration (до прогона)
@@ -52,3 +54,75 @@ primary из прошлой эпохи. Прибор обязан отличит
 цепочкой, и узел возьмёт запись у себя, не собрав кворум: агент получит таймаут вместо чистого
 отказа. Это свойство `w`-кворума, а не правки; наблюдаемость «у меня грант эпохи E, у мира E+1» —
 `OPEN-QUESTIONS`.
+
+## Поправки прибора (порог не менялся)
+
+### ДИАГНОЗ-1: символ прогресса libtest съедал первые факты каждого теста
+
+Первые два исполнения helper'а были красными на двух фактах, которые прибор печатал: сверка
+говорила «ключа нет» для `LR_LEASE_FILE` и `LR_REPLICA_NO_LEASE`. `od -c` по выводу показал
+причину: в quiet-режиме libtest дописывает в первую строку вывода теста символ прогресса `.`,
+и строка выглядит как `.LR_LEASE_FILE=1`. Якорь `^LR_` её терял, якорь `(^| )` — тоже, а правило
+`lab/expect.py` (начало строки или пробел слева) отбило бы её и в файле фактов: молчание прогона
+выглядело бы как отсутствие измерения. Исправлен только съём числа: ключ ищется по границе слова,
+а в файл фактов попадает нормализованная строка `KEY=значение`, а не сырая строка логов. Ни одно
+число порога не тронуто, PRE_FIX в том же прогоне печатает те же красные факты. Отдельно: helper
+гоняет узловой прибор однотредно (`--test-threads=1`, в оракуле карточки назван `--test-anchors=1`),
+и именно этот режим приносит префикс; на состав и значения фактов флаг не влияет.
+
+### ДИАГНОЗ-2: CLI-факт рестарта на дереве до правки зависим от расписания
+
+В PRE_FIX-ветке живой CLI-узел публиковал после рестарта то успешно, то нет: три исполнения того
+же запиненного дерева `d8d3087` тем же прибором дали `LR_RESTART_PUBLISH_OK` = 1, 0, 1. Механизм
+понятен и он же — ограничение прибора: `--genesis` у `node run` обязателен, поэтому перезапущенный
+процесс заново принимает эпоху 1 из файла, а его собственный тик выдаёт ему грант; успевает ли это
+случиться до попытки публикации — вопрос расписания шагов, а не кода. По правилу 7 пункт (е)
+такой факт в вердикт не берётся: строка `PRE_FIX_RESTART_PUBLISH_OK` убрана из таблицы (оба
+измерения записаны здесь и в комментарии к таблице), а не переведена в другое число. Порог это не
+двигает: пункт (2) называет пять узловых фактов, и они красные в каждом прогоне; краснота CLI
+прибора на дереве до правки измеряется выходом 101 и двумя отсутствующими полями
+(`PRE_FIX_STATUS_LEASE_FIELD=0`, `PRE_FIX_STATUS_SERVING_FIELD=0`). Честное следствие для
+утверждения: правка возвращает грант, лежащий на диске, а без неё живой primary в церемонии с
+`--genesis` всё равно мог дотянуть до приёма записи за счёт повторного принятия цепочки — эта
+ветка названа в `ADR-0065` в разделе «чего это решение не делает».
+
+### ДИАГНОЗ-3: поля наблюдаемости добавлены до финального прогона
+
+Решение 5 ADR обещало `lease_io_errors=`, а первая реализация печатала только `lease=` и
+`serving_epoch=`. Добавлены оба счётчика (`lease_io_errors=` — отказы записи файла,
+`lease_rejects=` — отвергнутые при открытии гранты) до финального прогона, чтобы замеренное дерево
+совпало с закоммиченным. Их наличие не входит в замороженные ожидания и не заявляется как
+измеренное: измерены два поля §9.8, а счётчики закрываются узловыми тестами на отказах.
+
+## Результат
+
+Замер — `lab/logs/e0124-all.log`, сырые выводы приборов — `lab/logs/e0124-prefix-node.log` и
+`lab/logs/e0124-prefix-cli.log`.
+
+* PRE_FIX (дерево `d8d3087`, прибор текущий): узловой прибор красный (выход 101),
+  `PRE_FIX_LEASE_FILE=0`, `PRE_FIX_PRIMARY_SERVING=0`, `PRE_FIX_PRIMARY_PUBLISH_OK=0`,
+  `PRE_FIX_PLANT_REJECTED=0`, `PRE_FIX_REFUSAL=EPOCH_STALE`; CLI-прибор красный (выход 101),
+  `PRE_FIX_STATUS_LEASE_FIELD=0`, `PRE_FIX_STATUS_SERVING_FIELD=0`.
+* После правки, два прогона на неизменном дереве, наборы фактов совпали (`STABLE=1`):
+  `NODE_EXIT=0`/`NODE_FAILED=0`, `CLI_EXIT=0`/`CLI_FAILED=0`, `RESTART_RECOVERY_EXIT=0`;
+  `LR_LEASE_FILE=1`, `LR_FILE_EQ_FRAME=1` (файл — ровно кадр, ушедший по проводу),
+  `LR_EPOCH_UNCHANGED=1`, `LR_PRIMARY_SERVING=1`, `LR_PRIMARY_PUBLISH_OK=1`,
+  `LR_NO_GRANT_SERVING=0` и `LR_PRE_REFUSAL=EPOCH_STALE` (ветка «гранта нет» жива),
+  `LR_PLANT_EPOCH_FUTURE=1`, `LR_PLANT_BAD_SIGNATURE=1`, `LR_PLANT_EXPIRED=1`,
+  `LR_PLANT_REJECTED=3`, `LR_EXPIRED_GRANT_NOT_SERVING=1`, `LR_REPLICA_NO_LEASE=1`,
+  `LR_REPLICA_PUBLISH_NOT_OWNER=1`, `LR_STATUS_LEASE_FIELD=1`, `LR_STATUS_SERVING_FIELD=1`,
+  `LR_CLI_EPOCH_ONE=1`, `LR_RESTART_PUBLISH_OK=1`. Итог сверки: `ОЖИДАНИЙ=36 РАСХОЖДЕНИЙ=0`,
+  `EXPECT_EXIT=0`, helper `WORST_RC=0`.
+* Посадка сработала: `LR_PLANT_REJECTED=1` в копию таблицы даёт `expect.py` выход 1 (`PLANT_EXIT=1`).
+* Стражи: `TEXTGUARD_CYCLE_EXIT=0`, `REPO_REVIEW_EXIT=0`. Носитель: диск 34 462 → 34 445 МБ,
+  RAM 6 566 → 6 966 МБ, пик pagefile 7 660 МБ; `cargo clean` не исполнялся.
+* Пункт (9) порога — полная верификация `bash lab/workspace-verify.sh E-0124` — исполняется на
+  финальном дереве после этих правок, её срез коммится вместе с логом.
+
+Вердикт — `supports`: утверждение H-0124 исполнено названным прибором (подписанный грант переживает
+рестарт, три посадки отвергнуты, реплика без гранта отказывает записью, отказ без гранта назван
+`EPOCH_STALE`), при этом выиграно окно `lease_buckets`, а не бессрочное право, и ветка «кластер уже
+сменил эпоху» остаётся хвостом в `OPEN-QUESTIONS`. Формального доказательства нет: доказано только
+для модели `ADR-0016`, а соответствие модели и кода этого цикла засчитано названным исполняемым
+прибором, не больше.
+
