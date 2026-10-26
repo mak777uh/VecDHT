@@ -116,6 +116,15 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "CLAIMMAP_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-claim-map.py 2>&1 | tail -1
   rc=${PIPESTATUS[0]}; echo "CLAIMMAP_EXIT=$rc"; note $rc
+  # Отчётные трубы workflow'ов проверяются здесь же, где и всё остальное: шаг, который краснеет от
+  # собственного grep'а раньше вердикта, — это красный CI при зелёном продукте (`E-0127`). Прибор
+  # обязан самопроверяться посаженными формами: гейт, который никто не гоняет с дефектом, через
+  # пять циклов превращается в зелёный текст (тот же довод, что посадил самопроверку в `lean-check.py`).
+  echo "### ci report-grep guard ### $(date +%FT%T%:z)"
+  python lab/check-ci-report-greps.py selftest 2>&1 | tail -8
+  rc=${PIPESTATUS[0]}; echo "CRG_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-ci-report-greps.py check 2>&1 | tail -4
+  rc=${PIPESTATUS[0]}; echo "CRG_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc

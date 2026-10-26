@@ -1,0 +1,88 @@
+# E-0127 · заморожено до первого прогона `lab/e0127-run.sh` (2026-10-26).
+# Ключ — имя печатного факта без `=`; значение — точное. Правка любого числа — новая карточка.
+# Числа `PRE_FIX_*` сняты до пре-регистрации на дереве пина `d18ad2b`, извлечённом `git archive`,
+# нынешним прибором (прибора на пине нет): 2 файла workflow, 21 блок `run:`, 23 statement'а с grep,
+# из них 21 отчётная труба без guard. Числа живого прогона сняты на подготовленной КОПИИ дерева
+# после правки (3 файла, 32 блока, 30 statement'ов, 0 находок) — копия и есть то, что потом легло
+# в рабочее дерево, поэтому расхождение сверки означает не «подправь ожидание», а «дерево уехало
+# от замеренного состояния».
+GATE_H0127_OK	1	гейт карточки H-0127 пройден (`python lab/cycle-gate.py H-0127`)
+DISK_GE_15000	1	свободно на диске до прогона, МБ (порог >= 15000, сведён в флаг)
+PRE_FIX_CRG_FILES	2	на пине `d18ad2b` workflow'а два: `verify.yml` и `formal.yml`
+PRE_FIX_CRG_RUN_BLOCKS	21	блоков `run:` на пине
+PRE_FIX_CRG_GREP_STATEMENTS	23	statement'ов с grep на пине
+PRE_FIX_CRG_UNGUARDED	21	отчётных grep без guard на пине: именно это красит работу
+PRE_FIX_CRG_MISPLACED	0	неверно поставленный guard на пине: класс появился вместе с починкой
+PRE_FIX_CRG_VERDICT_GREP	0	вердикт-грепа на пине нет (`release.yml` появляется позже)
+PRE_FIX_CRG_LINES_NOGUARD	21	независимый пересчёт другим кодом обязан совпадать с прибором
+PRE_FIX_CRG_RECOUNT_EQ	1	два кода сошлись на красном дереве, а не только на зелёном
+PRE_FIX_CRG_BLIND	0	прибор на пине не ослеп: каталог есть, блоки найдены
+PRE_FIX_CRG_FAIL	1	краснота PRE_FIX — находки, а не отсутствие исполнителя
+PRE_FIX_CRG_EXIT	1	выход прибора на пине
+PRE_FIX_RED_NOT_BLIND	1	условие «находок > 0 И слепоты = 0 И пересчёт сошёлся И выход != 0»
+CRG_DIR_ABSENT	0	каталог `.github/workflows` на месте
+CRG_FILES	3	workflow'а: verify, formal, release
+CRG_RUN_BLOCKS	32	блоков `run:` после починки (30 прежних + 2 шага нового стража)
+CRG_GREP_STATEMENTS	30	statement'ов с grep (26 прежних + 4 в новых шагах)
+CRG_UNGUARDED	0	отчётных grep без guard на починном дереве не осталось
+CRG_MISPLACED	0	guard везде стоит в конце трубы, а не после `grep`
+CRG_VERDICT_GREP	1	вердикт-греп рецепта в `release.yml` остался без guard и посчитан
+CRG_SUBST_GREP	1	grep внутри `$( )` в аргументе `echo`: под `-e` шага не срывает, и это не находка
+CRG_LINES_NOGUARD	1	пересчёт по физическим строкам: одна строка, и та `|| true` в хвосте
+CRG_RECOUNT_EQ	1	python (по statement'ам) и awk-подобный пересчёт (по строкам) согласны
+CRG_UNREADABLE	0	ни один workflow-файл не оказался нечитаемым
+CRG_BLIND	0	прибор видит каталог, блоки и statement'ы: ноль находок значит ноль находок
+CRG_FAIL	0	суммарный вердикт прибора по починному дереву
+CRG_EXIT	0	выход `python lab/check-ci-report-greps.py check`
+CRG_NONE_PRINTED	1	пустое множество напечатано словом `none`, а не молчанием
+MECH_A_UNGUARDED_RC	1	форма «grep в середине, без guard»: труба отдаёт 1
+MECH_A_UNGUARDED_REACHED	0	строка вердикта НЕ исполнена: `-e` оборвал шаг
+MECH_A_UNGUARDED_NOTICES	0	рассылки не произошло: шаг упал до неё
+MECH_A_GUARDED_RC	0	guard в конце трубы -> шаг доходит до вердикта
+MECH_A_GUARDED_REACHED	1	строка вердикта исполнена
+MECH_A_GUARDED_NOTICES	0	находки в этом логе нет, печатать нечего
+MECH_B_UNGUARDED_RC	1	та же поломка в форме `{ echo; grep; } | while`
+MECH_B_UNGUARDED_REACHED	0	обрыв до вердикта, хотя одна строка уже ушла в notices
+MECH_B_UNGUARDED_NOTICES	1	один notice успел уйти: частичный отчёт хуже полного
+MECH_B_GUARDED_RC	0	guard в конце трубы спасает и форму с фигурными скобками
+MECH_B_GUARDED_REACHED	1	строка вердикта исполнена
+MECH_B_GUARDED_NOTICES	1	рассылка сохранена целиком
+MECH_C_MISPLACED_HIT_RC	0	`grep … || true | while …` зелёный: шаг НЕ падает
+MECH_C_MISPLACED_HIT_REACHED	1	до вердикта дошли — форма выглядит починкой
+MECH_C_MISPLACED_HIT_NOTICES	0	но на находке notices ноль: рассылка потеряна молча
+MECH_D_MISPLACED_EMPTY_RC	0	та же форма на пустом логе тоже зелёная
+MECH_D_MISPLACED_EMPTY_REACHED	1	вердикт исполняется
+MECH_D_MISPLACED_EMPTY_NOTICES	0	и ничего не приходит: зелёнсть неотличима от слепоты
+MECHOK_ABORT_BEFORE_VERDICT	1	утверждение: без guard шаг обрывается ДО `exit $r`
+MECHOK_GUARD_REACHES_VERDICT	1	утверждение: guard в конце трубы возвращает вердикту силу
+MECHOK_BRACES_ALSO_ABORT	1	утверждение: форма со `{ } | while` ломается так же
+MECHOK_GUARD_KEEPS_NOTICES	1	утверждение: правильный guard сохраняет рассылку
+MECHOK_MISPLACED_LOSES_NOTICES	1	утверждение: guard не в конце трубы теряет notices на hit'е
+MECHOK_MISPLACED_LOOKS_GREEN	1	утверждение: misplaced-форма неотличима от починки по коду возврата
+SYNTAX_BLOCKS	32	блоков `run:` извлечено для `bash -n`
+SYNTAX_BAD	0	ни один блок не имеет синтаксической ошибки (включая новые шаги)
+SYNTAX_BLOCKS_EQ_RUN_BLOCKS	1	под `bash -n` попало ровно столько блоков, сколько видел прибор
+CRG_SELFTEST_RC	0	самопроверка прибора завершилась успешно
+CRG_SELFTEST_OK	1	все посаженные формы отбиты
+CRG_SELFTEST_FIRED	5	из пяти (снятие guard, две формы guard, комментарий, слепой каталог, 4-й файл)
+PLANT_A_LANDED	1	посадка «снять guard» изменила байт в копии дерева
+PLANT_A_UNGUARDED	1	прибор увидел ровно одну снятую guard-строку
+PLANT_A_EXIT	1	копия с посадкой красная
+PLANT_B_LANDED	1	посадка «guard не в конце трубы» изменила байт в копии
+PLANT_B_MISPLACED	1	прибор увидел ровно одну неверную форму guard
+PLANT_B_EXIT	1	копия с посадкой красная
+PLANT_B_NAMED	1	находка названа адресом и фрагментом строки, а не только числом
+PLANT_LANDED	2	обе посадки реально что-то изменили (иначе краснота ничего не доказывает)
+PLANT_ALL_RED	1	обе копии дали выход 1
+CODE_CHANGED_RS	0	ни один `.rs` вне `lab/` правкой цикла не тронут
+CI_STEP_ADDED	1	страж стоит шагом в `verify.yml` (иначе он сгниёт за цикл)
+VERIFY_BLOCK_ADDED	1	страж стоит в закрытии цикла `lab/workspace-verify.sh`
+VERDICT_GREP_KEPT	1	вердикт-греп релизного рецепта в `release.yml` НЕ спрятан под guard
+TEXTGUARD_EXIT	0	страж текста по файлам цикла
+LINT_EXIT	0	у каждого ключа таблицы есть владелец и все напечатаны
+CLAIMMAP_EXIT	0	карта «слово -> id» §18.9
+REPO_REVIEW_EXIT	0	инвентарь находок дерева
+MIRROR_EXIT	0	зеркало спеки синхронно (правки `docs/` цикл не делает)
+STABLE	1	два исполнения helper'а на неизменном дереве совпали построчно
+DISK_AFTER_MEASURE_GE_15000	1	носитель после измерений: свободно >= 15000 МБ (три числа печатает helper)
+PLANT_EXPECT_RED	1	посадка неверного ожидания (`CRG_UNGUARDED=7`) покраснила `lab/expect.py`
