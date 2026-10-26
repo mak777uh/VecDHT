@@ -1,0 +1,157 @@
+########## E-0121 · 2026-10-26T03:55:30+03:00 · дерево 767c191 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T03:55:30+03:00
+ПРИОРАРТ H-0121: чужой код не читали, причина записана (90 зн.)
+ПРИОРАРТ H-0121: строк=1 классы=['бумага']
+LEAN H-0121: модель не сделана, рубрика обязательной не требует
+E-CARD E-0121: порог, окружение и команда названы
+CYCLE H-0121=OK нарушений=0
+GATE_H0121_OK=1
+DISK_FREE_MB=28588 RAM_FREE_MB=7555 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве dc6a9d6 проводки нет ### 2026-10-26T03:55:33+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_WITH_CENTROIDS=0 PRE_FIX_STATUS_FIELD=0 PRE_FIX_NO_CENTROIDS_WIRING=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_CENTROIDS_WIRING=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T03:55:33+03:00
+RUN1: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.55s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+CT_FORGED_CELL_HONEST=1
+CT_FORGED_REASSIGNED_GE1=1
+CT_FORGED_UNVERIFIED_ZERO=1
+CT_HONEST_REASSIGNED=0
+CT_MISSING_NAMED=1
+CT_STATUS_CLUSTER_FIELDS=1
+RUN2: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.46s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+CT_FORGED_CELL_HONEST=1
+CT_FORGED_REASSIGNED_GE1=1
+CT_FORGED_UNVERIFIED_ZERO=1
+CT_HONEST_REASSIGNED=0
+CT_MISSING_NAMED=1
+CT_STATUS_CLUSTER_FIELDS=1
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T03:55:46+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T03:55:48+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T03:55:49+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T03:55:49+03:00
+РАСХОЖДЕНИЕ: CT_MISSING_CODE ждали «2», напечатано «нет такого ключа»
+ОЖИДАНИЙ=19 РАСХОЖДЕНИЙ=1
+### ШАГ 7 носитель после прогона ### 2026-10-26T03:55:49+03:00
+DISK_FREE_MB=28581 RAM_FREE_MB=7710 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+########## E-0121 · 2026-10-26T03:56:01+03:00 · дерево 767c191 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T03:56:01+03:00
+ПРИОРАРТ H-0121: чужой код не читали, причина записана (90 зн.)
+ПРИОРАРТ H-0121: строк=1 классы=['бумага']
+LEAN H-0121: модель не сделана, рубрика обязательной не требует
+E-CARD E-0121: порог, окружение и команда названы
+CYCLE H-0121=OK нарушений=0
+GATE_H0121_OK=1
+DISK_FREE_MB=28581 RAM_FREE_MB=7554 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве dc6a9d6 проводки нет ### 2026-10-26T03:56:03+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_WITH_CENTROIDS=0 PRE_FIX_STATUS_FIELD=0 PRE_FIX_NO_CENTROIDS_WIRING=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_CENTROIDS_WIRING=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T03:56:04+03:00
+RUN1: test result: FAILED. 1 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.82s
+RESULT_EXIT=101
+TEST_RESULT_OK=0
+PASSED=0
+FAILED=1
+CT_MISSING_CODE=2
+CT_MISSING_NAMED=1
+RUN2: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.47s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+CT_FORGED_CELL_HONEST=1
+CT_FORGED_REASSIGNED_GE1=1
+CT_FORGED_UNVERIFIED_ZERO=1
+CT_HONEST_REASSIGNED=0
+CT_MISSING_CODE=2
+CT_MISSING_NAMED=1
+CT_STATUS_CLUSTER_FIELDS=1
+STABLE=0
+STABLE=0
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T03:56:21+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T03:56:22+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T03:56:23+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T03:56:23+03:00
+РАСХОЖДЕНИЕ: STABLE ждали «1», напечатано «0»
+ОЖИДАНИЙ=19 РАСХОЖДЕНИЙ=1
+### ШАГ 7 носитель после прогона ### 2026-10-26T03:56:23+03:00
+DISK_FREE_MB=28578 RAM_FREE_MB=7737 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+########## E-0121 · 2026-10-26T03:57:51+03:00 · дерево 767c191 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T03:57:52+03:00
+ПРИОРАРТ H-0121: чужой код не читали, причина записана (90 зн.)
+ПРИОРАРТ H-0121: строк=1 классы=['бумага']
+LEAN H-0121: модель не сделана, рубрика обязательной не требует
+E-CARD E-0121: порог, окружение и команда названы
+CYCLE H-0121=OK нарушений=0
+GATE_H0121_OK=1
+DISK_FREE_MB=28575 RAM_FREE_MB=7973 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве dc6a9d6 проводки нет ### 2026-10-26T03:57:54+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_WITH_CENTROIDS=0 PRE_FIX_STATUS_FIELD=0 PRE_FIX_NO_CENTROIDS_WIRING=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_CENTROIDS_WIRING=1
+### ШАГ 2 оракул дважды на неизменном дереве ### 2026-10-26T03:57:54+03:00
+RUN1: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.54s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+CT_FORGED_CELL_HONEST=1
+CT_FORGED_REASSIGNED_GE1=1
+CT_FORGED_UNVERIFIED_ZERO=1
+CT_HONEST_REASSIGNED=0
+CT_MISSING_CODE=2
+CT_MISSING_NAMED=1
+CT_STATUS_CLUSTER_FIELDS=1
+RUN2: test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.45s
+RESULT_EXIT=0
+TEST_RESULT_OK=1
+PASSED=2
+FAILED=0
+CT_FORGED_CELL_HONEST=1
+CT_FORGED_REASSIGNED_GE1=1
+CT_FORGED_UNVERIFIED_ZERO=1
+CT_HONEST_REASSIGNED=0
+CT_MISSING_CODE=2
+CT_MISSING_NAMED=1
+CT_STATUS_CLUSTER_FIELDS=1
+STABLE=1
+STABLE=1
+### ШАГ 3 clippy по пакету со всеми целями ### 2026-10-26T03:58:17+03:00
+CLIPPY_EXIT=0
+### ШАГ 4 стража текста ### 2026-10-26T03:58:19+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-26T03:58:19+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-26T03:58:19+03:00
+ОЖИДАНИЙ=19 РАСХОЖДЕНИЙ=0
+### ШАГ 7 носитель после прогона ### 2026-10-26T03:58:20+03:00
+DISK_FREE_MB=28566 RAM_FREE_MB=7781 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
