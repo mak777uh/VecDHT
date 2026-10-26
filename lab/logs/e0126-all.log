@@ -1,0 +1,151 @@
+########## E-0126 · 2026-10-26T21:04:56+03:00 · дерево 8f0f676 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T21:04:56+03:00
+ПРИОРАРТ H-0126: строк=1 классы=['реализация']
+LEAN H-0126: модель не сделана, рубрика обязательной не требует
+E-CARD E-0126: порог, окружение и команда названы
+CYCLE H-0126=OK нарушений=0
+GATE_H0126_OK=1
+DISK_FREE_MB=33172 RAM_FREE_MB=5908 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+########## ИЗМЕРЕНИЕ 1 ##########
+### ШАГ 1.1 PRE_FIX: пин d18ad2b + нынешний прибор ### 2026-10-26T21:04:59+03:00
+CK_CHANGELOG_EXISTS=0
+CK_CHANGELOG_FROM_V75=0
+CK_ADR_RANGE_TOTAL=23
+CK_ADR_LISTED=0
+CK_ADR_ALL=0
+CK_WORKFLOW_EXISTS=0
+CK_WORKFLOW_ON_TAG=0
+CK_WORKFLOW_RUNS_VERIFY=0
+CK_WORKFLOW_RUNID=0
+CK_WORKFLOW_BUILDS_RECIPE=0
+CK_WORKFLOW_ARTIFACT=0
+CK_YAML_PARSE=0
+CK_VERSION_CARGO=0.1.0
+CK_VERSION_SDK=0.1.0
+CK_VERSION_CHANGELOG=none
+CK_VERSION_EQ=0
+CK_VERSION_ALL=0
+CK_README_RECIPE=1
+CK_TAG_EXISTS=0
+KIT_FAIL=1
+PRE_FIX ok: комплект красен, счётчик ADR жив
+### ШАГ 2.1 живой прогон на рабочем дереве ### 2026-10-26T21:05:08+03:00
+CK_CHANGELOG_EXISTS=0
+CK_CHANGELOG_FROM_V75=0
+CK_ADR_RANGE_TOTAL=23
+CK_ADR_LISTED=0
+CK_ADR_ALL=0
+CK_WORKFLOW_EXISTS=0
+CK_WORKFLOW_ON_TAG=0
+CK_WORKFLOW_RUNS_VERIFY=0
+CK_WORKFLOW_RUNID=0
+CK_WORKFLOW_BUILDS_RECIPE=0
+CK_WORKFLOW_ARTIFACT=0
+CK_YAML_PARSE=0
+CK_VERSION_CARGO=0.1.0
+CK_VERSION_SDK=0.1.0
+CK_VERSION_CHANGELOG=none
+CK_VERSION_EQ=0
+CK_VERSION_ALL=0
+CK_README_RECIPE=1
+CK_TAG_EXISTS=0
+KIT_FAIL=1
+### ШАГ 3.1 независимый пересчёт диапазона ADR ### 2026-10-26T21:05:13+03:00
+### ШАГ 4.1 шесть посадок на копиях дерева ### 2026-10-26T21:05:14+03:00
+посадки: байт изменён 6/6, красных 6/6
+########## ИЗМЕРЕНИЕ 2 ##########
+### ШАГ 1.2 PRE_FIX: пин d18ad2b + нынешний прибор ### 2026-10-26T21:05:50+03:00
+CK_CHANGELOG_EXISTS=0
+CK_CHANGELOG_FROM_V75=0
+CK_ADR_RANGE_TOTAL=23
+CK_ADR_LISTED=0
+CK_ADR_ALL=0
+CK_WORKFLOW_EXISTS=0
+CK_WORKFLOW_ON_TAG=0
+CK_WORKFLOW_RUNS_VERIFY=0
+CK_WORKFLOW_RUNID=0
+CK_WORKFLOW_BUILDS_RECIPE=0
+CK_WORKFLOW_ARTIFACT=0
+CK_YAML_PARSE=0
+CK_VERSION_CARGO=0.1.0
+CK_VERSION_SDK=0.1.0
+CK_VERSION_CHANGELOG=none
+CK_VERSION_EQ=0
+CK_VERSION_ALL=0
+CK_README_RECIPE=1
+CK_TAG_EXISTS=0
+KIT_FAIL=1
+PRE_FIX ok: комплект красен, счётчик ADR жив
+### ШАГ 2.2 живой прогон на рабочем дереве ### 2026-10-26T21:05:57+03:00
+CK_CHANGELOG_EXISTS=0
+CK_CHANGELOG_FROM_V75=0
+CK_ADR_RANGE_TOTAL=23
+CK_ADR_LISTED=0
+CK_ADR_ALL=0
+CK_WORKFLOW_EXISTS=0
+CK_WORKFLOW_ON_TAG=0
+CK_WORKFLOW_RUNS_VERIFY=0
+CK_WORKFLOW_RUNID=0
+CK_WORKFLOW_BUILDS_RECIPE=0
+CK_WORKFLOW_ARTIFACT=0
+CK_YAML_PARSE=0
+CK_VERSION_CARGO=0.1.0
+CK_VERSION_SDK=0.1.0
+CK_VERSION_CHANGELOG=none
+CK_VERSION_EQ=0
+CK_VERSION_ALL=0
+CK_README_RECIPE=1
+CK_TAG_EXISTS=0
+KIT_FAIL=1
+### ШАГ 3.2 независимый пересчёт диапазона ADR ### 2026-10-26T21:06:02+03:00
+### ШАГ 4.2 шесть посадок на копиях дерева ### 2026-10-26T21:06:02+03:00
+посадки: байт изменён 6/6, красных 6/6
+STABLE=1
+два исполнения сравнены построчно (diff -q): STABLE=1
+### ШАГ 6 границы правки и синхронность Cargo.lock ### 2026-10-26T21:06:39+03:00
+CODE_CHANGED_RS=0
+CARGO_METADATA_LOCKED_EXIT=101
+Caused by:
+  attempting to make an HTTP request, but --offline was specified
+### ШАГ 7 полный контур стражей ### 2026-10-26T21:06:42+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_EXIT=0
+ПОРОГОВ=58 ИСТОЧНИКОВ=3 СИРОТ=0
+LINT_EXIT=0
+CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=30 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=28 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+ПОЗВОЛЕНО refs-dangling: H-0110 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A3 (производитель отзыва, CLI revoke) (3 файлов: docs/PLAN-v1.md, lab/experiments/E-0116-ledger-last-block.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md)
+ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md)
+REPO_REVIEW_EXIT=0
+OK: VecDHT-SPEC-v8.md — зеркало совпадает с оригиналом (2300 строк, f96bdd3ac427)
+OK: VecDHT-SPEC-v9.md — зеркало совпадает с оригиналом (634 строк, a121878a263f)
+MIRROR_EXIT=0
+### ШАГ 8 посадка неверного ожидания ### 2026-10-26T21:06:58+03:00
+PLANT_EXIT=1
+### ШАГ 9 сверка ожиданий ### 2026-10-26T21:06:58+03:00
+РАСХОЖДЕНИЕ: CK_WORKFLOW_EXISTS ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CK_WORKFLOW_ON_TAG ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CK_WORKFLOW_RUNS_VERIFY ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CK_WORKFLOW_RUNID ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CK_WORKFLOW_BUILDS_RECIPE ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CK_WORKFLOW_ARTIFACT ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CK_YAML_PARSE ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CK_VERSION_CARGO ждали «1.0.0», напечатано «0.1.0»
+РАСХОЖДЕНИЕ: CK_VERSION_SDK ждали «1.0.0», напечатано «0.1.0»
+РАСХОЖДЕНИЕ: CK_VERSION_CHANGELOG ждали «1.0.0», напечатано «none»
+РАСХОЖДЕНИЕ: CK_VERSION_EQ ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CK_VERSION_ALL ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: KIT_FAIL ждали «0», напечатано «1»
+РАСХОЖДЕНИЕ: KIT_EXIT ждали «0», напечатано «1»
+РАСХОЖДЕНИЕ: PLANT_B_LISTED ждали «22», напечатано «0»
+РАСХОЖДЕНИЕ: PLANT_D_RUNS_VERIFY ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: PLANT_E_VERSION_EQ ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: PLANT_F_ARTIFACT ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: CARGO_METADATA_LOCKED_EXIT ждали «0», напечатано «101»
+ОЖИДАНИЙ=58 РАСХОЖДЕНИЙ=23
+EXPECT_EXIT=1
+### ШАГ 10 носитель после ### 2026-10-26T21:06:59+03:00
+DISK_FREE_MB=33107 RAM_FREE_MB=4898 PAGEFILE_PEAK_MB=7660
+WORST_RC=1

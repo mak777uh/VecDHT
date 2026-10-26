@@ -197,11 +197,22 @@ say "### ШАГ 6 границы правки и синхронность Cargo.
 rs=$(git diff --name-only "$PIN" -- '*.rs' 2>/dev/null | grep -cve '^lab/' || true)
 emit0 "CODE_CHANGED_RS=${rs:-0}"
 [ "${rs:-0}" = 0 ] || note 1
-cargo metadata --locked --offline --format-version 1 > "$OUT/meta.txt" 2>&1
+# ДИАГНОЗ-4 (после пре-регистрации, до замера): без `--filter-platform` этот вызов красен на хосте
+# by construction. `cargo metadata` скачивает манифесты ВСЕХ таргетов, а Unix--only `async-io
+# v2.6.0` в локальном кэше отсутствует (под Windows он не собирается), и его нельзя дотянуть:
+# `cargo metadata --locked` без `--offline` даёт «transfer too slow: failed to transfer more than
+# 10 bytes in 30s», а `curl https://static.crates.io/...` — «schannel: failed to receive handshake».
+# Фильтр по таргету хоста меняет только множество скачиваемых манифестов: `--locked` по-прежнему
+# краснит выход, если `Cargo.lock` отстал от новой версии (измерено на копии дерева: версия
+# `[workspace.package]` 9.9.9 при прежнем `Cargo.lock` даёт 101).
+cargo metadata --locked --offline --filter-platform x86_64-pc-windows-gnu --format-version 1 \
+  > "$OUT/meta.txt" 2>&1
 rc=$?
 emit0 "CARGO_METADATA_LOCKED_EXIT=${rc}"
 note "$rc"
-tail -n 2 "$OUT/meta.txt" | tee -a "$LOG"
+printf 'cargo metadata (--locked --offline, таргет хоста): байт вывода=%s\n' \
+  "$(wc -c < "$OUT/meta.txt")" | tee -a "$LOG"
+[ "$rc" = 0 ] || tail -n 4 "$OUT/meta.txt" | tee -a "$LOG"
 
 say "### ШАГ 7 полный контур стражей ### $(date +%FT%T%:z)"
 CYCLE_FILES="$KIT $EXPECT lab/e0126-run.sh CHANGELOG.md .github/workflows/release.yml \

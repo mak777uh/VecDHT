@@ -7,8 +7,9 @@ started: "2026-10-26"
 finished: ""
 environment: "x86_64-pc-windows-gnu, хост владельца; bash + sed + awk + python 3 из PATH, PyYAML 6.0.3
 (нужен для `CK_YAML_PARSE`); PATH дополнен /c/Users/Admin/mingw64/bin; кода Rust правка не касается,
-поэтому прибор — grep/awk по дереву, а `cargo` вызывается только на `metadata --locked --offline`
-(дешёвая сверка `Cargo.lock` с новой версией, без сборки)"
+поэтому прибор — grep/awk по дереву, а `cargo` вызывается только на `metadata --locked --offline
+--filter-platform x86_64-pc-windows-gnu` (дешёвая сверка `Cargo.lock` с новой версией, без сборки;
+фильтр таргета обязателен — см. ДИАГНОЗ-4)"
 command: "bash lab/e0126-run.sh"
 threshold: "(1) `python lab/cycle-gate.py H-0126` выход 0; диск ≥ 15 000 МБ до и после прогона, напечатаны
 три числа (диск/RAM/pagefile). (2) PRE_FIX на дереве пина `d18ad2b`, извлечённом `git archive`, с
@@ -105,6 +106,27 @@ ROOT` для прогонов на копиях дерева). Helper — `lab/e
 входит в `lab/workspace-verify.sh`, значит полный прогон краснел бы на закрытии из-за формы функции,
 а не из-за предмета. Лечится формой вызова: `req КЛЮЧ="$значение"`, а `req` разбирает нуль по
 `case "$1" in *=0)`.
+
+### ДИАГНОЗ-4 (после пре-регистрации, до замера): «дешёвая сверка Cargo.lock» была невыполнима на хосте
+
+Первый прогон helper'а на ещё не исправленном дереве (он же дымной, `дерево 8f0f676`, 2m6s,
+`WORST_RC=1`) дал по пункту (7) `CARGO_METADATA_LOCKED_EXIT=101`:
+`cargo metadata --locked --offline` напечатал `error: failed to download async-io v2.6.0`. Причина не
+в дереве, а в хосте: `metadata` строит граф для всех таргетов и потому требует манифесты пакетов,
+которые под `x86_64-pc-windows-gnu` не собираются и в локальный кэш никогда не попадали. Дотянуть их
+нельзя: `cargo metadata --locked` без `--offline` — «transfer too slow: failed to transfer more than
+10 bytes in 30s (transferred 0 bytes)», а `curl https://static.crates.io/crates/async-io/…crate` —
+`schannel: failed to receive handshake, SSL/TLS connection failed` (GitHub при этом пушится, то есть
+блокирован именно реестр). Порог по этому пункту был бы красен независимо от того, собран комплект
+или нет, — тот же класс, что ДИАГНОЗ-1 из `E-0088`.
+
+Лечится фильтром таргета хоста: `cargo metadata --locked --offline --filter-platform
+x86_64-pc-windows-gnu` исполняется с выходом 0 и печатает 1 522 847 байт графа. Числа порога не
+трогаются (пункт (7) остался `CODE_CHANGED_RS=0`, `CARGO_METADATA_LOCKED_EXIT=0`), меняется только
+команда в `environment`. Зубы проверки измерены отдельно на копии дерева: `version = "0.1.0"` в
+`[workspace.package]` заменена на `9.9.9`, `Cargo.lock` оставлен прежний, тот же вызов с фильтром даёт
+`101` и `cannot update the lock file … because --locked was passed` — то есть фильтр сужает множество
+скачиваемых манифестов, но не отключает сверку файла блокировки с манифестом.
 
 ### Развилка, решённая до кода
 
