@@ -333,7 +333,10 @@ pub fn exec_genesis(p: &Parsed, out: &mut String) -> Result<(), CliError> {
 
 /// Подписанты: либо файлы ключей, либо dev-вывод из seed. Смешивать нельзя — оператор, у
 /// которого часть ключей в файлах, а часть «вывелась», не увидел бы, какой именно порог собран.
-fn load_signers(p: &Parsed, cmd: &str) -> Result<Vec<(Identity, String)>, CliError> {
+///
+/// `pub(crate)`: тот же загрузчик нужен производителю отзыва (`revoke_cmd`), и второй его
+/// экземпляр означал бы, что два места по-разному решают, что такое «порог из файлов».
+pub(crate) fn load_signers(p: &Parsed, cmd: &str) -> Result<Vec<(Identity, String)>, CliError> {
     let files = p.values(cmd, "key-file")?;
     let dev = p.num::<usize>(cmd, "dev-keys")?;
     let seed = p.hex_fixed::<32>(cmd, "seed")?;

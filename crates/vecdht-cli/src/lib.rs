@@ -44,6 +44,7 @@ pub mod index_cmd;
 pub mod model;
 pub mod node_cmd;
 pub mod pow_cmd;
+pub mod revoke_cmd;
 pub mod wire_cmd;
 
 use std::fmt::Display;
@@ -163,6 +164,13 @@ pub static COMMANDS: &[Command] = &[
         flags: node_cmd::FLAGS_RUN,
         help: node_cmd::HELP_RUN,
         run: node_cmd::exec_run,
+    },
+    Command {
+        path: revoke_cmd::CMD_REVOKE,
+        summary: "отозвать кредашиал: подпись порога авторитетов и рассылка по control-теме (§4.2)",
+        flags: revoke_cmd::FLAGS_REVOKE,
+        help: revoke_cmd::HELP_REVOKE,
+        run: revoke_cmd::exec_revoke,
     },
     Command {
         path: encode_cmd::CMD,

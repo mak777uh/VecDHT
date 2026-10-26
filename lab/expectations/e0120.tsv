@@ -1,0 +1,20 @@
+GATE_H0120_OK	1	гейт карточки H-0120
+DISK_GE_15000	1	свободно на диске до прогона, МБ
+BASE_IS_ANCESTOR	1	пин PRE_FIX — предок дерева
+PRE_FIX_NO_REVOKE_CMD	1	на пине нет ни revoke_cmd.rs, ни строки в диспетчере
+RV_BASELINE_DOOR_ZERO	1	до отзыва тот же кредашиал проходит дверь: отказов ноль
+RV_SIGS	3	подписей авторитета в собранном отзыве
+RV_THRESHOLD	3	порог подписей артефакта
+RV_LIVE_REVOCATIONS	1	узел применил отзыв без рестарта: счётчик отзывов
+RV_LIVE_FILE_NONEMPTY	1	revocation.bin получателя существует и не пуст
+RV_LIVE_DOOR_GT_BASELINE	1	дверь отказала отозванному: счётчик вырос против baseline
+RV_RESTART_REVOCATIONS	1	после рестарта из того же каталога без bootstrap отзыв виден
+RV_RESTART_DOOR_GT	1	после рестарта отказ двери повторяется
+RESULT_EXIT	0	выход оракула в прогоне
+TEST_RESULT_OK	1	строка test result: ok
+PASSED	2	тестов прошло
+FAILED	0	тестов упало
+STABLE	1	наборы RV_*-фактов двух прогонов совпали
+CLIPPY_EXIT	0	clippy по vecdht-cli со всеми целями
+TEXTGUARD_CYCLE_EXIT	0	стража текста на файлах цикла
+PLANT_EXIT	1	таблица ожиданий чувствительна к посадке
