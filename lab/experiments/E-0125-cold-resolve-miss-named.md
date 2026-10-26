@@ -121,8 +121,14 @@ verdict: supports
 Таблица ожиданий — `lab/expectations/e0125.tsv` (19 строк), helper прогона — `lab/e0125-run.sh`,
 носитель замера — `lab/logs/e0125-all.log` плюс `lab/logs/e0125-prefix-plant.log`,
 `lab/logs/e0125-plant1.log`, `lab/logs/e0125-plant2.log`. Полная верификация финального дерева —
-пункт (9) порога: `bash lab/workspace-verify.sh E-0125`, её `VERIFY_FAIL` и счётчики вписываются
-отдельным коммитом после зелёного исполнения.
+пункт (9) порога: `bash lab/workspace-verify.sh E-0125` на дереве `0b7ac61` закончилась
+`VERIFY_FAIL=0`: 132 среза, 775 passed, 0 failed, `SECONDS_total=1581`, диск после сборки
+33 191 МБ свободно (RAM 7 233, pagefile peak 7 660); в том же срезе `CLAIMMAP_EXIT=0`,
+`LINT_LATEST_EXIT=0`, `TEXTGUARD_EXIT=0`, selftest'ы контура — `cycle-gate 18/18`,
+`threshold-lint 8/8`, `expect 8/8`, `facts 10/10`, `library 37 записей / 0 ошибок`,
+`lean-guard 10/10`, `LEANGUARD` и `VERUS_SELFTEST 5/5`. Носитель верификации —
+`lab/logs/workspace-verify-2026-10-22.log`, строки 123857…125667 (красная первая версия — строка
+123856, зелёная — 125667).
 
 ### ДИАГНОЗ-5 (из первой верификации: `VERIFY_FAIL=1`, продукт не при чём)
 
