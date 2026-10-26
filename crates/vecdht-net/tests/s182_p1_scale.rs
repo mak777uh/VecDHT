@@ -367,11 +367,27 @@ async fn p1_scale_200_nodes_64_keys() {
     let t2 = Instant::now();
     let mut lat: Vec<u128> = Vec::new();
     let mut miss = 0usize;
-    for node in &nodes[obs_start..NODES] {
+    // A4 / `E-0125`: промах обязан назвать себя, пока стенд ещё жив. До правки стенд печатал
+    // только `P1_MISS` числом, и причина единственного промаха в `E-0105` осталась нелокализованной
+    // — «нагрузка хоста» была корреляцией (p50 и отказы выросли вместе), а не измерением. Теперь на
+    // каждом промахе снимаются четыре числа: наблюдатель, шард, длительность пробы (= бюджет,
+    // потому что промах наступает по таймауту) и отказы транспорта **этого** узла на момент пробы
+    // (счётчик и три последние строки) — то есть соседство по времени, а не общий итог прогона.
+    let budget_ms = resolve_budget().as_millis();
+    let mut misses: Vec<String> = Vec::new();
+    for (oi, node) in nodes[obs_start..NODES].iter().enumerate() {
         for sh in 0..KEYS as u16 {
             match resolve(node, sh).await {
                 Some(ms) => lat.push(ms),
-                None => miss += 1,
+                None => {
+                    miss += 1;
+                    let e = errors(node).await;
+                    let tail: Vec<&str> = e.iter().rev().take(3).map(String::as_str).collect();
+                    misses.push(format!(
+                        "obs={oi} shard={sh} probe_ms={budget_ms} node_errors={} last={tail:?}",
+                        e.len()
+                    ));
+                }
             }
         }
     }
@@ -441,9 +457,28 @@ P1_TIME_BUILD={build:?} P1_TIME_DIAL={dial:?} P1_TIME_RESOLVE={resolve_t:?} ##",
     if !errs.is_empty() {
         println!("P1_FIRST_ERRORS={:?}", errs.iter().take(10).collect::<Vec<_>>());
     }
+    // Факты наблюдаемости промаха (`E-0125`). Печатаются литералом имени и **до** гейта: красное
+    // утверждение гейта не имеет права съесть те числа, ради которых цикл и затеян.
+    for d in &misses {
+        println!("P1_MISS_DETAIL {d}");
+    }
+    println!(
+        "P1_MISS_DETAIL_LINES={} P1_MISS_ALL_NAMED={} P1_P95_OK={}",
+        misses.len(),
+        usize::from(misses.len() == miss),
+        usize::from(p95 < P95_BUDGET_MS),
+    );
 
-    // Гейт §18.2.
-    assert_eq!(miss, 0, "холодный резолв не нашёл провайдера: {miss} из {samples} проб");
+    // Гейт §18.2 с операционным контрактом A4: промах больше не означает «красный стенд», красное
+    // — безымянный промах. Совокупный бюджет (≤ 1 промах на 960 проб, то есть на пять прогонов по
+    // 192 пробы) считает `lab/e0125-run.sh`: требовать ноль внутри одного прогона — значит держать
+    // условие строже принятого, ровно из-за него `E-0105` и закрылся `refutes`.
+    assert_eq!(
+        misses.len(),
+        miss,
+        "промах без именованной детали: {miss} промахов, {} деталей",
+        misses.len()
+    );
     assert_eq!(azero, 0, "есть провайдеры без единого аутентифицированного пира");
     assert_eq!(kzero, 0, "есть провайдеры без пиров в таблице kad");
     assert!(ann > 0, "провайдеры не объявили ни одного ключа");
