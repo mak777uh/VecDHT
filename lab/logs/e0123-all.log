@@ -1,0 +1,223 @@
+########## E-0123 · 2026-10-26T15:10:20+03:00 · дерево a069eba ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T15:10:20+03:00
+ПРИОРАРТ H-0123: строк=1 классы=['спека']
+LEAN H-0123: модель не сделана, рубрика обязательной не требует
+E-CARD E-0123: порог, окружение и команда названы
+CYCLE H-0123=OK нарушений=0
+GATE_H0123_OK=1
+DISK_FREE_MB=34983 RAM_FREE_MB=5773 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 селфтест прибора: посадки обязаны отстреливаться ### 2026-10-26T15:10:23+03:00
+SELFTEST: СЕЛФТЕСТ всего=8 прошло=8 посажено=3 поймано=3 СЕЛФТЕСТ_ССЫЛКИ id=3 файлов=2 отсутств_id=E-9999 отсутств_файл=no_such_instrument.rs вердикт=1 
+SELFTEST_EXIT=0
+SELFTEST_TOTAL=8
+SELFTEST_PASSED=8
+SELFTEST_PLANTED=3
+SELFTEST_CAUGHT=3
+SELFTEST_REFS_VERDICT=1
+### ШАГ 2 PRE_FIX: страж на §18.9 пина a069eba (до правки) ### 2026-10-26T15:10:24+03:00
+BASE_IS_ANCESTOR=1
+PRE: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=8 CLAIMMAP_UNMAPPED=6 CLAIMMAP_IDS=2 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=0 CLAIMMAP_MISSING_INSTRUMENTS=0
+PRE БЕЗ_ID строк: 6
+PRE_CLAIMMAP_SENTENCES=8
+PRE_CLAIMMAP_UNMAPPED=6
+PRE_CLAIMMAP_IDS=2
+PRE_CLAIMMAP_MISSING_IDS=0
+PRE_CLAIMMAP_INSTRUMENTS=0
+PRE_CLAIMMAP_MISSING_INSTRUMENTS=0
+PRE_CLAIMMAP_EXIT=1
+### ШАГ 3 страж на отредактированном разделе, два прогона на неизменном дереве ### 2026-10-26T15:10:25+03:00
+RUN1: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=28 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_SENTENCES=28
+CLAIMMAP_UNMAPPED=0
+CLAIMMAP_IDS=25
+CLAIMMAP_MISSING_IDS=0
+CLAIMMAP_INSTRUMENTS=7
+CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+CLAIMMAP_SENTENCES_GE8=1
+RUN2: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=28 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_SENTENCES=28
+CLAIMMAP_UNMAPPED=0
+CLAIMMAP_IDS=25
+CLAIMMAP_MISSING_IDS=0
+CLAIMMAP_INSTRUMENTS=7
+CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+CLAIMMAP_SENTENCES_GE8=1
+STABLE=1
+STABLE=1
+### ШАГ 4 посадка в текст: клауза без метки обязана быть найдена ### 2026-10-26T15:10:27+03:00
+PLANT_GUARD: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=29 CLAIMMAP_UNMAPPED=1 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0 (exit=1)
+PLANT_GUARD=1
+PLANT_UNMAPPED=1
+### ШАГ 5 зеркало спеки и страж текста ### 2026-10-26T15:10:28+03:00
+MIRROR_EXIT=0
+MIRROR: OK: VecDHT-SPEC-v8.md — зеркало совпадает с оригиналом (2292 строк, da99a23f16be) OK: VecDHT-SPEC-v9.md — зеркало совпадает с оригиналом (634 строк, a121878a263f) 
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 6 страж репозитория ### 2026-10-26T15:10:29+03:00
+REPOREVIEW_EXIT=1
+REVIEW: ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md) ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md) 
+### ШАГ 7 посадка в таблицу: неверное ожидание обязано краснеть ### 2026-10-26T15:10:43+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 8 ожидания ### 2026-10-26T15:10:43+03:00
+РАСХОЖДЕНИЕ: REPOREVIEW_EXIT ждали «0», напечатано «1»
+ОЖИДАНИЙ=26 РАСХОЖДЕНИЙ=1
+### ШАГ 9 носитель после прогона ### 2026-10-26T15:10:44+03:00
+DISK_FREE_MB=34983 RAM_FREE_MB=4813 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+########## E-0123 · 2026-10-26T15:12:17+03:00 · дерево a069eba ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T15:12:18+03:00
+ПРИОРАРТ H-0123: строк=1 классы=['спека']
+LEAN H-0123: модель не сделана, рубрика обязательной не требует
+E-CARD E-0123: порог, окружение и команда названы
+CYCLE H-0123=OK нарушений=0
+GATE_H0123_OK=1
+DISK_FREE_MB=34980 RAM_FREE_MB=5010 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 селфтест прибора: посадки обязаны отстреливаться ### 2026-10-26T15:12:20+03:00
+SELFTEST: СЕЛФТЕСТ всего=8 прошло=8 посажено=3 поймано=3 СЕЛФТЕСТ_ССЫЛКИ id=3 файлов=2 отсутств_id=E-9999 отсутств_файл=no_such_instrument.rs вердикт=1 
+SELFTEST_EXIT=0
+SELFTEST_TOTAL=8
+SELFTEST_PASSED=8
+SELFTEST_PLANTED=3
+SELFTEST_CAUGHT=3
+SELFTEST_REFS_VERDICT=1
+### ШАГ 2 PRE_FIX: страж на §18.9 пина a069eba (до правки) ### 2026-10-26T15:12:21+03:00
+BASE_IS_ANCESTOR=1
+PRE: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=8 CLAIMMAP_UNMAPPED=6 CLAIMMAP_IDS=2 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=0 CLAIMMAP_MISSING_INSTRUMENTS=0
+PRE БЕЗ_ID строк: 6
+PRE_CLAIMMAP_SENTENCES=8
+PRE_CLAIMMAP_UNMAPPED=6
+PRE_CLAIMMAP_IDS=2
+PRE_CLAIMMAP_MISSING_IDS=0
+PRE_CLAIMMAP_INSTRUMENTS=0
+PRE_CLAIMMAP_MISSING_INSTRUMENTS=0
+PRE_CLAIMMAP_EXIT=1
+### ШАГ 3 страж на отредактированном разделе, два прогона на неизменном дереве ### 2026-10-26T15:12:23+03:00
+RUN1: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=28 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_SENTENCES=28
+CLAIMMAP_UNMAPPED=0
+CLAIMMAP_IDS=25
+CLAIMMAP_MISSING_IDS=0
+CLAIMMAP_INSTRUMENTS=7
+CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+CLAIMMAP_SENTENCES_GE8=1
+RUN2: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=28 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_SENTENCES=28
+CLAIMMAP_UNMAPPED=0
+CLAIMMAP_IDS=25
+CLAIMMAP_MISSING_IDS=0
+CLAIMMAP_INSTRUMENTS=7
+CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+CLAIMMAP_SENTENCES_GE8=1
+STABLE=1
+STABLE=1
+### ШАГ 4 посадка в текст: клауза без метки обязана быть найдена ### 2026-10-26T15:12:25+03:00
+PLANT_GUARD: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=29 CLAIMMAP_UNMAPPED=1 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0 (exit=1)
+PLANT_GUARD=1
+PLANT_UNMAPPED=1
+### ШАГ 5 зеркало спеки и страж текста ### 2026-10-26T15:12:26+03:00
+MIRROR_EXIT=0
+MIRROR: OK: VecDHT-SPEC-v8.md — зеркало совпадает с оригиналом (2292 строк, da99a23f16be) OK: VecDHT-SPEC-v9.md — зеркало совпадает с оригиналом (634 строк, a121878a263f) 
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 6 страж репозитория ### 2026-10-26T15:12:27+03:00
+REPOREVIEW_EXIT=0
+REVIEW: ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md) ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md) 
+### ШАГ 7 посадка в таблицу: неверное ожидание обязано краснеть ### 2026-10-26T15:12:41+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 8 ожидания ### 2026-10-26T15:12:42+03:00
+ОЖИДАНИЙ=26 РАСХОЖДЕНИЙ=0
+### ШАГ 9 носитель после прогона ### 2026-10-26T15:12:42+03:00
+DISK_FREE_MB=34988 RAM_FREE_MB=5147 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
+########## E-0123 · 2026-10-26T15:17:38+03:00 · дерево b0c6b06 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T15:17:38+03:00
+LEAN H-0123: модель не сделана, рубрика обязательной не требует
+  НАРУШЕНИЕ: E-0123-claim-map-18-9.md: шапка не разобрана (YAML-шапка не разобрана (ScannerError: while scanning a quoted scalar
+  in "<unicode string>", line 11, column 9:
+    result: "helper `WORST_RC=0`: гейт 0, ди ... 
+            ^
+found unexpected end of stream
+  in "<unicode string>", line 13, column 1:
+    
+    ^))
+CYCLE H-0123=FAIL нарушений=1
+GATE_H0123_OK=0
+ГЕЙТ НЕ ПРОЙДЕН — замер не начинается
+WORST_RC=1
+########## E-0123 · 2026-10-26T15:18:24+03:00 · дерево b0c6b06 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T15:18:24+03:00
+ПРИОРАРТ H-0123: строк=1 классы=['спека']
+LEAN H-0123: модель не сделана, рубрика обязательной не требует
+E-CARD E-0123: порог, окружение и команда названы
+CYCLE H-0123=OK нарушений=0
+GATE_H0123_OK=1
+DISK_FREE_MB=34983 RAM_FREE_MB=6785 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 селфтест прибора: посадки обязаны отстреливаться ### 2026-10-26T15:18:26+03:00
+SELFTEST: СЕЛФТЕСТ всего=8 прошло=8 посажено=3 поймано=3 СЕЛФТЕСТ_ССЫЛКИ id=3 файлов=2 отсутств_id=E-9999 отсутств_файл=no_such_instrument.rs вердикт=1 
+SELFTEST_EXIT=0
+SELFTEST_TOTAL=8
+SELFTEST_PASSED=8
+SELFTEST_PLANTED=3
+SELFTEST_CAUGHT=3
+SELFTEST_REFS_VERDICT=1
+### ШАГ 2 PRE_FIX: страж на §18.9 пина a069eba (до правки) ### 2026-10-26T15:18:27+03:00
+BASE_IS_ANCESTOR=1
+PRE: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=8 CLAIMMAP_UNMAPPED=6 CLAIMMAP_IDS=2 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=0 CLAIMMAP_MISSING_INSTRUMENTS=0
+PRE БЕЗ_ID строк: 6
+PRE_CLAIMMAP_SENTENCES=8
+PRE_CLAIMMAP_UNMAPPED=6
+PRE_CLAIMMAP_IDS=2
+PRE_CLAIMMAP_MISSING_IDS=0
+PRE_CLAIMMAP_INSTRUMENTS=0
+PRE_CLAIMMAP_MISSING_INSTRUMENTS=0
+PRE_CLAIMMAP_EXIT=1
+### ШАГ 3 страж на отредактированном разделе, два прогона на неизменном дереве ### 2026-10-26T15:18:29+03:00
+RUN1: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=28 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_SENTENCES=28
+CLAIMMAP_UNMAPPED=0
+CLAIMMAP_IDS=25
+CLAIMMAP_MISSING_IDS=0
+CLAIMMAP_INSTRUMENTS=7
+CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+CLAIMMAP_SENTENCES_GE8=1
+RUN2: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=28 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_SENTENCES=28
+CLAIMMAP_UNMAPPED=0
+CLAIMMAP_IDS=25
+CLAIMMAP_MISSING_IDS=0
+CLAIMMAP_INSTRUMENTS=7
+CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+CLAIMMAP_SENTENCES_GE8=1
+STABLE=1
+STABLE=1
+### ШАГ 4 посадка в текст: клауза без метки обязана быть найдена ### 2026-10-26T15:18:31+03:00
+PLANT_GUARD: CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=29 CLAIMMAP_UNMAPPED=1 CLAIMMAP_IDS=25 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0 (exit=1)
+PLANT_GUARD=1
+PLANT_UNMAPPED=1
+### ШАГ 5 зеркало спеки и страж текста ### 2026-10-26T15:18:32+03:00
+MIRROR_EXIT=0
+MIRROR: OK: VecDHT-SPEC-v8.md — зеркало совпадает с оригиналом (2292 строк, da99a23f16be) OK: VecDHT-SPEC-v9.md — зеркало совпадает с оригиналом (634 строк, a121878a263f) 
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 6 страж репозитория ### 2026-10-26T15:18:33+03:00
+REPOREVIEW_EXIT=0
+REVIEW: ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md) ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md) 
+### ШАГ 7 посадка в таблицу: неверное ожидание обязано краснеть ### 2026-10-26T15:18:47+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 8 ожидания ### 2026-10-26T15:18:47+03:00
+ОЖИДАНИЙ=26 РАСХОЖДЕНИЙ=0
+### ШАГ 9 носитель после прогона ### 2026-10-26T15:18:48+03:00
+DISK_FREE_MB=34982 RAM_FREE_MB=6720 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
