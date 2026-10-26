@@ -82,7 +82,7 @@ jobs:
           bash lab/check-release-kit.sh > "$L" 2>&1; r=$?
           echo "KIT_EXIT=$r" >> "$L"
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
-          grep -aE '^CK_[A-Z_]+=' "$L" | tail -20 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+          grep -aE '^CK_[A-Z_]+=' "$L" | tail -20 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           exit $r
 
       # Рецепт обязан быть одной и той же строкой в английском README, в его русском переводе и в
@@ -167,7 +167,7 @@ jobs:
           bash lab/workspace-verify.sh "$GITHUB_REF_NAME"; r=$?
           L=lab/logs/workspace-verify-2026-10-22.log
           grep -aE '^(TEST_EXIT|CLIPPY_EXIT|LEAN_EXIT|VERUS_EXIT|KCC_EXIT|VERIFY_FAIL|SECONDS_total)=' "$L" \
-            | tail -12 | tee -a "$GITHUB_STEP_SUMMARY"
+            | tail -12 | tee -a "$GITHUB_STEP_SUMMARY" || true
           echo "WORKSPACE_VERIFY_EXIT=$r" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "::notice::WORKSPACE_VERIFY_EXIT=$r"
           exit $r

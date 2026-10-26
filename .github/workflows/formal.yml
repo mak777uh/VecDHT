@@ -98,7 +98,7 @@ jobs:
           # «вывод каждой из четырёх работ записан в журнал», а не «работа позеленела». Аннотации
           # печатаются ДО выхода: если прибор красный, диагностика нужнее всего.
           grep -aE 'VERUS_CHECK_RC=|VERUS_SELFTEST_RC=|^VERUS_TOTAL|^CONST_MATCH|^VERUS_STATUS|VERUS_SELFTEST total' "$L" \
-            | tail -6 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+            | tail -6 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           exit $rc_all
 
   kani:
@@ -151,7 +151,7 @@ jobs:
           # от версии к версии, поэтому наружу выходит код возврата и последние непустые строки
           # журнала дословно.
           echo "::notice::KANI_RC=$r"
-          grep -av '^[[:space:]]*$' "$L" | tail -4 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+          grep -av '^[[:space:]]*$' "$L" | tail -4 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           exit $r
 
   lean:
@@ -215,7 +215,7 @@ jobs:
           echo "LEANGUARD_SELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
           tail -40 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           grep -aE '^LEAN_TOTAL|^LEAN_ALL_OK|LEANGUARD_SELFTEST total|^LEAN_RC=|^LEANGUARD_SELFTEST_RC=' "$L" \
-            | tail -5 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+            | tail -5 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           exit $rc_all
 
   admission:
@@ -232,9 +232,9 @@ jobs:
           echo "### cargo test -p vecdht-node ###" > "$L"
           cargo test -p vecdht-node --no-fail-fast >> "$L" 2>&1; r=$?
           echo "TEST_RC=$r" >> "$L"
-          grep -E "^test result|^error|TEST_RC" "$L" | tail -30 | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -E "^test result|^error|TEST_RC" "$L" | tail -30 | tee -a "$GITHUB_STEP_SUMMARY" || true
           { echo "TEST_RC=$r"; grep -aE '^test result:' "$L" | tail -1; } \
-            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           exit $r
 
       - name: Clippy и компиляция харнесов под заглушку Kani
@@ -249,5 +249,5 @@ jobs:
           echo "KCC_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           grep -aE '^CLIPPY_RC=|^KCC_RC=|^KCC_ANCHORS=|^KCC_HARNESS_FNS=|^KCC_STATUS=' "$L" \
-            | tail -5 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+            | tail -5 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           exit $rc_all

@@ -95,10 +95,10 @@ jobs:
           L=/tmp/repo-review.log
           python lab/repo-review.py check > "$L" 2>&1; r=$?
           echo "REVIEW_EXIT=$r" >> "$L"
-          grep -aE '^REVIEW_(FINDINGS|TOP|REFS_STALE|REFS_UNRESOLVED|ID_TOKENS|ID_RESOLVED|REFS_UNRESOLVED_ALLOWED|REFS_UNRESOLVED_VIOLATIONS|ALLOW_LIST_[A-Z]+)=' "$L" | tail -14
-          grep -aE '^РАЗРЫВ ' "$L" | head -20
+          grep -aE '^REVIEW_(FINDINGS|TOP|REFS_STALE|REFS_UNRESOLVED|ID_TOKENS|ID_RESOLVED|REFS_UNRESOLVED_ALLOWED|REFS_UNRESOLVED_VIOLATIONS|ALLOW_LIST_[A-Z]+)=' "$L" | tail -14 || true
+          grep -aE '^РАЗРЫВ ' "$L" | head -20 || true
           { echo "REVIEW_EXIT=$r"; grep -aE '^REVIEW_(REFS_UNRESOLVED_VIOLATIONS|REFS_UNRESOLVED_ALLOWED|REFS_STALE|FINDINGS)=' "$L"; } \
-            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -12 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
@@ -111,9 +111,9 @@ jobs:
           echo "SELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
           python lab/repo-review.py refselftest >> "$L" 2>&1; r=$?
           echo "REFSELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
-          grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L"
+          grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L" || true
           { grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L"; \
-            echo "REFSELFTEST_RC=$rc_all"; } | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+            echo "REFSELFTEST_RC=$rc_all"; } | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $rc_all
 
@@ -123,7 +123,7 @@ jobs:
           L=/tmp/threshold-lint.log
           python lab/threshold-lint.py --latest > "$L" 2>&1; r=$?
           echo "TL_EXIT=$r" >> "$L"
-          grep -aE '^ЦИКЛ=|^ПОРОГОВ=' "$L" | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+          grep -aE '^ЦИКЛ=|^ПОРОГОВ=' "$L" | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
@@ -133,7 +133,7 @@ jobs:
           L=/tmp/cycle-gate.log
           python lab/cycle-gate.py audit -n 5 > "$L" 2>&1; r=$?
           echo "CG_EXIT=$r" >> "$L"
-          grep -aE '^AUDIT |нарушений=[^0]' "$L" | tail -4 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+          grep -aE '^AUDIT |нарушений=[^0]' "$L" | tail -4 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -8 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
@@ -143,7 +143,7 @@ jobs:
           L=/tmp/library-check.log
           python lab/library.py check > "$L" 2>&1; r=$?
           echo "LIB_EXIT=$r" >> "$L"
-          grep -aoE 'LIBCHECK [^\n]*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+          grep -aoE 'LIBCHECK [^\n]*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
         # `library.py verify` (живые URL чужих источников) сюда не входит: он требует сети до
@@ -182,7 +182,7 @@ jobs:
           L=/tmp/text-clean.log
           bash lab/check-text-clean.sh --all > "$L" 2>&1; r=$?
           echo "TEXT_EXIT=$r" >> "$L"
-          grep -aoE 'ПРОВЕРКА_ТЕКСТА .*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+          grep -aoE 'ПРОВЕРКА_ТЕКСТА .*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
@@ -193,8 +193,41 @@ jobs:
           python lab/xcheck-paid-orders.py "$VECTORS_DOC" > "$L" 2>&1; r=$?
           echo "XC_EXIT=$r" >> "$L"
           grep -aE '^V9_(SPEC_DOC_MISMATCH|DOC_EMPTY_CELLS|WORKED_PARSED|W_DECOY_FIRED|SPEC_DECOY_FIRED|DOC_DECOY_FIRED)=' "$L" \
-            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -12 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      # Отчётный `grep` без находки возвращает 1; труба под `pipefail` отдаёт её наружу, а GitHub
+      # исполняет `run:` как `bash -e` — шаг обрывается в этой строке, ДО `exit $r`, которое и
+      # является вердиктом. Класс измерен в `E-0127` (работа `verify` краснела на зелёном дереве:
+      # `::notice::TEST_EXIT=0` при статусе `failure`). Guard обязан стоять в КОНЦЕ трубы: форма
+      # `grep … || true | while …` разбирается как `grep … || (true | while …)`, шаг зеленеет, а
+      # рассылка `::notice::` теряется — прибор считает и это отдельной находкой.
+      - name: check-ci-report-greps — отчётные трубы не обрывают шаг раньше вердикта
+        run: |
+          set -uo pipefail
+          L=/tmp/crg.log
+          python lab/check-ci-report-greps.py > "$L" 2>&1; r=$?
+          echo "CRG_EXIT=$r" >> "$L"
+          grep -aE '^CRG_(FILES|RUN_BLOCKS|GREP_STATEMENTS|UNGUARDED|MISPLACED|VERDICT_GREP|LINES_NOGUARD|RECOUNT_EQ|BLIND|FAIL)=' "$L" | tail -12 || true
+          { echo "CRG_EXIT=$r"; grep -aE '^CRG_(UNGUARDED|MISPLACED|BLIND|FAIL|UNGUARDED_AT|MISPLACED_AT)=' "$L"; } \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -10 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      # Самопроверка того же стража: пять посаженных форм, включая слепой каталог workflow'ов.
+      # Страж, который никто не гонял с дефектом, через пять циклов становится зелёным текстом
+      # (тот же приём, что у `lean-check.py` в `E-0093`).
+      - name: check-ci-report-greps selftest — посадки обязаны отбиваться
+        run: |
+          set -uo pipefail
+          L=/tmp/crg-selftest.log
+          python lab/check-ci-report-greps.py selftest > "$L" 2>&1; r=$?
+          echo "CRG_SELFTEST_RC=$r" >> "$L"
+          grep -aE '^CRG_SELFTEST' "$L" | tail -8 || true
+          { grep -aE '^CRG_SELFTEST' "$L"; echo "CRG_SELFTEST_RC=$r"; } \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
   workspace:
@@ -224,9 +257,9 @@ jobs:
           L=/tmp/ws-test.log
           cargo test --workspace --no-fail-fast > "$L" 2>&1; r=$?
           echo "TEST_EXIT=$r" | tee -a "$GITHUB_STEP_SUMMARY"
-          grep -aE '^test result:' "$L" | tail -40 | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -aE '^test result:' "$L" | tail -40 | tee -a "$GITHUB_STEP_SUMMARY" || true
           { echo "TEST_EXIT=$r"; grep -aE '^test result: FAILED|^error' "$L" | tail -3; } \
-            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           exit $r
 
       - name: cargo clippy --workspace --all-targets -- -D warnings
@@ -235,7 +268,7 @@ jobs:
           L=/tmp/ws-clippy.log
           cargo clippy --workspace --all-targets -- -D warnings > "$L" 2>&1; r=$?
           echo "CLIPPY_EXIT=$r" | tee -a "$GITHUB_STEP_SUMMARY"
-          grep -aE '^(warning|error)(\[|:)' "$L" | tail -10 | tee -a "$GITHUB_STEP_SUMMARY"
+          grep -aE '^(warning|error)(\[|:)' "$L" | tail -10 | tee -a "$GITHUB_STEP_SUMMARY" || true
           echo "::notice::CLIPPY_EXIT=$r"
           exit $r
 
@@ -262,6 +295,6 @@ jobs:
           python lab/v9-independent-client.py "$VECTORS_DOC" docs/VecDHT-SPEC-v9.md > "$L" 2>&1; r=$?
           echo "V913_EXIT=$r" >> "$L"
           grep -aE '^V913_(ALL_OK|WORST|DECOY|RFC8032_DECOY_REJECTED|[A-Z0-9_]+EQ)=' "$L" | tail -8 \
-            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done
-          { echo "V913_EXIT=$r"; grep -aE '^V913_WORST=|^V913_ALL_OK=' "$L"; } | tee -a "$GITHUB_STEP_SUMMARY"
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          { echo "V913_EXIT=$r"; grep -aE '^V913_WORST=|^V913_ALL_OK=' "$L"; } | tee -a "$GITHUB_STEP_SUMMARY" || true
           exit $r
