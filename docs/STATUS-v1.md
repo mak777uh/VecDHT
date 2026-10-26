@@ -1,8 +1,9 @@
 # Status of v1: gates, what closed them, and what is not there
 
 > Cycle ids this page rests on: `E-0004`…`E-0012`, `E-0077`, `E-0079`…`E-0095`, `E-0099`, `E-0100`,
-> `E-0102`…`E-0105`, `E-0108`, `ADR-0003`, `ADR-0004`, `ADR-0042`…`ADR-0051`, `ADR-0054`, `ADR-0057`,
-> `ADR-0058`. Measured quantities and their commands: [`METRICS.md`](METRICS.md). Inventory counters:
+> `E-0102`…`E-0105`, `E-0108`, `E-0119`, `E-0120`, `E-0123`, `E-0125`, `E-0126`, `ADR-0003`, `ADR-0004`,
+> `ADR-0042`…`ADR-0051`, `ADR-0054`, `ADR-0057`, `ADR-0058`, `ADR-0066`, `ADR-0067`. Measured quantities
+> and their commands: [`METRICS.md`](METRICS.md). Inventory counters:
 > [`../lab/INVENTORY.md`](../lab/INVENTORY.md).
 
 Work is driven by a release queue, not by phases P0–P7. The unit of work since 2026-10-23 is the
@@ -13,10 +14,10 @@ in `../README.md` is an estimate over these five conditions, not a measurement.
 
 | v1 condition | State |
 |---|---|
-| The four Batch A holes are closed, each leaving a regression oracle | closed 4 of 4, in six closures, because holes 3 and 4 each split into A and B once measured: (1) gossip-path authorization — `E-0087` (`ADR-0043`); (2) per-cluster cap — `E-0088`; (3A) finiteness of the shard provider table — `E-0091` (`ADR-0046`); (3B) the ban surviving a restart and its bound — `E-0092` (`ADR-0047`); (4A) the revoked-key set surviving a restart, its bound and the silence of a revoked node — `E-0094` (`ADR-0050`); (4B) an observable door refusal reason — `E-0095` (`ADR-0051`, 22 names, finite journal, the wire is byte-for-byte the previous one). No Batch A hole is open. Two thresholds inside (4B) are not closed — "a collision is visible on the wire" (`E-0095` thresholds (4) and (6)) — and revocation still has no producer: the CLI does not pass a node directory into `NetConfig.revoked_dir` (Batch C) |
+| The four Batch A holes are closed, each leaving a regression oracle | closed 4 of 4, in six closures, because holes 3 and 4 each split into A and B once measured: (1) gossip-path authorization — `E-0087` (`ADR-0043`); (2) per-cluster cap — `E-0088`; (3A) finiteness of the shard provider table — `E-0091` (`ADR-0046`); (3B) the ban surviving a restart and its bound — `E-0092` (`ADR-0047`); (4A) the revoked-key set surviving a restart, its bound and the silence of a revoked node — `E-0094` (`ADR-0050`); (4B) an observable door refusal reason — `E-0095` (`ADR-0051`, 22 names, finite journal, the wire is byte-for-byte the previous one). No Batch A hole is open. Two thresholds inside (4B) are not closed — "a collision is visible on the wire" (`E-0095` thresholds (4) and (6)). The two claims this row used to carry as open are since closed: `node run` passes the node directory into `NetConfig.revoked_dir` (`E-0119`, `crates/vecdht-cli/src/node_cmd.rs`), and revocation has a producer — `vecdht-cli revoke` calls `publish_revoke` (`E-0120`, `crates/vecdht-cli/src/revoke_cmd.rs`). What remains open is a motive (no revocation is issued automatically) and the fact that `apply_revoke` tears only the outgoing direction |
 | The `P1` stand (~200 nodes) has been run for the first time and Appendix C metrics were collected before the run | metrics are ready as a snapshot: `E-0104` (`ADR-0059`) — 37 node names, 7+22 transport names, a closed list, no cost attached; the stand was run in release: `E-0105` (`ADR-0060`) — 192 cold resolves, p95 = 117…257 ms against a 500 ms tolerance across five runs (the two official runs gave 257 and 151 ms), protocol bound `64 × 20 = 1 280 < 5 000` records. No hole in the gate, but the pre-registered falsifier fired: 1 probe of 192 found no provider within 3 s at p50 54 ms, so "192/192 always" is not invariant to host load. The tail of that cold-resolve sample is not yet a registered hypothesis. The stand is LAN and in one process; it has no second machine |
 | One user scenario end-to-end on different machines, repeatable by a command from the README | not done: the whole network path was verified in one process over real QUIC; there is no two-machine run |
-| §18 of the spec rewritten so that every word carries a measurement id or the mark "not implemented" | partial: §4 (the door, revocation consequences and their survivability, refusal names), §7.4 (provider-table finiteness), §9.3, §11.4 (survivability and the bound of the ban and of revocation), §13 (accountability), §14.4 (cell cap), §19.4/§19.5 and Appendix C already carry measurement ids (`E-0079`…`E-0095`, `ADR-0042`…`ADR-0051`); the "word → id" map for §18.9 is in the queue |
+| §18 of the spec rewritten so that every word carries a measurement id or the mark "not implemented" | partial: §4 (the door, revocation consequences and their survivability, refusal names), §7.4 (provider-table finiteness), §9.3, §11.4 (survivability and the bound of the ban and of revocation), §13 (accountability), §14.4 (cell cap), §19.4/§19.5 and Appendix C already carry measurement ids (`E-0079`…`E-0095`, `ADR-0042`…`ADR-0051`); the §18.9 "word → id" map is closed and guarded (`E-0123`, `lab/check-claim-map.py`) |
 | The privacy layer = "what is actually protected", disk audit as a test | the audit is an executable test: `E-0108` (`s13_disk_privacy`) scans the node directory and the artifact directory for text, tokens, f32/f64 blocks and letter-like runs — 0 findings on a live corpus (owner codes and keys found 8 times and 8 times) and against five planted defects; `centroid.bin` is byte-equal to the reference. What this does NOT prove: absence of unknown byte sequences rather than only known ones; the production volume (1M records) was not scanned. Traffic padding is still promised (§13.3, §20.2 row 7) and measured as absent (`E-0077`); the honest v1 wording is that an index node reads what it holds |
 
 Approximate readiness — about 78 % (an estimate over the five conditions, not a measurement). The four
@@ -24,11 +25,13 @@ Batch A holes are closed and each left a regression instrument; recomputing `clu
 path is closed by `E-0103`; the Appendix C metrics snapshot is finite by construction (`E-0104`); the
 protocol core, transport and door are built and measured; the `P1` stand ran in release and gives a
 measured p95 (`E-0105`); the disk audit is an executable test (`E-0108`). The increase over the
-previous estimate comes from exactly those two closures, not from rewording. Missing: a producer of
-revocation and the surface that spreads it (the CLI passes no node directory), a metrics endpoint, a
-two-machine scenario, traffic padding, a release tag and a binary; v9 exists as a document and a
-separate crate and is not in the node's dependency graph. Covering the absence of a number with the
-word "ready" is not allowed, so the figure is labelled as an estimate.
+previous estimate comes from exactly those two closures, not from rewording. Missing: an automatic
+motive for revocation (the producer exists since `E-0120`, nothing calls it on its own), a metrics
+endpoint, a two-machine scenario, traffic padding, an uptime counter for the "30 days" exit criterion
+(`A7b`), a release tag and a published binary — the release kit is now an instrument that the cycles
+check (`E-0126`, `lab/check-release-kit.sh`), the tag itself is an owner action; v9 exists as a document
+and a separate crate and is not in the node's dependency graph. Covering the absence of a number with
+the word "ready" is not allowed, so the figure is labelled as an estimate.
 
 `main` contains only what builds and tests. Gates P2–P5 are closed (including transport and the
 adversarial set §19.3), the deterministic half of P0, gate (v) on real weights and both measured P0
@@ -95,11 +98,11 @@ Rule 8 of `../AGENTS.md` is "do not invent mechanisms", so here is what is actua
   empty answer never happens, backoff is a fixed step, and there is no "ready to take an episode"
   predicate (`E-0080`);
 * the denylist survives a restart since `E-0092`, the set of **revoked credchecks** since `E-0094`:
-  `revocation.bin` in the node directory, bound 4096 with refusal instead of eviction. But revocation
-  has no producer: `publish_revoke` is called by no product file, and `revoked_dir` is passed by no
-  product service constructor (neither `vecdht-cli` nor `vecdht-embed` starts a `NetService`), so
-  today survivability is a property of the service and of the oracle, not of the built product;
-  spreading revocation is Batch C (`lab/decisions/OPEN-QUESTIONS.md` items 45 and 46);
+  `revocation.bin` in the node directory, bound 4096 with refusal instead of eviction. The node
+  directory is passed by the product since `E-0119` (`node_cmd.rs`: `revoked_dir: Some(dir)`), and
+  revocation has a producer since `E-0120` (`vecdht-cli revoke` → `publish_revoke` over the control
+  topic). What is still absent is a motive — nothing decides on its own to revoke — and the incoming
+  direction of a revoked connection (`apply_revoke` tears only outgoing);
 * a revocation that failed to be written is not applied: decision 6 of `ADR-0050` rolls the insert back
   on a `rename`/`fsync` error, so a broken or full disk temporarily un-applies an already executed
   revocation and the door lets the revoked key through until `CertRevoke` is re-sent. The case never

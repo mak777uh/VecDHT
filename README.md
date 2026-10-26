@@ -58,7 +58,11 @@ paragraph:
   the two official runs giving p95 = 257 and 151 ms against a 500 ms threshold (five runs: 257/151/189/
   185/117 ms). Its pre-registered falsifier fired on the tail: one probe in 192 found no provider within
   3 s, so "192/192 always" is not invariant to host load; the tail is not yet a registered hypothesis;
-* **not done, said plainly** — no release tag or binary; the two-machine end-to-end scenario is scripted
+* **not done, said plainly** — no release tag or binary: the release kit exists and is now checked by an
+  instrument (`E-0126`, `lab/check-release-kit.sh`: 17 flags, `CHANGELOG.md` from v7.5, version `1.0.0`
+  in all three carriers, a tag-triggered workflow that runs the lab verification and names its own log
+  block), but placing the tag and creating the GitHub Release are owner actions, and the CI run on the
+  tag is therefore not yet measured; the two-machine end-to-end scenario is scripted
   (`lab/two-hosts.sh`) and dry-run on one host with all three nodes on 127.0.0.1 (match on owner, slot
   and `d2 = 0`), but it has not been run on two hosts yet; the ~200-node
   stand has not been reproduced on a machine we do not control; traffic padding is specified and measured
