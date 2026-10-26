@@ -6,8 +6,9 @@ centre. The protocol core is implemented once, in Rust, and the language binding
 re-encoding byte formats.
 
 **What it is not.** Not a released product: no release tag, no published binary, no external operator
-running this network, and no command that starts a node. Not a claim of privacy beyond what is measured:
-an index node reads what it holds.
+running this network. The `node` command that starts a shard machine exists and the two-machine
+walkthrough is scripted below; it has been dry-run on one host, not yet run on two. Not a claim of
+privacy beyond what is measured: an index node reads what it holds.
 
 Other languages of this document: [Russian, `README.ru.md`](README.ru.md). This file is canonical; where
 they disagree, this one wins.
@@ -57,10 +58,12 @@ paragraph:
   the two official runs giving p95 = 257 and 151 ms against a 500 ms threshold (five runs: 257/151/189/
   185/117 ms). Its pre-registered falsifier fired on the tail: one probe in 192 found no provider within
   3 s, so "192/192 always" is not invariant to host load; the tail is not yet a registered hypothesis;
-* **not done, said plainly** — no release tag or binary; no two-machine end-to-end scenario; the ~200-node
+* **not done, said plainly** — no release tag or binary; the two-machine end-to-end scenario is scripted
+  (`lab/two-hosts.sh`) and dry-run on one host with all three nodes on 127.0.0.1 (match on owner, slot
+  and `d2 = 0`), but it has not been run on two hosts yet; the ~200-node
   stand has not been reproduced on a machine we do not control; traffic padding is specified and measured
-  as absent (`E-0077`); the revocation set survives a restart but nothing in the product produces a
-  revocation; there is no command that starts a shard node; the formal pipeline (Verus, Kani, Lean)
+  as absent (`E-0077`); the revocation set survives a restart and `revoke` produces a signed revocation,
+  but no revocation happens automatically; the formal pipeline (Verus, Kani, Lean)
   proves statements about models, and the model-to-code correspondence is not checked by an executable
   instrument;
 * **counters are not in this file** — the number of hypotheses, experiment cards, ADRs, synthesis notes,
@@ -105,11 +108,63 @@ mingw-w64 must come first in `PATH` (`PATH="/c/Users/Admin/mingw64/bin:$PATH" ca
 the conda toolchain is not enough — no `libws2_32.a`, an old linker, and proc-macro DLL test targets that
 do not link at all. Linux and macOS need nothing special.
 
-**The last command in an operator story is missing.** `agent run` is a listener, not a shard node: there
-is no `node` subcommand that starts a shard machine with membership bootstrap and genesis, and no semantic
-layer serves incoming traffic, so `IntentTextRequest` is unanswered. Publishing and finding work between
-processes over real QUIC inside one machine; a two-machine walkthrough does not exist yet. This is Batch C
-(`docs/STATUS-v1.md`).
+### A two-machine walkthrough (three nodes, one published card)
+
+`lab/two-hosts.sh` is the scripted form of v1 condition 3: three shard nodes hold shard 0, an agent on
+machine 1 publishes a card, an agent on machine 2 finds it. The script prints ASCII `HOSTS_*` lines, so
+the comparison does not depend on the console code page. Both machines need the repository and a built
+CLI: `cargo build --release -p vecdht-cli`.
+
+On machine 1, build the ceremony (a dev artifact, three node certificates, the genesis of shard 0) and
+copy the directory whole to machine 2 — the artifact, genesis, certificates and the dev seeds travel
+together:
+
+```
+bash lab/two-hosts.sh ceremony /tmp/vecdht-two-hosts
+# HOSTS_CEREMONY=1 ... MEMBERS=3 PRIMARY_INDEX=0 PRIMARY_OWNER=...
+scp -r /tmp/vecdht-two-hosts <machine2>:/tmp/
+```
+
+Start the primary and one replica on machine 1, and the third node on machine 2. Each node is told the
+primary's address; replace `<M1>` with machine 1's LAN address and let UDP through:
+
+```
+# machine 1
+bash lab/two-hosts.sh serve /tmp/vecdht-two-hosts 0 /ip4/0.0.0.0/udp/7771/quic-v1
+bash lab/two-hosts.sh serve /tmp/vecdht-two-hosts 1 /ip4/0.0.0.0/udp/7772/quic-v1 /ip4/<M1>/udp/7771/quic-v1
+
+# machine 2
+bash lab/two-hosts.sh serve /tmp/vecdht-two-hosts 2 /ip4/0.0.0.0/udp/7771/quic-v1 /ip4/<M1>/udp/7771/quic-v1
+```
+
+Each node prints `NODE_READY listen=…` when its listener is up and `NODE_STATUS` afterwards. With all
+three up, publish on machine 1 and find on machine 2:
+
+```
+# machine 1
+bash lab/two-hosts.sh publish /tmp/vecdht-two-hosts /ip4/127.0.0.1/udp/7771/quic-v1 "vec dht two host check 52"
+
+# machine 2
+bash lab/two-hosts.sh find /tmp/vecdht-two-hosts /ip4/127.0.0.1/udp/7771/quic-v1 "vec dht two host check 52"
+```
+
+The text is not chosen for meaning: under the dev artifact it lands in cluster 9, which is shard 0 — the
+only shard this network holds; `ceremony` re-checks that with `encode` and refuses to go on otherwise.
+`publish` prints `owner`, `epoch`, `seq` and `slot`; `find` prints `HOSTS_FIND_OK=1` with the same owner
+and slot, `d2 0 similarity 1.000000`, plus the full CLI answer. The dev artifact derives the centroids and
+the authority keys from one seed: this is a mechanics walkthrough, not a public network, and the artifact
+says so itself.
+
+The same script runs the whole scenario on one host, which is how the script itself is checked:
+
+```
+bash lab/two-hosts.sh selfcheck     # 39 s on our host: HOSTS_OK=1, publish owner/slot = find owner/slot
+```
+
+Known wart, visible in the selfcheck logs and not fixed here: `agent find` asks every provider of the
+shard, and when one provider does not answer, the call waits for its full timeout (30 s here) before
+returning the match it already has. The answer is correct; the wait is recorded in
+`lab/logs/e0122-two-hosts-selfcheck.log`.
 
 ## How to check a claim
 
