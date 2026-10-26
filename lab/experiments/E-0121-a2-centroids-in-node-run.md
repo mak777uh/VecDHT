@@ -8,9 +8,19 @@ finished: ""
 environment: "x86_64-pc-windows-gnu, хост владельца; Rust из PATH (cargo/rustc), Python 3 из PATH, PYTHONIOENCODING=utf-8; debug-сборка инкрементально поверх дерева dc6a9d6; сеть — 127.0.0.1, QUIC, два процесса `node run`, публикация и поиск настоящим `vecdht_net::Agent`"
 command: "bash lab/e0121-run.sh"
 threshold: "(1) `cycle-gate.py gate H-0121` выход 0, диск ≥ 15 000 МБ до и после; (2) `cargo test -q -p vecdht-cli --test node_centroids -- --test-threads=1 --nocapture` дважды на неизменном дереве: RESULT_EXIT=0, PASSED=2, FAILED=0 в каждом прогоне, наборы `CT_*`-фактов совпали (STABLE=1); (3) `expect.py lab/expectations/e0121.tsv` по обоим прогонам: EXPECT_EXIT=0 при `CT_MISSING_CODE=2`, `CT_MISSING_NAMED=1`, `CT_HONEST_REASSIGNED=0`, `CT_FORGED_REASSIGNED_GE1=1`, `CT_FORGED_UNVERIFIED_ZERO=1`, `CT_FORGED_CELL_HONEST=1`, `CT_STATUS_CLUSTER_FIELDS=1`; (4) посадка `CT_FORGED_REASSIGNED_GE1=0` в копию таблицы даёт EXPECT_EXIT=1 (PLANT_EXIT=1); (5) PRE_FIX: на дереве `dc6a9d6` в `crates/vecdht-cli/src/node_cmd.rs` нет ни `with_centroids`, ни поля `cluster_reassigned=` в строке `NODE_STATUS` (PRE_FIX_NO_CENTROIDS_WIRING=1); (6) `cargo clippy -q -p vecdht-cli --all-targets -- -D warnings` выход 0; (7) стража текста на новых файлах цикла выход 0. Порог заморожен до первого прогона `lab/e0121-run.sh`; изменение любого числа — новая карточка."
-result: ""
-verdict: ""
+result: "pending"
+verdict: "pending"
 ---
+
+## Поправки прибора до закрытия (порог не менялся)
+
+* Шапка карточки была записана как `result: ""` / `verdict: ""`; страж `repo-review.py`
+  считает `verdict: ""` непустым вердиктом (в проверке `result` форма `""` учтена, в проверке
+  `verdict` — нет) и выдал `REVIEW_FINDINGS=1` (`closed-empty-result`) на полной верификации.
+  Это находка о форме шапки, а не о коде: все кодовые стадии той же верификации зелёные
+  (`CLIPPY_EXIT=0`, `LEAN_EXIT=0`, `VERUS_EXIT=0`, 858 passed / 0 failed / 9 ignored).
+  Карточка приведена к прецеденту (`pending`), верификация перезапущена на том же дереве.
+  Асимметрия стража — кандидат в очередь приборов, в этом цикле не правился.
 
 ## Pre-registration (до прогона)
 
