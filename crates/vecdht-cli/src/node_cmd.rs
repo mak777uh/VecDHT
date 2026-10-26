@@ -332,9 +332,29 @@ async fn serve(
                         (s.cluster_reassigned, s.cluster_unverified)
                     })
                     .unwrap_or((0, 0));
+                // Наблюдаемость §9.8 (`ADR-0065`): без этих полей «узел стоит без гранта» и
+                // «узел обслуживает эпоху E» снаружи не различимы — агент в обоих случаях
+                // видит только таймаут. Значения берутся из того же `serving_epoch`, которым
+                // пользуется дверь записи, а не из отдельной счётовой ветки.
+                let (lease_field, serving_field) = service
+                    .node(shard)
+                    .map(|n| {
+                        let bucket = Clock::at(now_sec()).bucket;
+                        let lease = match n.lease {
+                            Some(l) => format!("{}/{}", l.epoch, l.expires_at_bucket),
+                            None => "none".to_string(),
+                        };
+                        let serving = match n.serving_epoch(bucket) {
+                            Some(e) => e.to_string(),
+                            None => "none".to_string(),
+                        };
+                        (lease, serving)
+                    })
+                    .unwrap_or(("none".to_string(), "none".to_string()));
                 emit(&format!(
                     "NODE_STATUS t={:.0} peers={} kad={} revocations={} door_refusals={} shard={shard} \
-                     cluster_reassigned={cluster_reassigned} cluster_unverified={cluster_unverified}",
+                     cluster_reassigned={cluster_reassigned} cluster_unverified={cluster_unverified} \
+                     lease={lease_field} serving_epoch={serving_field}",
                     now.duration_since(started).as_secs_f64(),
                     service.authenticated_peers().len(),
                     service.kad_peer_count(),

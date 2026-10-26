@@ -364,6 +364,8 @@ fn restart_recovers_wal_snapshot_and_gc() {
     assert_eq!(find(&mut t, h, 70, 20, 2, 1).matches.len(), 1, "(0) H видит A до рестарта");
 
     // (1) Рестарт реплики: WAL и членство с диска, lease потерян, чтение живо.
+    // Так остаётся и после `ADR-0065`: грант персистит только primary, реплике он нужен ровно
+    // на агентском пути записи, который и так отсекается `NOT_OWNER`.
     t.close(h_seed);
     t.reopen(h_seed);
     {
@@ -415,7 +417,12 @@ fn restart_recovers_wal_snapshot_and_gc() {
     }
     assert_eq!(find(&mut t, h, 70, 31, 4, 3).matches.len(), 1, "(2) H видит C после восстановления");
 
-    // (3) Рестарт primary: данные и членство живы, право писать — нет.
+    // (3) Рестарт primary без гранта: данные и членство живы, право писать — нет.
+    // `ADR-0065`: подписанный грант в `lease.bin` переживает рестарт и сам по себе вернул бы
+    // право писать на той же эпохе (это измеряет `lease_after_restart.rs`). Здесь сознательно
+    // остаётся ветка «файла нет» — ровно то состояние, в котором узел поднимается после
+    // истечения `lease_buckets` или на дереве до правки.
+    let _ = std::fs::remove_file(t.dir_of(p).join("lease.bin"));
     t.close(p_seed);
     t.reopen(p_seed);
     {
@@ -540,6 +547,10 @@ fn restart_recovers_wal_snapshot_and_gc() {
         assert!(snap_dir.join(&name).exists(), "(6) {name} на диске");
     }
     t.close(new_seed);
+    // `ADR-0065`: грант primary переживает рестарт через `lease.bin`. Пункт (6) измеряет
+    // снапшот и WAL, а не право писать, поэтому ветка снова «без гранта» — файл убирается,
+    // и `lease.is_none()` ниже означает «не персистится репликой/без файла», а не-old контракт.
+    let _ = std::fs::remove_file(t.dir_of(new_primary).join("lease.bin"));
     t.reopen(new_seed);
     {
         let n = t.node(new_primary);
@@ -549,7 +560,7 @@ fn restart_recovers_wal_snapshot_and_gc() {
         assert_eq!(n.store.time_mark_bucket, 6, "(6) mark из снапшота");
         assert_eq!(n.store.last_snapshot_seq, 6, "(6) last_snapshot_seq");
         assert_eq!(n.epoch(), Some(2), "(6) членство эпохи 2");
-        assert!(n.lease.is_none(), "(6) lease не персистится");
+        assert!(n.lease.is_none(), "(6) без файла гранта lease не поднимается");
         assert_eq!(n.serving_epoch(6), None, "(6) писать нельзя без lease");
         assert_eq!(slot_of(&t, new_primary, 60), slot_a, "(6) слот A пережил снапшот");
     }

@@ -37,7 +37,7 @@ use vecdht_wire::DecodeError;
 use crate::admission::{self, Candidate, Evictor, SharedAdmission};
 use crate::candidates::{self, Holder, MemberList};
 use crate::config::{Clock, Params};
-use crate::lease::Lease;
+use crate::lease::{LEASE_FILE, Lease};
 use crate::membership::{self, Chain, Membership, MembershipError, GENESIS_EPOCH};
 use crate::net::{Addr, Envelope};
 use crate::rendezvous::Issuer;
@@ -146,6 +146,14 @@ pub struct ShardNode {
     /// Сколько `GcTick`-фреймов выпущено. Счётчик нужен не для протокола, а чтобы «GC пишется
     /// по нужде, а не каждый бакет» было проверяемым утверждением, а не обещанием.
     pub gc_ticks: u64,
+    /// Попыток выдать себе lease, закончившихся ошибкой ФС при записи `lease.bin` (§9.2,
+    /// `ADR-0065`). Право писать при этом НЕ выдаётся: молчаливо держать lease только в RAM
+    /// означало бы, что пережитый рестарт — лотерея, а не контракт.
+    pub lease_save_errors: u64,
+    /// Файлов `lease.bin`, отвергнутых при открытии: чужая подпись, чужой шард, чужая эпоха,
+    /// истёкший бакет, чужой primary принятых составов, больше одного кадра. Наблюдаемость, а не
+    /// отказ поднять узел: отсутствие права писать — это штатное состояние реплики.
+    pub lease_load_rejections: u64,
 }
 
 impl ShardNode {
@@ -223,8 +231,13 @@ impl ShardNode {
             evictor: Evictor::new(admission::EVICT_RESERVOIR),
             rendezvous: Issuer::new(rendezvous_ttl),
             gc_ticks: 0,
+            lease_save_errors: 0,
+            lease_load_rejections: 0,
         };
         node.membership = node.load_chain()?;
+        // Грант, который primary успел выдать себе до рестарта, лежит в `lease.bin` (§9.8,
+        // `ADR-0065`): без него перезапуск стоил бы шарду смены эпизоды.
+        node.load_lease();
         Ok(node)
     }
 
@@ -662,8 +675,53 @@ impl ShardNode {
         }
         let lease = Lease::grant(m.epoch(), me, now_bucket, self.params.lease_buckets);
         let frame = lease.signed_frame(self.shard, &self.id, self.dht_peer_id.clone());
+        // §9.2: право писать без подтверждения на диске — обещание, которого нет. Поэтому ошибка
+        // ФС значит «lease не выдан», а не «выдан в RAM»: fail-closed, как и `denylist.bin`
+        // (только там цена — потерянный запрет, здесь — потерянное право; и то и другое видно по
+        // счётчику в `NODE_STATUS`).
+        if let Err(_e) = std::fs::write(self.dir().join(LEASE_FILE), &frame) {
+            self.lease_save_errors += 1;
+            return Vec::new();
+        }
         self.lease = Some(lease);
         m.peers(&me).into_iter().map(|p| Envelope::new(p, frame.clone())).collect()
+    }
+
+    /// Поднять действующий грант с диска (§9.8, `ADR-0065`).
+    ///
+    /// Проверка — ровно та же, что у провода: `Lease::verify` против **принятой** эпохи
+    /// (ADR-0016: эпоху двигает цепочка членства, а не файл) плюс сверка с primary принятого
+    /// состава и со своим ключом. Байты файла обязаны совпасть с канонической перекодировкой
+    /// гранта: иначе «один кадр» превращается в «кадр плюс то, что дописал оператор».
+    ///
+    /// бакет при открытии неизвестен — его сообщит проводник первым `tick()`, поэтому в
+    /// `Lease::verify` уходит `0`: это отсекает явно мёртвые гранты (`expires == 0`), а срок
+    /// действия держит `lease_active(now_bucket)`. Никакого продления при загрузке: грант из
+    /// прошлого не имеет права сам себе назначить новый срок.
+    fn load_lease(&mut self) {
+        let Ok(bytes) = std::fs::read(self.dir().join(LEASE_FILE)) else {
+            return;
+        };
+        if bytes.len() > crate::lease::LEASE_FILE_MAX {
+            self.lease_load_rejections += 1;
+            return;
+        }
+        let have = self.epoch();
+        let Ok((lease, grant)) = Lease::verify(&bytes, self.shard, have, 0) else {
+            self.lease_load_rejections += 1;
+            return;
+        };
+        let mine = self.membership.as_ref().and_then(|m| m.primary());
+        let canonical = lease.signed_frame(self.shard, &self.id, grant.dht_peer_id.clone());
+        if grant.primary_ed25519 != self.me()
+            || lease.primary != self.me()
+            || mine != Some(lease.primary)
+            || canonical != bytes
+        {
+            self.lease_load_rejections += 1;
+            return;
+        }
+        self.lease = Some(lease);
     }
 
     fn handle_lease_grant(
