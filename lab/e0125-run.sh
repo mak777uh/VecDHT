@@ -120,11 +120,23 @@ for i in 1 2; do
     p50=$(fact "$f" P1_P50_MS); p95=$(fact "$f" P1_P95_MS)
     say "RUN${i}.${j}: exit=${rc} секунд=$((t1 - t0)) samples=${s:-MISSING} miss=${m:-MISSING} p50=${p50:-?} p95=${p95:-?} p95_ok=${p:-MISSING} named=${n:-MISSING}"
     [ "$rc" -eq 0 ] || { red=$((red + 1)); cp "$f" "lab/logs/e0125-run${i}-${j}-fail.txt"; }
+    # ДИАГНОЗ-2 (первый прогон helper'а): промахи до правки красили прогон, и красная ветка
+    # архивировала лог; теперь названный промах прогоном красным не считается, и единственный
+    # штатный промах измерения (прогон 1.3, `P1_MISS=1`) остался без сохранённой детальной строки.
+    # Молчание после снятия числа — то же самое, что потеря факта: каждый лог стенда архивируется,
+    # а детали промахов печатаются в общий лог цикла.
+    cp "$f" "lab/logs/e0125-stand-r${i}-${j}.log"
+    grep -h 'P1_MISS_DETAIL obs=' "$f" | tee -a "$LOG" >/dev/null || true
     [ -n "$s" ] && { done_runs=$((done_runs + 1)); samples=$((samples + s)); }
     [ -n "$m" ] && misses=$((misses + m))
     [ "$p" = "1" ] && p95ok=$((p95ok + 1))
     [ "$n" = "1" ] && named=$((named + 1))
   done
+  # ДИАГНОЗ-1: в первом прогоне совокупный бюджет считался по логам второго исполнения, поэтому
+  # `MISS_TOTAL=0` относился к 960 проб из 1 920 и не включил промах первого исполнения.
+  # Теперь число — сумма по всем прогонам обоих исполнений, а флаг бюджета берётся от наихудшего
+  # исполнения (контракт сформулирован как «≤ 1 промах на 960 проб», и каждое исполнение — 960).
+  if [ "$i" = 1 ]; then MTOT1=$misses; else MTOT2=$misses; fi
   plant_f="$OUT/plant${i}.txt"
   VEC_P1_BUDGET_MS=1 cargo test --release -q -p vecdht-net --test s182_p1_scale -- \
     --ignored --nocapture > "$plant_f" 2>&1
@@ -156,19 +168,18 @@ emit0 "STABLE=${st}"
 say "STABLE=${st}"
 [ "$st" = 1 ] || note 1
 cat "$OUT/facts2.txt" | tee -a "$LOG"
-miss_total=$(awk -F= '/^RUNS_SAMPLES=/{s=$2} END{print s}' "$OUT/facts2.txt")
-# Совокупный бюджет ≤ 1 промах на 960 проб: число промахов извлекается из логов прогонов и
-# суммируется, печатается и как замер, и как флаг.
-MISS_TOTAL=0
-for j in $(seq 1 $RUNS); do
-  m=$(fact "$OUT/run/r2j${j}.txt" P1_MISS)
-  [ -n "$m" ] && MISS_TOTAL=$((MISS_TOTAL + m))
-done
+# Совокупный бюджет: ≤ 1 промах на 960 проб. Число промахов складывается из замеров каждого
+# исполнения (переменные считаются в цикле), печатается и как замер по всем 1 920 проб, и как флаг
+# по наихудшему исполнению. ДИАГНОЗ-1: в первом прогоне helper'а сюда повторялся обход логов
+# второго исполнения, и `MISS_TOTAL` описывал 960 проб из 1 920.
+MISS_TOTAL=$(( ${MTOT1:-0} + ${MTOT2:-0} ))
+mx=${MTOT2:-0}
+[ "${MTOT1:-0}" -gt "$mx" ] && mx=${MTOT1:-0}
 emit0 "MISS_TOTAL=${MISS_TOTAL}"
-if [ "$MISS_TOTAL" -le 1 ]; then mob=1; else mob=0; fi
+emit0 "MISS_WORST_EXEC=${mx}"
+if [ "$mx" -le 1 ]; then mob=1; else mob=0; fi
 emit0 "MISS_BUDGET_OK=${mob}"
 [ "$mob" = 1 ] || note 1
-: "$miss_total"
 
 say "### ШАГ 3 границы правки, clippy и стража текста ### $(date +%FT%T%:z)"
 touched=$(git diff --name-only "$BASE_PIN" -- crates/ 2>/dev/null | grep -vc '^crates/vecdht-net/tests/' || true)

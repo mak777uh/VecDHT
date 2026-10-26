@@ -1,0 +1,25 @@
+
+running 1 test
+test p1_scale_200_nodes_64_keys has been running for over 60 seconds
+## P1 nodes=200 providers=189 core=8 observers=3 keys=64
+P1_SAMPLES=192 P1_RESOLVED=17 P1_MISS=175 P1_P50_MS=0 P1_P95_MS=1 P1_MAX_MS=1
+P1_AUTH_ZERO=0 P1_KAD_ZERO=0 P1_ANN=2350 P1_ERRORS=612 P1_KINDS={"conn-lost": 192, "dial-other": 85, "eof": 33, "other": 1, "quic-handshake-timeout": 61, "rr-timeout": 240}
+P1_OBS_AUTH=[193, 199, 196] P1_OBS_SHARD0=[3, 3, 3]
+P1_TIME_BUILD=2.0361262s P1_TIME_DIAL=2.1885425s P1_TIME_RESOLVE=2.0633056s ##
+P1_FIRST_ERRORS=["ответ 12D3KooWFn8QWiVE9T9jxM4din3HgH872hhXfjew2Jg73H4FvT3h: Timeout while waiting for a response", "ответ 12D3KooWFYVfnFKGTuL9KRfpGHyJXC48zqmwZnRLMiUcNGmGPA8E: IO error on outbound stream: connection lost", "ответ 12D3KooWE4W76Yq4pSXrAd1q7aPSHTgWupYspr4THPWbdNtvMHJ9: Timeout while waiting for a response", "ответ 12D3KooWETqvsSjFu76fNnUzKNWhnAMYFY5r3tDexQPax6wrqeSJ: Timeout while waiting for a response", "ответ 12D3KooWJFgXQJVGPW7kYeBA9XTpundbPmaHwX75KU1WSHDMGdSq: Timeout while waiting for a response", "dial Some(PeerId(\"12D3KooWFPLbwcMFH4mPMGSx5TYWQQYzsXvEuVW2winRpumomW8G\")): Failed to negotiate transport protocol(s): [(/ip4/127.0.0.1/udp/23575/quic-v1/p2p/12D3KooWFPLbwcMFH4mPMGSx5TYWQQYzsXvEuVW2winRpumomW8G: : Timeout has been reached)]", "ответ 12D3KooWKotfq8vQBbZwwFXJRibXBsfjxMqqUgWTKqCHLNuTWpmC: Timeout while waiting for a response", "ответ 12D3KooWKotfq8vQBbZwwFXJRibXBsfjxMqqUgWTKqCHLNuTWpmC: IO error on outbound stream: connection lost", "ответ 12D3KooWETqvsSjFu76fNnUzKNWhnAMYFY5r3tDexQPax6wrqeSJ: IO error on outbound stream: connection lost", "ответ 12D3KooWKotfq8vQBbZwwFXJRibXBsfjxMqqUgWTKqCHLNuTWpmC: Timeout while waiting for a response"]
+
+thread 'p1_scale_200_nodes_64_keys' (15600) panicked at crates\vecdht-net\tests\s182_p1_scale.rs:446:5:
+assertion `left == right` failed: холодный резолв не нашёл провайдера: 175 из 192 проб
+  left: 175
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+p1_scale_200_nodes_64_keys --- FAILED
+
+failures:
+
+failures:
+    p1_scale_200_nodes_64_keys
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 99.55s
+
+error: test failed, to rerun pass `-p vecdht-net --test s182_p1_scale`

@@ -1,0 +1,75 @@
+########## E-0125 · 2026-10-26T18:48:45+03:00 · дерево b80eec2 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T18:48:45+03:00
+ПРИОРАРТ H-0125: строк=1 классы=['реализация']
+LEAN H-0125: модель не сделана, рубрика обязательной не требует
+E-CARD E-0125: порог, окружение и команда названы
+CYCLE H-0125=OK нарушений=0
+GATE_H0125_OK=1
+DISK_FREE_MB=32343 RAM_FREE_MB=5921 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: прибор дерева 8b7c1e4, та же посадка ### 2026-10-26T18:48:47+03:00
+checkout: P1_MISS_DETAIL в пине: 0 совпадений
+PRE_FIX plant: exit=101
+ right: 0
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+p1_scale_200_nodes_64_keys --- FAILED
+
+failures:
+
+failures:
+    p1_scale_200_nodes_64_keys
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 99.55s
+
+error: test failed, to rerun pass `-p vecdht-net --test s182_p1_scale`
+PRE_FIX_MISS_DETAIL_FIELD=0
+PRE_FIX_RUN_RED=1
+прибор возвращён: P1_MISS_DETAIL в дереве: 2 совпадений
+### ШАГ 2 два исполнения по пять прогонов release на неизменном дереве ### 2026-10-26T18:51:06+03:00
+ИСПОЛНЕНИЕ 1: DISK_FREE_MB=32351 RAM_FREE_MB=9554 PAGEFILE_PEAK_MB=7660
+RUN1.1: exit=0 секунд=136 samples=192 miss=0 p50=16 p95=186 p95_ok=1 named=1
+RUN1.2: exit=0 секунд=109 samples=192 miss=0 p50=14 p95=131 p95_ok=1 named=1
+RUN1.3: exit=0 секунд=138 samples=192 miss=1 p50=47 p95=232 p95_ok=1 named=1
+RUN1.4: exit=0 секунд=130 samples=192 miss=0 p50=59 p95=162 p95_ok=1 named=1
+RUN1.5: exit=0 секунд=135 samples=192 miss=0 p50=39 p95=165 p95_ok=1 named=1
+PLANT1: exit=0
+PLANT1: miss=173 деталей=173 строк=173 с-тремя-именами=173 named=1
+ИСПОЛНЕНИЕ 2: DISK_FREE_MB=32331 RAM_FREE_MB=9514 PAGEFILE_PEAK_MB=7660
+RUN2.1: exit=0 секунд=130 samples=192 miss=0 p50=30 p95=167 p95_ok=1 named=1
+RUN2.2: exit=0 секунд=137 samples=192 miss=0 p50=40 p95=203 p95_ok=1 named=1
+RUN2.3: exit=0 секунд=134 samples=192 miss=0 p50=45 p95=175 p95_ok=1 named=1
+RUN2.4: exit=0 секунд=142 samples=192 miss=0 p50=19 p95=177 p95_ok=1 named=1
+RUN2.5: exit=0 секунд=136 samples=192 miss=0 p50=58 p95=148 p95_ok=1 named=1
+PLANT2: exit=0
+PLANT2: miss=174 деталей=174 строк=174 с-тремя-именами=174 named=1
+STABLE=1
+STABLE=1
+RUNS_COMPLETED=5
+RUNS_SAMPLES=960
+RUNS_RED=0
+P95_OK_RUNS=5
+MISS_NAMED_RUNS=5
+PLANT_MISSES_GE_1=1
+PLANT_MISS_NAMED=1
+PLANT_DETAIL_SHARD_SEEN=1
+MISS_TOTAL=0
+MISS_BUDGET_OK=1
+### ШАГ 3 границы правки, clippy и стража текста ### 2026-10-26T19:17:44+03:00
+PRODUCT_TOUCHED=0
+продукт не тронут: файлов вне crates/vecdht-net/tests = 0
+CLIPPY_EXIT=0
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+ПОЗВОЛЕНО refs-dangling: H-0110 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A3 (производитель отзыва, CLI revoke) (3 файлов: docs/PLAN-v1.md, lab/experiments/E-0116-ledger-last-block.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md)
+ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md)
+REPO_REVIEW_EXIT=0
+### ШАГ 4 посадка: неверное ожидание обязано краснеть ### 2026-10-26T19:18:28+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 5 ожидания ### 2026-10-26T19:18:28+03:00
+ОЖИДАНИЙ=19 РАСХОЖДЕНИЙ=0
+EXPECT_EXIT=0
+### ШАГ 6 носитель после прогона ### 2026-10-26T19:18:29+03:00
+DISK_FREE_MB=32323 RAM_FREE_MB=9536 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
