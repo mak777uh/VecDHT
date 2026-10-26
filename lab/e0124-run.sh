@@ -46,12 +46,24 @@ emit0() { printf '%s\n' "$1" | tee -a "$LOG"; printf '%s\n' "$1" >> "$G"; }
 
 # Факт из вывода прибора: строка `KEY=значение`. Если строки нет — печатается MISSING, и сверка
 # краснеет: молчание прогона не считается успехом.
+# ДИАГНОЗ (первый и второй прогоны helper'а): якорь `^LR_` терял ровно те факты, которые печатаются
+# первыми в каждом тесте (`LR_LEASE_FILE`, `LR_REPLICA_NO_LEASE`). Причина названа по байтам вывода
+# (`od -c`): libtest в quiet-режиме дописывает в первую строку вывода теста символ прогресса `.`,
+# поэтому строка выглядит как `.LR_LEASE_FILE=1`. Такой ключ не проходит и сверке `lab/expect.py`
+# (её правило — «начало строки или пробел слева»), то есть молчание прогона выглядело бы как
+# «ключа нет». Экстрактор теперь ищет ключ по границе слова (`\b`) и печатает в файл фактов
+# нормализованную строку `KEY=значение`, а не сырую строку логов: факт обязан переживать вшивку
+# чужого префикса. Пороги и ожидания это не касается — правлен только съём числа.
 fact() { # fact <файл-вывода> <ключ>
-  grep -m1 -oE "^${2}=[^ ]*" "$1" 2>/dev/null | head -1 | sed "s/^${2}=//" || true
+  grep -m1 -oE "\b${2}=[^ ]*" "$1" 2>/dev/null | head -1 | sed "s/^${2}=//" || true
 }
 pick() { # pick <исходный ключ> <печатаемый ключ> <файл>
   v=$(fact "$3" "$1")
   emit0 "$2=${v:-MISSING}"
+}
+# Все печатные факты прибора — нормализованные строки `KEY=значение` (тот же якорь, что у `fact`).
+facts_from() {
+  grep -oE '\bLR_[A-Z0-9_]+=[^ ]*' "$1" 2>/dev/null
 }
 
 say "########## E-0124 · $(date +%FT%T%:z) · дерево $(git rev-parse --short HEAD) ##########"
@@ -84,7 +96,7 @@ note "$rc"
 say "checkout: exit=${rc}; lease.bin в node.rs: $(grep -c 'LEASE_FILE' crates/vecdht-node/src/node.rs || true)"
 cargo test -q -p vecdht-node --test lease_after_restart -- --nocapture --test-threads=1 > "$OUT/prefix-node.txt" 2>&1
 say "PRE_FIX node: exit=$?"
-grep -E '^LR_' "$OUT/prefix-node.txt" | sort | tee -a "$LOG" >/dev/null
+facts_from "$OUT/prefix-node.txt" | sort | tee -a "$LOG" >/dev/null
 pick LR_LEASE_FILE PRE_FIX_LEASE_FILE "$OUT/prefix-node.txt"
 pick LR_PRIMARY_SERVING PRE_FIX_PRIMARY_SERVING "$OUT/prefix-node.txt"
 pick LR_PRIMARY_PUBLISH_OK PRE_FIX_PRIMARY_PUBLISH_OK "$OUT/prefix-node.txt"
@@ -92,8 +104,9 @@ pick LR_PLANT_REJECTED PRE_FIX_PLANT_REJECTED "$OUT/prefix-node.txt"
 pick LR_PRE_REFUSAL PRE_FIX_REFUSAL "$OUT/prefix-node.txt"
 cargo test -q -p vecdht-cli --test node_lease_status -- --nocapture > "$OUT/prefix-cli.txt" 2>&1
 say "PRE_FIX cli: exit=$?"
-grep -E '^LR_' "$OUT/prefix-cli.txt" | sort | tee -a "$LOG" >/dev/null
+facts_from "$OUT/prefix-cli.txt" | sort | tee -a "$LOG" >/dev/null
 pick LR_STATUS_LEASE_FIELD PRE_FIX_STATUS_LEASE_FIELD "$OUT/prefix-cli.txt"
+pick LR_STATUS_SERVING_FIELD PRE_FIX_STATUS_SERVING_FIELD "$OUT/prefix-cli.txt"
 pick LR_RESTART_PUBLISH_OK PRE_FIX_RESTART_PUBLISH_OK "$OUT/prefix-cli.txt"
 cp "$OUT/prefix-node.txt" lab/logs/e0124-prefix-node.log
 cp "$OUT/prefix-cli.txt" lab/logs/e0124-prefix-cli.log
@@ -134,7 +147,7 @@ for i in 1 2; do
     cp "$OUT/cli${i}.txt" "lab/logs/e0124-cli${i}-fail.txt"
     say "RED RUN${i}: выводы сохранены в lab/logs"
   fi
-  { grep -E '^LR_' "$OUT/node${i}.txt"; grep -E '^LR_' "$OUT/cli${i}.txt"; } | sort -u > "$FACTS"
+  { facts_from "$OUT/node${i}.txt"; facts_from "$OUT/cli${i}.txt"; } | sort -u > "$FACTS"
   cat "$FACTS" | tee -a "$LOG"
 done
 
