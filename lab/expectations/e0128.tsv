@@ -1,0 +1,166 @@
+# E-0128 · заморожено до первого прогона `lab/e0128-run.sh` (2026-10-27).
+# Ключ — имя печатного факта без `=`; значение — точное. Правка любого числа — новая карточка.
+# Числа `PRE_FIX_*` сняты ДО пре-регистрации на дереве пина `f62b681`, извлечённом `git archive`,
+# нынешним прибором (прибора на пине нет — он часть этого цикла): 3 файла workflow, 40 блоков
+# `run:`, 24 захвата $? без guard'а. Числа живого прогона сняты ДО пре-регистрации теми же
+# командами helper'а на подготовленном дереве после правки (42 блока, 26 захватов, 0 находок),
+# причём два исполнения совпали построчно. Механика (пять форм) исполнена ad-hoc настоящим
+# `bash -e` до заморозки: код обрыва 3, а не 1, потому что errexit уходит из оболочки со статусом
+# последней команды, — из этого числа и следует главное утверждение класса.
+# В таблицу НЕ входят: байты свободного диска/RAM/pagefile (уезжают от посторонних прогонов) и
+# номера строк посадок `PLANT_*_LINE` (уезжают от любой правки workflow'а, а не от дефекта).
+# В таблицу НЕ входит `EXPECT_EXIT` (код самой сверки): сверка исполняется ДО того, как ключ
+# напечатан, поэтому ожидание собственного кода было бы порогом, невыполнимым по построению
+# (первый прогон дал «нет такого ключа»). Факт печатается в носитель и красит `WORST_RC`.
+# шаг 0 · гейт, носитель, ресурсы (байты дисков в таблицу не входят)
+HELPER_BLIND_DIR	0	helper запущен из корня дерева: workflow-каталог, прибор и таблица на месте
+GATE_H0128_OK	1	карточка H-0128 проходит lab/cycle-gate.py (id, claim, falsifier, oracle, prior_art, lean)
+DISK_GE_15000	1	свободный диск до измерений >= 15 000 МБ
+# шаг 1 · PRE_FIX: нынешний прибор на дереве пина f62b681 из `git archive`
+PRE_PIN_ARCHIVE_OK	1	git archive дерева f62b681 распаковался без ошибки
+PRE_FIX_RCC_FILES	3	три workflow-файла на пине (formal, release, verify)
+PRE_FIX_RCC_RUN_BLOCKS	40	блоков run: на пине
+PRE_FIX_RCC_BLOCKS_SET_PLUS_E	0	блоков с `set +e` на пине нет: exemption не прятал находки
+PRE_FIX_RCC_CAPTURES	24	захватов $? на пине: все формы `cmd; r=$?`
+PRE_FIX_RCC_GUARDED	0	ни одного guard'а на пине — класс не починан
+PRE_FIX_RCC_UNGUARDED	24	находок на пине: каждая обязана была обрывать шаг
+PRE_FIX_RCC_LINES_UNGUARDED	24	независимый построчный пересчёт тех же 24
+PRE_FIX_RCC_RECOUNT_EQ	1	два разных кода сошлись: блок-парсер ничего не съел
+PRE_FIX_RCC_BLIND	0	прибор не ослеп (иначе ноль неотличим от 24)
+PRE_FIX_RCC_FAIL	1	вердикт прибора красен
+PRE_FIX_RCC_EXIT	1	выход красен
+PRE_FIX_RCC_FILES_WITH_FINDINGS	3	находки названы всеми тремя файлами, а не одним
+PRE_FIX_RCC_FINDINGS_PRINTED	24	каждая находка напечатана адресом (файл:строка [шаг])
+PRE_FIX_RCC_MORE_FLAG	1	хвост за --limit напечатан отдельным флагом, а не потерян
+PRE_FIX_RCC_RED_NOT_BLIND	1	краснота НАЙДЕНА (24 > 0, BLIND=0, FAIL=1, выход != 0), а не произведена слепотой
+# шаг 2 · PRE_FIX механика на пине: тело живого шага «зеркало спеки» под `bash -e` с пустым HOME
+PRE_FIX_RCS_MATCHES	1	на пине ровно один шаг с таким именем: helper исполняет тело, а не пустой файл
+PRE_FIX_RCS_EXIT	0	extractstep зелёный — извлекать было что
+PRE_FIX_RCS_BLOCK_LINES	13	длина тела шага на пине (13 строк, включая захват)
+PRE_FIX_MIRROR_STEP_DENIES_EXECUTION	1	до починки имя шага утверждало, что он не исполняется, — при том что он исполнялся и краснел
+PRE_FIX_MIRROR_ABSENT_EXIT	1	тело живого шага на пине под `bash -e` с пустым HOME даёт 1: законный код check-spec-mirror.sh обрывает шаг
+PRE_FIX_MIRROR_ABSENT_NOTICE	0	ветки MIRROR_ABSENT_ON_RUNNER на пине не печатается — до неё дело не доходит
+PRE_FIX_MIRROR_REPORT_LINES	0	ни одной строки отчёта `MIRROR_RC=` после обрыва
+PRE_FIX_MIRROR_SILENT_ABORT	1	три числа вместе и есть наблюдение runner'а: выход != 0, notice 0, отчёт 0
+PRE_FIX_MIRROR_SCRIPT_DIVERGE_RC	1	на пине check-spec-mirror.sh на расхождении выходит 1
+PRE_FIX_MIRROR_SCRIPT_REPORT_KEPT	0	0 = строки `починить:` на пине не было: `diff | head` под pipefail обрывает скрипт до неё
+PRE_FIX_MIRROR_SCRIPT_REPORT_LOST	1	обрыв отчёта при правильном коде возврата — находка, а не косметика
+# шаг 3 · живой скан починного дерева
+RCC_FILES	3	файлов workflow в починном дереве
+RCC_RUN_BLOCKS	42	блоков run: стало 42 (+2 шага стража)
+RCC_BLOCKS_SET_PLUS_E	0	exemption в живом дереве нет: `set +e` никто не ставил
+RCC_CAPTURES	26	захватов стало 26: 24 починенных + 2 у нового шага
+RCC_GUARDED	26	все 26 в форме `|| r=$?`
+RCC_UNGUARDED	0	находок ноль
+RCC_LINES_UNGUARDED	0	построчный пересчёт тоже ноль
+RCC_RECOUNT_EQ	1	два кода сошлись на нуле
+RCC_BLIND	0	прибор видит файлы, блоки и захваты
+RCC_FAIL	0	вердикт зелёный
+RCC_EXIT	0	выход 0
+RCC_NONE_PRINTED	1	пустое множество файлов-находок напечатано словом none
+RCC_MORE_NONE_PRINTED	1	пустой хвост тоже напечатан словом none
+# шаг 4 · механика: пять форм под настоящим `bash -e` и шесть сводных утверждений
+MECH_A_UNGUARDED_RC	3	оборванный шаг даёт код упавшей команды (3), а не 1
+MECH_A_UNGUARDED_REACHED	0	до REACHED дело не доходит: обрыв на строке захвата
+MECH_A_UNGUARDED_NOTICES	0	отчёт ::notice:: не отправлен
+MECH_B_GUARDED_RC	3	guard сохраняет вердикт: код прибора 3 доходит до exit $r
+MECH_B_GUARDED_REACHED	1	тело шага доходит до конца
+MECH_B_GUARDED_NOTICES	1	рассылка печатается
+MECH_C_GREEN_RC	0	зелёный продукт: обрывать нечего
+MECH_C_GREEN_REACHED	1	и форма без guard'а выглядит здоровой — поэтому класс был невидим
+MECH_C_GREEN_NOTICES	1	отчёт на месте
+MECH_D_SET_PLUS_E_RC	3	`set +e` тоже доводит до exit $r: код 3 — замысел, а не обрыв
+MECH_D_SET_PLUS_E_REACHED	1	exemption работает: тело доходит до конца
+MECH_D_SET_PLUS_E_NOTICES	1	отчёт на месте
+MECH_E_GREP_ABORT_RC	1	класс E-0127 даёт ровно 1 (grep под pipefail), класс захвата — 3: два класса различимы по коду
+MECH_E_GREP_ABORT_REACHED	0	grep без guard'а обрывает шаг раньше REACHED
+MECH_E_GREP_ABORT_NOTICES	0	и раньше отчёта
+MECHOK_UNGUARDED_ABORTS_BEFORE_REPORT	1	утверждение: обрыв происходит ДО печати отчёта
+MECHOK_GUARDED_KEEPS_VERDICT	1	утверждение: guard в конце не отменяет вердикт
+MECHOK_GREEN_LOOKS_FINE	1	утверждение: на зелёном дереве дефект не виден ни по коду, ни по выводу
+MECHOK_SET_PLUS_E_EXEMPTS	1	утверждение: exemption даёт то же поведение, что guard, и учитывается прибором числом
+MECHOK_CLASS_IS_E0127_NOT_RC	1	утверждение: это не повтор E-0127 — там RC=1, здесь RC=3
+MECHOK_ABORT_INDISTINGUISHABLE_BY_RC	1	утверждение: по одному коду возврата обрыв неотличим от задуманного вердикта (оба 3), различие только в дожитии отчёта
+# шаг 5 · живой шаг «зеркало спеки»: три ветки носителя, все под `bash -e`
+RCS_MATCHES	1	в починном дереве шаг «зеркало спеки» ровно один
+RCS_EXIT	0	извлечение удалось
+RCS_VERIFY_YML	1	шаг найден именно в verify.yml
+MIRROR_STEP_DENIES_EXECUTION	0	0 = честное имя: шаг больше не утверждает, что не исполняется
+MIRROR_ABSENT_EXIT	0	на runner'е (пустой HOME) шаг обязан сойти 0 с названной причиной
+MIRROR_ABSENT_NOTICE	1	ветка MIRROR_ABSENT_ON_RUNNER=1 напечатана ровно один раз
+MIRROR_ABSENT_LOG_NAMED	2	причина названа текстом прибора (2 строки лога: v8 и v9)
+MIRROR_OK_EXIT	0	совпадающее зеркало даёт 0
+MIRROR_OK_NOTICE	1	и MIRROR_OK=1
+MIRROR_DIVERGE_EXIT	1	расхождение краснит шаг
+MIRROR_DIVERGE_ERROR	1	и печатает ::error::MIRROR_RC= ровно один раз
+MIRROR_SCRIPT_DIVERGE_RC	1	сам check-spec-mirror.sh остаётся красным при расхождении
+MIRROR_SCRIPT_REPORT_KEPT	1	и допечатывает строку `починить:` (guard в конце трубы стоит)
+# шаг 6 · синтаксис всех блоков `run:` (один парсер на прибор и на свип)
+RCC_SYNTAX_BLOCKS	42	под `bash -n` попало ровно столько блоков, сколько видел прибор (42)
+RCC_SYNTAX_DUMP_EXIT	0	извлечение блоков удалось
+RCC_SYNTAX_BAD	0	синтаксических ошибок нет ни в одном блоке
+RCC_SYNTAX_BLOCKS_EQ_RUN_BLOCKS	1	сверка числа блоков: «все синтаксичны» не означает «половину не извлекли»
+# шаг 7 · посадки на копиях живого дерева
+PLANT_FLIP_RC	0	посадка «снять guard» состоялась (байт изменён)
+PLANT_FLIP_LANDED	1	1 = изменила байт в копии
+PLANT_FLIP_DIRECTION	to_unguarded	направление починного дерева: guarded -> unguarded
+PLANT_FLIP_UNGUARDED	1	прибор нашёл ровно одну посаженную находку
+PLANT_FLIP_GUARDED	25	остальные 25 guard'ов целы
+PLANT_FLIP_CAPTURES	26	число захватов не изменилось: починен один и тот же
+PLANT_FLIP_RECOUNT_EQ	1	независимый пересчёт видит ту же единицу
+PLANT_FLIP_BLOCKS_SET_PLUS_E	0	exemption не приплёлся
+PLANT_FLIP_EXIT	1	прогон красен
+PLANT_FLIP_NAMED	1	находка названа адресом
+PLANT_FLIP_NONE	0	слово none не печатается, когда находка есть
+PLANT_BARE_RC	0	посадка «присваивание $? отдельной строкой» состоялась
+PLANT_BARE_LANDED	1	1 = изменила байт в копии
+PLANT_BARE_DIRECTION	to_bare_assign	форма: to_bare_assign
+PLANT_BARE_UNGUARDED	1	прибор видит и эту форму (1)
+PLANT_BARE_GUARDED	25	25 осталось
+PLANT_BARE_CAPTURES	26	захватов столько же (26)
+PLANT_BARE_RECOUNT_EQ	1	пересчёт сходится (иначе краснел бы легальный вид дерева)
+PLANT_BARE_BLOCKS_SET_PLUS_E	0	exemption не приплёлся
+PLANT_BARE_EXIT	1	прогон красен
+PLANT_BARE_NAMED	1	находка названа
+PLANT_BARE_NONE	0	none не печатается
+PLANT_SETE_RC	0	посадка `set +e` состоялась
+PLANT_SETE_LANDED	1	1 = изменила байт в копии
+PLANT_SETE_DIRECTION	to_set_plus_e	форма: to_set_plus_e
+PLANT_SETE_UNGUARDED	0	exemption действительно снимает находку: 0
+PLANT_SETE_GUARDED	26	guard'ы посчитаны guard'ами (26)
+PLANT_SETE_CAPTURES	26	захватов не потеряно: 26
+PLANT_SETE_RECOUNT_EQ	1	пересчёт согласен с блок-сканером
+PLANT_SETE_BLOCKS_SET_PLUS_E	1	exemption напечатан числом (1), а не молчанием
+PLANT_SETE_EXIT	0	прогон зелёный: exemption — учёт, а не дефект
+PLANT_SETE_NAMED	0	ни одной находки не названо
+PLANT_SETE_NONE	1	пустое множество напечатано словом none
+PLANT_BLIND_LANDED	1	копия с пустым workflow-каталогом собрана
+PLANT_BLIND_BLIND	1	прибор объявляет слепоту
+PLANT_BLIND_UNGUARDED	0	находок 0 — и это НЕ считается успехом
+PLANT_BLIND_RECOUNT_EQ	1	на пустом каталоге EQ = 1: красноту обеспечивает BLIND, а не EQ (граница названа)
+PLANT_BLIND_EXIT	1	прогон красен от слепоты
+PLANT_LANDED	4	четыре посадки состоялись (flip, bare, sete, blind-копия)
+PLANT_RED_COUNT	3	красными обязаны быть три: flip, bare и blind; sete — учёт, не дефект
+PLANT_ALL_RED	1	сводное утверждение посадок
+# шаг 8 · самопроверка прибора на живом дереве (CI гоняет ровно этот режим)
+RCC_SELFTEST_TOTAL	12	двенадцать проверок: a…i на формах плюс j/k/l на живом дереве
+RCC_SELFTEST_PASSED	12	все прошли
+RCC_SELFTEST_FIRED	0	ни одна не отбила
+RCC_SELFTEST_FAILED_NAMES	0	строк =FAIL не напечатано
+RCC_SELFTEST_RC	0	выход 0
+RCC_SELFTEST_OK	1	самопроверка зелёна
+# шаг 9 · носитель после измерений
+DISK_AFTER_MEASURE_GE_15000	1	свободный диск после измерений >= 15 000 МБ
+# шаг 10 · wiring и границы цикла
+RCC_CI_STEP_ADDED	1	страж и его самопроверка стоят двумя шагами в verify.yml
+RCC_VERIFY_BLOCK_ADDED	1	страж исполняется в lab/workspace-verify.sh
+RCC_E0127_INSTRUMENT_UNTOUCHED	1	прибор E-0127 не переписан: два класса разведены по разным файлам
+CODE_CHANGED_RS	0	ни одного .rs: цикл про форму шагов и оболочку
+SPEC_DOCS_UNTOUCHED	1	спеки v8/v9 в этом цикле не тронуты
+MIRROR_SCRIPT_PIPE_GUARDED	1	`diff | head -40 || true` в check-spec-mirror.sh стоит в конце трубы
+SEMICOLON_CAPTURE_LINES	0	независимый grep по workflow-файлам: форма `; r=$?` исчезла полностью
+# шаг 11 · устойчивость: измерение дважды на неизменном дереве
+STABLE	1	два исполнения на неизменном дереве совпали построчно
+# шаг 12 · посадка неверного ожидания и сверка таблицы
+PLANT_EXPECT_RED	1	посадка неверного ожидания (RCC_UNGUARDED=7) красна: сверка ловит подлог
+EXPECT_ROWS	139	число непустых строк таблицы (самопроверка: таблица не пуста и не уехала)

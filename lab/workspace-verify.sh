@@ -125,6 +125,14 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "CRG_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-ci-report-greps.py check 2>&1 | tail -4
   rc=${PIPESTATUS[0]}; echo "CRG_EXIT=$rc"; note $rc
+  # Второй класс той же поломки (`E-0128`): `команда; r=$?` под `bash -e` обрывает шаг на
+  # команде, не доходя до захвата. Здесь скрипт без `-e`, поэтому код берётся из PIPESTATUS,
+  # а прибор смотрит на workflow-файлы, где `-e` стоит по умолчанию (его ставит GitHub).
+  echo "### ci rc-capture guard ### $(date +%FT%T%:z)"
+  python lab/check-ci-rc-capture.py selftest 2>&1 | tail -13
+  rc=${PIPESTATUS[0]}; echo "RCC_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-ci-rc-capture.py check --limit 30 2>&1 | tail -4
+  rc=${PIPESTATUS[0]}; echo "RCC_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc
