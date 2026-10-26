@@ -336,7 +336,7 @@ async fn serve(
                 // «узел обслуживает эпоху E» снаружи не различимы — агент в обоих случаях
                 // видит только таймаут. Значения берутся из того же `serving_epoch`, которым
                 // пользуется дверь записи, а не из отдельной счётовой ветки.
-                let (lease_field, serving_field) = service
+                let (lease_field, serving_field, lease_save_field, lease_reject_field) = service
                     .node(shard)
                     .map(|n| {
                         let bucket = Clock::at(now_sec()).bucket;
@@ -348,13 +348,24 @@ async fn serve(
                             Some(e) => e.to_string(),
                             None => "none".to_string(),
                         };
-                        (lease, serving)
+                        (
+                            lease,
+                            serving,
+                            n.lease_save_errors.to_string(),
+                            n.lease_load_rejections.to_string(),
+                        )
                     })
-                    .unwrap_or(("none".to_string(), "none".to_string()));
+                    .unwrap_or((
+                        "none".to_string(),
+                        "none".to_string(),
+                        "0".to_string(),
+                        "0".to_string(),
+                    ));
                 emit(&format!(
                     "NODE_STATUS t={:.0} peers={} kad={} revocations={} door_refusals={} shard={shard} \
                      cluster_reassigned={cluster_reassigned} cluster_unverified={cluster_unverified} \
-                     lease={lease_field} serving_epoch={serving_field}",
+                     lease={lease_field} serving_epoch={serving_field} \
+                     lease_io_errors={lease_save_field} lease_rejects={lease_reject_field}",
                     now.duration_since(started).as_secs_f64(),
                     service.authenticated_peers().len(),
                     service.kad_peer_count(),
