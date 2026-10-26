@@ -108,6 +108,14 @@ T0=$(now); BLOCK_T0=$T0
   # Страж текста гоняется по ВСЕМУ дереву, а не по списку вызывающего: 2026-10-25 перебор нашёл
   # 23 слово-гибрида в 14 карточках `lab/`, и ни один прогон их не видел, потому что каждый раз
   # передавались только тронутые файлы. Цена — секунды, выгода — дефект алфавита не уезжает в main.
+  # Карта «слово → id» §18.9 (условие 4 v1, `E-0123`): краснеет на клаузу без id, имени прибора
+  # или пометки «не реализовано в v1» — и на ссылку, под которой нет карточки или файла теста.
+  # Строка здесь затем, чтобы новый страж не сгнил за цикл: сам по себе он никому не нужен.
+  echo "### claim map guard (18.9) ### $(date +%FT%T%:z)"
+  python lab/check-claim-map.py --selftest 2>&1 | tail -2
+  rc=${PIPESTATUS[0]}; echo "CLAIMMAP_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-claim-map.py 2>&1 | tail -1
+  rc=${PIPESTATUS[0]}; echo "CLAIMMAP_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc
