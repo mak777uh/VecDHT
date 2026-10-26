@@ -1,0 +1,185 @@
+########## E-0127 · 2026-10-26T23:17:33+03:00 · дерево 27e4595 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T23:17:34+03:00
+ПРИОРАРТ H-0127: строк=1 классы=['спека']
+LEAN H-0127: модель не сделана, рубрика обязательной не требует
+E-CARD E-0127: порог, окружение и команда названы
+CYCLE H-0127=OK нарушений=0
+GATE_H0127_OK=1
+DISK_FREE_MB=22020 RAM_FREE_MB=9753 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+########## ИЗМЕРЕНИЕ 1 ##########
+### ШАГ 1.1 PRE_FIX: пин d18ad2b + нынешний прибор ### 2026-10-26T23:17:36+03:00
+CRG_ROOT=C:/Users/Admin/AppData/Local/Temp/e0127.vn7jkC/prefix-1
+CRG_DIR_ABSENT=0
+CRG_FILES=2
+CRG_RUN_BLOCKS=21
+CRG_GREP_STATEMENTS=23
+CRG_UNGUARDED=21
+CRG_MISPLACED=0
+CRG_VERDICT_GREP=0
+CRG_SUBST_GREP=1
+CRG_LINES_NOGUARD=21
+CRG_RECOUNT_EQ=1
+CRG_UNREADABLE=0
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:100:grep -aE 'VERUS_CHECK_RC=|VERUS_SELFTEST_RC=|^VERUS_TOTAL|^CONST_MATCH|^VERUS_STATUS|VERUS
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:154:grep -av '^[[:space:]]*$' "$L" | tail -4 | while IFS= read -r n; do echo "::notice::${n:0:
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:217:grep -aE '^LEAN_TOTAL|^LEAN_ALL_OK|LEANGUARD_SELFTEST total|^LEAN_RC=|^LEANGUARD_SELFTEST_
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:235:grep -E "^test result|^error|TEST_RC" "$L" | tail -30 | tee -a "$GITHUB_STEP_SUMMARY"
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:236:{ echo "TEST_RC=$r"; grep -aE '^test result:' "$L" | tail -1; } | while IFS= read -r n; do
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:251:grep -aE '^CLIPPY_RC=|^KCC_RC=|^KCC_ANCHORS=|^KCC_HARNESS_FNS=|^KCC_STATUS=' "$L" | tail -
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:98:grep -aE '^REVIEW_(FINDINGS|TOP|REFS_STALE|REFS_UNRESOLVED|ID_TOKENS|ID_RESOLVED|REFS_UNRE
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:99:grep -aE '^РАЗРЫВ ' "$L" | head -20
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:100:{ echo "REVIEW_EXIT=$r"; grep -aE '^REVIEW_(REFS_UNRESOLVED_VIOLATIONS|REFS_UNRESOLVED_ALL
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:114:grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L"
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:115:{ grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L"
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:126:grep -aE '^ЦИКЛ=|^ПОРОГОВ=' "$L" | while IFS= read -r n; do echo "::notice::${n:0:180}"; d
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:136:grep -aE '^AUDIT |нарушений=[^0]' "$L" | tail -4 | while IFS= read -r n; do echo "::notice
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:146:grep -aoE 'LIBCHECK [^\n]*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::${n:
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:185:grep -aoE 'ПРОВЕРКА_ТЕКСТА .*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::$
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:195:grep -aE '^V9_(SPEC_DOC_MISMATCH|DOC_EMPTY_CELLS|WORKED_PARSED|W_DECOY_FIRED|SPEC_DECOY_FI
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:227:grep -aE '^test result:' "$L" | tail -40 | tee -a "$GITHUB_STEP_SUMMARY"
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:228:{ echo "TEST_EXIT=$r"; grep -aE '^test result: FAILED|^error' "$L" | tail -3; } | while IF
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:238:grep -aE '^(warning|error)(\[|:)' "$L" | tail -10 | tee -a "$GITHUB_STEP_SUMMARY"
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:264:grep -aE '^V913_(ALL_OK|WORST|DECOY|RFC8032_DECOY_REJECTED|[A-Z0-9_]+EQ)=' "$L" | tail -8 
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:266:{ echo "V913_EXIT=$r"; grep -aE '^V913_WORST=|^V913_ALL_OK=' "$L"; } | tee -a "$GITHUB_STE
+CRG_MISPLACED_AT=none
+CRG_BLIND=0
+CRG_FAIL=1
+### ШАГ 2.1 живой прогон прибора ### 2026-10-26T23:17:39+03:00
+CRG_ROOT=C:/Users/Admin/vecdht-work/vecdht
+CRG_DIR_ABSENT=0
+CRG_FILES=3
+CRG_RUN_BLOCKS=32
+CRG_GREP_STATEMENTS=30
+CRG_UNGUARDED=0
+CRG_MISPLACED=0
+CRG_VERDICT_GREP=1
+CRG_SUBST_GREP=1
+CRG_LINES_NOGUARD=1
+CRG_RECOUNT_EQ=1
+CRG_UNREADABLE=0
+CRG_UNGUARDED_AT=none
+CRG_MISPLACED_AT=none
+CRG_BLIND=0
+CRG_FAIL=0
+### ШАГ 3.1 механика: шесть форм под bash -e ### 2026-10-26T23:17:41+03:00
+  MECH A_UNGUARDED RC=1 REACHED=0 NOTICES=0
+  MECH A_GUARDED RC=0 REACHED=1 NOTICES=0
+  MECH B_UNGUARDED RC=1 REACHED=0 NOTICES=1
+  MECH B_GUARDED RC=0 REACHED=1 NOTICES=1
+  MECH C_MISPLACED_HIT RC=0 REACHED=1 NOTICES=0
+  MECH D_MISPLACED_EMPTY RC=0 REACHED=1 NOTICES=0
+### ШАГ 4.1 синтаксис всех блоков run: через bash -n ### 2026-10-26T23:17:45+03:00
+### ШАГ 5.1 самопроверка прибора: пять форм ### 2026-10-26T23:17:47+03:00
+CRG_SELFTEST_A guarded_clean=1 bare_caught=1
+CRG_SELFTEST_CASE a_guard_forms landed=1 fired=1
+CRG_SELFTEST_CASE b_report_pipe landed=1 fired=1
+CRG_SELFTEST_CASE c_comment_not_counted landed=1 fired=1
+CRG_SELFTEST_CASE d_blind_dir_red landed=1 fired=1
+CRG_SELFTEST_CASE e_fourth_file_seen landed=1 fired=1
+CRG_SELFTEST total=5 fired=5
+CRG_SELFTEST_OK=1
+### ШАГ 6.1 две посадки на копиях починного дерева ### 2026-10-26T23:17:48+03:00
+########## ИЗМЕРЕНИЕ 2 ##########
+### ШАГ 1.2 PRE_FIX: пин d18ad2b + нынешний прибор ### 2026-10-26T23:17:49+03:00
+CRG_ROOT=C:/Users/Admin/AppData/Local/Temp/e0127.vn7jkC/prefix-2
+CRG_DIR_ABSENT=0
+CRG_FILES=2
+CRG_RUN_BLOCKS=21
+CRG_GREP_STATEMENTS=23
+CRG_UNGUARDED=21
+CRG_MISPLACED=0
+CRG_VERDICT_GREP=0
+CRG_SUBST_GREP=1
+CRG_LINES_NOGUARD=21
+CRG_RECOUNT_EQ=1
+CRG_UNREADABLE=0
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:100:grep -aE 'VERUS_CHECK_RC=|VERUS_SELFTEST_RC=|^VERUS_TOTAL|^CONST_MATCH|^VERUS_STATUS|VERUS
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:154:grep -av '^[[:space:]]*$' "$L" | tail -4 | while IFS= read -r n; do echo "::notice::${n:0:
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:217:grep -aE '^LEAN_TOTAL|^LEAN_ALL_OK|LEANGUARD_SELFTEST total|^LEAN_RC=|^LEANGUARD_SELFTEST_
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:235:grep -E "^test result|^error|TEST_RC" "$L" | tail -30 | tee -a "$GITHUB_STEP_SUMMARY"
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:236:{ echo "TEST_RC=$r"; grep -aE '^test result:' "$L" | tail -1; } | while IFS= read -r n; do
+CRG_UNGUARDED_AT=.github/workflows/formal.yml:251:grep -aE '^CLIPPY_RC=|^KCC_RC=|^KCC_ANCHORS=|^KCC_HARNESS_FNS=|^KCC_STATUS=' "$L" | tail -
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:98:grep -aE '^REVIEW_(FINDINGS|TOP|REFS_STALE|REFS_UNRESOLVED|ID_TOKENS|ID_RESOLVED|REFS_UNRE
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:99:grep -aE '^РАЗРЫВ ' "$L" | head -20
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:100:{ echo "REVIEW_EXIT=$r"; grep -aE '^REVIEW_(REFS_UNRESOLVED_VIOLATIONS|REFS_UNRESOLVED_ALL
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:114:grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L"
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:115:{ grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L"
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:126:grep -aE '^ЦИКЛ=|^ПОРОГОВ=' "$L" | while IFS= read -r n; do echo "::notice::${n:0:180}"; d
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:136:grep -aE '^AUDIT |нарушений=[^0]' "$L" | tail -4 | while IFS= read -r n; do echo "::notice
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:146:grep -aoE 'LIBCHECK [^\n]*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::${n:
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:185:grep -aoE 'ПРОВЕРКА_ТЕКСТА .*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::$
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:195:grep -aE '^V9_(SPEC_DOC_MISMATCH|DOC_EMPTY_CELLS|WORKED_PARSED|W_DECOY_FIRED|SPEC_DECOY_FI
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:227:grep -aE '^test result:' "$L" | tail -40 | tee -a "$GITHUB_STEP_SUMMARY"
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:228:{ echo "TEST_EXIT=$r"; grep -aE '^test result: FAILED|^error' "$L" | tail -3; } | while IF
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:238:grep -aE '^(warning|error)(\[|:)' "$L" | tail -10 | tee -a "$GITHUB_STEP_SUMMARY"
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:264:grep -aE '^V913_(ALL_OK|WORST|DECOY|RFC8032_DECOY_REJECTED|[A-Z0-9_]+EQ)=' "$L" | tail -8 
+CRG_UNGUARDED_AT=.github/workflows/verify.yml:266:{ echo "V913_EXIT=$r"; grep -aE '^V913_WORST=|^V913_ALL_OK=' "$L"; } | tee -a "$GITHUB_STE
+CRG_MISPLACED_AT=none
+CRG_BLIND=0
+CRG_FAIL=1
+### ШАГ 2.2 живой прогон прибора ### 2026-10-26T23:17:52+03:00
+CRG_ROOT=C:/Users/Admin/vecdht-work/vecdht
+CRG_DIR_ABSENT=0
+CRG_FILES=3
+CRG_RUN_BLOCKS=32
+CRG_GREP_STATEMENTS=30
+CRG_UNGUARDED=0
+CRG_MISPLACED=0
+CRG_VERDICT_GREP=1
+CRG_SUBST_GREP=1
+CRG_LINES_NOGUARD=1
+CRG_RECOUNT_EQ=1
+CRG_UNREADABLE=0
+CRG_UNGUARDED_AT=none
+CRG_MISPLACED_AT=none
+CRG_BLIND=0
+CRG_FAIL=0
+### ШАГ 3.2 механика: шесть форм под bash -e ### 2026-10-26T23:17:54+03:00
+  MECH A_UNGUARDED RC=1 REACHED=0 NOTICES=0
+  MECH A_GUARDED RC=0 REACHED=1 NOTICES=0
+  MECH B_UNGUARDED RC=1 REACHED=0 NOTICES=1
+  MECH B_GUARDED RC=0 REACHED=1 NOTICES=1
+  MECH C_MISPLACED_HIT RC=0 REACHED=1 NOTICES=0
+  MECH D_MISPLACED_EMPTY RC=0 REACHED=1 NOTICES=0
+### ШАГ 4.2 синтаксис всех блоков run: через bash -n ### 2026-10-26T23:17:58+03:00
+### ШАГ 5.2 самопроверка прибора: пять форм ### 2026-10-26T23:18:00+03:00
+CRG_SELFTEST_A guarded_clean=1 bare_caught=1
+CRG_SELFTEST_CASE a_guard_forms landed=1 fired=1
+CRG_SELFTEST_CASE b_report_pipe landed=1 fired=1
+CRG_SELFTEST_CASE c_comment_not_counted landed=1 fired=1
+CRG_SELFTEST_CASE d_blind_dir_red landed=1 fired=1
+CRG_SELFTEST_CASE e_fourth_file_seen landed=1 fired=1
+CRG_SELFTEST total=5 fired=5
+CRG_SELFTEST_OK=1
+### ШАГ 6.2 две посадки на копиях починного дерева ### 2026-10-26T23:18:01+03:00
+STABLE=1
+два исполнения сравнены построчно (diff -q): STABLE=1
+### ШАГ 7 прибор вписан в контур, вердикт-греп рецепта не спрятан ### 2026-10-26T23:18:03+03:00
+CI_STEP_ADDED=1
+VERIFY_BLOCK_ADDED=1
+VERDICT_GREP_KEPT=1
+CODE_CHANGED_RS=0
+### ШАГ 8 полный контур стражей ### 2026-10-26T23:18:03+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_EXIT=0
+ПОРОГОВ=80 ИСТОЧНИКОВ=3 СИРОТ=0
+LINT_EXIT=0
+CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=30 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=28 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+ПОЗВОЛЕНО refs-dangling: H-0110 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A3 (производитель отзыва, CLI revoke) (3 файлов: docs/PLAN-v1.md, lab/experiments/E-0116-ledger-last-block.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md)
+ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md)
+REPO_REVIEW_EXIT=0
+OK: VecDHT-SPEC-v8.md — зеркало совпадает с оригиналом (2300 строк, f96bdd3ac427)
+OK: VecDHT-SPEC-v9.md — зеркало совпадает с оригиналом (634 строк, a121878a263f)
+MIRROR_EXIT=0
+### ШАГ 9 носитель после измерений ### 2026-10-26T23:18:23+03:00
+DISK_FREE_MB=21970 RAM_FREE_MB=9753 PAGEFILE_PEAK_MB=7660
+DISK_AFTER_MEASURE_GE_15000=1
+### ШАГ 10 посадка неверного ожидания и сверка ### 2026-10-26T23:18:25+03:00
+PLANT_EXPECT_RED=1
+ОЖИДАНИЙ=80 РАСХОЖДЕНИЙ=0
+EXPECT_EXIT=0
+WORST_RC=0
+HELPER_EXIT=0
