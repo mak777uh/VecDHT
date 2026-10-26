@@ -41,6 +41,7 @@ pub mod bootstrap_cmd;
 pub mod demo_cmd;
 pub mod encode_cmd;
 pub mod index_cmd;
+pub mod key_cmd;
 pub mod model;
 pub mod node_cmd;
 pub mod pow_cmd;
@@ -150,6 +151,13 @@ pub static COMMANDS: &[Command] = &[
         flags: bootstrap_cmd::FLAGS_CERT,
         help: bootstrap_cmd::HELP_CERT,
         run: bootstrap_cmd::exec_cert,
+    },
+    Command {
+        path: key_cmd::CMD,
+        summary: "вывести owner_ed25519 и PeerId из seed узла — вход церемонии (§4.1)",
+        flags: key_cmd::FLAGS,
+        help: key_cmd::HELP,
+        run: key_cmd::exec,
     },
     Command {
         path: bootstrap_cmd::CMD_GENESIS,

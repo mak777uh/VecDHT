@@ -1,0 +1,178 @@
+########## E-0122 · 2026-10-26T06:13:33+03:00 · дерево faac87e ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T06:13:33+03:00
+ПРИОРАРТ H-0122: строк=1 классы=['спека']
+LEAN H-0122: модель не сделана, рубрика обязательной не требует
+E-CARD E-0122: порог, окружение и команда названы
+  НАРУШЕНИЕ: L-0032: в targets нет H-0122 — запись читают не для этой гипотезы
+CYCLE H-0122=FAIL нарушений=1
+GATE_H0122_OK=0
+ГЕЙТ НЕ ПРОЙДЕН — замер не начинается
+WORST_RC=1
+########## E-0122 · 2026-10-26T06:15:30+03:00 · дерево faac87e ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T06:15:30+03:00
+ПРИОРАРТ H-0122: строк=1 классы=['спека']
+LEAN H-0122: модель не сделана, рубрика обязательной не требует
+E-CARD E-0122: порог, окружение и команда названы
+CYCLE H-0122=OK нарушений=0
+GATE_H0122_OK=1
+DISK_FREE_MB=28284 RAM_FREE_MB=7272 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве faac87e сценария нет ### 2026-10-26T06:15:33+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_KEY_CMD=0 PRE_FIX_SCRIPT=0 PRE_FIX_NO_KEY_SHOW=1 PRE_FIX_NO_SCRIPT=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_KEY_SHOW=1
+PRE_FIX_NO_SCRIPT=1
+### ШАГ 2 key show совпадает с выводом из seed ### 2026-10-26T06:15:33+03:00
+KEYSHOW: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+KEYSHOW_EXIT=0
+KEYSHOW_PASSED=1
+KEYSHOW_FAILED=0
+### ШАГ 3 README называет сценарий и честно говорит, что двух хостов ещё не было ### 2026-10-26T06:15:37+03:00
+README_EN_OK=1 README_RU_OK=1
+README_EN_OK=1
+README_RU_OK=1
+### ШАГ 4 сборка CLI и два прогона selfcheck на неизменном дереве ### 2026-10-26T06:15:38+03:00
+BUILD_EXIT=0
+BUILD_EXIT=0
+SELFCHECK1: exit=0 seconds=40
+HOSTS_NODE0=/ip4/127.0.0.1/udp/6204/quic-v1
+HOSTS_NODE1=/ip4/127.0.0.1/udp/6205/quic-v1 HOSTS_NODE2=/ip4/127.0.0.1/udp/6208/quic-v1
+HOSTS_PUBLISH_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 LOG=/tmp/vecdht-two-hosts.fzZ6o1/logs/publish.log
+HOSTS_FIND_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 D2=0 MATCHES=1 LOG=/tmp/vecdht-two-hosts.fzZ6o1/logs/find.log
+HOSTS_MATCH=1 HOSTS_DIR=/tmp/vecdht-two-hosts.fzZ6o1 HOSTS_SECONDS=39
+HOSTS_OK=1
+FIND_D2=-1
+FIND_MATCHES=-1
+FIND_SLOT=-1
+HOSTS_CEREMONY=1
+HOSTS_FIND_OK=1
+HOSTS_MATCH=1
+HOSTS_OK=1
+HOSTS_PUBLISH_OK=1
+HOSTS_TEXT_CLUSTER=9
+HOSTS_TEXT_SHARD=0
+OWNER_EQ=0
+OWNER_LEN64=0
+PUB_SLOT=0
+SLOT_EQ=0
+SELFCHECK2: exit=0 seconds=40
+HOSTS_NODE0=/ip4/127.0.0.1/udp/26748/quic-v1
+HOSTS_NODE1=/ip4/127.0.0.1/udp/26749/quic-v1 HOSTS_NODE2=/ip4/127.0.0.1/udp/26752/quic-v1
+HOSTS_PUBLISH_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 LOG=/tmp/vecdht-two-hosts.hRIIX9/logs/publish.log
+HOSTS_FIND_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 D2=0 MATCHES=1 LOG=/tmp/vecdht-two-hosts.hRIIX9/logs/find.log
+HOSTS_MATCH=1 HOSTS_DIR=/tmp/vecdht-two-hosts.hRIIX9 HOSTS_SECONDS=40
+HOSTS_OK=1
+FIND_D2=-1
+FIND_MATCHES=-1
+FIND_SLOT=-1
+HOSTS_CEREMONY=1
+HOSTS_FIND_OK=1
+HOSTS_MATCH=1
+HOSTS_OK=1
+HOSTS_PUBLISH_OK=1
+HOSTS_TEXT_CLUSTER=9
+HOSTS_TEXT_SHARD=0
+OWNER_EQ=0
+OWNER_LEN64=0
+PUB_SLOT=0
+SLOT_EQ=0
+STABLE=1
+STABLE=1
+### ШАГ 5 стража текста на файлах цикла ### 2026-10-26T06:16:58+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 6 посадка: неверное ожидание обязано краснеть ### 2026-10-26T06:16:59+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 7 ожидания ### 2026-10-26T06:16:59+03:00
+РАСХОЖДЕНИЕ: FIND_SLOT ждали «0», напечатано «-1»
+РАСХОЖДЕНИЕ: FIND_D2 ждали «0», напечатано «-1»
+РАСХОЖДЕНИЕ: FIND_MATCHES ждали «1», напечатано «-1»
+РАСХОЖДЕНИЕ: OWNER_EQ ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: OWNER_LEN64 ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: SLOT_EQ ждали «1», напечатано «0»
+ОЖИДАНИЙ=28 РАСХОЖДЕНИЙ=6
+### ШАГ 8 носитель после прогона ### 2026-10-26T06:16:59+03:00
+DISK_FREE_MB=28269 RAM_FREE_MB=6793 PAGEFILE_PEAK_MB=7660
+WORST_RC=1
+########## E-0122 · 2026-10-26T06:17:25+03:00 · дерево faac87e ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T06:17:25+03:00
+ПРИОРАРТ H-0122: строк=1 классы=['спека']
+LEAN H-0122: модель не сделана, рубрика обязательной не требует
+E-CARD E-0122: порог, окружение и команда названы
+CYCLE H-0122=OK нарушений=0
+GATE_H0122_OK=1
+DISK_FREE_MB=28270 RAM_FREE_MB=6945 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: на дереве faac87e сценария нет ### 2026-10-26T06:17:27+03:00
+BASE_IS_ANCESTOR=1 PRE_FIX_KEY_CMD=0 PRE_FIX_SCRIPT=0 PRE_FIX_NO_KEY_SHOW=1 PRE_FIX_NO_SCRIPT=1
+BASE_IS_ANCESTOR=1
+PRE_FIX_NO_KEY_SHOW=1
+PRE_FIX_NO_SCRIPT=1
+### ШАГ 2 key show совпадает с выводом из seed ### 2026-10-26T06:17:28+03:00
+KEYSHOW: test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 16 filtered out; finished in 0.00s
+KEYSHOW_EXIT=0
+KEYSHOW_PASSED=1
+KEYSHOW_FAILED=0
+### ШАГ 3 README называет сценарий и честно говорит, что двух хостов ещё не было ### 2026-10-26T06:17:29+03:00
+README_EN_OK=1 README_RU_OK=1
+README_EN_OK=1
+README_RU_OK=1
+### ШАГ 4 сборка CLI и два прогона selfcheck на неизменном дереве ### 2026-10-26T06:17:29+03:00
+BUILD_EXIT=0
+BUILD_EXIT=0
+SELFCHECK1: exit=0 seconds=39
+HOSTS_NODE0=/ip4/127.0.0.1/udp/51641/quic-v1
+HOSTS_NODE1=/ip4/127.0.0.1/udp/27464/quic-v1 HOSTS_NODE2=/ip4/127.0.0.1/udp/27467/quic-v1
+HOSTS_PUBLISH_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 LOG=/tmp/vecdht-two-hosts.EuYZD2/logs/publish.log
+HOSTS_FIND_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 D2=0 MATCHES=1 LOG=/tmp/vecdht-two-hosts.EuYZD2/logs/find.log
+HOSTS_MATCH=1 HOSTS_DIR=/tmp/vecdht-two-hosts.EuYZD2 HOSTS_SECONDS=39
+HOSTS_OK=1
+FIND_D2=0
+FIND_MATCHES=1
+FIND_SLOT=0
+HOSTS_CEREMONY=1
+HOSTS_FIND_OK=1
+HOSTS_MATCH=1
+HOSTS_OK=1
+HOSTS_PUBLISH_OK=1
+HOSTS_TEXT_CLUSTER=9
+HOSTS_TEXT_SHARD=0
+OWNER_EQ=1
+OWNER_LEN64=1
+PUB_SLOT=0
+SLOT_EQ=1
+SELFCHECK2: exit=0 seconds=39
+HOSTS_NODE0=/ip4/127.0.0.1/udp/12588/quic-v1
+HOSTS_NODE1=/ip4/127.0.0.1/udp/12842/quic-v1 HOSTS_NODE2=/ip4/127.0.0.1/udp/12843/quic-v1
+HOSTS_PUBLISH_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 LOG=/tmp/vecdht-two-hosts.BJsQGv/logs/publish.log
+HOSTS_FIND_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 D2=0 MATCHES=1 LOG=/tmp/vecdht-two-hosts.BJsQGv/logs/find.log
+HOSTS_MATCH=1 HOSTS_DIR=/tmp/vecdht-two-hosts.BJsQGv HOSTS_SECONDS=39
+HOSTS_OK=1
+FIND_D2=0
+FIND_MATCHES=1
+FIND_SLOT=0
+HOSTS_CEREMONY=1
+HOSTS_FIND_OK=1
+HOSTS_MATCH=1
+HOSTS_OK=1
+HOSTS_PUBLISH_OK=1
+HOSTS_TEXT_CLUSTER=9
+HOSTS_TEXT_SHARD=0
+OWNER_EQ=1
+OWNER_LEN64=1
+PUB_SLOT=0
+SLOT_EQ=1
+STABLE=1
+STABLE=1
+### ШАГ 5 стража текста на файлах цикла ### 2026-10-26T06:18:48+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+### ШАГ 6 посадка: неверное ожидание обязано краснеть ### 2026-10-26T06:18:48+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 7 ожидания ### 2026-10-26T06:18:49+03:00
+ОЖИДАНИЙ=28 РАСХОЖДЕНИЙ=0
+### ШАГ 8 носитель после прогона ### 2026-10-26T06:18:49+03:00
+DISK_FREE_MB=28267 RAM_FREE_MB=7908 PAGEFILE_PEAK_MB=7660
+WORST_RC=0

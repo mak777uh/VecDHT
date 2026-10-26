@@ -1,0 +1,84 @@
+# E-0122: selfcheck скрипта двух машин (локальный, 127.0.0.1), 2026-10-26
+# каталог церемонии: /tmp/vecdht-two-hosts.xEcidm
+# команда: bash lab/two-hosts.sh selfcheck (stdout целиком, затем логи узлов)
+
+== stdout
+HOSTS_CEREMONY=1 DIR=/tmp/vecdht-two-hosts.xEcidm SHARD=0 MEMBERS=3 PRIMARY_INDEX=0 PRIMARY_OWNER=43046bfe4092b3e94994eada15dcc20d8aaa07b658fd3954eb8e0efb8bdca5de
+HOSTS_TEXT_CLUSTER=9 HOSTS_TEXT_SHARD=0 HOSTS_TEXT=vec dht two host check 52
+HOSTS_HINT=перенесите каталог целиком: scp -r /tmp/vecdht-two-hosts.xEcidm <машина2>:/tmp/
+HOSTS_NODE0=/ip4/127.0.0.1/udp/19187/quic-v1
+HOSTS_NODE1=/ip4/127.0.0.1/udp/19188/quic-v1 HOSTS_NODE2=/ip4/127.0.0.1/udp/19191/quic-v1
+артефакт dev/local
+источник вектора: суррогат HashModel
+ВНИМАНИЕ: вектор посчитан детерминированным суррогатом из тестового оракула, он НЕ семантический. Годится для проверки механики маршрутизации и разбора форматов, не годится для суждений о качестве поиска (§18.1: recall на таком стенде не измеряется).
+сеть: genesis 3aa1636e617a7f21bf6c67077077f5039cf95660f7e0373831564ec13d9b7349
+кластер 9 (шард 0)
+intent_id f6caad289c62bc8fcb3615b5845b6a0862159cd7bd1ae1abd4998fdcaca5f255
+  vec_q                fc01f70af80b05ff0404f508… (768 hex-символов, --show-vector)
+
+публикация подтверждена (durable W=2):
+  owner           fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565
+  primary         12D3KooWEKyPsvgm7g8vyRA59466ph3t9VLxEUFzNqTXHJdfY2Wq
+  epoch 1, seq 1, slot 0
+  pow             20 бит (следующий 20), nonce 578082
+  published_bucket 112061460, expires_bucket 112061685 (225 бакетов ≈ 3600 с)
+HOSTS_PUBLISH_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 LOG=/tmp/vecdht-two-hosts.xEcidm/logs/publish.log
+артефакт dev/local
+источник вектора: суррогат HashModel
+ВНИМАНИЕ: вектор посчитан детерминированным суррогатом из тестового оракула, он НЕ семантический. Годится для проверки механики маршрутизации и разбора форматов, не годится для суждений о качестве поиска (§18.1: recall на таком стенде не измеряется).
+сеть: genesis 3aa1636e617a7f21bf6c67077077f5039cf95660f7e0373831564ec13d9b7349
+запрос: 16 кластер(ов), nprobe 16, top_k 32
+  vec_q                fc01f70af80b05ff0404f508… (768 hex-символов, --show-vector)
+ответ шарда 0: 12D3KooWF84k1mETNdjWqZDy93UtQCFZ6H6yh8jwKqbfjTSgNSi3 (эпоха 1, совпадений 1)
+отказ шарда 0: ответ не пришёл за 30s
+отказ шарда 2: нет доступного держателя
+отказ шарда 12: нет доступного держателя
+отказ шарда 13: нет доступного держателя
+отказ шарда 14: нет доступного держателя
+отказ шарда 19: нет доступного держателя
+отказ шарда 20: нет доступного держателя
+отказ шарда 22: нет доступного держателя
+отказ шарда 28: нет доступного держателя
+отказ шарда 38: нет доступного держателя
+отказ шарда 43: нет доступного держателя
+отказ шарда 62: нет доступного держателя
+
+совпадения (1):
+  1. owner fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 шард 0 кластер 9 слот 0 d2 0 similarity 1.000000
+     приём: издатель 4ed32f63bf35f0eeefcb25f28a2e1fbdc873ae2835671b0c9460f5f12e4556a8 до бакета 112061480; кадр 500801004c000000197f6b23e16c8532c6abc838facd5ea789be0c76b2920334039bfa8b3d368d61fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c40735856923956500000000000015ecad062c0140346a3f37bbb765edd6e9a07745895b9ec850acceea3e64e39f2b1a82206d6eb6e346301c0b748303db70cb41290a58a30ed218d90cafc50694087572be478705
+HOSTS_FIND_OK=1 OWNER=fa4834147f6e690c3693eff61336046403cd8ae2a14f31b3c407358569239565 SLOT=0 D2=0 MATCHES=1 LOG=/tmp/vecdht-two-hosts.xEcidm/logs/find.log
+HOSTS_MATCH=1 HOSTS_DIR=/tmp/vecdht-two-hosts.xEcidm HOSTS_SECONDS=39
+HOSTS_OK=1
+
+== node0.log
+NODE_READY listen=/ip4/127.0.0.1/udp/19187/quic-v1 peer=12D3KooWEKyPsvgm7g8vyRA59466ph3t9VLxEUFzNqTXHJdfY2Wq owner=43046bfe4092b3e94994eada15dcc20d8aaa07b658fd3954eb8e0efb8bdca5de shard=0
+NODE_STATUS t=5 peers=2 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=10 peers=4 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=15 peers=4 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=20 peers=4 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=25 peers=4 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_ERROR ответ 12D3KooWSfMx5BpXVMrzyfMGHVLQe6UWNWX13ZBPLDmVoAKZ4oun: Timeout while waiting for a response
+NODE_STATUS t=30 peers=4 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=35 peers=4 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+
+== node1.log
+NODE_READY listen=/ip4/127.0.0.1/udp/19188/quic-v1 peer=12D3KooWF84k1mETNdjWqZDy93UtQCFZ6H6yh8jwKqbfjTSgNSi3 owner=4ed32f63bf35f0eeefcb25f28a2e1fbdc873ae2835671b0c9460f5f12e4556a8 shard=0
+NODE_STATUS t=5 peers=2 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=10 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_ERROR ответ 12D3KooWSfMx5BpXVMrzyfMGHVLQe6UWNWX13ZBPLDmVoAKZ4oun: Timeout while waiting for a response
+NODE_STATUS t=15 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=20 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=25 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=30 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=35 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+
+== node2.log
+NODE_READY listen=/ip4/127.0.0.1/udp/19191/quic-v1 peer=12D3KooWJzQR9RTTdTAzupZmmqZcQkTqLVmpQQcknBe5aV9E9bWa owner=884b8857f4eaa1613c61504db34d4beaf346517a0e31de3cddd4d9b4201d9d0b shard=0
+NODE_STATUS t=5 peers=2 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=10 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_ERROR ответ 12D3KooWSfMx5BpXVMrzyfMGHVLQe6UWNWX13ZBPLDmVoAKZ4oun: Timeout while waiting for a response
+NODE_STATUS t=15 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=20 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=25 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=30 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
+NODE_STATUS t=35 peers=3 kad=2 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0

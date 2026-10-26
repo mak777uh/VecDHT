@@ -1,0 +1,28 @@
+GATE_H0122_OK	1	гейт карточки H-0122
+DISK_GE_15000	1	свободно на диске до прогона, МБ
+BASE_IS_ANCESTOR	1	пин PRE_FIX — предок дерева
+PRE_FIX_NO_KEY_SHOW	1	на пине faac87e нет команды key show
+PRE_FIX_NO_SCRIPT	1	на пине faac87e нет lab/two-hosts.sh
+KEYSHOW_EXIT	0	выход теста key show
+KEYSHOW_PASSED	1	тестов прошло
+KEYSHOW_FAILED	0	тестов упало
+README_EN_OK	1	README.md называет сценарий и говорит, что двух хостов ещё не было
+README_RU_OK	1	README.ru.md называет сценарий и говорит то же
+BUILD_EXIT	0	сборка CLI перед прогоном
+HOSTS_CEREMONY	1	церемония собрала артефакт, сертификаты и genesis
+HOSTS_TEXT_CLUSTER	9	кластер текста сценария по encode
+HOSTS_TEXT_SHARD	0	шард текста сценария; сеть держит только шард 0
+HOSTS_PUBLISH_OK	1	публикация через primary принята
+HOSTS_FIND_OK	1	поиск с другого узла вернул совпадение
+HOSTS_MATCH	1	владелец, слот и d2 совпали с публикацией
+HOSTS_OK	1	сценарий завершился целиком
+PUB_SLOT	0	слот публикации
+FIND_SLOT	0	слот находки
+FIND_D2	0	квадрат расстояния до центроида
+FIND_MATCHES	1	число совпадений
+OWNER_EQ	1	владелец находки равен владельцу публикации
+OWNER_LEN64	1	владелец — 32 байта hex
+SLOT_EQ	1	слот находки равен слоту публикации
+STABLE	1	наборы HOSTS_*-фактов двух прогонов совпали
+TEXTGUARD_CYCLE_EXIT	0	стража текста на файлах цикла
+PLANT_EXIT	1	таблица ожиданий чувствительна к посадке

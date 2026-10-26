@@ -14,8 +14,10 @@ use std::process::Command;
 
 use vecdht_artifact::{CENTROID_FILE, MANIFEST_FILE};
 use vecdht_cli::{CODE_FAILED, CODE_OK, CODE_USAGE, run};
+use vecdht_crypto::sig::Identity;
 use vecdht_index::testing::{dir, remove};
 use vecdht_index::IndexEntry;
+use vecdht_net::keys;
 use vecdht_wire::messages::Publish;
 use vecdht_wire::{Codec, DIM, SHARDS};
 
@@ -382,4 +384,33 @@ fn agent_run_raises_a_listener_and_stops_on_the_registered_budget() {
     assert_eq!(no_listen.code, CODE_FAILED, "{no_listen:?}");
     assert!(no_listen.stderr.contains("--listen"), "{}", no_listen.stderr);
     remove(&d);
+}
+
+// §4.1/церемония двух машин: `cert issue` и файл `--members` адресуют узел owner_ed25519 и
+// PeerId, а `node run` принимает seed. `key show` — единственный мост между ними. Тест сверяет
+// печать с тем же кодом, что и узел (`Identity::from_seed`, `keys::peer_id`), а не с записанной
+// константой: константа пережила бы смену формата PeerId и молчала бы.
+#[test]
+fn key_show_derives_the_same_names_the_node_uses() {
+    let seed = [0x2au8; 32];
+    let hex_seed = hex::encode(seed);
+    let o = run(&["key", "show", "--seed", &hex_seed]);
+    assert_eq!(o.code, CODE_OK, "{:?}", o.stderr);
+    let id = Identity::from_seed(seed);
+    let owner = hex::encode(id.pubkey());
+    let peer = hex::encode(keys::peer_id(&id).to_bytes());
+    assert!(o.stdout.contains(&format!("owner {owner}")), "{}", o.stdout);
+    assert!(o.stdout.contains(&format!("peer_id {peer}")), "{}", o.stdout);
+    assert_eq!(owner.len(), 64, "owner обязан быть 32 байта hex");
+    assert!(!peer.is_empty(), "PeerId не бывает пустым");
+
+    // Церемония идёт в два захода на двух машинах; расхождение между ними означало бы два
+    // разных имени у одного seed.
+    let again = run(&["key", "show", "--seed", &hex_seed]);
+    assert_eq!(o.stdout, again.stdout);
+
+    // Без seed пара не выводится ни из чего — отказ с кодом 2, как у остальных команд.
+    let none = run(&["key", "show"]);
+    assert_eq!(none.code, CODE_FAILED, "{none:?}");
+    assert!(none.stderr.contains("--seed"), "{}", none.stderr);
 }
