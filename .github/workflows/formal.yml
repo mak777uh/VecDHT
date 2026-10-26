@@ -86,9 +86,11 @@ jobs:
           set -uo pipefail
           L=/tmp/verus-ci.log; : > "$L"; rc_all=0
           echo "### Verus (Linux, тулчейн $VEC_DHT_VERUS_TOOLCHAIN) ###" >> "$L"
-          VEC_DHT_VERUS_REQUIRED=1 bash lab/verus-check.sh >> "$L" 2>&1; r=$?
+          r=0
+          VEC_DHT_VERUS_REQUIRED=1 bash lab/verus-check.sh >> "$L" 2>&1 || r=$?
           echo "VERUS_CHECK_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
-          bash lab/verus-check.sh selftest >> "$L" 2>&1; r=$?
+          r=0
+          bash lab/verus-check.sh selftest >> "$L" 2>&1 || r=$?
           echo "VERUS_SELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           # Числа обязаны быть видны тому, у кого нет прав на чтение журнала работы: `jobs/{id}/logs`
@@ -143,7 +145,8 @@ jobs:
           set -uo pipefail
           L=/tmp/kani-ci.log
           echo "### Kani ###" > "$L"
-          cargo kani -p vecdht-node >> "$L" 2>&1; r=$?
+          r=0
+          cargo kani -p vecdht-node >> "$L" 2>&1 || r=$?
           echo "KANI_RC=$r" >> "$L"
           tail -60 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           # Тот же канал, что и в других работах: аннотации читаются анонимно, журнал — нет.
@@ -209,9 +212,11 @@ jobs:
           set -uo pipefail
           L=/tmp/lean-ci.log; : > "$L"; rc_all=0
           echo "### Lean ###" >> "$L"
-          bash lab/lean-check.sh --quiet >> "$L" 2>&1; r=$?
+          r=0
+          bash lab/lean-check.sh --quiet >> "$L" 2>&1 || r=$?
           echo "LEAN_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
-          python lab/lean-check.py selftest >> "$L" 2>&1; r=$?
+          r=0
+          python lab/lean-check.py selftest >> "$L" 2>&1 || r=$?
           echo "LEANGUARD_SELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
           tail -40 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           grep -aE '^LEAN_TOTAL|^LEAN_ALL_OK|LEANGUARD_SELFTEST total|^LEAN_RC=|^LEANGUARD_SELFTEST_RC=' "$L" \
@@ -230,7 +235,8 @@ jobs:
           set -uo pipefail
           L=/tmp/node-test.log
           echo "### cargo test -p vecdht-node ###" > "$L"
-          cargo test -p vecdht-node --no-fail-fast >> "$L" 2>&1; r=$?
+          r=0
+          cargo test -p vecdht-node --no-fail-fast >> "$L" 2>&1 || r=$?
           echo "TEST_RC=$r" >> "$L"
           grep -E "^test result|^error|TEST_RC" "$L" | tail -30 | tee -a "$GITHUB_STEP_SUMMARY" || true
           { echo "TEST_RC=$r"; grep -aE '^test result:' "$L" | tail -1; } \
@@ -242,10 +248,12 @@ jobs:
           set -uo pipefail
           L=/tmp/node-lint.log; : > "$L"; rc_all=0
           echo "### clippy -D warnings ###" >> "$L"
-          cargo clippy -p vecdht-node --all-targets -- -D warnings >> "$L" 2>&1; r=$?
+          r=0
+          cargo clippy -p vecdht-node --all-targets -- -D warnings >> "$L" 2>&1 || r=$?
           echo "CLIPPY_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
           echo "### kani-compile-check ###" >> "$L"
-          bash lab/kani-compile-check.sh >> "$L" 2>&1; r=$?
+          r=0
+          bash lab/kani-compile-check.sh >> "$L" 2>&1 || r=$?
           echo "KCC_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           grep -aE '^CLIPPY_RC=|^KCC_RC=|^KCC_ANCHORS=|^KCC_HARNESS_FNS=|^KCC_STATUS=' "$L" \

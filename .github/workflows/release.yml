@@ -79,7 +79,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/kit.log
-          bash lab/check-release-kit.sh > "$L" 2>&1; r=$?
+          r=0
+          bash lab/check-release-kit.sh > "$L" 2>&1 || r=$?
           echo "KIT_EXIT=$r" >> "$L"
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           grep -aE '^CK_[A-Z_]+=' "$L" | tail -20 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
@@ -164,7 +165,8 @@ jobs:
           set -uo pipefail
           echo "RUN_ID=$GITHUB_REF_NAME  EVENT=$GITHUB_EVENT_NAME  SHA=$GITHUB_SHA" | tee -a "$GITHUB_STEP_SUMMARY"
           echo "::notice::RUN_ID=$GITHUB_REF_NAME"
-          bash lab/workspace-verify.sh "$GITHUB_REF_NAME"; r=$?
+          r=0
+          bash lab/workspace-verify.sh "$GITHUB_REF_NAME" || r=$?
           L=lab/logs/workspace-verify-2026-10-22.log
           grep -aE '^(TEST_EXIT|CLIPPY_EXIT|LEAN_EXIT|VERUS_EXIT|KCC_EXIT|VERIFY_FAIL|SECONDS_total)=' "$L" \
             | tail -12 | tee -a "$GITHUB_STEP_SUMMARY" || true

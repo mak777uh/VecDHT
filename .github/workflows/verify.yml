@@ -93,7 +93,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/repo-review.log
-          python lab/repo-review.py check > "$L" 2>&1; r=$?
+          r=0
+          python lab/repo-review.py check > "$L" 2>&1 || r=$?
           echo "REVIEW_EXIT=$r" >> "$L"
           grep -aE '^REVIEW_(FINDINGS|TOP|REFS_STALE|REFS_UNRESOLVED|ID_TOKENS|ID_RESOLVED|REFS_UNRESOLVED_ALLOWED|REFS_UNRESOLVED_VIOLATIONS|ALLOW_LIST_[A-Z]+)=' "$L" | tail -14 || true
           grep -aE '^РАЗРЫВ ' "$L" | head -20 || true
@@ -107,9 +108,11 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/refs-selftest.log; : > "$L"; rc_all=0
-          python lab/repo-review.py selftest >> "$L" 2>&1; r=$?
+          r=0
+          python lab/repo-review.py selftest >> "$L" 2>&1 || r=$?
           echo "SELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
-          python lab/repo-review.py refselftest >> "$L" 2>&1; r=$?
+          r=0
+          python lab/repo-review.py refselftest >> "$L" 2>&1 || r=$?
           echo "REFSELFTEST_RC=$r" >> "$L"; [ "$r" -eq 0 ] || rc_all=1
           grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L" || true
           { grep -aE '^REVIEW_SELFTEST total=|^REFGUARD_SELFTEST total=|^REFGUARD_DECOY_FIRED=' "$L"; \
@@ -121,7 +124,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/threshold-lint.log
-          python lab/threshold-lint.py --latest > "$L" 2>&1; r=$?
+          r=0
+          python lab/threshold-lint.py --latest > "$L" 2>&1 || r=$?
           echo "TL_EXIT=$r" >> "$L"
           grep -aE '^ЦИКЛ=|^ПОРОГОВ=' "$L" | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -131,7 +135,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/cycle-gate.log
-          python lab/cycle-gate.py audit -n 5 > "$L" 2>&1; r=$?
+          r=0
+          python lab/cycle-gate.py audit -n 5 > "$L" 2>&1 || r=$?
           echo "CG_EXIT=$r" >> "$L"
           grep -aE '^AUDIT |нарушений=[^0]' "$L" | tail -4 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -8 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -141,7 +146,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/library-check.log
-          python lab/library.py check > "$L" 2>&1; r=$?
+          r=0
+          python lab/library.py check > "$L" 2>&1 || r=$?
           echo "LIB_EXIT=$r" >> "$L"
           grep -aoE 'LIBCHECK [^\n]*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -150,22 +156,29 @@ jobs:
         # внешних хостов и падает по чужим 404, а не по нашему дефекту. Он остаётся локальным
         # прибором круга (`AGENTS.md`, раздел «Что считается проверкой»).
 
-      # Сверка зеркала НЕ исполняется на runner, и шаг говорит об этом прямым текстом, а не
-      # делает вид. Причина механическая: `lab/check-spec-mirror.sh` сравнивает `docs/*.md` с
-      # `${HOME}/OneDrive/Desktop/*.md`, а зеркало lives ВНЕ git (правило 5 `AGENTS.md`), поэтому
-      # на свежем runner файла-зеркала просто нет. Скрипт в этом случае печатает
-      # «зеркала … нет на месте» и выходит 1 (не 2: двойку он отдаёт, когда нет ОРИГИНАЛА,
-      # то есть когда его запустили не из корня репозитория). Мы проваливаем работу только тогда,
-      # когда зеркало на runner всё-таки появилось и разошлось, или когда сломался оригинал.
-      # Проверено локально, три ветки: HOME без зеркала -> шаг 0 с MIRROR_ABSENT_ON_RUNNER=1;
-      # зеркало совпадает -> 0 с MIRROR_OK=1; зеркало расходится -> 1 с ::error::. При большом
-      # расхождении сам guard может выйти 141 (его пайплайн `diff | head -40` ловит SIGPIPE под
-      # pipefail) — ветка `exit $r` прозрачно пропускает и этот код, шаг всё равно падает.
-      - name: "НЕ ИСПОЛНЯЕТСЯ ЗДЕСЬ: зеркало спеки (живёт вне git, на runner его нет)"
+      # Этот шаг исполняется на runner, и до `E-0128` он назывался обратное: «НЕ ИСПОЛНЯЕТСЯ
+      # ЗДЕСЬ». Он исполнял себя и краснел. Причина механическая: `lab/check-spec-mirror.sh`
+      # сравнивает `docs/*.md` с `${HOME}/OneDrive/Desktop/*.md`, а зеркало живёт ВНЕ git
+      # (правило 5 `AGENTS.md`), поэтому на свежем runner файла-зеркала просто нет. Скрипт в
+      # этом случае печатает «зеркала … нет на месте» и выходит 1 (не 2: двойку он отдаёт,
+      # когда нет ОРИГИНАЛА, то есть когда его запустили не из корня репозитория). До починки
+      # этот законный `1` обрывал шаг на строке `bash … ; r=$?` (GitHub исполняет `run:` как
+      # `bash -e`), до ветки `MIRROR_ABSENT_ON_RUNNER`, и работа краснела молча: в логе не было
+      # ни одной строки после `##[endgroup]`. Теперь код берётся из `|| r=$?`, и шаг сам
+      # решает, что он значит. Мы проваливаем работу только тогда, когда зеркало на runner
+      # всё-таки появилось и разошлось, или когда сломался оригинал.
+      # Три ветки исполнены на хосте настоящим `bash -e` (числа — в `lab/logs/e0128-all.log`):
+      # HOME без зеркала -> шаг 0 с `MIRROR_ABSENT_ON_RUNNER=1`; зеркало совпадает -> 0 с
+      # `MIRROR_OK=1`; зеркало расходится -> 1 с `::error::MIRROR_RC=`. Сам guard тоже был
+      # дырой того же класса: его пайплайн `diff | head -40` под `set -euo pipefail` обрывал
+      # скрипт раньше его строки «починить:»; теперь он закрыт `|| true` (вердикт скрипта —
+      # `exit 1` в конце, он не изменился).
+      - name: "зеркало спеки: на runner его нет (вне git), шаг обязан назвать причину и сойти 0; расхождение краснит"
         run: |
           set -uo pipefail
           L=/tmp/spec-mirror.log
-          bash lab/check-spec-mirror.sh > "$L" 2>&1; r=$?
+          r=0
+          bash lab/check-spec-mirror.sh > "$L" 2>&1 || r=$?
           echo "MIRROR_RC=$r" >> "$L"
           cat "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           if [ "$r" -eq 0 ]; then echo "::notice::MIRROR_OK=1"; exit 0; fi
@@ -180,7 +193,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/text-clean.log
-          bash lab/check-text-clean.sh --all > "$L" 2>&1; r=$?
+          r=0
+          bash lab/check-text-clean.sh --all > "$L" 2>&1 || r=$?
           echo "TEXT_EXIT=$r" >> "$L"
           grep -aoE 'ПРОВЕРКА_ТЕКСТА .*' "$L" | tail -1 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -190,7 +204,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/xcheck.log
-          python lab/xcheck-paid-orders.py "$VECTORS_DOC" > "$L" 2>&1; r=$?
+          r=0
+          python lab/xcheck-paid-orders.py "$VECTORS_DOC" > "$L" 2>&1 || r=$?
           echo "XC_EXIT=$r" >> "$L"
           grep -aE '^V9_(SPEC_DOC_MISMATCH|DOC_EMPTY_CELLS|WORKED_PARSED|W_DECOY_FIRED|SPEC_DECOY_FIRED|DOC_DECOY_FIRED)=' "$L" \
             | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
@@ -207,7 +222,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/crg.log
-          python lab/check-ci-report-greps.py > "$L" 2>&1; r=$?
+          r=0
+          python lab/check-ci-report-greps.py > "$L" 2>&1 || r=$?
           echo "CRG_EXIT=$r" >> "$L"
           grep -aE '^CRG_(FILES|RUN_BLOCKS|GREP_STATEMENTS|UNGUARDED|MISPLACED|VERDICT_GREP|LINES_NOGUARD|RECOUNT_EQ|BLIND|FAIL)=' "$L" | tail -12 || true
           { echo "CRG_EXIT=$r"; grep -aE '^CRG_(UNGUARDED|MISPLACED|BLIND|FAIL|UNGUARDED_AT|MISPLACED_AT)=' "$L"; } \
@@ -222,10 +238,47 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/crg-selftest.log
-          python lab/check-ci-report-greps.py selftest > "$L" 2>&1; r=$?
+          r=0
+          python lab/check-ci-report-greps.py selftest > "$L" 2>&1 || r=$?
           echo "CRG_SELFTEST_RC=$r" >> "$L"
           grep -aE '^CRG_SELFTEST' "$L" | tail -8 || true
           { grep -aE '^CRG_SELFTEST' "$L"; echo "CRG_SELFTEST_RC=$r"; } \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      # Второй класс той же поломки, который `E-0127` не ловит: GitHub исполняет `run:` как
+      # `bash -e`, а идиома `команда > "$L" 2>&1; r=$?` обрывает шаг на падающей КОМАНДЕ, не
+      # доходя до `r=$?`. Отчёт теряется всегда, а вердикт ломается там, где ненулевой код
+      # ожидаем по замыслу (шаг обязан сойти нулём с названной веткой). На этом механизме
+      # `verify` краснел после починки E-0127: шаг «зеркало спеки» умирал молча на законной
+      # единице. Правильная форма — `r=0` + `команда || r=$?`: вердикт по-прежнему выносит
+      # `exit $r`, guard относится только к захвату кода.
+      - name: check-ci-rc-capture — захват $? не обрывает шаг под bash -e
+        run: |
+          set -uo pipefail
+          L=/tmp/rcc.log
+          r=0
+          python lab/check-ci-rc-capture.py --limit 30 > "$L" 2>&1 || r=$?
+          echo "RCC_EXIT=$r" >> "$L"
+          grep -aE '^RCC_(FILES|RUN_BLOCKS|BLOCKS_SET_PLUS_E|CAPTURES|GUARDED|UNGUARDED|LINES_UNGUARDED|RECOUNT_EQ|BLIND|FAIL|UNGUARDED_FILE|UNGUARDED_MORE)=' "$L" | tail -16 || true
+          { echo "RCC_EXIT=$r"; grep -aE '^RCC_(UNGUARDED|BLIND|FAIL|RECOUNT_EQ|UNGUARDED_AT)=' "$L"; } \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -10 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      # Самопроверка того же стража: семь синтетических форм плюс три посадки в копию ЖИВОГО
+      # дерева (флип формы, «присваивание отдельной строкой», `set +e`) — они работают на
+      # дереве любого состояния, поэтому этот же шаг ловит и будущий откат.
+      - name: check-ci-rc-capture selftest — посадки обязаны отбиваться
+        run: |
+          set -uo pipefail
+          L=/tmp/rcc-selftest.log
+          r=0
+          python lab/check-ci-rc-capture.py selftest > "$L" 2>&1 || r=$?
+          echo "RCC_SELFTEST_RC=$r" >> "$L"
+          grep -aE '^RCC_SELFTEST' "$L" | tail -14 || true
+          { grep -aE '^RCC_SELFTEST' "$L"; echo "RCC_SELFTEST_RC=$r"; } \
             | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
@@ -255,7 +308,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/ws-test.log
-          cargo test --workspace --no-fail-fast > "$L" 2>&1; r=$?
+          r=0
+          cargo test --workspace --no-fail-fast > "$L" 2>&1 || r=$?
           echo "TEST_EXIT=$r" | tee -a "$GITHUB_STEP_SUMMARY"
           grep -aE '^test result:' "$L" | tail -40 | tee -a "$GITHUB_STEP_SUMMARY" || true
           { echo "TEST_EXIT=$r"; grep -aE '^test result: FAILED|^error' "$L" | tail -3; } \
@@ -266,7 +320,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/ws-clippy.log
-          cargo clippy --workspace --all-targets -- -D warnings > "$L" 2>&1; r=$?
+          r=0
+          cargo clippy --workspace --all-targets -- -D warnings > "$L" 2>&1 || r=$?
           echo "CLIPPY_EXIT=$r" | tee -a "$GITHUB_STEP_SUMMARY"
           grep -aE '^(warning|error)(\[|:)' "$L" | tail -10 | tee -a "$GITHUB_STEP_SUMMARY" || true
           echo "::notice::CLIPPY_EXIT=$r"
@@ -292,7 +347,8 @@ jobs:
         run: |
           set -uo pipefail
           L=/tmp/v9-independent.log
-          python lab/v9-independent-client.py "$VECTORS_DOC" docs/VecDHT-SPEC-v9.md > "$L" 2>&1; r=$?
+          r=0
+          python lab/v9-independent-client.py "$VECTORS_DOC" docs/VecDHT-SPEC-v9.md > "$L" 2>&1 || r=$?
           echo "V913_EXIT=$r" >> "$L"
           grep -aE '^V913_(ALL_OK|WORST|DECOY|RFC8032_DECOY_REJECTED|[A-Z0-9_]+EQ)=' "$L" | tail -8 \
             | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
