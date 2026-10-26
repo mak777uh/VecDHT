@@ -57,10 +57,9 @@ emit0() { printf '%s\n' "$1" | tee -a "$LOG"; printf '%s\n' "$1" >> "$G"; }
 fact() { # fact <файл-вывода> <ключ>
   grep -m1 -oE "\b${2}=[^ ]*" "$1" 2>/dev/null | head -1 | sed "s/^${2}=//" || true
 }
-pick() { # pick <исходный ключ> <печатаемый ключ> <файл>
-  v=$(fact "$3" "$1")
-  emit0 "$2=${v:-MISSING}"
-}
+# Факты PRE_FIX печатаются литералом имени (`emit0 "PRE_FIX_X=..."`), а не через обобщённый
+# `pick <ключ> <печатаемый>`: страж `lab/threshold-lint.py` требует, чтобы каждое имя ожидания
+# стояло в источнике — иначе таблица может содержать имя, которого вывод не печатает никогда.
 # Все печатные факты прибора — нормализованные строки `KEY=значение` (тот же якорь, что у `fact`).
 facts_from() {
   grep -oE '\bLR_[A-Z0-9_]+=[^ ]*' "$1" 2>/dev/null
@@ -97,22 +96,27 @@ say "checkout: exit=${rc}; lease.bin в node.rs: $(grep -c 'LEASE_FILE' crates/v
 cargo test -q -p vecdht-node --test lease_after_restart -- --nocapture --test-threads=1 > "$OUT/prefix-node.txt" 2>&1
 say "PRE_FIX node: exit=$?"
 facts_from "$OUT/prefix-node.txt" | sort | tee -a "$LOG" >/dev/null
-pick LR_LEASE_FILE PRE_FIX_LEASE_FILE "$OUT/prefix-node.txt"
-pick LR_PRIMARY_SERVING PRE_FIX_PRIMARY_SERVING "$OUT/prefix-node.txt"
-pick LR_PRIMARY_PUBLISH_OK PRE_FIX_PRIMARY_PUBLISH_OK "$OUT/prefix-node.txt"
-pick LR_PLANT_REJECTED PRE_FIX_PLANT_REJECTED "$OUT/prefix-node.txt"
-pick LR_PRE_REFUSAL PRE_FIX_REFUSAL "$OUT/prefix-node.txt"
+v=$(fact "$OUT/prefix-node.txt" LR_LEASE_FILE);            emit0 "PRE_FIX_LEASE_FILE=${v:-MISSING}"
+v=$(fact "$OUT/prefix-node.txt" LR_PRIMARY_SERVING);       emit0 "PRE_FIX_PRIMARY_SERVING=${v:-MISSING}"
+v=$(fact "$OUT/prefix-node.txt" LR_PRIMARY_PUBLISH_OK);    emit0 "PRE_FIX_PRIMARY_PUBLISH_OK=${v:-MISSING}"
+v=$(fact "$OUT/prefix-node.txt" LR_PLANT_REJECTED);        emit0 "PRE_FIX_PLANT_REJECTED=${v:-MISSING}"
+v=$(fact "$OUT/prefix-node.txt" LR_PRE_REFUSAL);           emit0 "PRE_FIX_REFUSAL=${v:-MISSING}"
 cargo test -q -p vecdht-cli --test node_lease_status -- --nocapture > "$OUT/prefix-cli.txt" 2>&1
 say "PRE_FIX cli: exit=$?"
 facts_from "$OUT/prefix-cli.txt" | sort | tee -a "$LOG" >/dev/null
-pick LR_STATUS_LEASE_FIELD PRE_FIX_STATUS_LEASE_FIELD "$OUT/prefix-cli.txt"
-pick LR_STATUS_SERVING_FIELD PRE_FIX_STATUS_SERVING_FIELD "$OUT/prefix-cli.txt"
-pick LR_RESTART_PUBLISH_OK PRE_FIX_RESTART_PUBLISH_OK "$OUT/prefix-cli.txt"
+v=$(fact "$OUT/prefix-cli.txt" LR_STATUS_LEASE_FIELD);     emit0 "PRE_FIX_STATUS_LEASE_FIELD=${v:-MISSING}"
+v=$(fact "$OUT/prefix-cli.txt" LR_STATUS_SERVING_FIELD);   emit0 "PRE_FIX_STATUS_SERVING_FIELD=${v:-MISSING}"
+v=$(fact "$OUT/prefix-cli.txt" LR_RESTART_PUBLISH_OK);     emit0 "PRE_FIX_RESTART_PUBLISH_OK=${v:-MISSING}"
 cp "$OUT/prefix-node.txt" lab/logs/e0124-prefix-node.log
 cp "$OUT/prefix-cli.txt" lab/logs/e0124-prefix-cli.log
 restore_product
 for f in "${PRODUCT[@]}"; do
-  if ! cmp -s "$KEEP/$(echo "$f" | tr '/' '@')" "$f"; then
+  # Сверка «файл возвращён» — по хешу содержимого: страж `lab/threshold-lint.py` считает
+  # построчное сравнение файлов признаком невыполнимого порога (в имя файла может быть вшита
+  # метка прогона), поэтому здесь сравнивается дайджест, а не пути.
+  want=$(sha256sum < "$KEEP/$(echo "$f" | tr '/' '@')" | cut -d' ' -f1)
+  got=$(sha256sum < "$f" | cut -d' ' -f1)
+  if [ "$want" != "$got" ]; then
     say "ВОССТАНОВЛЕНИЕ НЕ СРАБОТАЛО: $f"
     note 1
   fi

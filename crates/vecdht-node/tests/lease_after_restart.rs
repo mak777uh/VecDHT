@@ -319,7 +319,16 @@ fn planted_grants_are_not_restored() {
         std::fs::write(&path, &honest).expect("честный кадр записан");
         t.restart(p_seed);
         let honest_works = t.node(p).serving_epoch(5) == Some(1);
-        eprintln!("LR_PLANT_{name}={}", i32::from(refused && honest_works));
+        // Имя факта печатается литералом, а не шаблоном: страж `lab/threshold-lint.py` требует,
+        // чтобы каждое имя из таблицы ожиданий стояло в источнике — иначе «прибор печатает»
+        // unverifiable, и в таблицу можно вписать имя, которого вывод не содержит.
+        let good = i32::from(refused && honest_works);
+        match *name {
+            "EPOCH_FUTURE" => eprintln!("LR_PLANT_EPOCH_FUTURE={good}"),
+            "BAD_SIGNATURE" => eprintln!("LR_PLANT_BAD_SIGNATURE={good}"),
+            "EXPIRED" => eprintln!("LR_PLANT_EXPIRED={good}"),
+            other => panic!("у посадки нет имени факта: {other}"),
+        }
         if refused && honest_works {
             rejected += 1;
         }

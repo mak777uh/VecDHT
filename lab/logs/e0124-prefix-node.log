@@ -6,7 +6,7 @@ LR_PLANT_EXPIRED=0
 LR_PLANT_REJECTED=0
 LR_EXPIRED_GRANT_NOT_SERVING=1
 
-thread 'planted_grants_are_not_restored' (23944) panicked at crates\vecdht-node\tests\lease_after_restart.rs:336:5:
+thread 'planted_grants_are_not_restored' (37944) panicked at crates\vecdht-node\tests\lease_after_restart.rs:345:5:
 assertion `left == right` failed: ни одна из посадок не обязана возвращать право писать
   left: 0
  right: 3
@@ -20,7 +20,7 @@ LR_EPOCH_UNCHANGED=1
 LR_PRIMARY_SERVING=0
 LR_PRIMARY_PUBLISH_OK=0
 
-thread 'primary_grant_survives_restart' (476) panicked at crates\vecdht-node\tests\lease_after_restart.rs:275:5:
+thread 'primary_grant_survives_restart' (16256) panicked at crates\vecdht-node\tests\lease_after_restart.rs:275:5:
 primary обязан положить подписанный грант в каталог шарда
 primary_grant_survives_restart --- FAILED
 LR_REPLICA_NO_LEASE=1
@@ -32,6 +32,6 @@ failures:
     planted_grants_are_not_restored
     primary_grant_survives_restart
 
-test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.13s
+test result: FAILED. 1 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.89s
 
 error: test failed, to rerun pass `-p vecdht-node --test lease_after_restart`

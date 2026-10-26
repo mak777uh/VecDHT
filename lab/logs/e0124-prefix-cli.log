@@ -6,14 +6,15 @@ status: NODE_STATUS t=26 peers=1 kad=1 revocations=0 door_refusals=0 shard=0 clu
 status: NODE_STATUS t=28 peers=1 kad=1 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
 LR_STATUS_LEASE_FIELD=0
 LR_STATUS_SERVING_FIELD=0
+node: NODE_ERROR нет соединения с владельцем 4ed32f63…
 status: NODE_STATUS t=2 peers=1 kad=1 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
 status: NODE_STATUS t=4 peers=1 kad=1 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0
 test node_grant_survives_process_restart has been running for over 60 seconds
 LR_CLI_EPOCH_ONE=0
-LR_RESTART_PUBLISH_OK=1
-slots: до=Some(0) после=Some(0)
+LR_RESTART_PUBLISH_OK=0
+slots: до=Some(0) после=None
 
-thread 'node_grant_survives_process_restart' (9840) panicked at crates\vecdht-cli\tests\node_lease_status.rs:405:5:
+thread 'node_grant_survives_process_restart' (35092) panicked at crates\vecdht-cli\tests\node_lease_status.rs:405:5:
 NODE_STATUS обязан печатать поле lease=
 note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
 node_grant_survives_process_restart --- FAILED
@@ -23,6 +24,6 @@ failures:
 failures:
     node_grant_survives_process_restart
 
-test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 87.33s
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 97.85s
 
 error: test failed, to rerun pass `-p vecdht-cli --test node_lease_status`

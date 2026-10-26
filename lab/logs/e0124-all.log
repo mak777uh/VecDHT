@@ -323,3 +323,112 @@ EXPECT_EXIT=0
 ### ШАГ 6 носитель после прогона ### 2026-10-26T16:24:36+03:00
 DISK_FREE_MB=34445 RAM_FREE_MB=6966 PAGEFILE_PEAK_MB=7660
 WORST_RC=0
+########## E-0124 · 2026-10-26T17:15:42+03:00 · дерево 5dc5aa6 ##########
+### ШАГ 0 гейт и носитель до ### 2026-10-26T17:15:42+03:00
+ПРИОРАРТ H-0124: строк=1 классы=['реализация']
+LEAN H-0124: модель не сделана, рубрика обязательной не требует
+E-CARD E-0124: порог, окружение и команда названы
+CYCLE H-0124=OK нарушений=0
+GATE_H0124_OK=1
+DISK_FREE_MB=34028 RAM_FREE_MB=8523 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: product-файлы дерева d8d3087, прибор текущий ### 2026-10-26T17:15:45+03:00
+checkout: exit=0; lease.bin в node.rs: 0
+PRE_FIX node: exit=101
+LR_EPOCH_UNCHANGED=1
+LR_EXPIRED_GRANT_NOT_SERVING=1
+LR_FILE_EQ_FRAME=0
+LR_LEASE_FILE=0
+LR_NO_GRANT_SERVING=0
+LR_PLANT_BAD_SIGNATURE=0
+LR_PLANT_EPOCH_FUTURE=0
+LR_PLANT_EXPIRED=0
+LR_PLANT_REJECTED=0
+LR_PRE_REFUSAL=EPOCH_STALE
+LR_PRIMARY_PUBLISH_OK=0
+LR_PRIMARY_SERVING=0
+LR_REPLICA_NO_LEASE=1
+LR_REPLICA_PUBLISH_NOT_OWNER=1
+PRE_FIX_LEASE_FILE=0
+PRE_FIX_PRIMARY_SERVING=0
+PRE_FIX_PRIMARY_PUBLISH_OK=0
+PRE_FIX_PLANT_REJECTED=0
+PRE_FIX_REFUSAL=EPOCH_STALE
+PRE_FIX cli: exit=101
+LR_CLI_EPOCH_ONE=0
+LR_RESTART_PUBLISH_OK=0
+LR_STATUS_LEASE_FIELD=0
+LR_STATUS_SERVING_FIELD=0
+PRE_FIX_STATUS_LEASE_FIELD=0
+PRE_FIX_STATUS_SERVING_FIELD=0
+PRE_FIX_RESTART_PUBLISH_OK=0
+product-файлы возвращены: 4 совпадений LEASE_FILE в node.rs
+### ШАГ 2 два прогона приборов на неизменном дереве ### 2026-10-26T17:17:52+03:00
+ПРОГОН1: node=0 restart_recovery=0 cli=0 секунд=37
+NODE_EXIT=0
+NODE_FAILED=0
+RESTART_RECOVERY_EXIT=0
+CLI_EXIT=0
+CLI_FAILED=0
+LR_CLI_EPOCH_ONE=1
+LR_EPOCH_UNCHANGED=1
+LR_EXPIRED_GRANT_NOT_SERVING=1
+LR_FILE_EQ_FRAME=1
+LR_LEASE_FILE=1
+LR_NO_GRANT_SERVING=0
+LR_PLANT_BAD_SIGNATURE=1
+LR_PLANT_EPOCH_FUTURE=1
+LR_PLANT_EXPIRED=1
+LR_PLANT_REJECTED=3
+LR_PRE_REFUSAL=EPOCH_STALE
+LR_PRIMARY_PUBLISH_OK=1
+LR_PRIMARY_SERVING=1
+LR_REPLICA_NO_LEASE=1
+LR_REPLICA_PUBLISH_NOT_OWNER=1
+LR_RESTART_PUBLISH_OK=1
+LR_STATUS_LEASE_FIELD=1
+LR_STATUS_SERVING_FIELD=1
+ПРОГОН2: node=0 restart_recovery=0 cli=0 секунд=13
+NODE_EXIT=0
+NODE_FAILED=0
+RESTART_RECOVERY_EXIT=0
+CLI_EXIT=0
+CLI_FAILED=0
+LR_CLI_EPOCH_ONE=1
+LR_EPOCH_UNCHANGED=1
+LR_EXPIRED_GRANT_NOT_SERVING=1
+LR_FILE_EQ_FRAME=1
+LR_LEASE_FILE=1
+LR_NO_GRANT_SERVING=0
+LR_PLANT_BAD_SIGNATURE=1
+LR_PLANT_EPOCH_FUTURE=1
+LR_PLANT_EXPIRED=1
+LR_PLANT_REJECTED=3
+LR_PRE_REFUSAL=EPOCH_STALE
+LR_PRIMARY_PUBLISH_OK=1
+LR_PRIMARY_SERVING=1
+LR_REPLICA_NO_LEASE=1
+LR_REPLICA_PUBLISH_NOT_OWNER=1
+LR_RESTART_PUBLISH_OK=1
+LR_STATUS_LEASE_FIELD=1
+LR_STATUS_SERVING_FIELD=1
+STABLE=1
+STABLE=1
+### ШАГ 3 стража текста и repo-review на файлах цикла ### 2026-10-26T17:18:44+03:00
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=0
+ПОЗВОЛЕНО refs-dangling: H-0107 — будущий цикл Lean-модели ограниченного множества: `lab/decisions/OPEN-QUESTIONS.md` («Цена и очередь: цикл H-0107»), `lab/PLAN.md` (7 файлов: docs/PLAN-v1.md, docs/VecDHT-SPEC-v9.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0109 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A2 (загрузка centroid.bin, хвост ADR-0058); слова плана: «номеров H-0109/H-0110 в lab/ нет — бери следующие свободные» (3 файлов: docs/PLAN-v1.md, lab/experiments/E-0116-ledger-last-block.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0110 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A3 (производитель отзыва, CLI revoke) (3 файлов: docs/PLAN-v1.md, lab/experiments/E-0116-ledger-last-block.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md)
+ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md)
+REPO_REVIEW_EXIT=0
+### ШАГ 4 посадка: неверное ожидание обязано краснеть ### 2026-10-26T17:18:58+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 5 ожидания ### 2026-10-26T17:18:59+03:00
+ОЖИДАНИЙ=36 РАСХОЖДЕНИЙ=0
+EXPECT_EXIT=0
+### ШАГ 6 носитель после прогона ### 2026-10-26T17:18:59+03:00
+DISK_FREE_MB=33895 RAM_FREE_MB=8504 PAGEFILE_PEAK_MB=7660
+WORST_RC=0
