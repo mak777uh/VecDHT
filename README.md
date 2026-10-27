@@ -43,8 +43,8 @@ this repository runs by are [AGENTS.md](AGENTS.md); per-crate detail is
 
 ## Status: one figure, and what it rests on
 
-**≈ 78 % ready for v1** (estimate, 2026-10-25; it rests on the closures of `E-0105` and `E-0108`, and it
-is an estimate over five release-gate conditions, not a measurement).
+**≈ 85 % ready for v1** (estimate, 2026-10-27; it rests on the closures of `E-0105`, `E-0108`, `E-0119`
+and `E-0130`, and it is an estimate over five release-gate conditions, not a measurement).
 
 The unit of work is a release gate (`ADR-0044`) with a measurable ready/not-ready state. The five v1
 conditions, their actual state and every boundary are in [docs/STATUS-v1.md](docs/STATUS-v1.md). In one

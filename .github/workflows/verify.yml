@@ -272,6 +272,19 @@ jobs:
           tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
+      - name: check-claims — реестр утверждений готовности против их носителей
+        run: |
+          set -uo pipefail
+          L=/tmp/claims.log
+          r=0
+          python lab/check-claims.py --selftest > "$L" 2>&1 || r=$?
+          python lab/check-claims.py >> "$L" 2>&1 || r=$?
+          echo "CLAIMS_EXIT=$r" >> "$L"
+          grep -aE '^(CLAIMS|VIOLATIONS|DANGLING|CEILING|QUALIFIER|GATE_RATIO|READY_VALUES)=' "$L" \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -12 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       - name: xcheck-paid-orders — спека v9 против порождённых векторов
         run: |
           set -uo pipefail

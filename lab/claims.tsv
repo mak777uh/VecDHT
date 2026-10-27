@@ -10,9 +10,9 @@ C-003	not-done	3	docs/STATUS-v1.md	the whole network path was verified in one pr
 C-004	partial	4	docs/STATUS-v1.md	partial: §4 (the door, revocation consequences and their survivability, refusal names)	E-0123,lab/check-claim-map.py	§18 размечен не целиком
 C-005	measured	5	docs/STATUS-v1.md	the audit is an executable test	E-0108	аудит диска как тест
 C-006	estimate	-	docs/STATUS-v1.md	Approximate readiness — about 85 %	docs/STATUS-v1.md	цифра готовности: оценка, не измерение
-C-007	estimate	-	README.md	78 % ready for v1	docs/STATUS-v1.md	носитель цифры в английском README
-C-008	estimate	-	README.ru.md	Ориентировочная готовность v1 — около 78 %	docs/STATUS-v1.md	носитель цифры в русском README
-C-009	gate-closed	-	docs/STATUS-v1.md	Gates P2–P5 are closed	E-0012	закритие фаз P2…P5 одним предложением
+C-007	estimate	-	README.md	85 % ready for v1	docs/STATUS-v1.md	носитель цифры в английском README
+C-008	estimate	-	README.ru.md	Ориентировочная готовность v1 — около 85 %	docs/STATUS-v1.md	носитель цифры в русском README
+C-009	gate-closed	-	docs/STATUS-v1.md	Each §18 gate family names its own closure carrier	E-0134,E-0135,crates/vecdht-net/tests/transport.rs,E-0073,crates/vecdht-node/tests/gates_p4.rs,E-0001	каждая семья гейтов называет свой носитель, а не одно предложение на четверых
 C-010	model-proof	-	docs/STATUS-v1.md	it proves statements about acceptance-arithmetic models, not about code	E-0099,ADR-0053	формальные контуры: модель, не код
 C-011	instrument	-	docs/STATUS-v1.md	the release kit is now an instrument that the cycles check	lab/check-release-kit.sh,E-0126	релизный комплект как прибор
 C-012	not-done	-	docs/STATUS-v1.md	Traffic padding is still promised	E-0077	паддинг трафика отсутствует
@@ -20,3 +20,4 @@ C-013	not-done	-	README.md	no release tag or binary	lab/check-release-kit.sh	т�
 C-014	not-done	-	README.md	it has not been run on two hosts yet	lab/two-hosts.sh	сценарий двух хостов не исполнен
 C-015	model-proof	-	README.md	the model-to-code correspondence is not checked by an executable instrument	lab/lean-check.py	соответствие модели и кода не проверено
 C-016	instrument	-	docs/STATUS-v1.md	the §18.9 "word → id" map is closed and guarded	lab/check-claim-map.py,E-0123	карта §18.9 под прибором
+C-017	instrument	-	docs/STATUS-v1.md	Every wording of this section and of both READMEs is a row of `lab/claims.tsv`	lab/check-claims.py,lab/claims.tsv	реестр под собственным прибором: носитель без строки и строка без носителя красны

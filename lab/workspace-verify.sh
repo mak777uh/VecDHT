@@ -116,6 +116,15 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "CLAIMMAP_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-claim-map.py 2>&1 | tail -1
   rc=${PIPESTATUS[0]}; echo "CLAIMMAP_EXIT=$rc"; note $rc
+  # Реестр утверждений готовности (`H-0132`): строка `lab/claims.tsv` и её носитель сверяются вместе.
+  # Тип свидетельства задаёт потолок слов, у названного гейта обязан быть свой носитель в той же
+  # строке, а цифра готовности — одного владельца на все носители. Страж краснеет на тексте, выросшем
+  # сверх строк: правка статус-документа без правки реестра перестаёт быть незаметной.
+  echo "### claims registry guard ### $(date +%FT%T%:z)"
+  python lab/check-claims.py --selftest 2>&1 | tail -6
+  rc=${PIPESTATUS[0]}; echo "CLAIMS_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-claims.py 2>&1 | tail -12
+  rc=${PIPESTATUS[0]}; echo "CLAIMS_EXIT=$rc"; note $rc
   # Отчётные трубы workflow'ов проверяются здесь же, где и всё остальное: шаг, который краснеет от
   # собственного grep'а раньше вердикта, — это красный CI при зелёном продукте (`E-0127`). Прибор
   # обязан самопроверяться посаженными формами: гейт, который никто не гоняет с дефектом, через

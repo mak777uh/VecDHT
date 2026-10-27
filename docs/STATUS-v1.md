@@ -37,18 +37,29 @@ itself is an owner action; v9 exists as a document
 and a separate crate and is not in the node's dependency graph. Covering the absence of a number with
 the word "ready" is not allowed, so the figure is labelled as an estimate.
 
+Every wording of this section and of both READMEs is a row of `lab/claims.tsv`, and
+`lab/check-claims.py` reads the row together with its carrier: the fragment has to sit in the carrier
+verbatim, the evidence type fixes what the sentence may say, a gate name owes a carrier of its own in
+the same sentence, and the readiness figure has one value across the three carriers that print it. A
+document that outgrows its rows turns the guard red, which is the difference between an instrument and
+a style rule.
+
 Why the tag is not set is a map rather than a paragraph: `docs/RELEASE-MAP-v1.md` walks the §18 gates
 one by one — the instrument that closes each, its state, and what would close the remainder. Three
 reasons stay open there: the rerank gate P0 (iii) has no cross-encoder in the tree; no network gate has
-been measured across two machines; and the tag is an owner action. The map also marks where this
-document's blanket claim "gates P2-P5 are closed" is not individually re-verified by a card: the
-cross-machine byte-equality of P2 golden vectors and the declared 30-minute fuzz duration are named as
-instruments in `crates/`, not as measurements in `lab/experiments/`.
+been measured across two machines; and the tag is an owner action. The map also names the one §18 gate
+this document does not claim closed: the byte-equality of the golden vectors of P2 on a second machine
+— the instruments are in `crates/vecdht-crypto/tests/golden_vectors.rs` and
+`crates/vecdht-artifact/tests/golden_artifact.rs`, the second machine is not.
 
-`main` contains only what builds and tests. Gates P2–P5 are closed (including transport and the
-adversarial set §19.3), the deterministic half of P0, gate (v) on real weights and both measured P0
-gates — (i) forward and (ii) recall on a real corpus; gate (ii) closed on a flat coherent shard map
-(`E-0012`, `ADR-0004`), with the price named. Since 2026-10-24 every push to main also runs the formal
+`main` contains only what builds and tests. Each §18 gate family names its own closure carrier: P2 the
+fuzz decode that one machine can settle (`E-0134`, `E-0135`) and the wire over real QUIC
+(`crates/vecdht-net/tests/transport.rs`), P3 the crash matrix (`E-0073`), P4 the handoff and
+replication test (`crates/vecdht-node/tests/gates_p4.rs`), P5 the sybil run (`E-0001`); the other half
+of P2, golden vectors byte-equal on a second machine, is not closed here. The rest of what §18 asks
+sits in the same map row by row: the adversarial set §19.3 (`crates/vecdht-node/tests/adversarial.rs`),
+the deterministic half of P0, gate (v) on real weights and both measured P0 gates — (i) forward
+(`E-0003`) and (ii) recall on a real corpus (`E-0012`, `ADR-0004`), with the price named. Since 2026-10-24 every push to main also runs the formal
 pipeline — Verus, Kani, Lean and the product slice in one CI job (`.github/workflows/formal.yml`,
 numbers and boundaries — `E-0099`, `ADR-0053`); it proves statements about acceptance-arithmetic
 models, not about code, and that is said separately in [`FORMAL.md`](FORMAL.md).
