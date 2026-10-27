@@ -1,4 +1,0 @@
-GITCONFIG_REMOTE=clean
-ИСТОРИЯ_СОВПАДЕНИЙ=0
-SECRETS_FINDINGS=0
-SECRETS_EXIT=0

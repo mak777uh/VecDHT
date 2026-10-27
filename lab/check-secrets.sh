@@ -36,6 +36,12 @@ done
 
 # Паттерны утечки. Все формы синтетические: настоящий GitHub-токен — `ghp_` + 36 base62,
 # пат `github_pat_` + 57, AWS Access Key ID — `AKIA` + 16.
+# Два литерала-подсадки, которые этот же прибор сажал в файл до того, как helper'ы перестали
+# писать черновики в каталог репозитория. Они попали в историю коммитом 546d2eb и не являются
+# учётными данными ни у кого. Исключение — по полному литералу, не по маске: любая иная форма
+# `ghp_` краснеет, и самотест ниже сажает ровно такой литерал, чтобы это было исполнимой
+# проверкой, а не обещанием в комментарии.
+SYNTHETIC='ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789|AKIAABCDEFGHIJKLMNOP'
 SECRET_RE='ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|gh[osu]_[A-Za-z0-9]{36}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
 # Пути, выдающие одного конкретного пользователя на одной конкретной машине.
 LOCALPATH_RE='C:\\Users\\[^\\ ]+|[Pp]roject[Ee]xport|[A-Za-z]:\\Users\\|[[:space:]]/home/[a-z][a-z0-9_.-]{2,}|/Users/[a-z][a-z0-9_.-]{2,}'
@@ -54,7 +60,7 @@ check_blob() {
   while IFS=: read -r ln text; do
     [ -n "${ln:-}" ] || continue
     report "секрет" "$f:$ln" "$(printf '%s' "$text" | cut -c1-72)"
-  done < <(grep -nIE "$SECRET_RE" "$f" 2>/dev/null || true)
+  done < <(grep -nIE "$SECRET_RE" "$f" 2>/dev/null | grep -v "SYNTHETIC=" | grep -vF -e "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" -e "AKIAABCDEFGHIJKLMNOP" || true)
   if [ "$skip_localpaths" != 1 ]; then
     while IFS=: read -r ln text; do
       [ -n "${ln:-}" ] || continue
@@ -77,7 +83,7 @@ scan_tree() {
 
 scan_history() {
   local n=0
-  n=$(git log -p --all 2>/dev/null | grep -cIE "$SECRET_RE" || true)
+  n=$(git log -p --all 2>/dev/null | grep -IE "$SECRET_RE" | grep -vF -e "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" -e "AKIAABCDEFGHIJKLMNOP" | wc -l || true)
   if [ "${n:-0}" != 0 ]; then
     report "секрет_в_истории" "git log -p --all" "совпадений=$n"
   fi
@@ -94,12 +100,24 @@ scan_gitconfig() {
   echo "GITCONFIG_REMOTE=clean"
 }
 
+# Посадки собираются из двух половин и печатаются через `%s`, поэтому ни один полный токен
+# не живёт в этом tracked-файле буквально. Это не косметика: в цикле E-0131 helper записал
+# черновики с посадкой в каталог репозитория, они попали в историю коммитом 546d2eb, и страж
+# секретов стал краснеть на собственном самотесте (ДИАГНОЗ: посадочный материал, который
+# прибор сам исключает литералом, проверяет только то, что не проверяет ничего). Литералы
+# ниже намеренно отличаются от SYNTHETIC-исключений — иначе самотест доказывал бы лишь то,
+# что фильтр исключений работает, а не то, что страж находит секрет.
 run_selftest() {
-  local tmp rc
+  local tmp rc GHP_TAIL AK_HEAD AK_TAIL
   tmp=$(mktemp -d) || { echo "ПРИБОР: mktemp не исполнен" >&2; exit 2; }
   mkdir -p "$tmp/sub"
-  printf 'token = ghp_%s\n' "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" > "$tmp/a.txt"
-  printf 'key = AKIA%s\n' "ABCDEFGHIJKLMNOP" >> "$tmp/a.txt"
+  GHP_TAIL='111122223333444455556666777788889999'
+  AK_HEAD='AKIA'
+  AK_TAIL='QWERTYUIOPASDFGH'
+  [ "${#GHP_TAIL}" = 36 ] || { echo "ПРИБОР: посадка ghp не 36 знаков" >&2; exit 2; }
+  [ "${#AK_TAIL}" = 16 ] || { echo "ПРИБОР: посадка AKIA не 16 знаков" >&2; exit 2; }
+  printf 'token = ghp_%s\n' "$GHP_TAIL" > "$tmp/a.txt"
+  printf 'key = %s%s\n' "$AK_HEAD" "$AK_TAIL" >> "$tmp/a.txt"
   printf 'p = C:\\Users\\someone\\work\\x.rs\n' > "$tmp/sub/b.md"
   printf 'чисто: lab/disk-report.sh и E-0131\n' > "$tmp/clean.md"
   rc=0
@@ -116,6 +134,10 @@ run_selftest() {
   printf 'cd /c/Users/Admin/vecdht-work/vecdht\n' > "$tmp/d.log"
   check_blob "$tmp/d.log" 1
   [ "$findings" = 0 ] || { echo "САМОТЕСТ: исключение лога не работает" >&2; rc=1; }
+  printf 'other = ghp_%s\n' "aaaabbbbccccddddeeeeffff000011112222" > "$tmp/e.txt"
+  findings=0
+  check_blob "$tmp/e.txt" 0
+  [ "$findings" = 1 ] || { echo "САМОТЕСТ: не-подсадочный токен не назван" >&2; rc=1; }
   rm -rf "$tmp"
   if [ "$rc" = 0 ]; then echo "SECRETS_SELFTEST=ok"
   else echo "SECRETS_SELFTEST=fail"; fi

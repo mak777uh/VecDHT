@@ -37,6 +37,10 @@ EXTS = (".rs", ".py", ".sh", ".md", ".toml", ".yaml", ".yml", ".json",
         ".jsonl", ".tsv", ".cwl", ".lean")
 PLACE = ("*", "<", ">", "\u2026", "{", "}", "%", "XXXX", "00XX", "[0-9]", "[a-z]")
 CITE = re.compile(r"`([^`\n]{3,160})`")
+
+# Каталог переписки: ссылки в заметках другого репозитория описывают его дерево, а не наше.
+# Исключение названо и проверяется самотестом (вымышленный путь в docs/ ловится, в interop/ — нет).
+EXTERNAL_DIRS = ("interop/", "lab/logs/")
 SEP = ("/", chr(92))
 
 # Разрешения. У каждого — причина, и пустая причина есть находка.
@@ -62,6 +66,10 @@ ALLOWLIST = {
                     "lab/e0090-run.sh",
     "config.toml": "карточка E-0086 цитирует `.cargo/config.toml` как ОТСУТСТВУЮЩИЙ («его нет » — "
                    "свидетельство, а не обещание файла)",
+    "check-interop.py": "артефакт смежного репозитория flowguard-spec, назван в ADR-0072",
+    "check-links.py": "то же: их страж ссылок, в нашем дереве его нет и не планируется",
+    "99-SOURCES.md": "их реестр источников, где VecDHT назван методом-эталоном",
+    "2026-10-27.md": "их интероп-отчёт (docs/interop/) — артефакт чужого дерева",
 }
 
 
@@ -88,6 +96,8 @@ def scan(md_files, bases, root):
     findings = []
     cited = 0
     for f in md_files:
+        if f.startswith(EXTERNAL_DIRS):
+            continue
         path = os.path.join(root, f)
         try:
             text = open(path, encoding="utf-8", errors="replace").read()
@@ -141,6 +151,12 @@ def selftest(root):
     if any("XXXX" in s or "{" in s or "://" in s for s, _ in kinds):
         print("САМОТЕСТ: плейсхолдер или url пойман как дефект", file=sys.stderr)
         ok = False
+    # Исключение каталога переписки: заметка о чужом дереве не обязана краснеть за чужие пути.
+    cited_ext, found_ext = scan(["interop/planted2.md"], {"check-secrets.sh"}, root)
+    if cited_ext == 0 and not found_ext:
+        print("EXTERNAL_DIR=excluded")
+    else:
+        print("САМОТЕСТ: каталог переписки не исключён", file=sys.stderr); ok = False
     # Устаревшее разрешение: имя из ALLOWLIST появилось в дереве — находка обязана быть.
     _, stale = scan([rel], {"check-secrets.sh", "genesis.rs"}, root)
     if any(k == "устаревшее_разрешение" for _, _, k in stale):
