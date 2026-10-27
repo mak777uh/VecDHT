@@ -83,6 +83,7 @@ pub const FLAGS_RUN: &[&str] = &[
     "idle",
     "status-sec",
     "run-seconds",
+    "uptime-reset",
 ];
 
 pub const HELP_RUN: &str = "\
@@ -99,11 +100,27 @@ node run — поднять шард-узел: индекс на диске, ч�
   --idle SEC           таймаут простаивающего соединения, по умолчанию 60
   --status-sec SEC     период строки NODE_STATUS, по умолчанию 30; 0 — не печатать
   --run-seconds SEC    остановиться через N секунд (тесты и скрипты); 0 — до сигнала
+  --uptime-reset       сбросить битый `uptime.bin` и начать счётчик заново (печатает, что сделал)
 
 Первая строка `NODE_READY listen=…` печатается, когда слушатель поднят: до неё узел нельзя
 считать работающим, а после неё адрес можно давать агентам. Строки статуса идут в stdout сразу,
 не в конце процесса. Отказ (код 2) означает, что кредашиал, genesis или их согласие с ключом и
 шардом не прошли проверку того же кода, что у двери узла.";
+
+pub const CMD_UPTIME: &str = "node uptime";
+
+pub const FLAGS_UPTIME: &[&str] = &["dir"];
+
+pub const HELP_UPTIME: &str = "\
+node uptime — прочитать счётчик аптайма узла из `uptime.bin` (критерий H1 «30 дней»)
+  --dir DIR            каталог узла, тот же, что у `node run`
+
+Печатает `NODE_UPTIME file=… total_sec=… accumulated_sec=… open_sec=… sessions=…
+regressions=… status=…`: сумму уже закрытых сессий, окно текущей и их общее число. Отчёт — это
+байты файла, а не слово оператора: время узла, которого здесь никогда не было, и время,
+испорченное обрезкой файла, различимы. Отсутствие файла — отказ (код 2) с именем файла, потому
+что «не записано» не значит «ноль дней» (`L-0013`); строка `UPTIME_MISSING file=… status=never_started`
+существует только у `node run`, который в пустом каталоге начинает счётчик сам.";
 
 pub fn exec_run(p: &Parsed, _out: &mut String) -> Result<(), CliError> {
     let artifact_dir = p.required(CMD_RUN, "artifact")?;
@@ -253,6 +270,27 @@ pub fn exec_run(p: &Parsed, _out: &mut String) -> Result<(), CliError> {
     let status_sec = p.num_or::<u64>(CMD_RUN, "status-sec", 30)?;
     let run_seconds = p.num_or::<u64>(CMD_RUN, "run-seconds", 0)?;
 
+    // Счётчик аптайма (`ADR-0071`, критерий H1 «30 дней across the two operators»): открывается
+    // ДО подъёма слушателя, потому что битый `uptime.bin` — отказ церемонии, а не повод молча
+    // списать накопленное: «не определён» и «ноль дней» обязаны оставаться различными (`L-0013`).
+    // Шва для подставных часов у этой ветки нет и не будет: запись времени обязана брать настоящие
+    // часы, иначе отчёт «30 дней» подделывается переменной окружения (правило `ADR-0070`).
+    let uptime_reset = p.bool_flag(CMD_RUN, "uptime-reset")?;
+    let (uptime, uptime_opened) = crate::uptime::open_session(&dir, now_sec(), uptime_reset)
+        .map_err(|e| {
+            CliError::Fail(format!(
+                "счётчик аптайма не открывается: {e} — узел не стартует, потому что пустой ledger \
+                 вместо накопленного означал бы «списать дни из-за повреждённого байта» (`ADR-0071`)"
+            ))
+        })?;
+    crate::uptime::save(&dir, &uptime).map_err(|e| fail("первая запись `uptime.bin`", e))?;
+    let uptime = crate::uptime::Sink {
+        dir: dir.clone(),
+        ledger: uptime,
+        opened: uptime_opened,
+        io_errors: 0,
+    };
+
     let cfg = NetConfig {
         listen,
         bootstrap,
@@ -274,8 +312,15 @@ pub fn exec_run(p: &Parsed, _out: &mut String) -> Result<(), CliError> {
     rt.block_on(async move {
         let service = NetService::new(id, Role::IndexNode, Some(cert), vec![node], authorities, cfg)
             .map_err(|e| fail("сборка сервиса узла", e))?;
-        serve(service, owner, shard, Duration::from_secs(run_seconds), Duration::from_secs(status_sec))
-            .await
+        serve(
+            service,
+            owner,
+            shard,
+            Duration::from_secs(run_seconds),
+            Duration::from_secs(status_sec),
+            uptime,
+        )
+        .await
     })
 }
 
@@ -285,6 +330,7 @@ async fn serve(
     shard: u16,
     limit: Duration,
     status_every: Duration,
+    mut uptime: crate::uptime::Sink,
 ) -> Result<(), CliError> {
     let listen_deadline = Instant::now() + Duration::from_secs(10);
     while service.listen_addrs().is_empty() {
@@ -308,6 +354,35 @@ async fn serve(
         service.peer_id(),
         hex::encode(owner)
     ))?;
+
+    // Как именно счётчик начал этот отрезок — три различных факта, и все три обязаны быть
+    // видимы в отчёте: «каталог пуст», «ledger пережил рестарт» и «оператор сбросил битый файл».
+    let (uptime_open_status, uptime_closed_sec) = match uptime.opened {
+        crate::uptime::Opened::Fresh => ("never_started", 0_u64),
+        crate::uptime::Opened::Resumed { closed_sec } => ("resumed", closed_sec),
+        crate::uptime::Opened::Reset { was_bytes } => {
+            emit(&format!(
+                "UPTIME_RESET был битый файл в {was_bytes} байт, счётчик начат заново по явному \
+                 флагу оператора"
+            ))?;
+            ("reset", 0)
+        }
+    };
+    emit(&format!(
+        "UPTIME_OPEN file={} status={uptime_open_status} sessions={} accumulated_sec={} \
+         closed_now_sec={uptime_closed_sec}",
+        crate::uptime::path(&uptime.dir).display(),
+        uptime.ledger.sessions,
+        uptime.ledger.accumulated_sec,
+    ))?;
+    if matches!(uptime.opened, crate::uptime::Opened::Fresh) {
+        // Отдельная строка для того же самого факта: «в этом каталоге узла раньше не было» —
+        // не ошибка и не ноль дней, а отсутствующая история (тот же раздел, что у `L-0013`).
+        emit(&format!(
+            "UPTIME_MISSING file={} status=never_started",
+            crate::uptime::path(&uptime.dir).display()
+        ))?;
+    }
 
     let started = Instant::now();
     let stop_at = (!limit.is_zero()).then(|| started + limit);
@@ -361,16 +436,33 @@ async fn serve(
                         "0".to_string(),
                         "0".to_string(),
                     ));
+                // Счётчик аптайма: продвигается на том же бите, что и строка статуса, и переживает
+                // процесс файлом. Отказ записи — числом в той же строке, а не молчанием: узел
+                // продолжает работать, но «дни не копились» и «дни не записались» различимы.
+                if let Some(e) = uptime.beat(now_sec()) {
+                    emit(&format!(
+                        "UPTIME_ERROR запись `uptime.bin` не удалась (ошибок {}: {e})",
+                        uptime.io_errors
+                    ))?;
+                }
+                let uptime_now = now_sec();
                 emit(&format!(
                     "NODE_STATUS t={:.0} peers={} kad={} revocations={} door_refusals={} shard={shard} \
                      cluster_reassigned={cluster_reassigned} cluster_unverified={cluster_unverified} \
                      lease={lease_field} serving_epoch={serving_field} \
-                     lease_io_errors={lease_save_field} lease_rejects={lease_reject_field}",
+                     lease_io_errors={lease_save_field} lease_rejects={lease_reject_field} \
+                     uptime_total_sec={} uptime_sessions={} uptime_open_sec={} \
+                     uptime_regressions={} uptime_io_errors={}",
                     now.duration_since(started).as_secs_f64(),
                     service.authenticated_peers().len(),
                     service.kad_peer_count(),
                     service.revocation_count(),
                     service.door_refusal_total(),
+                    uptime.ledger.total_sec(uptime_now),
+                    uptime.ledger.sessions,
+                    uptime.ledger.current_sec(uptime_now),
+                    uptime.ledger.clock_regressions,
+                    uptime.io_errors,
                 ))?;
                 while at <= now {
                     at += status_every;
@@ -380,6 +472,39 @@ async fn serve(
         }
     }
     emit(&format!("NODE_STOP t={:.0}", started.elapsed().as_secs_f64()))?;
+    Ok(())
+}
+
+/// `node uptime` — отчёт по счётчику, который писал `node run`. Команда ничего не продвигает и
+/// ничего не создаёт: она читает байты и печатает их, потому что отчёт H1 обязан быть следом
+/// работы узла, а не действием наблюдателя.
+pub fn exec_uptime(p: &Parsed, out: &mut String) -> Result<(), CliError> {
+    let dir = PathBuf::from(p.required(CMD_UPTIME, "dir")?);
+    let file = crate::uptime::path(&dir);
+    let name = file.display().to_string();
+    let l = crate::uptime::load(&dir).map_err(|e| {
+        CliError::Fail(format!(
+            "`{name}` не читается как ledger аптайма: {e} — «испорчено» и «ноль дней» это разные \
+             ответы, поэтому команда не печатает нули (`ADR-0071`)"
+        ))
+    })?;
+    let Some(l) = l else {
+        return Err(CliError::Fail(format!(
+            "`{name}` нет: в этом каталоге узел ещё не стартовал. Отсутствие истории — не нулевой \
+             аптайм (`ADR-0071`, `L-0013`)"
+        )));
+    };
+    let now = now_sec();
+    out.push_str(&format!(
+        "NODE_UPTIME file={} total_sec={} accumulated_sec={} \
+         open_sec={} sessions={} regressions={}\n",
+        file.display(),
+        l.total_sec(now),
+        l.accumulated_sec,
+        l.current_sec(now),
+        l.sessions,
+        l.clock_regressions,
+    ));
     Ok(())
 }
 

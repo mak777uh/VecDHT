@@ -46,6 +46,7 @@ pub mod model;
 pub mod node_cmd;
 pub mod pow_cmd;
 pub mod revoke_cmd;
+pub mod uptime;
 pub mod wire_cmd;
 
 use std::fmt::Display;
@@ -172,6 +173,13 @@ pub static COMMANDS: &[Command] = &[
         flags: node_cmd::FLAGS_RUN,
         help: node_cmd::HELP_RUN,
         run: node_cmd::exec_run,
+    },
+    Command {
+        path: node_cmd::CMD_UPTIME,
+        summary: "прочитать счётчик аптайма узла из `uptime.bin` — отчёт H1 без слова оператора",
+        flags: node_cmd::FLAGS_UPTIME,
+        help: node_cmd::HELP_UPTIME,
+        run: node_cmd::exec_uptime,
     },
     Command {
         path: revoke_cmd::CMD_REVOKE,
