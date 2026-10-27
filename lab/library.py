@@ -391,7 +391,10 @@ def cmd_add(args):
 
 
 def _rewrite(rows):
-    with open(LIB, "w", encoding="utf-8") as fh:
+    # `newline=""` отключает перевод строк: без него Windows-python пишет CRLF, и рабочее дерево
+    # побайтно расходится с коммитом (.gitattributes держит репозиторий на LF), а `git diff` по
+    # индексу становится шумом из CR. Тот же класс, что у `freeze` в `lab/lean-check.py` (E-0107).
+    with open(LIB, "w", encoding="utf-8", newline="") as fh:
         for r in rows:
             r.pop("_line", None)
             fh.write(json.dumps(r, ensure_ascii=False) + "\n")
