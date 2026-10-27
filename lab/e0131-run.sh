@@ -70,7 +70,7 @@ emit RUST_TOUCHED "$(git diff --name-only HEAD -- crates/ | wc -l)"
 # Страж текста вызывается по названным файлам цикла, а не по умолчанию: default-режим читает
 # `git diff HEAD~1 HEAD` плюс untracked, а это зависит от того, сколько коммитов набралось к
 # моменту прогона. Список файлов определяется самим деревом и одинаков в обоих исполнениях.
-TXT=$( { git diff --name-only HEAD~1 HEAD; git diff --name-only HEAD; } |
+TXT=$( { git diff --name-only 7212f50 HEAD; git diff --name-only HEAD; } |
        grep -E '\.(md|py|sh|rs|tsv|yml|lean)$' | sort -u )
 # shellcheck disable=SC2086
 bash lab/check-text-clean.sh $TXT >${SCR}e0131-text.txt 2>&1
@@ -81,6 +81,10 @@ emit MIRROR_EXIT $?
 python lab/cycle-gate.py audit >${SCR}e0131-audit.txt 2>&1
 emit GATE_AUDIT_EXIT $?
 emit CI_GUARD_STEPS "$(grep -c -E 'check-secrets\.sh|check-artifact-refs\.py' .github/workflows/verify.yml || true)"
+# Число исключённых каталогов печатается отдельным фактом: таблица ожиданий требует его именем,
+# а страж цитат печатает только счётчики находок. Имя без печатающего прибора — обещание,
+# которое не может ни исполниться, ни провалиться.
+emit EXCLUDED_CITATION_DIRS "$(python -c "import importlib.util as u; s=u.spec_from_file_location('car','lab/check-artifact-refs.py'); m=u.module_from_spec(s); s.loader.exec_module(m); print(len(m.EXTERNAL_DIRS))" 2>/dev/null || echo none)"
 
 # STABLE — сравнение с предыдущим снимком фактов того же дерева. Снимок лежит вне репозитория
 # (/tmp), потому что в цикле E-0131 черновик прогона, записанный в `lab/`, попал в коммит
