@@ -452,7 +452,10 @@ mod tests {
         let mut degraded = Revocations::open(Some(bad.clone())).expect("пустой каталог открывается");
         std::fs::create_dir_all(bad.join(format!("{FILE}.partial"))).expect("каталог вместо .partial");
         let err = degraded.insert(n);
-        emit_fact("FAIL_INSERT_IS_ERR", matches!(err, Err(_)) as u8);
+        // `is_err()`, а не `matches!(err, Err(_))`: второй вариант краснит `cargo clippy -D
+        // warnings` (`redundant_pattern_matching`), а печатаемый факт от этого не меняется —
+        // ключ `FAIL_INSERT_IS_ERR` обязан оставаться нулём/единицей того же предиката.
+        emit_fact("FAIL_INSERT_IS_ERR", err.is_err() as u8);
         emit_fact("FAIL_NONCE_FORGOTTEN", (!degraded.contains(&n)) as u8);
         emit_fact("FAIL_SET_LEN", degraded.len());
         emit_fact("FAIL_SAVE_ERRORS", degraded.save_errors);
