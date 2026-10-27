@@ -1,7 +1,10 @@
 ---
 id: E-0137
 hypothesis: H-0137
-status: pre-registered
+status: closed
+verdict: "supports"
+finished: "2026-10-27"
+result: "PRE_FIX 10 расхождений из 25 (отличаются ровно ключи починки плюс два названных), два официальных исполнения на дереве 2657ebe: 25 ожиданий / 0 расхождений, STABLE=1; числа вектора в носителе lab/logs/e0137-all.log"
 base_commit: "0522144"
 started: "2026-10-27"
 environment: "x86_64-pc-windows-gnu, хост владельца; только bash и python — цикл не исполняет cargo и
@@ -90,3 +93,31 @@ threshold: "(1) `cycle-gate.py gate H-0137` выход 0 (`GATE_H0137_OK=1`), д
 видят свои формы — утверждение относится к двум названным приборам, а множество форм у каждого
 перечислено посаженными случаями. Не превратит зелёный контур в доказательство чистоты текста: он
 превратит его в зелёный на названном множестве форм.
+
+## Результат (2026-10-27)
+
+PRE_FIX на пине `0522144` (временный клон, перенесены только helper, ожидания и карточки):
+`ОЖИДАНИЙ=25 РАСХОЖДЕНИЙ=10`, и расходятся ровно те ключи, которые отличают починку от её отсутствия
+(`OQ_GUARD_EXISTS=0`, `OQ_NUMBERING_EXIT=2`, `OQ_SELFTEST_EXIT=2`, `OQ_PLANTED_*=none`,
+`NARROW_RULE_PRESENT=0`, `TXT_PLANTED_CAUGHT=0`), плюс два расхождения с названной причиной:
+`REVIEW_EXIT=1` (бронь `H-0132`/`H-0133` снимается этим же циклом) и отсутствие `STABLE` на первом
+исполнении.
+
+Официальные исполнения на дереве `2657ebe` (два, дерево между ними не менялось):
+
+```
+GATE_H0137_OK=1 DISK_GE_15000=1 OQ_GUARD_EXISTS=1 OQ_NUMBERING_EXIT=0 OQ_SELFTEST_EXIT=0
+OQ_PLANTED_CAUGHT=5 OQ_PLANTED_TOTAL=5 OQ_PLANTED_FALSE=0
+NARROW_RULE_PRESENT=1 TXT_PLANTED_CAUGHT=4 TXT_PLANTED_TOTAL=4 TXT_PLANTED_FALSE=0
+NAIVE_HITS=8151 NAIVE_GE_1000=1 TEXTGUARD_ALL_EXIT=0 TEXTGUARD_ALL_DIRTY=0
+LINT_EXIT=0 LINT_ORPHANS=0 RUST_TOUCHED=0
+SECRETS_EXIT=0 REFS_EXIT=0 TEXTGUARD_EXIT=0 MIRROR_EXIT=0 GATE_AUDIT_EXIT=0 REVIEW_EXIT=0
+STABLE=1
+ОЖИДАНИЙ=25 РАСХОЖДЕНИЙ=0
+```
+
+Цена цикла: правки только в `lab/` и документах контура (два прибора, `OPEN-QUESTIONS.md` в канонической
+форме без смены опубликованных номеров, `docs/PLAN-v1.md`, носитель `E-0136` с поправкой). Спека,
+байты порядка, замороженные пороги и продукт не тронуты. Вердикт `supports` означает «зелёный на
+названном множестве форм», а не «текст и нумерация чисты»: полнота списка связок и покрытие форм
+остальными стражами этому циклу не приписываются.
