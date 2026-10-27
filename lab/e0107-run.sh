@@ -14,6 +14,13 @@ emit() { printf '%s=%s\n' "$1" "$2" >>"$buf"; }
 PIN="${E0107_PIN:-$(git rev-parse --short HEAD 2>/dev/null || echo nohead)}"
 val()  { local v; v=$(grep -oE "(^|[[:space:]])$1=[0-9]+" "$2" | tail -1 | grep -oE "[0-9]+$"); printf '%s' "${v:-none}"; }
 vals() { local v; v=$(grep -oE "$1=-?[0-9]+" "$2" | tail -1 | grep -oE "=-?[0-9]+$" | tr -d '='); printf '%s' "${v:-none}"; }
+# Пустое значение — это молчание прибора, а не измеренное отсутствие: сворачивается в `none`
+# (правило «пустое множество печатать none»), иначе отсутствие ключа неотличимо от его нуля.
+ornone() { local v; v=$(cat); [ -n "$v" ] || v=none; printf '%s' "$v"; }
+# Число с той же строки, где и другое число (`LEANGUARD_SELFTEST total=N passed=M`): `val` требует
+# ключ после начала строки или пробела и не может найти `LEANGUARD_SELFTEST passed=`, поэтому
+# прошлая строка объявляла измеренное число отсутствующим.
+fromline() { local g; g=$(grep -E "$2" "$3" | tail -1); printf '%s' "$g" | sed -nE "s/.*$1=([0-9-]+).*/\1/p" | ornone; }
 
 python lab/cycle-gate.py gate H-0107 >>"$buf" 2>&1 && emit GATE_H0107_OK 1 || emit GATE_H0107_OK 0
 bash lab/disk-report.sh >${SCR}disk.txt 2>&1
@@ -30,14 +37,14 @@ if [ -f "$MODEL" ]; then
   emit LEAN_ALL_OK "$(val LEAN_ALL_OK ${SCR}lean.txt)"
   emit LEAN_SORRY_TOTAL "$(val SORRY_TOTAL ${SCR}lean.txt)"
   emit LEAN_CUSTOM_AXIOMS_TOT "$(val CUSTOM_AXIOMS ${SCR}lean.txt | tail -1)"
-  emit BOUND_ERRORS "$(grep -oE 'LEAN_FILE=Bounded.lean[^%]*ERRORS=[0-9]+' ${SCR}lean.txt | grep -oE 'ERRORS=[0-9]+' | tail -1 | tr -d 'ERRORS=')"
-  emit BOUND_DECLS "$(grep -oE 'LEAN_FILE=Bounded.lean.*DECLS=[0-9]+' ${SCR}lean.txt | tail -1 | sed -E 's/.*DECLS=([0-9]+).*/\1/')"
-  emit BOUND_DEFS "$(grep -oE 'LEAN_FILE=Bounded.lean.*DEFS=[0-9]+' ${SCR}lean.txt | tail -1 | sed -E 's/.*DEFS=([0-9]+).*/\1/')"
+  emit BOUND_ERRORS "$(fromline 'ERRORS' 'LEAN_FILE=Bounded.lean' ${SCR}lean.txt)"
+  emit BOUND_DECLS "$(fromline 'DECLS' 'LEAN_FILE=Bounded.lean' ${SCR}lean.txt)"
+  emit BOUND_DEFS "$(fromline 'DEFS' 'LEAN_FILE=Bounded.lean' ${SCR}lean.txt)"
   emit LEAN_CHECK_DIGEST_BAD "$(val DIGEST_BAD ${SCR}lean.txt)"
   emit LEAN_CHECK_FROZEN_ROWS "$(val FROZEN_ROWS ${SCR}lean.txt)"
   python lab/lean-check.py selftest >${SCR}guard.txt 2>&1; emit GUARD_SELFTEST_EXIT $?
-  emit GUARD_SELFTEST_TOTAL "$(val 'LEANGUARD_SELFTEST total' ${SCR}guard.txt)"
-  emit GUARD_SELFTEST_PASSED "$(val 'LEANGUARD_SELFTEST passed' ${SCR}guard.txt)"
+  emit GUARD_SELFTEST_TOTAL "$(fromline 'total' 'LEANGUARD_SELFTEST' ${SCR}guard.txt)"
+  emit GUARD_SELFTEST_PASSED "$(fromline 'passed' 'LEANGUARD_SELFTEST' ${SCR}guard.txt)"
   # Числа модели: тот же вывод `#eval`, что зафиксирован в Rust-константах.
   (cd lab/lean && lake env lean VecDHT/Bounded.lean) >${SCR}metrics.txt 2>&1; emit METRICS_EXIT $?
   # Имена фактов печатаются литералом, а не циклом по `$k`: порог без прибора — это ключ,
