@@ -189,6 +189,34 @@ jobs:
           tail -14 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
+      # Нумерация очереди: метка пункта — адрес, по которому владелец отвечает на вопрос. Прибор
+      # заведён `E-0137`, вторую форму заявок (жирная строка `**N. …` внутри тела другого пункта)
+      # он не видел до `E-0133`, и ни в том, ни в другом цикле в контуре не стоял. Строка запуска
+      # здесь — единственное, чем «прибор есть» отличается от «прибор исполняется».
+      - name: check-oq-numbering — обе формы номеров очереди и разрешимость указателей
+        run: |
+          set -uo pipefail
+          L=/tmp/check-oq-numbering.log
+          r=0
+          python lab/check-oq-numbering.py > "$L" 2>&1 || r=$?
+          python lab/check-oq-numbering.py --pointers >> "$L" 2>&1 || r=$?
+          echo "OQNUM_STEP_EXIT=$r" >> "$L"
+          grep -aE '^ПРОВЕРКА_' "$L" | tail -4 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -14 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      # Гейт без посаженного дефекта через пять циклов превращается в зелёный текст.
+      - name: check-oq-numbering selftest — девять посаженных дефектов обязаны отбиваться
+        run: |
+          set -uo pipefail
+          L=/tmp/check-oq-numbering-selftest.log
+          r=0
+          python lab/check-oq-numbering.py --selftest > "$L" 2>&1 || r=$?
+          echo "OQNUM_SELFTEST_STEP_EXIT=$r" >> "$L"
+          grep -aE '^PLANTED_|^SELFTEST_' "$L" | tail -8 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -14 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       # Этот шаг исполняется на runner, и до `E-0128` он назывался обратное: «НЕ ИСПОЛНЯЕТСЯ
       # ЗДЕСЬ». Он исполнял себя и краснел. Причина механическая: `lab/check-spec-mirror.sh`
       # сравнивает `docs/*.md` с `${HOME}/OneDrive/Desktop/*.md`, а зеркало живёт ВНЕ git

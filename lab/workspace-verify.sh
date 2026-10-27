@@ -142,6 +142,17 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "DDF_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-date-domain.py check --require-git 2>&1 | tail -6
   rc=${PIPESTATUS[0]}; echo "DDF_EXIT=$rc"; note $rc
+  # Нумерация очереди: прибор заведён `E-0137`, вторую форму (жирная строка-заявка `**N. …`) он не
+  # видел, и ни в том, ни в другом цикле в контуре не стоял — «прибор есть» отличается от «прибор
+  # исполняется» только этой строкой (`E-0133`). Краснеет на неканоническом заголовке, на метке,
+  # занятой в двух доменах, и на внешнем указателе `п. N`, под которым нет ни заголовка, ни заявки.
+  echo "### oq numbering guard ### $(date +%FT%T%:z)"
+  python lab/check-oq-numbering.py --selftest 2>&1 | tail -14
+  rc=${PIPESTATUS[0]}; echo "OQNUM_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-oq-numbering.py 2>&1 | tail -8
+  rc=${PIPESTATUS[0]}; echo "OQNUM_EXIT=$rc"; note $rc
+  python lab/check-oq-numbering.py --pointers 2>&1 | tail -4
+  rc=${PIPESTATUS[0]}; echo "OQPTR_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc
