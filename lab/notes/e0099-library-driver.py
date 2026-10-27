@@ -10,7 +10,7 @@ import json
 import subprocess
 import sys
 
-ROOT = r"C:\Users\Admin\vecdht-work\vecdht"
+ROOT = os.environ.get("VEC_DHT_ROOT") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TODAY = "2026-10-24"
 
 ROWS = [

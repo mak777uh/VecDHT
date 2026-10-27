@@ -27,7 +27,7 @@
    вердиктом `refutes` (статус гипотезы — `refuted`; словарь объявлен в `lab/README.md`, шаг 4).
    Записи append-only: исправление — новая секция, а не переписанная история.
 5. **Спека — конституция.** Меняешь контракт — сначала ADR, затем спека
-   `docs/VecDHT-SPEC-v8.md` и её зеркало `C:\Users\Admin\OneDrive\Desktop\VecDHT-SPEC-v8.md`,
+   `docs/VecDHT-SPEC-v8.md` и её зеркало `%USERPROFILE%\OneDrive\Desktop\VecDHT-SPEC-v8.md`,
    `diff -q` должен быть чистым в том же коммите. Проверка — `./lab/check-spec-mirror.sh`
    (`--fix` обновляет зеркало из оригинала): зеркало вне git, поэтому его расхождение не видно
    ни в `git status`, ни в CI.

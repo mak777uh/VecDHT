@@ -158,7 +158,7 @@ assign (0,935…1,070) и сортировки top-16 (1,239…1,419); шаг Po
 на 0,13 % ниже нижней границы собственной строки `:1738`.
 
 Правка текста — за владельцем: цикл не трогал ни спеку, ни зеркало
-(`C:\Users\Admin\OneDrive\Desktop\VecDHT-SPEC-v8.md`), ни `bash lab/check-spec-mirror.sh` (сейчас
+(`%USERPROFILE%\OneDrive\Desktop\VecDHT-SPEC-v8.md`), ни `bash lab/check-spec-mirror.sh` (сейчас
 TEXT_SYNC_OK на 1895 строках, 37e3ec15cf1d).
 
 ## (г) Почему два харнеса сошлись в цене записи скана

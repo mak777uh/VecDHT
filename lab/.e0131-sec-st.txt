@@ -1,0 +1,4 @@
+НАХОДКА[секрет] /tmp/tmp.AA7BL7SNOr/a.txt:1 :: token = ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789
+НАХОДКА[секрет] /tmp/tmp.AA7BL7SNOr/a.txt:2 :: key = AKIAABCDEFGHIJKLMNOP
+НАХОДКА[локальный_путь] /tmp/tmp.AA7BL7SNOr/sub/b.md:1 :: p = C:\Users\someone\work\x.rs
+SECRETS_SELFTEST=ok

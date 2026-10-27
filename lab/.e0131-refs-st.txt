@@ -1,0 +1,3 @@
+PLANT_REF=caught
+STALE_ALLOWLIST=caught
+REFS_SELFTEST=ok

@@ -38,7 +38,7 @@ relates: [E-0044, E-0046, E-0047, E-0048, ADR-0011]
 
 ## Синхронизация
 
-Зеркало `C:\Users\Admin\OneDrive\Desktop\VecDHT-SPEC-v8.md` обновляется в том же коммите;
+Зеркало `%USERPROFILE%\OneDrive\Desktop\VecDHT-SPEC-v8.md` обновляется в том же коммите;
 побайтовая сверка строки — `TEXT_SYNC_OK` (вывод diff фиксируется в логе цикла).
 
 ## Открытое

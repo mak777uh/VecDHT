@@ -222,6 +222,17 @@ jobs:
           echo "::error::MIRROR_RC=$r — зеркало на runner есть и разошлось (или нет оригинала): это настоящий провал"
           exit $r
 
+      - name: check-secrets — токены в tracked и в истории, следы домашнего каталога, .git/config
+        run: |
+          set -uo pipefail
+          bash lab/check-secrets.sh --no-history | tail -12
+          echo "::notice::история в CI не сканируется: runner берёт мелкий клон, её полнота — обязанность хоста контура"
+
+      - name: check-artifact-refs — каждая цитата пути ведёт на существующий артефакт
+        run: |
+          set -uo pipefail
+          python lab/check-artifact-refs.py | tail -12
+
       - name: check-text-clean — гибрид алфавитов и битая кодировка по всему дереву
         run: |
           set -uo pipefail

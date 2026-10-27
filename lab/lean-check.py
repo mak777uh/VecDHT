@@ -54,8 +54,8 @@ DEFAULT_ROOT = os.path.dirname(HERE)
 # окруждения нужна только для отладки прибора вне репозитория (до пре-регистрации он живёт в
 # черновиках, и без неё самопроверка садила бы дефекты в пустой каталог).
 MODELS_DIR = os.environ.get("LEAN_MODELS_DIR") or os.path.join(DEFAULT_ROOT, "lab", "lean", "VecDHT")
-ELAN = r"C:\Users\Admin\.elan\bin"
-MINGW = r"C:\Users\Admin\mingw64\bin"
+ELAN = os.environ.get("VEC_ELAN_BIN") or os.path.expanduser(os.path.join("~", ".elan", "bin"))
+MINGW = os.environ.get("VEC_MINGW_BIN") or os.path.expanduser(os.path.join("~", "mingw64", "bin"))
 # Рабочая станция — Windows, и два пути выше описывают её. Прибор обязан заводиться и на Linux
 # (первый CI-прогон `formal.yml` запускает `bash lab/lean-check.sh` на ubuntu-24.04, где elan
 # ставится в `$HOME/.elan/bin`), поэтому в список кандидатов добавлен домашний путь: на Windows

@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""H-0131 / E-0131 (ADR-0072): страж существования цитируемых артефактов.
+
+Перенесено из flowguard-spec, но без их предупреждающего режима: там `lab/check-claims.py` отмечает
+«cited artifact отсутствует» как warning, а `lab/check-links.py` проверяет только markdown-ссылки.
+У нас предупреждение не переносится (молчание = провал), а проверка ссылок почти бесполезна:
+измерено на этом дереве 2026-10-27 — относительных markdown-ссылок 73, битых 0. Настоящий носитель
+обещаний в VecDHT — backtick-цитаты путей, по ним и ходит страж.
+
+Правила, каждое с причиной:
+(1) рассматриваются только tracked `.md` и только цитаты в бэктиках, содержащие разделитель путей,
+    заканчивающиеся известным расширением и не являющиеся URL;
+(2) цитата живая, если полное относительное имя существует ИЛИ имя файла существует в репозитории
+    где-то: карточки ссылаются по базовому имени намеренно (`service.rs`, `e0131-run.sh`);
+(3) плейсхолдеры (`*`, `<`, `>`, `…`, `{`, `}`, `%`, классы `[0-9]`, `[a-z]`, `XXXX`, `00XX`) — форма
+    записи, а не обещание файла;
+(4) отсутствующий путь проходит только если он назван в ALLOWLIST с причиной. ALLOWLIST — единственное
+    место, где «ещё не существует» перестаёт быть молчанием, и он сам под проверкой: если разрешённое
+    имя появилось в дереве, разрешение устарело и это находка (иначе список деградирует в то, чем его
+    всегда подозревают, — в индульгенцию).
+
+Выход 0 — находок нет; 1 — находки напечатаны; 2 — сломан прибор. `--selftest` сажает вымышленный
+путь (обязан быть пойман), проверяет, что плейсхолдер и URL не ловятся, что разрешённый план не
+ловится, и что устаревшее разрешение ловится (ДИАГНОЗ-2 цикла E-0130: у разрешения обязан быть
+исполняемый тест на посадку).
+"""
+
+from __future__ import annotations
+
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+EXTS = (".rs", ".py", ".sh", ".md", ".toml", ".yaml", ".yml", ".json",
+        ".jsonl", ".tsv", ".cwl", ".lean")
+PLACE = ("*", "<", ">", "\u2026", "{", "}", "%", "XXXX", "00XX", "[0-9]", "[a-z]")
+CITE = re.compile(r"`([^`\n]{3,160})`")
+SEP = ("/", chr(92))
+
+# Разрешения. У каждого — причина, и пустая причина есть находка.
+ALLOWLIST = {
+    # (а) План размещения, описанный спекой v8 до того, как дерево стало `crates/*`.
+    "manifest.json": "спека v8 описывает план каталога моделей, не факт дерева",
+    "fetch-model.sh": "спека v8: запланированный загрузчик модели",
+    "verify-model.sh": "спека v8: запланированный верификатор модели",
+    "genesis.rs": "спека v8: план `core/src/genesis.rs`, продукт живёт в `crates/*`",
+    # (б) Артефакты смежного проекта, названные вслух как чужие.
+    "escrow.lean": "модель эскроу proof-market: docs/PAID_ORDERS.md §6 прямо говорит, что в этом "
+                   "дереве её нет; тот же путь назван в docs/TASK-spec-v9-paid-orders.md как "
+                   "mak777uh/audits",
+    "valuepath.lean": "модель идемпотентности смежного проекта, docs/PAID_ORDERS.md §6",
+    "flows.lean": "модель Project Morphogenesis (репо `-`); lab/PLAN.md запрещает внешние числа",
+    "flows_info.lean": "то же: уровень событий смежного проекта, вне этого дерева",
+    "Prelude.lean": "файл тулчейна Lean 4.36.0-rc1 (`Init/Prelude.lean`), вне репозитория",
+    "verifier-image.yml": "план CI из docs/PLAN-v1.md:363, workflow не создан",
+    "REGISTRY.md": "реестр панельного ревью: каталог review-panel/ в дерево не закоммичен, "
+                   "ссылка E-0114 ведёт на несуществующий артефакт (названо здесь, а не молча)",
+    # (в) Исторические имена и свидетельства отсутствия.
+    "h0090-run.sh": "прежнее имя helper'а: карточка E-0090 сама описывает переименование в "
+                    "lab/e0090-run.sh",
+    "config.toml": "карточка E-0086 цитирует `.cargo/config.toml` как ОТСУТСТВУЮЩИЙ («его нет » — "
+                   "свидетельство, а не обещание файла)",
+}
+
+
+def tracked(root):
+    out = subprocess.run(["git", "ls-files"], capture_output=True, text=True, cwd=root)
+    if out.returncode != 0:
+        print("ПРИБОР: git ls-files не исполнен", file=sys.stderr)
+        sys.exit(2)
+    files = out.stdout.split()
+    return files, {os.path.basename(f) for f in files}
+
+
+def is_promise(s: str) -> bool:
+    if any(p in s for p in PLACE):
+        return False
+    if "://" in s or " " in s or s.startswith(SEP):
+        return False
+    if not s.endswith(EXTS):
+        return False
+    return any(sep in s for sep in SEP)
+
+
+def scan(md_files, bases, root):
+    findings = []
+    cited = 0
+    for f in md_files:
+        path = os.path.join(root, f)
+        try:
+            text = open(path, encoding="utf-8", errors="replace").read()
+        except OSError:
+            continue
+        for m in CITE.finditer(text):
+            s = m.group(1)
+            if not is_promise(s):
+                continue
+            cited += 1
+            norm = s.replace(SEP[1], SEP[0])
+            b = os.path.basename(norm)
+            full = os.path.normpath(norm)
+            if os.path.exists(os.path.join(root, full)) or b in bases:
+                if b in ALLOWLIST:
+                    findings.append((f, s, "устаревшее_разрешение"))
+                continue
+            if b in ALLOWLIST:
+                continue
+            findings.append((f, s, "цитата"))
+    for b, why in sorted(ALLOWLIST.items()):
+        if not str(why).strip():
+            findings.append(("lab/check-artifact-refs.py", b, "пустая_причина"))
+    return cited, findings
+
+
+def selftest(root):
+    tmp = os.path.join(root, ".artifact-selftest-tmp")
+    os.makedirs(tmp, exist_ok=True)
+    planted = os.path.join(tmp, "planted.md")
+    with open(planted, "w", encoding="utf-8") as fh:
+        fh.write(
+            "хорошая: `lab/check-secrets.sh`\n"
+            "вымышленный: `lab/nonexistent-guard-9000.py`\n"
+            "плейсхолдер: `lab/expectations/eXXXX.tsv` и `benches/src/bench/{a,b}.rs`\n"
+            "url: `https://example.com/a/queries.train.tsv`\n"
+            "разрешённый план: `core/src/genesis.rs`\n"
+        )
+    rel = os.path.relpath(planted, root)
+    ok = True
+    cited, found = scan([rel], {"check-secrets.sh"}, root)
+    kinds = [(s, k) for _, s, k in found]
+    if ("lab/nonexistent-guard-9000.py", "цитата") in kinds:
+        print("PLANT_REF=caught")
+    else:
+        print("САМОТЕСТ: вымышленный путь не пойман", file=sys.stderr)
+        ok = False
+    if len(found) != 1:
+        print("САМОТЕСТ: ожидалась одна находка, названо %d" % len(found), file=sys.stderr)
+        ok = False
+    if any("XXXX" in s or "{" in s or "://" in s for s, _ in kinds):
+        print("САМОТЕСТ: плейсхолдер или url пойман как дефект", file=sys.stderr)
+        ok = False
+    # Устаревшее разрешение: имя из ALLOWLIST появилось в дереве — находка обязана быть.
+    _, stale = scan([rel], {"check-secrets.sh", "genesis.rs"}, root)
+    if any(k == "устаревшее_разрешение" for _, _, k in stale):
+        print("STALE_ALLOWLIST=caught")
+    else:
+        print("САМОТЕСТ: устаревшее разрешение не названо", file=sys.stderr)
+        ok = False
+    shutil.rmtree(tmp, ignore_errors=True)
+    print("REFS_SELFTEST=%s" % ("ok" if ok else "fail"))
+    return 0 if ok else 1
+
+
+def main(argv):
+    root = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                          capture_output=True, text=True).stdout.strip()
+    if not root:
+        print("ПРИБОР: вне git-репозитория", file=sys.stderr)
+        return 2
+    if "--selftest" in argv:
+        return selftest(root)
+    files, bases = tracked(root)
+    md = [f for f in files if f.endswith(".md")]
+    cited, found = scan(md, bases, root)
+    empty = sum(1 for _, _, k in found if k == "пустая_причина")
+    for f, s, k in found:
+        print("НАХОДКА[%s] %s :: `%s`" % (k, f, s))
+    # По одному ключу на строку: helper разбирает вывод построчно, и четыре ключа в одной
+    # строке теряются вместе с тремя из них (ДИАГНОЗ цикла E-0131).
+    for k, v in (("REFS_CITED", cited), ("REFS_MISSING", len(found)),
+                 ("REFS_ALLOWED", len(ALLOWLIST)), ("REFS_ALLOWLIST_EMPTY", empty)):
+        print("%s=%s" % (k, v))
+    return 1 if found else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
