@@ -1,0 +1,102 @@
+# E-0129 · заморожено до первого прогона `lab/e0129-run.sh` (2026-10-27).
+# Ключ — имя печатного факта без `=`; значение — точное. Правка любого числа — новая карточка.
+# Числа `PRE_FIX_*` сняты ДО пре-регистрации на дереве пина `336e7d5`, извлечённом `git archive`,
+# и судят по замороженной дате пина (`VEC_DHT_DDF_TODAY=2026-10-26`): у кода пина шва нет, и его
+# краснота по живым часам держалась бы ровно сутки — после 00:00 UTC PRE_FIX стал бы зелёным.
+# Остальные числа сняты на живом дереве после правки механизма, дважды за один вызов helper'а.
+# Из таблицы намеренно вынесены часы съёма: `EXPECT_EXIT`, `DDF_UTC_TODAY`, `DDF_LOCAL_TODAY`,
+# `DDF_DOMAIN_SPLIT` и точные значения дат — они печатаются только в носитель.
+PRE_FIX_DDF_LOCAL_TODAY_CALLS	7	пин: семь вызовов местной даты в двух файлах механизма
+PRE_FIX_DDF_FUNNEL_FILES	0	пин: ни в одном файле механизма воронки utc_today нет
+PRE_FIX_DDF_USE_WRITES_OPENED	1	пин: cmd_use перезаписывает opened
+PRE_FIX_DDF_CLOSE_NO_CLOSED	1	пин: cmd_close не ставит closed
+PRE_FIX_DDF_AUDIT_NO_GATE	1	пин: cmd_audit возвращает ноль при находках
+PRE_FIX_DDF_DATES_AFTER_UTC	4	пин: четыре поля дат позже замороженного UTC-дня пина
+PRE_FIX_DDF_LEGACY_LOCAL_STAMP	0	пин: на копии без .git правило о дне добавления молчит (ноль — не успех, а отсутствие доказательства)
+PRE_FIX_DDF_RECORDS	39	пин: записей в индексе
+PRE_FIX_DDF_FINDINGS	11	пин: находок прибора
+PRE_FIX_DDF_BLIND	0	пин: прибор не ослеплён (данные прочитаны)
+PRE_FIX_DDF_CLOCK_FROZEN	1	пин: судит замороженный шов VEC_DHT_DDF_TODAY, а не живые часы
+PRE_FIX_DDF_CLOCK_DATE	2026-10-26	пин: дата, по которой судит прибор (день пина по UTC)
+PRE_FIX_DDF_EXIT	1	пин: прибор красный на дереве пина
+PRE_FIX_CLOCK_FROZEN_OK	1	пин: шов активен И дата шва равна дню пина
+PRE_FIX_PIN_FUTURE_DATES	4	пин: независимый пересчёт — дат позже дня пина ровно четыре (не зависит от часа съёма)
+PRE_FIX_PIN_RECOUNT_EQ	1	пин: пересчёт сошёлся с прибором
+PRE_FIX_DOMAIN_DEFECT_WITNESSED	1	пин: дефект домена засвидетельствован тремя независимыми числами
+PRE_FIX_AUDIT_PLANT_EXIT	0	пин: посадка красной карточки даёт НОЛЬ — гейта нет
+PRE_FIX_AUDIT_PLANT_FAIL_LINES	1	пин: при этом FAIL напечатан (вердикт есть, кода возврата нет)
+PRE_FIX_AUDIT_PIN_SILENT	1	пин: молчание пина — ровно тот дефект, ради которого цикл
+DDF_FILES	3	живое: файлов механизма прибор читает по коду
+DDF_DATE_FILES	2	живое: файлов, где запрещена местная дата
+DDF_LOCAL_TODAY_CALLS	0	живое: вызовов местной даты не осталось
+DDF_CUTOVER	2026-10-26	живое: дата перехода, раньше неё легаси-метки не красятся
+DDF_FUNNEL_FILES	2	живое: воронка utc_today стоит в двух файлах механизма
+DDF_USE_WRITES_OPENED	0	живое: cmd_use больше не трогает opened
+DDF_CLOSE_NO_CLOSED	0	живое: cmd_close ставит closed
+DDF_AUDIT_NO_GATE	0	живое: у вердикта аудита есть код возврата
+DDF_RECORDS	41	живое: записей в индексе (39 пина + L-0040 + L-0041)
+DDF_DATE_FIELDS	85	живое: полей дат в формате YYYY-MM-DD
+DDF_DATES_AFTER_UTC	0	живое: дат позже сегодняшнего UTC-дня
+DDF_GIT_CHECKED	41	живое: записей, у которых git назвал день появления в файле
+DDF_OPENED_AFTER_ADDED	0	живое: открытых позже дня добавления (от даты перехода)
+DDF_LEGACY_LOCAL_STAMP	12	живое: легаси-меток, открытых до даты перехода и не тронутых
+DDF_CLOSED_BEFORE_OPENED	0	живое: записей, закрытых раньше, чем найдены
+DDF_GIT_EVIDENCE	1	живое: git-доказательство доступно (хост, не клон глубины 1)
+DDF_RECOUNT_EQ	1	живое: независимый построчный пересчёт сошёлся с прибором
+DDF_FINDINGS	0	живое: находок прибора
+DDF_FINDINGS_PRINTED	0	живое: находок напечатано
+DDF_CLOSED_FIELD	3	живое: записей с заполненным closed
+DDF_BLIND	0	живое: прибор не слеп
+DDF_FAIL	0	живое: ни одного провала
+DDF_EXIT	0	живое: прибор зелёный
+DDF_CLOCK_FROZEN	0	живое: шов часов НЕ задан — живой прогон судит по настоящим UTC-часам
+SHELL_LOCAL_TODAY_LINES	0	пересчёт без прибора: строк с date.today() в механизме
+SHELL_FUNNEL_LINES	11	пересчёт без прибора: строк с utc_today в механизме
+SHELL_RECOUNT_EQ	1	пересчёт сошёлся с прибором по числу местных дат
+CODE_CHANGED_RS	0	ни один .rs продукта этим циклом не тронут
+LIBCHECK_UTC_EXIT	0	library.py check в TZ=UTC зелёный
+LIBCHECK_UTC_ERRORS	0	library.py check в TZ=UTC: ошибок схемы
+LIBCHECK_HOST_EXIT	0	library.py check в местном часе хоста зелёный
+LIBCHECK_HOST_ERRORS	0	library.py check в местном часе хоста: ошибок схемы
+DOMAIN_MATCH	1	два домена судят одинаково — расхождение доменов снято
+USE_OK_UTC	0	зона TZ=UTC (день раннера): код возврата use
+CLOSE_OK_UTC	0	зона TZ=UTC (день раннера): код возврата close
+USE_KEEPS_OPENED_UTC	1	зона TZ=UTC (день раннера): use не стёр opened
+USED_FIELD_UTC	1	зона TZ=UTC (день раннера): появилось поле used
+CLOSED_SHAPE_UTC	1	зона TZ=UTC (день раннера): closed имеет форму даты
+USE_OK_AustraliaSydney	0	зона TZ=Australia/Sydney (UTC+11, чужой местный день): код возврата use
+CLOSE_OK_AustraliaSydney	0	зона TZ=Australia/Sydney (UTC+11, чужой местный день): код возврата close
+USE_KEEPS_OPENED_AustraliaSydney	1	зона TZ=Australia/Sydney (UTC+11, чужой местный день): use не стёр opened
+USED_FIELD_AustraliaSydney	1	зона TZ=Australia/Sydney (UTC+11, чужой местный день): появилось поле used
+CLOSED_SHAPE_AustraliaSydney	1	зона TZ=Australia/Sydney (UTC+11, чужой местный день): closed имеет форму даты
+WRITE_TZ_MATCH	1	дата, поставленная механизмом, одинакова в двух часовых поясах
+WRITE_KEEPS_OPENED	1	после use opened осталось прежним (живое исполнение, не чтение кода)
+CLOSED_SHAPES_OK	1	closed во всех поясах имеет форму YYYY-MM-DD
+AUDIT_PLANT_EXIT	1	аудит на посадке красен (гейт исполняется)
+AUDIT_PLANT_FAIL_LINES	1	аудит на посадке напечатал FAIL
+AUDIT_PLANT_BAD_COUNT	1	аудит на посадке назвал одну карточку
+AUDIT_GATE_FIRES	1	посадка красной карточки даёт ненулевой выход
+AUDIT_CLEAN_COPY_EXIT	0	чистая копия зелёна — краснота не зависит от соседней посадки
+AUDIT_LIVE_EXIT	0	живое дерево зелёно
+AUDIT_LIVE_BAD_COUNT	0	нарушений в живом дереве
+DDF_SELFTEST_EXIT	0	самопроверка прибора зелёна
+DDF_SELFTEST_TOTAL	10	проверок в самопроверке
+DDF_SELFTEST_PASSED	10	проверок пройдено
+DDF_SELFTEST_PLANTS	9	посаженных дефектов
+PLANT_LOCAL_TODAY_FIRED	1	самопроверка: посадка «местная дата в механизме» отбита
+PLANT_NO_FUNNEL_FIRED	1	самопроверка: посадка «пропавшая воронка utc_today» отбита
+PLANT_USE_WRITES_OPENED_FIRED	1	самопроверка: посадка «use, перезаписывающий opened» отбита
+PLANT_CLOSE_NO_CLOSED_FIRED	1	самопроверка: посадка «close без closed» отбита
+PLANT_AUDIT_NO_GATE_FIRED	1	самопроверка: посадка «аудит без кода возврата» отбита
+PLANT_DATE_AFTER_UTC_FIRED	1	самопроверка: посадка «дата в будущем» отбита
+PLANT_CLOSED_BEFORE_OPENED_FIRED	1	самопроверка: посадка «закрыта раньше, чем найдена» отбита
+PLANT_BLIND_INDEX_FIRED	1	самопроверка: посадка «пустой индекс» отбита
+PLANT_MISSING_FILE_FIRED	1	самопроверка: посадка «удалённый файл механизма» отбита
+DDF_CI_STEPS	6	шагов прибора в .github/workflows/verify.yml
+DDF_CONTOUR_BLOCK	2	блоков прибора в lab/workspace-verify.sh
+E0127_INSTRUMENT_UNTOUCHED	0	прибор E-0127 (отчётные grep) этим циклом не тронут
+E0128_INSTRUMENT_UNTOUCHED	0	прибор E-0128 (захват кода возврата) этим циклом не тронут
+SPEC_V8_UNTOUCHED	0	текст спеки v8 этим циклом не менялся (0 = файла нет в диффе)
+STABLE	1	два исполнения на неизменном дереве совпали построчно
+PLANT_EXPECT_RED	1	посадка неверного ожидания (DDF_RECORDS=99) красна: сверка ловит подлог
+EXPECT_ROWS	94	число непустых строк таблицы (самопроверка: таблица не пуста и не уехала)

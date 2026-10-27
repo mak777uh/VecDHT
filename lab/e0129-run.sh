@@ -137,11 +137,25 @@ measure() {
   o="$P/check_pin.txt"
   r=0
   VEC_DHT_DDF_TODAY="$CLK" python "$DD" check --root "$ARCH" > "$o" 2>&1 || r=$?
+  # Имена фактов печатаются литералом, а не собираются из переменной: замороженное ожидание должно
+  # быть находимым в helper'е простым grep'ом (`threshold-lint.py` зовёт ключ без владельца сиротой).
   for k in DDF_LOCAL_TODAY_CALLS DDF_FUNNEL_FILES DDF_USE_WRITES_OPENED DDF_CLOSE_NO_CLOSED \
            DDF_AUDIT_NO_GATE DDF_DATES_AFTER_UTC DDF_LEGACY_LOCAL_STAMP DDF_RECORDS \
            DDF_FINDINGS DDF_BLIND DDF_CLOCK_FROZEN DDF_CLOCK_DATE; do
-    femit "$F" "PRE_FIX_$k=$(val "$o" "$k")"
+    [ "$(val "$o" "$k")" != MISSING ] || note 1
   done
+  femit "$F" "PRE_FIX_DDF_LOCAL_TODAY_CALLS=$(val "$o" DDF_LOCAL_TODAY_CALLS)"
+  femit "$F" "PRE_FIX_DDF_FUNNEL_FILES=$(val "$o" DDF_FUNNEL_FILES)"
+  femit "$F" "PRE_FIX_DDF_USE_WRITES_OPENED=$(val "$o" DDF_USE_WRITES_OPENED)"
+  femit "$F" "PRE_FIX_DDF_CLOSE_NO_CLOSED=$(val "$o" DDF_CLOSE_NO_CLOSED)"
+  femit "$F" "PRE_FIX_DDF_AUDIT_NO_GATE=$(val "$o" DDF_AUDIT_NO_GATE)"
+  femit "$F" "PRE_FIX_DDF_DATES_AFTER_UTC=$(val "$o" DDF_DATES_AFTER_UTC)"
+  femit "$F" "PRE_FIX_DDF_LEGACY_LOCAL_STAMP=$(val "$o" DDF_LEGACY_LOCAL_STAMP)"
+  femit "$F" "PRE_FIX_DDF_RECORDS=$(val "$o" DDF_RECORDS)"
+  femit "$F" "PRE_FIX_DDF_FINDINGS=$(val "$o" DDF_FINDINGS)"
+  femit "$F" "PRE_FIX_DDF_BLIND=$(val "$o" DDF_BLIND)"
+  femit "$F" "PRE_FIX_DDF_CLOCK_FROZEN=$(val "$o" DDF_CLOCK_FROZEN)"
+  femit "$F" "PRE_FIX_DDF_CLOCK_DATE=$(val "$o" DDF_CLOCK_DATE)"
   femit "$F" "PRE_FIX_DDF_EXIT=$r"
   [ "$r" -ne 0 ] || note 1
   # Часы PRE_FIX проверяются флагом, а не молчаливым допущением: замороженное значение должно быть
@@ -271,6 +285,7 @@ PY
   for z in UTC AustraliaSydney; do
     case "$z" in UTC) zone=UTC;; *) zone=Australia/Sydney;; esac
     t="$OUT/${2}/idx_$z.jsonl"; mkdir -p "$OUT/${2}"
+    f="$OUT/${2}/state_$z.txt"; : > "$f"
     cp lab/library/index.jsonl "$t"
     before=$(python -c "import json,sys
 for l in open(sys.argv[1],encoding='utf-8'):
@@ -282,9 +297,8 @@ for l in open(sys.argv[1],encoding='utf-8'):
     r=0
     VEC_DHT_LIBRARY="$t" TZ="$zone" python lab/library.py use L-0001 --target H-0128 \
       > "$OUT/${2}/use_$z.txt" 2>&1 || r=$?
-    femit "$F" "USE_OK_$z=$r"
+    echo "USE_RC=$r" >> "$f"
     [ "$r" = 0 ] || note 1
-    f="$OUT/${2}/state_$z.txt"; : > "$f"
     python - "$t" "$before" >> "$f" 2>&1 <<'PY'
 import json, sys
 path, before = sys.argv[1], sys.argv[2]
@@ -297,7 +311,6 @@ PY
     VEC_DHT_LIBRARY="$t" TZ="$zone" python lab/library.py close L-0001 --action "не повлияло" \
       --what "E-0129: посадка записи на живой механизм helper'а, проверка поля closed" \
       >> "$OUT/${2}/use_$z.txt" 2>&1 || r=$?
-    femit "$F" "CLOSE_OK_$z=$r"
     echo "CLOSE_RC=$r" >> "$f"
     python - "$t" >> "$f" 2>&1 <<'PY'
 import json, re, sys
@@ -307,11 +320,20 @@ c = str(row.get("closed", ""))
 print("CLOSED_SHAPE=" + ("1" if re.match(r"^\d{4}-\d{2}-\d{2}$", c) else "0"))
 print("CLOSED_VALUE=" + c)
 PY
-    femit "$F" "USE_KEEPS_OPENED_$z=$(sed -n 's/^OPENED_KEPT=//p' "$f")"
-    femit "$F" "USED_FIELD_$z=$(sed -n 's/^USED_PRESENT=//p' "$f")"
-    femit "$F" "CLOSED_SHAPE_$z=$(sed -n 's/^CLOSED_SHAPE=//p' "$f")"
     say "${2} зона $zone: дата закрытия=$(sed -n 's/^CLOSED_VALUE=//p' "$f") код записи=$(sed -n 's/^CLOSE_RC=//p' "$f")"
   done
+  # Имена фактов по зонам — литералы (см. шаг 1): ключ таблицы обязан находиться в helper'е grep'ом.
+  SU="$OUT/${2}/state_UTC.txt"; SA="$OUT/${2}/state_AustraliaSydney.txt"
+  femit "$F" "USE_OK_UTC=$(sed -n 's/^USE_RC=//p' "$SU")"
+  femit "$F" "CLOSE_OK_UTC=$(sed -n 's/^CLOSE_RC=//p' "$SU")"
+  femit "$F" "USE_KEEPS_OPENED_UTC=$(sed -n 's/^OPENED_KEPT=//p' "$SU")"
+  femit "$F" "USED_FIELD_UTC=$(sed -n 's/^USED_PRESENT=//p' "$SU")"
+  femit "$F" "CLOSED_SHAPE_UTC=$(sed -n 's/^CLOSED_SHAPE=//p' "$SU")"
+  femit "$F" "USE_OK_AustraliaSydney=$(sed -n 's/^USE_RC=//p' "$SA")"
+  femit "$F" "CLOSE_OK_AustraliaSydney=$(sed -n 's/^CLOSE_RC=//p' "$SA")"
+  femit "$F" "USE_KEEPS_OPENED_AustraliaSydney=$(sed -n 's/^OPENED_KEPT=//p' "$SA")"
+  femit "$F" "USED_FIELD_AustraliaSydney=$(sed -n 's/^USED_PRESENT=//p' "$SA")"
+  femit "$F" "CLOSED_SHAPE_AustraliaSydney=$(sed -n 's/^CLOSED_SHAPE=//p' "$SA")"
   C1=$(sed -n 's/^CLOSED_VALUE=//p' "$OUT/${2}/state_UTC.txt")
   C2=$(sed -n 's/^CLOSED_VALUE=//p' "$OUT/${2}/state_AustraliaSydney.txt")
   femit "$F" "WRITE_TZ_MATCH=$( [ -n "$C1" ] && [ "$C1" = "$C2" ] && echo 1 || echo 0 )"
@@ -366,10 +388,15 @@ PY
   femit "$F" "DDF_SELFTEST_TOTAL=$(field "$o" DDF_SELFTEST total)"
   femit "$F" "DDF_SELFTEST_PASSED=$(field "$o" DDF_SELFTEST passed)"
   femit "$F" "DDF_SELFTEST_PLANTS=$(val "$o" DDF_SELFTEST_PLANTS)"
-  for k in LOCAL_TODAY NO_FUNNEL USE_WRITES_OPENED CLOSE_NO_CLOSED AUDIT_NO_GATE DATE_AFTER_UTC \
-           CLOSED_BEFORE_OPENED BLIND_INDEX MISSING_FILE; do
-    femit "$F" "PLANT_${k}_FIRED=$(val "$o" "PLANT_${k}_FIRED")"
-  done
+  femit "$F" "PLANT_LOCAL_TODAY_FIRED=$(val "$o" PLANT_LOCAL_TODAY_FIRED)"
+  femit "$F" "PLANT_NO_FUNNEL_FIRED=$(val "$o" PLANT_NO_FUNNEL_FIRED)"
+  femit "$F" "PLANT_USE_WRITES_OPENED_FIRED=$(val "$o" PLANT_USE_WRITES_OPENED_FIRED)"
+  femit "$F" "PLANT_CLOSE_NO_CLOSED_FIRED=$(val "$o" PLANT_CLOSE_NO_CLOSED_FIRED)"
+  femit "$F" "PLANT_AUDIT_NO_GATE_FIRED=$(val "$o" PLANT_AUDIT_NO_GATE_FIRED)"
+  femit "$F" "PLANT_DATE_AFTER_UTC_FIRED=$(val "$o" PLANT_DATE_AFTER_UTC_FIRED)"
+  femit "$F" "PLANT_CLOSED_BEFORE_OPENED_FIRED=$(val "$o" PLANT_CLOSED_BEFORE_OPENED_FIRED)"
+  femit "$F" "PLANT_BLIND_INDEX_FIRED=$(val "$o" PLANT_BLIND_INDEX_FIRED)"
+  femit "$F" "PLANT_MISSING_FILE_FIRED=$(val "$o" PLANT_MISSING_FILE_FIRED)"
   [ "$r" = 0 ] || note 1
 
   # ---------------------------------------------- ШАГ 8 · замкнутость прибора
