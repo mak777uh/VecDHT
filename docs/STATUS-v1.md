@@ -37,6 +37,14 @@ itself is an owner action; v9 exists as a document
 and a separate crate and is not in the node's dependency graph. Covering the absence of a number with
 the word "ready" is not allowed, so the figure is labelled as an estimate.
 
+Why the tag is not set is a map rather than a paragraph: `docs/RELEASE-MAP-v1.md` walks the §18 gates
+one by one — the instrument that closes each, its state, and what would close the remainder. Three
+reasons stay open there: the rerank gate P0 (iii) has no cross-encoder in the tree; no network gate has
+been measured across two machines; and the tag is an owner action. The map also marks where this
+document's blanket claim "gates P2-P5 are closed" is not individually re-verified by a card: the
+cross-machine byte-equality of P2 golden vectors and the declared 30-minute fuzz duration are named as
+instruments in `crates/`, not as measurements in `lab/experiments/`.
+
 `main` contains only what builds and tests. Gates P2–P5 are closed (including transport and the
 adversarial set §19.3), the deterministic half of P0, gate (v) on real weights and both measured P0
 gates — (i) forward and (ii) recall on a real corpus; gate (ii) closed on a flat coherent shard map
