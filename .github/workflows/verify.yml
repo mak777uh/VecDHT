@@ -406,7 +406,7 @@ jobs:
   # обязателен: бюджет считается на тест, и в параллели восемь тестов съели бы 240 с суммарно, а не
   # по очереди, тогда как агрегат гейта (§18.3) именно суммарный.
   fuzz-soak:
-    name: "Ночью: fuzz-соак §18.3 (декод артефакта и проверка подписи, по 240 с на тест)"
+    name: "Ночью: fuzz-соак §18.3 (декод артефакта и проверка подписи, по 260 с на тест)"
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -418,12 +418,12 @@ jobs:
           set -uo pipefail
           { rustc --version; cargo --version; cc --version | head -1; } | tee -a "$GITHUB_STEP_SUMMARY"
 
-      - name: fuzz-соак (VEC_DHT_FUZZ_SECS=240, один поток)
+      - name: fuzz-соак (VEC_DHT_FUZZ_SECS=260, один поток)
         run: |
           set -uo pipefail
           L=/tmp/fuzz-soak.log
           : > "$L"
-          export VEC_DHT_FUZZ_SECS=240
+          export VEC_DHT_FUZZ_SECS=260
           r1=0
           cargo test --release -p vecdht-artifact --test fuzz_decode -- --test-threads=1 --nocapture >> "$L" 2>&1 || r1=$?
           r2=0

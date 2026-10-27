@@ -1,0 +1,23 @@
+ключ	ожидание	комментарий
+GATE_H0135_OK	1	cycle-gate по карточке H-0135 green
+DISK_GE_15000	1	свободный диск до прогона не ниже порога владельца
+FUZZ_TESTS_TOTAL	8	всего фаззер-тестов (grep по #[test] в двух файлах)
+FUZZ_IGNORED	0	ни один из них не под #[ignore]
+PER_TEST_SECS	260	бюджет на тест, выбранный из арифметики гейта
+CI_SOAK_EXPORT_SECS	260	тот же бюджет выставлен в ночном шаге CI
+PLANT_PANIC_CAUGHT	1	экстрактор паник называет посаженную строку
+PANIC_EXTRACTOR_EMPTY_OK	1	пустой вход даёт ноль, а не панику
+ART_SOAK_EXIT	0	соак декодера артефакта завершился зелёным
+CRY_SOAK_EXIT	0	соак проверки подписи завершился зелёным
+ART_PASSED	4	четыре теста artifact-фаззера прошли
+CRY_PASSED	4	четыре теста crypto-фаззера прошли
+FUZZ_BUDGETED_TESTS	7	столько тестов реально взяли wall-clock бюджет
+PANICS_TOTAL	0	за весь соак ни одной паники
+SOAK_GE_1800	1	агрегат не меньше 1800 с — собственно гейт §18.3
+RUST_TOUCHED	0	продуктовый Rust-код за цикл не менялся
+SECRETS_EXIT	0	страж секретов зелён
+REFS_EXIT	0	страж цитат зелён
+TEXTGUARD_EXIT	0	страж текста зелён
+MIRROR_EXIT	0	зеркало спеки совпадает
+GATE_AUDIT_EXIT	0	аудит открытых карточек зелён
+REVIEW_EXIT	0	repo-review зелён
