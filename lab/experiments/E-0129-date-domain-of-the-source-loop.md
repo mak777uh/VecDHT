@@ -1,10 +1,10 @@
 ---
 id: E-0129
 hypothesis: H-0129
-status: pre-registered
+status: completed
 base_commit: "336e7d5"
 started: "2026-10-26"
-finished: ""
+finished: "2026-10-27"
 environment: "x86_64-pc-windows-gnu, хост владельца (UTC+3); bash + sed + awk + grep + python 3 из
 PATH, PyYAML 6.0.3 (нужен `lab/cycle-gate.py`); PATH дополнен /c/Users/Admin/mingw64/bin. Код Rust
 цикл не трогает (`CODE_CHANGED_RS=0`), `cargo` в helper'е не вызывается: предмет — текст двух файлов
@@ -81,8 +81,35 @@ threshold: "(1) `python lab/cycle-gate.py H-0129` выход 0; диск >= 15 0
 (`L-0025`); часы хоста и часы раннера расходятся ровно в окне 21:00-24:00 по местному, и за окном
 него наблюдение не воспроизводится; двенадцать записей, открытых до `DDF_CUTOVER`, остаются с
 местной датой и переписаны не будут; тег и GitHub Release — красная зона владельца."
-result: ""
-verdict: pending
+result: "Официальный прогон `lab/e0129-run.sh` на дереве `a831da2` (пин `336e7d5`), 2026-10-27T03:14
++03:00: `WORST_RC=0`, `STABLE=1`, `ОЖИДАНИЙ=94 РАСХОЖДЕНИЙ=0`, `PLANT_EXPECT_RED=1`, `EXPECT_ROWS=94`,
+`EXPECT_EXIT=0`; цена одного вызова — 64 секунды. PRE_FIX на дереве пина: семь вызовов местной даты
+(`PRE_FIX_DDF_LOCAL_TODAY_CALLS=7`), воронки нет (`PRE_FIX_DDF_FUNNEL_FILES=0`), `use` пишет `opened`
+(`PRE_FIX_DDF_USE_WRITES_OPENED=1`), `close` без `closed` (`PRE_FIX_DDF_CLOSE_NO_CLOSED=1`), аудит без
+гейта (`PRE_FIX_DDF_AUDIT_NO_GATE=1`), четыре поля дат позже дня пина
+(`PRE_FIX_DDF_DATES_AFTER_UTC=4`, независимый пересчёт `PRE_FIX_PIN_FUTURE_DATES=4`,
+`PRE_FIX_PIN_RECOUNT_EQ=1`), посадка красной карточки молчит (`PRE_FIX_AUDIT_PIN_SILENT=1` при
+`PRE_FIX_AUDIT_PLANT_FAIL_LINES=1`), прибор красен (`PRE_FIX_DDF_EXIT=1`) и судит по замороженной дате
+(`PRE_FIX_CLOCK_FROZEN_OK=1`). После починки: `DDF_LOCAL_TODAY_CALLS=0` при
+`SHELL_LOCAL_TODAY_LINES=0` и `DDF_RECOUNT_EQ=1`, `DDF_FUNNEL_FILES=2`, `DDF_USE_WRITES_OPENED=0`,
+`DDF_CLOSE_NO_CLOSED=0`, `DDF_AUDIT_NO_GATE=0`, `DDF_RECORDS=41`, `DDF_DATE_FIELDS=85`,
+`DDF_DATES_AFTER_UTC=0`, `DDF_GIT_CHECKED=41`, `DDF_OPENED_AFTER_ADDED=0`,
+`DDF_LEGACY_LOCAL_STAMP=12`, `DDF_CLOSED_BEFORE_OPENED=0`, `DDF_FINDINGS=0`, `DDF_BLIND=0`,
+`DDF_EXIT=0`. `library.py check` даёт ноль ошибок в обоих доменах (`LIBCHECK_UTC_ERRORS=0`,
+`LIBCHECK_HOST_ERRORS=0`, `DOMAIN_MATCH=1`); запись исполнена в двух часовых поясах, `opened` уцелел,
+`used` и `closed` появились, дата одна на всех (`USE_KEEPS_OPENED_UTC=1`,
+`USE_KEEPS_OPENED_AustraliaSydney=1`, `USED_FIELD_UTC=1`, `WRITE_TZ_MATCH=1`, `CLOSED_SHAPES_OK=1`);
+гейт аудита красен на посадке и даёт ноль на чистой копии и на живом дереве (`AUDIT_GATE_FIRES=1`,
+`AUDIT_PLANT_BAD_COUNT=1`, `AUDIT_CLEAN_COPY_EXIT=0`, `AUDIT_LIVE_EXIT=0`, `AUDIT_LIVE_BAD_COUNT=0`);
+самопроверка 10 проверок из 10, девять посаженных дефектов отбиты все
+(`DDF_SELFTEST_PLANTS=9`); прибор стоит в CI (`DDF_CI_STEPS=6`) и в контуре (`DDF_CONTOUR_BLOCK=2`);
+продукт и спека не тронуты (`CODE_CHANGED_RS=0`, `SPEC_V8_UNTOUCHED=0`), закрытые приборы не
+переписаны (`E0127_INSTRUMENT_UNTOUCHED=0`, `E0128_INSTRUMENT_UNTOUCHED=0`). Часы съёма вынесены в
+носитель и не входят в порог: между подготовительными прогонами день по UTC перешёл на `2026-10-27`,
+и наблюдение «пин под `TZ=UTC` красен» (строки 15…17 лога: `PRE_FIX_LIBCHECK_UTC_EXIT=1`,
+`errors=1`, при `расхождение_доменов=1`) на том же дереве пина стало зелёным — замороженное ожидание
+из него получилось бы часами, а не правилом."
+verdict: supports
 ---
 
 # E-0129 — домен дат контура источников: семь местных дат, стёртое `opened` и вердикт без гейта
@@ -148,3 +175,29 @@ verdict: pending
 * **Область правила о воронке.** Первый живой запуск требовал `utc_today` и от `lab/cycle-gate.py`,
   который дат не штампует, — находка без дефекта. Область правил 1 и 2 сужена до `DATE_FILES`
   (`DDF_DATE_FILES=2`).
+
+## Результат
+
+Вердикт — `supports`. Утверждение цикла исполнено, а не прочитано: на дереве пина (`336e7d5`) прибор
+находит семь вызовов местной даты в двух штампующих файлах, отсутствие воронки, стирание `opened` при
+`use`, отсутствие `closed` при `close`, молчание аудита при напечатанном `FAIL` и четыре поля дат позже
+дня пина; на дереве фикса (`a831da2`) все те же сенсоры дают ноль, а независимый построчный пересчёт
+совпадает с прибором (`DDF_RECOUNT_EQ=1`, `SHELL_LOCAL_TODAY_LINES=0`). Официальный прогон:
+`WORST_RC=0`, `ОЖИДАНИЙ=94 РАСХОЖДЕНИЙ=0`, `STABLE=1`, `PLANT_EXPECT_RED=1`, цена — 64 секунды.
+
+Что изменено в механизме: единственная дата контура — UTC через воронку `utc_today()` в `lab/library.py`
+и `lab/sources.py`; `use` пишет `used` и не трогает доказательство пре-регистрации `opened`; `close`
+пишет `closed`; `cmd_audit` возвращает `1 if bad_cards else 0`. Страж `lab/check-date-domain.py` стоит
+двумя шагами в `verify.yml` (`DDF_CI_STEPS=6` вхождений) и блоком в `lab/workspace-verify.sh`
+(`DDF_CONTOUR_BLOCK=2`); его самопроверка — 10 проверок из 10, девять посаженных дефектов отбиты.
+
+Чего цикл не утверждал: что весь `verify` на GitHub зелёный — это факт чужого прогона (`L-0025`), он
+перечитывается отдельно, и в носитель записан разбор прогона 40416488581, где красным остался шаг
+`library check` именно по домену дат. Продукт и спека не тронуты (`CODE_CHANGED_RS=0`,
+`SPEC_V8_UNTOUCHED=0`); закрытые приборы `E-0127`/`E-0128` не переписаны. Двенадцать исторических меток
+остались с местным днём и названы числом `DDF_LEGACY_LOCAL_STAMP=12`; три метки (`L-0025`, `L-0038`,
+`L-0039`) приведены к git-дню и названы в `ADR-0070` исключением, а не молчаливой правкой.
+
+Самопойманный урок цикла: наблюдение «расхождение доменов» (`DDF_DOMAIN_SPLIT`) было красным за сутки
+до замера и зелёным в момент замера, потому что полуночь UTC случилась между прогонами. Число,
+зависящее от часа съёма, не может быть замороженным ожиданием — оно живёт в носителе.

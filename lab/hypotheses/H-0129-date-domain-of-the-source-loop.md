@@ -1,6 +1,6 @@
 ---
 id: H-0129
-status: open
+status: supported
 date: 2026-10-26
 claim: "Ни один лабораторный механизм, который штампует или сравнивает дату, не берёт календарный
 день из местных часов процесса: в `lab/library.py` и `lab/sources.py` число вызовов
@@ -144,3 +144,35 @@ supersedes: null
 * Область прибора — файлы механизма и индекс. `lab/*.sh`, `docs/**`, `crates/**` не трогались
   (`CODE_CHANGED_RS=0`), закрытые приборы `E-0127`/`E-0128` не переписаны: у классов разные правила, и
   зелёный один не говорит ничего про другой.
+
+## Результат
+
+> **Результат: `supports` (`E-0129`).** Утверждение исполнено в трёх ветках и по каждой названо числом.
+> Механизм: на пине `336e7d5` семь вызовов местной даты в двух штампующих файлах
+> (`PRE_FIX_DDF_LOCAL_TODAY_CALLS=7`, `PRE_FIX_DDF_FUNNEL_FILES=0`), после починки — ноль при совпадении
+> с независимым построчным пересчётом (`DDF_LOCAL_TODAY_CALLS=0`, `SHELL_LOCAL_TODAY_LINES=0`,
+> `DDF_RECOUNT_EQ=1`, `DDF_FUNNEL_FILES=2`). Стирание доказательства: `use` писал `opened`
+> (`PRE_FIX_DDF_USE_WRITES_OPENED=1`), теперь `opened` уцелел в обоих часовых поясах, появились `used`
+> и `closed` одной датой (`USE_KEEPS_OPENED_UTC=1`, `USE_KEEPS_OPENED_AustraliaSydney=1`,
+> `USED_FIELD_UTC=1`, `WRITE_TZ_MATCH=1`, `CLOSED_SHAPES_OK=1`, `WRITE_KEEPS_OPENED=1`). Вердикт без
+> гейта: аудит печатал `FAIL` и возвращал ноль (`PRE_FIX_DDF_AUDIT_NO_GATE=1`,
+> `PRE_FIX_AUDIT_PIN_SILENT=1` при `PRE_FIX_AUDIT_PLANT_FAIL_LINES=1`), теперь посадка красна
+> (`AUDIT_PLANT_EXIT=1`, `AUDIT_GATE_FIRES=1`, `AUDIT_PLANT_BAD_COUNT=1`), а чистая копия и живое дерево
+> дают ноль (`AUDIT_CLEAN_COPY_EXIT=0`, `AUDIT_LIVE_EXIT=0`, `AUDIT_LIVE_BAD_COUNT=0`). Само расхождение
+> доменов на пине закреплено инвариантным свидетелем — четырьмя полями дат позже дня пина
+> (`PRE_FIX_PIN_FUTURE_DATES=4`, `PRE_FIX_PIN_RECOUNT_EQ=1`, `PRE_FIX_DOMAIN_DEFECT_WITNESSED=1`), а не
+> живыми часами; после починки `library.py check` зелёный в обоих доменах (`LIBCHECK_UTC_ERRORS=0`,
+> `LIBCHECK_HOST_ERRORS=0`, `DOMAIN_MATCH=1`). Официальный прогон: `WORST_RC=0`,
+> `ОЖИДАНИЙ=94 РАСХОЖДЕНИЙ=0`, `STABLE=1`, `PLANT_EXPECT_RED=1`, 64 секунды; самопроверка прибора — 10 проверок из 10
+> при девяти отбитых посадках (`DDF_SELFTEST_PASSED=10`, `DDF_SELFTEST_PLANTS=9`); страж стоит в CI и в
+> контуре (`DDF_CI_STEPS=6`, `DDF_CONTOUR_BLOCK=2`). Границы удержаны: `CODE_CHANGED_RS=0`,
+> `SPEC_V8_UNTOUCHED=0`, закрытые приборы не переписаны (`E0127_INSTRUMENT_UNTOUCHED=0`,
+> `E0128_INSTRUMENT_UNTOUCHED=0`), прошлое не тронуто, кроме трёх названных меток
+> (`DDF_LEGACY_LOCAL_STAMP=12`, `DDF_OPENED_AFTER_ADDED=0` при `DDF_GIT_CHECKED=41`).
+
+Гипотеза подтвердилась в форме, которой никто не заказывал: она поймала автора на живом месте. Между
+подготовительным прогоном и пре-регистрацией день по UTC перешёл на `2026-10-27`, и живое наблюдение
+расхождения доменов (`DDF_DOMAIN_SPLIT`) стало нулём на неизменном дереве, а красный PRE_FIX шага
+`library check` на пине — зелёным. Это не опровержение: дефект был в коде и замерен на пине, а
+зависящее от часа съёма наблюдение нельзя класть в замороженное ожидание, что и есть правило 7, пункт (е),
+в его самой наглядной форме.
