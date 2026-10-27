@@ -11,9 +11,9 @@ claim: "Узел считает аптайм по накопленному вр�
 `status=resumed`, `sessions=2` (`UP_RESTART_STATUS=resumed`, `UP_RESTART_SESSIONS=2`), накопленное
 выросло ровно на закрытое окно (`UP_RESTART_ACCUM_EQ_CLOSED=1`), и отчёт по закрытому узлу печатает
 `total_sec >= accumulated_sec` (`UP_RESTART_TOTAL_GE_ACCUM=1`). Отказ обязан быть назван и предшествовать
-церемонии: подставленный битый `uptime.bin` даёт `node run` код 2 со словом `uptime.bin` в stderr и
-без ни одной напечатанной строки `NODE_READY` (`UP_CORRUPT_RUN_CODE=2`, `UP_CORRUPT_RUN_NAMES_FILE=1`,
-`UP_CORRUPT_RUN_READY_PRINTED=0`); тот же случай и случай «истории нет вовсе» в отчёте
+церемонии: подставленный битый `uptime.bin` даёт `node run` код 2 со словом `uptime.bin` в stderr
+и отказом до конца окна прогона (`UP_CORRUPT_RUN_CODE=2`, `UP_CORRUPT_RUN_NAMES_FILE=1`,
+`UP_CORRUPT_RUN_FAST_REFUSAL=1`); тот же случай и случай «истории нет вовсе» в отчёте
 `node uptime` дают код 2 и ни одной напечатанной секунды (`UP_CORRUPT_REPORT_CODE=2`,
 `UP_CORRUPT_REPORT_ZERO=0`, `UP_ABSENT_REPORT_CODE=2`, `UP_ABSENT_REPORT_ZERO=0`) — «неизвестно» не
 печатается как «ноль дней» (форма `L-0013`). Обнуление существует ровно один путь — явный
@@ -28,7 +28,7 @@ falsifier: "размер файла на диске не 46 либо после 
 (`UP_FILE_BYTES!=46`, `UP_PARTIAL_LEFT!=0`); либо рестарт обнуляет счётчик или называет себя заново
 (`UP_RESTART_STATUS!=resumed`, `UP_RESTART_SESSIONS!=2`, `UP_RESTART_ACCUM_EQ_CLOSED=0`,
 `UP_RESTART_TOTAL_GE_ACCUM=0`); либо битый ledger поднимается молча: `UP_CORRUPT_RUN_CODE=0`, или
-`NODE_READY` напечатан до отказа (`UP_CORRUPT_RUN_READY_PRINTED=1`), или в stderr нет имени файла
+отказ наступил не до конца окна прогона (`UP_CORRUPT_RUN_FAST_REFUSAL=0`), или в stderr нет имени файла
 (`UP_CORRUPT_RUN_NAMES_FILE=0`); либо отсутствие истории печатается нулём (`UP_ABSENT_REPORT_CODE=0`,
 `UP_ABSENT_REPORT_ZERO=1`, `UP_CORRUPT_REPORT_ZERO=1`); либо обнуление происходит без явного флага
 (`UP_RESET_CODE!=0`) или после него счётчик не начинается с одной сессии
@@ -47,7 +47,9 @@ oracle: "`cargo test -q -p vecdht-cli --lib uptime::` (семь модульны
 сырые секунды (`uptime_total_sec`, `uptime_open_sec`) фактами не печатаются и живут только в
 носителе (правило 7 (е), `ADR-0070`). Helper `lab/e0130-run.sh` гоняет PRE_FIX на дереве `80b81c0`
 текущим прибором, затем два прогона на неизменном дереве, сверяет наборы и печатает диск/RAM/pagefile;
-посадка — `UP_RESTART_SESSIONS=1` в копию таблицы"
+посадка — `UP_RESTART_SESSIONS=1` в копию таблицы. Шаг 4b — самопроверка стража текста после правки
+его же исключения (`GUARD_SELFTEST_*`): фикстура из шести строк, где три законных escape не должны
+давать грязи, а две посаженных опечатки обязаны быть названы по номерам строк"
 experiments: ["E-0130"]
 prior_art: ["L-0042", "L-0043", "L-0037"]
 lean:

@@ -156,6 +156,14 @@ for path in sys.argv[1:]:
         for m in re.finditer(r"[A-Za-z][\u0400-\u04FF]|[\u0400-\u04FF][A-Za-z]", line):
             if any(s <= off + m.start() < e for s, e in spans):
                 continue
+            # Исключение по escape-последовательности: в исходнике `"\nВсе"` соседство `n` и `В` —
+            # это управляющий символ перевода строки, записанный двумя байтами, а не буква внутри
+            # слова. Пара «обратный слэш + латиница» не может быть началом нашего слова, поэтому
+            # она не грязь. Проверено на посаженном дефекте (шаг 4b в `lab/e0130-run.sh`): строка
+            # с переводом строки и дефектом внутри слова остаётся грязной — слэш к нему не ведёт.
+            latin = m.start() if LAT.match(line[m.start()]) else m.end() - 1
+            if latin > 0 and line[latin - 1] == "\\":
+                continue
             hits.append(f"гибрид:{m.group(0)!r}")
         off += len(line) + 1
         if hits:

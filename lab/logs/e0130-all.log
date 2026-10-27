@@ -1,0 +1,158 @@
+########## E-0130 · 2026-10-27T04:57:39+03:00 · дерево 1ecbb68 ##########
+### ШАГ 0 гейт, носитель до ### 2026-10-27T04:57:39+03:00
+ПРИОРАРТ H-0130: строк=3 классы=['реализация', 'спека']
+LEAN H-0130: модель не сделана, рубрика обязательной не требует
+E-CARD E-0130: порог, окружение и команда названы
+CYCLE H-0130=OK нарушений=0
+GATE_H0130_OK=1
+DISK_FREE_MB=19872 RAM_FREE_MB=6858 PAGEFILE_PEAK_MB=7660
+DISK_GE_15000=1
+### ШАГ 1 PRE_FIX: product-файлы дерева 80b81c0, прибор текущий ### 2026-10-27T04:57:42+03:00
+checkout сделан; упоминаний uptime в node_cmd.rs: 0
+PRE_FIX node_run: exit=101 секунд=98
+UP_ABSENT_REPORT_CODE=1
+UP_ABSENT_REPORT_NAMES_FILE=0
+UP_ABSENT_REPORT_ZERO=0
+UP_CORRUPT_REPORT_CODE=1
+UP_CORRUPT_REPORT_NAMES_FILE=0
+UP_CORRUPT_REPORT_ZERO=0
+UP_CORRUPT_RUN_CODE=0
+UP_CORRUPT_RUN_NAMES_FILE=0
+UP_CORRUPT_RUN_READY_PRINTED=0
+UP_FILE_BYTES=0
+UP_LIVE_REPORT_CODE=1
+UP_LIVE_REPORT_SESSIONS=none
+UP_MISSING_PRINTED=0
+UP_OPEN1_SESSIONS=none
+UP_OPEN1_STATUS=none
+UP_PARTIAL_LEFT=0
+UP_RESET_ACCUM=none
+UP_RESET_CODE=1
+UP_RESET_FILE_BYTES=20
+UP_RESET_REPORT_CODE=1
+UP_RESET_SESSIONS=none
+UP_RESTART_ACCUM_EQ_CLOSED=0
+UP_RESTART_REPORT_CODE=1
+UP_RESTART_REPORT_SESSIONS=none
+UP_RESTART_SESSIONS=none
+UP_RESTART_STATUS=none
+UP_RESTART_TOTAL_GE_ACCUM=0
+UP_STATUS_HAS_ALL_FIELDS=0
+UP_STATUS_UPTIME_IO_ERRORS=none
+UP_STATUS_UPTIME_REGRESSIONS=none
+UP_STATUS_UPTIME_SESSIONS=none
+PRE_FIX_FILE_BYTES=0
+PRE_FIX_OPEN1_STATUS=none
+PRE_FIX_MISSING_PRINTED=0
+PRE_FIX_STATUS_HAS_ALL_FIELDS=0
+PRE_FIX_STATUS_SESSIONS=none
+PRE_FIX_RESTART_SESSIONS=none
+PRE_FIX_LIVE_REPORT_CODE=1
+PRE_FIX_CORRUPT_RUN_CODE=0
+PRE_FIX_CORRUPT_RUN_READY_PRINTED=0
+PRE_FIX_CORRUPT_REPORT_CODE=1
+PRE_FIX_RESET_CODE=1
+PRE_FIX_TEST_FAILED=1
+product-файлы возвращены; упоминаний uptime в node_cmd.rs: 39
+### ШАГ 2 модульные тесты формата и арифметики ### 2026-10-27T04:59:23+03:00
+LIB_EXIT=0
+LIB_UP_PASSED=7
+LIB_PASSED=68
+LIB: uptime_exit=0 uptime_passed=7 all_exit=0 all_passed=68
+### ШАГ 3 два прогона прибора на неизменном дереве ### 2026-10-27T04:59:31+03:00
+ПРОГОН1: cli=0 секунд=24
+CLI_EXIT=0
+CLI_FAILED=0
+CLI_PASSED=3
+UP_ABSENT_REPORT_CODE=2
+UP_ABSENT_REPORT_NAMES_FILE=1
+UP_ABSENT_REPORT_ZERO=0
+UP_CORRUPT_REPORT_CODE=2
+UP_CORRUPT_REPORT_NAMES_FILE=1
+UP_CORRUPT_REPORT_ZERO=0
+UP_CORRUPT_RUN_CODE=2
+UP_CORRUPT_RUN_NAMES_FILE=1
+UP_CORRUPT_RUN_READY_PRINTED=0
+UP_FILE_BYTES=46
+UP_LIVE_REPORT_CODE=0
+UP_LIVE_REPORT_SESSIONS=1
+UP_MISSING_PRINTED=1
+UP_OPEN1_SESSIONS=1
+UP_OPEN1_STATUS=never_started
+UP_PARTIAL_LEFT=0
+UP_RESET_ACCUM=0
+UP_RESET_CODE=0
+UP_RESET_FILE_BYTES=46
+UP_RESET_REPORT_CODE=0
+UP_RESET_SESSIONS=1
+UP_RESTART_ACCUM_EQ_CLOSED=1
+UP_RESTART_REPORT_CODE=0
+UP_RESTART_REPORT_SESSIONS=2
+UP_RESTART_SESSIONS=2
+UP_RESTART_STATUS=resumed
+UP_RESTART_TOTAL_GE_ACCUM=1
+UP_STATUS_HAS_ALL_FIELDS=1
+UP_STATUS_UPTIME_IO_ERRORS=0
+UP_STATUS_UPTIME_REGRESSIONS=0
+UP_STATUS_UPTIME_SESSIONS=1
+ПРОГОН2: cli=0 секунд=12
+CLI_EXIT=0
+CLI_FAILED=0
+CLI_PASSED=3
+UP_ABSENT_REPORT_CODE=2
+UP_ABSENT_REPORT_NAMES_FILE=1
+UP_ABSENT_REPORT_ZERO=0
+UP_CORRUPT_REPORT_CODE=2
+UP_CORRUPT_REPORT_NAMES_FILE=1
+UP_CORRUPT_REPORT_ZERO=0
+UP_CORRUPT_RUN_CODE=2
+UP_CORRUPT_RUN_NAMES_FILE=1
+UP_CORRUPT_RUN_READY_PRINTED=0
+UP_FILE_BYTES=46
+UP_LIVE_REPORT_CODE=0
+UP_LIVE_REPORT_SESSIONS=1
+UP_MISSING_PRINTED=1
+UP_OPEN1_SESSIONS=1
+UP_OPEN1_STATUS=never_started
+UP_PARTIAL_LEFT=0
+UP_RESET_ACCUM=0
+UP_RESET_CODE=0
+UP_RESET_FILE_BYTES=46
+UP_RESET_REPORT_CODE=0
+UP_RESET_SESSIONS=1
+UP_RESTART_ACCUM_EQ_CLOSED=1
+UP_RESTART_REPORT_CODE=0
+UP_RESTART_REPORT_SESSIONS=2
+UP_RESTART_SESSIONS=2
+UP_RESTART_STATUS=resumed
+UP_RESTART_TOTAL_GE_ACCUM=1
+UP_STATUS_HAS_ALL_FIELDS=1
+UP_STATUS_UPTIME_IO_ERRORS=0
+UP_STATUS_UPTIME_REGRESSIONS=0
+UP_STATUS_UPTIME_SESSIONS=1
+STABLE=1
+STABLE=1
+### ШАГ 4 стража текста и repo-review на файлах цикла ### 2026-10-27T05:00:08+03:00
+ГРЯЗНО crates/vecdht-cli/src/lib.rs:316: гибрид:'nВ' :: "\nВсе hex-поля — ровно 2N строчных символов [0-9a-f] (§15.1.5), все числа — десятичные \
+ГРЯЗНО crates/vecdht-cli/src/lib.rs:324: гибрид:'nФ' :: Some(c) => format!("{}\n\nФЛАГИ:\n{}", c.help, flag_list(c.flags)),
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=3 подозрений=0 исключено=0
+TEXTGUARD_CYCLE_EXIT=1
+ПОЗВОЛЕНО refs-dangling: H-0106 — голова очереди после закрытия E-0105: `lab/PLAN.md` («это H-0106, голова очереди»), `lab/decisions/OPEN-QUESTIONS.md` про бюджет промахов (14 файлов: docs/PLAN-v1.md, docs/VecDHT-SPEC-v8.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0107 — будущий цикл Lean-модели ограниченного множества: `lab/decisions/OPEN-QUESTIONS.md` («Цена и очередь: цикл H-0107»), `lab/PLAN.md` (7 файлов: docs/PLAN-v1.md, docs/VecDHT-SPEC-v9.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0109 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A2 (загрузка centroid.bin, хвост ADR-0058); слова плана: «номеров H-0109/H-0110 в lab/ нет — бери следующие свободные» (3 файлов: docs/PLAN-v1.md, lab/experiments/E-0116-ledger-last-block.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0110 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A3 (производитель отзыва, CLI revoke) (3 файлов: docs/PLAN-v1.md, lab/experiments/E-0116-ledger-last-block.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md)
+ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md)
+REPO_REVIEW_EXIT=0
+### ШАГ 5 посадка: неверное ожидание обязано краснеть ### 2026-10-27T05:00:28+03:00
+PLANT_EXIT=1
+PLANT_EXIT=1
+### ШАГ 6 ожидания ### 2026-10-27T05:00:29+03:00
+РАСХОЖДЕНИЕ: PRE_FIX_CORRUPT_RUN_READY_PRINTED ждали «1», напечатано «0»
+РАСХОЖДЕНИЕ: TEXTGUARD_CYCLE_EXIT ждали «0», напечатано «1»
+ОЖИДАНИЙ=55 РАСХОЖДЕНИЙ=2
+EXPECT_EXIT=1
+EXPECT_ROWS=55
+### ШАГ 7 носитель после прогона ### 2026-10-27T05:00:29+03:00
+DISK_FREE_MB=19842 RAM_FREE_MB=6250 PAGEFILE_PEAK_MB=7660
+WORST_RC=1

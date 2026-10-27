@@ -34,6 +34,11 @@ use vecdht_net::{keys, Agent, AgentConfig, FindQuery, NetworkParams, PublishRequ
 use vecdht_wire::codec::DIM;
 use vecdht_wire::messages::{Codec, MembershipUpdate};
 
+/// Сколько секунд узел обязан проработать по умолчанию (`--run-seconds`). Одна константа на
+/// аргументы и на проверку отказа: иначе порог «отказался быстро» мог бы разъехаться с длиной
+/// окна, которую задал тот же тест.
+const NODE_RUN_SECONDS: u64 = 60;
+
 /// Временный каталог с гардом: прогон не должен оставлять мусор в `%TEMP%`.
 struct Tmp(PathBuf);
 
@@ -268,7 +273,7 @@ fn node_args(
         "--status-sec".into(),
         "2".into(),
         "--run-seconds".into(),
-        "60".into(),
+        NODE_RUN_SECONDS.to_string(),
     ];
     for addr in bootstrap {
         args.push("--bootstrap".into());
@@ -637,15 +642,24 @@ fn node_uptime_counter_survives_restart_and_refuses_corruption() {
         a
     };
     let refs: Vec<&str> = bad.iter().map(String::as_str).collect();
+    let started = Instant::now();
     let out = cli(&refs);
+    let took = started.elapsed();
     fact("UP_CORRUPT_RUN_CODE=", out.code.to_string());
     fact(
         "UP_CORRUPT_RUN_NAMES_FILE=",
         bit(out.stderr.contains("uptime.bin")).to_string(),
     );
+    // «Отказ до объявления узла» нельзя мерить по `out.stdout`: `cli()` вызывает
+    // `vecdht_cli::run` в этом же процессе, а `NODE_READY` печатается в настоящий stdout
+    // прибора, поэтому `contains("NODE_READY")` было бы ложью на обоих деревьях — мёртвый
+    // факт. Тот же смысл измеряется временем: отказ — до открытия порта и до конца окна,
+    // и потому короче его ровно вдвое. Запас ×2 назван: на пине прогон стоит всё окно
+    // (`--run-seconds 60`), после фикса — доли секунды; отношение, а не абсолютный
+    // порог, потому что часы хоста шумят (`ADR-0070`, правило 7 пункт (е)).
     fact(
-        "UP_CORRUPT_RUN_READY_PRINTED=",
-        bit(out.stdout.contains("NODE_READY")).to_string(),
+        "UP_CORRUPT_RUN_FAST_REFUSAL=",
+        bit(out.code == 2 && took.as_secs() * 2 < NODE_RUN_SECONDS).to_string(),
     );
 
     // (4b) Тот же битый файл в отчёте: код 2 и ни одного напечатанного `total_sec` —
@@ -722,7 +736,7 @@ fn node_uptime_counter_survives_restart_and_refuses_corruption() {
     assert_eq!(want("UP_RESTART_TOTAL_GE_ACCUM"), "1", "накопленное не обнуляется рестартом");
     assert_eq!(want("UP_CORRUPT_RUN_CODE"), "2", "битый ledger — отказ церемонии, не тихое обнуление");
     assert_eq!(want("UP_CORRUPT_RUN_NAMES_FILE"), "1");
-    assert_eq!(want("UP_CORRUPT_RUN_READY_PRINTED"), "0", "отказ обязан случиться до объявления узла");
+    assert_eq!(want("UP_CORRUPT_RUN_FAST_REFUSAL"), "1", "отказ обязан случиться до объявления узла — то есть до конца окна прогона");
     assert_eq!(want("UP_CORRUPT_REPORT_CODE"), "2");
     assert_eq!(want("UP_CORRUPT_REPORT_NAMES_FILE"), "1");
     assert_eq!(want("UP_CORRUPT_REPORT_ZERO"), "0", "«испорчено» не печатается как «ноль дней»");

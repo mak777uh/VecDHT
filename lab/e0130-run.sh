@@ -105,7 +105,7 @@ v=$(fact "$OUT/prefix-cli.txt" UP_STATUS_UPTIME_SESSIONS);     emit0 "PRE_FIX_ST
 v=$(fact "$OUT/prefix-cli.txt" UP_RESTART_SESSIONS);           emit0 "PRE_FIX_RESTART_SESSIONS=${v:-MISSING}"
 v=$(fact "$OUT/prefix-cli.txt" UP_LIVE_REPORT_CODE);           emit0 "PRE_FIX_LIVE_REPORT_CODE=${v:-MISSING}"
 v=$(fact "$OUT/prefix-cli.txt" UP_CORRUPT_RUN_CODE);           emit0 "PRE_FIX_CORRUPT_RUN_CODE=${v:-MISSING}"
-v=$(fact "$OUT/prefix-cli.txt" UP_CORRUPT_RUN_READY_PRINTED);  emit0 "PRE_FIX_CORRUPT_RUN_READY_PRINTED=${v:-MISSING}"
+v=$(fact "$OUT/prefix-cli.txt" UP_CORRUPT_RUN_FAST_REFUSAL);   emit0 "PRE_FIX_CORRUPT_RUN_FAST_REFUSAL=${v:-MISSING}"
 v=$(fact "$OUT/prefix-cli.txt" UP_CORRUPT_REPORT_CODE);        emit0 "PRE_FIX_CORRUPT_REPORT_CODE=${v:-MISSING}"
 v=$(fact "$OUT/prefix-cli.txt" UP_RESET_CODE);                 emit0 "PRE_FIX_RESET_CODE=${v:-MISSING}"
 emit0 "PRE_FIX_TEST_FAILED=$(res_num "$OUT/prefix-cli.txt" failed)"
@@ -159,7 +159,7 @@ say "STABLE=${st}"
 [ "$st" = 1 ] || note 1
 
 say "### ШАГ 4 стража текста и repo-review на файлах цикла ### $(date +%FT%T%:z)"
-CYCLE_FILES="lab/e0130-run.sh $EXPECT crates/vecdht-cli/tests/node_run.rs \
+CYCLE_FILES="lab/e0130-run.sh lab/check-text-clean.sh $EXPECT crates/vecdht-cli/tests/node_run.rs \
 crates/vecdht-cli/src/uptime.rs crates/vecdht-cli/src/node_cmd.rs crates/vecdht-cli/src/lib.rs \
 lab/hypotheses/H-0130-uptime-counter-anchored-to-start.md \
 lab/experiments/E-0130-uptime-counter-anchored-to-start.md \
@@ -172,6 +172,41 @@ emit0 "TEXTGUARD_CYCLE_EXIT=${rct}"
 python lab/repo-review.py 2>&1 | tail -6 | tee -a "$LOG"
 rcrr=${PIPESTATUS[0]}
 emit0 "REPO_REVIEW_EXIT=${rcrr}"
+
+say "### ШАГ 4b самопроверка стража текста: escape-исключение не должны быть индульгенцией ### $(date +%FT%T%:z)"
+# Правка стража (исключение «обратный слэш + латиница» для `"\nВсе"`) проверяется посадкой, а не
+# словом: файл содержит три законных строки с escape и две посаженных опечатки. Законные не должны
+# давать грязи, посаженные — обязаны, причём названными номерами строк. Без этого исключения страж
+# краснел на чужих строках `crates/vecdht-cli/src/lib.rs:316,324` — то есть на тексте, которого в
+# цикле нет (ДИАГНОЗ).
+GST="$OUT/guard-selftest.rs"
+# Посадка собирается из маркера `%%`, а не записана в помощнике прямо: строка с дефектом-гибридом,
+# напечатанная в самом помощнике, красила бы проверку текста на файлах цикла (страж не различает
+# «цитату» вне код-спа). Маркер и его замена видны в логе, так что посадка не прячется.
+cat > "$GST" <<'GST_EOF'
+fn a() {
+    out.push_str("\nВсе hex-поля — ровно 2N строчных символов");
+    Some(c) => format!("{}\n\nФЛАГИ:\n{}", c.help, flag_list(c.flags)),
+    s.push("hello\nбайт%% мир");
+    t.push_str("\tтабличка");
+    u.push_str("простой гибрид байт%% без слэша");
+}
+GST_EOF
+sed -i 's/%%/e/g' "$GST"
+bash lab/check-text-clean.sh "$GST" > "$OUT/guard-selftest.txt" 2>&1
+rcg=$?
+emit0 "GUARD_SELFTEST_EXIT=${rcg}"
+emit0 "GUARD_SELFTEST_HITS=$(grep -c '^ГРЯЗНО' "$OUT/guard-selftest.txt")"
+LINES=$(grep -oE ':[0-9]+: гибрид' "$OUT/guard-selftest.txt" | grep -oE '[0-9]+' | paste -sd, -)
+emit0 "GUARD_SELFTEST_LINES=${LINES}"
+# Красный выход здесь и есть зелёный результат: страж обязан отбрить посадку и не закраснеть
+# от законных escape. Поэтому вердикт считается не от кода возврата, а от совращения трёх чисел.
+hits=$(grep -c '^ГРЯЗНО' "$OUT/guard-selftest.txt")
+if [ "$rcg" != 1 ] || [ "$hits" != 2 ] || [ "$LINES" != "4,6" ]; then
+  say "САМОПРОВЕРКА СТРАЖА НЕ ПРОЙДЕНА: exit=${rcg} грязью=${hits} строки=${LINES} (ждали exit 1, две строки, 4 и 6)"
+  note 1
+fi
+say "guard-selftest: exit=${rcg} грязью=${hits} строки=${LINES}"
 
 say "### ШАГ 5 посадка: неверное ожидание обязано краснеть ### $(date +%FT%T%:z)"
 awk -F'\t' 'BEGIN{OFS="\t"} $1=="UP_RESTART_SESSIONS"{$2="1"} {print}' "$EXPECT" > "$OUT/plant.tsv"

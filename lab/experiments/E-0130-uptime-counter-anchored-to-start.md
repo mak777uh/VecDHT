@@ -16,11 +16,11 @@ threshold: "(1) `python lab/cycle-gate.py gate H-0130` выход 0; диск >=
 прибором (product-файлы временно из пина, тест остаётся нынешний, trap возвращает по sha256):
 `PRE_FIX_FILE_BYTES=0`, `PRE_FIX_OPEN1_STATUS=none`, `PRE_FIX_MISSING_PRINTED=0`,
 `PRE_FIX_STATUS_HAS_ALL_FIELDS=0`, `PRE_FIX_STATUS_SESSIONS=none`, `PRE_FIX_RESTART_SESSIONS=none`,
-`PRE_FIX_LIVE_REPORT_CODE=1`, `PRE_FIX_CORRUPT_RUN_CODE=0`, `PRE_FIX_CORRUPT_RUN_READY_PRINTED=1`,
+`PRE_FIX_LIVE_REPORT_CODE=1`, `PRE_FIX_CORRUPT_RUN_CODE=0`, `PRE_FIX_CORRUPT_RUN_FAST_REFUSAL=0`,
 `PRE_FIX_CORRUPT_REPORT_CODE=1`, `PRE_FIX_RESET_CODE=1`, `PRE_FIX_TEST_FAILED=1`. Краснота обязана
 быть по предмету: на пине код `node uptime` не существует, поэтому отчётные коды там 1 (неизвестная
-команда), а не 2, и узел подставленный `uptime.bin` игнорирует (`PRE_FIX_CORRUPT_RUN_CODE=0` при
-напечатанном `NODE_READY`). (3) Формат и арифметика: `cargo test -q -p vecdht-cli --lib uptime::`
+команда), а не 2, и узел подставленный `uptime.bin` игнорирует (`PRE_FIX_CORRUPT_RUN_CODE=0`, прогон
+стоит всё окно `--run-seconds`). (3) Формат и арифметика: `cargo test -q -p vecdht-cli --lib uptime::`
 выход 0 при `LIB_UP_PASSED=7`, полный `cargo test -q -p vecdht-cli --lib` выход 0 при
 `LIB_PASSED=68`. (4) Прибор `cargo test -q -p vecdht-cli --test node_run -- --test-threads=1
 --nocapture` зелёный дважды на неизменном дереве: `CLI_EXIT=0`, `CLI_FAILED=0`, `CLI_PASSED=3`,
@@ -31,7 +31,7 @@ threshold: "(1) `python lab/cycle-gate.py gate H-0130` выход 0; диск >=
 `UP_FILE_BYTES=46`, `UP_PARTIAL_LEFT=0`, `UP_RESTART_STATUS=resumed`, `UP_RESTART_SESSIONS=2`,
 `UP_RESTART_ACCUM_EQ_CLOSED=1`, `UP_RESTART_REPORT_CODE=0`, `UP_RESTART_REPORT_SESSIONS=2`,
 `UP_RESTART_TOTAL_GE_ACCUM=1`, `UP_CORRUPT_RUN_CODE=2`, `UP_CORRUPT_RUN_NAMES_FILE=1`,
-`UP_CORRUPT_RUN_READY_PRINTED=0`, `UP_CORRUPT_REPORT_CODE=2`, `UP_CORRUPT_REPORT_NAMES_FILE=1`,
+`UP_CORRUPT_RUN_FAST_REFUSAL=1`, `UP_CORRUPT_REPORT_CODE=2`, `UP_CORRUPT_REPORT_NAMES_FILE=1`,
 `UP_CORRUPT_REPORT_ZERO=0`, `UP_ABSENT_REPORT_CODE=2`, `UP_ABSENT_REPORT_NAMES_FILE=1`,
 `UP_ABSENT_REPORT_ZERO=0`, `UP_RESET_CODE=0`, `UP_RESET_FILE_BYTES=46`, `UP_RESET_REPORT_CODE=0`,
 `UP_RESET_SESSIONS=1`, `UP_RESET_ACCUM=0`. (5) `python lab/expect.py lab/expectations/e0130.tsv
@@ -42,9 +42,20 @@ facts1 facts2` выход 0 при полном наборе. (6) Посадка
 (8) Ветка `uptime_io_errors > 0` в этом цикле не исполняется и в порог не входит: посадить её без
 отказа файловой системы нечем, а ноль подставной ошибки был бы молчанием; поле наблюдаемо как факт
 `UP_STATUS_UPTIME_IO_ERRORS=0`, и это значит «ошибок не было», а не «счётчика нет». (9) Страж текста
-на файлах цикла (`bash lab/check-text-clean.sh`) и `python lab/repo-review.py` выход 0; полная
+на файлах цикла (`bash lab/check-text-clean.sh`) и `python lab/repo-review.py` выход 0; самопроверка
+стража (шаг 4b, фикстура из шести строк) даёт `GUARD_SELFTEST_EXIT=1`, `GUARD_SELFTEST_HITS=2`,
+`GUARD_SELFTEST_LINES=4,6` — то есть краснеет на посадке и молчит на законных escape. Полная
 верификация `bash lab/workspace-verify.sh E-0130` заканчивается `VERIFY_FAIL=0`. Порог заморожен до
-первого прогона `lab/e0130-run.sh`; изменение любого числа — новая карточка."
+первого прогона `lab/e0130-run.sh`; изменение любого числа — новая карточка.
+Поправка порога №1 (сделана до официального прогона, первый прогон сохранён в
+`lab/logs/e0130-all.log` как есть): факт `UP_CORRUPT_RUN_READY_PRINTED` снят и заменён на
+`UP_CORRUPT_RUN_FAST_REFUSAL`. Причина: `cli()` в приборе вызывает `vecdht_cli::run` в этом же
+процессе, а `NODE_READY` печатается в настоящий stdout теста, поэтому `out.stdout.contains(...)`
+даёт 0 и на пине, и после правки — факт не различал деревья, то есть был мёртвым, а предсказание
+`PRE_FIX_CORRUPT_RUN_READY_PRINTED=1` было неверным по устройству прибора, а не по продукту. Новый
+факт мерит тот же смысл временем: отказ кодом 2 до истечения половины окна `--run-seconds 60`
+(запас ×2, отношение а не абсолютный порог — `ADR-0070`, правило 7). Мёртвый факт не переносится в
+спеку и не засчитывается в вердикт."
 result: ""
 verdict: pending
 ---
