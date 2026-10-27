@@ -68,6 +68,12 @@ ELAN_CANDIDATES = (ELAN, MINGW, os.path.expanduser("~/.elan/bin"))
 _ENV = dict(os.environ, PYTHONIOENCODING="utf-8")
 
 DECL_START = re.compile(r"^(theorem|lemma)\s+([^\s:(,]+)")
+# Тело `def` — тоже формулировка. В наших моделях ∀-свойства живут не в теоремах: модель считает
+# поле на всём конечном пространстве (`def propBounded (step) : Bool := legalStarts.all fun st =>
+# traces.all fun t => …`) и печатает его, а теорем почти нет. Заморозка одних подписей теорем
+# делала тихое сужение квантора невидимым — `E-0107` измерил это как `PLANT_CAUGHT=0` на посаженном
+# `traces.take 3`.
+DEF_START = re.compile(r"^(?:partial\s+|private\s+|protected\s+)*(def|abbrev)\s+([^\s:(,=]+)")
 NS_RE = re.compile(r"^namespace\s+([A-Za-z0-9_.]+)", re.M)
 END_RE = re.compile(r"^(end)\s+([A-Za-z0-9_.]+)", re.M)
 AX_RE = re.compile(r"^'([^']+)' depends on axioms: \[([^\]]*)\]", re.M)
@@ -149,6 +155,41 @@ def count_decl_lines(text):
     return sum(1 for L in text.splitlines() if DECL_START.match(L))
 
 
+def bodies(text):
+    """[(kind, name, нормализованное объявление с телом)] для `def`/`abbrev` в нулевой колонке.
+
+    Граница тела — первая непустая строка без отступа: для `def` смысл живёт справа от `:=`
+    (квантор, перебор, `take 3`), поэтому брать только левую часть до `:=`, как для теорем, —
+    значит снова замораживать имя, а не утверждение.
+    """
+    out = []
+    lines = text.splitlines()
+    n = len(lines)
+    i = 0
+    while i < n:
+        m = DEF_START.match(lines[i])
+        if not m:
+            i += 1
+            continue
+        kind, name = m.group(1), m.group(2)
+        j = i + 1
+        while j < n and (not lines[j].strip() or lines[j][:1].isspace()):
+            j += 1
+        out.append((kind, name, norm("\n".join(lines[i:j]))))
+        i = j
+    return out
+
+
+def frozen_pairs(text):
+    """Всё, что уходит под заморозку: формулировки теорем + тела `def`/`abbrev`.
+
+    Подсчёт аксиом при этом остаётся строго по теоремам: у `def` нет термина доказательства, а
+    `#print axioms` по нему печатал бы пустоту, и смешение классов означало бы либо молчание про
+    `native_decide`, либо красный инвентарь без права на объяснение.
+    """
+    return statements(text) + bodies(text)
+
+
 def namespace_of(text):
     m = NS_RE.search(text)
     return m.group(1) if m else ""
@@ -214,6 +255,7 @@ def cmd_check(args):
     total = broken = 0
     sorry_total = sorryax_total = native_total = std_total = custom_total = clean_total = 0
     decls_total = 0
+    frozen_total = 0
     digest_bad = 0
     ms_total = 0
     rc_all = 0
@@ -224,8 +266,16 @@ def cmd_check(args):
         ns = namespace_of(src)
         pairs = statements(src)
         names = [n for _, n, _ in pairs]
+        fprs = frozen_pairs(src)
+        fnames = [n for _, n, _ in fprs]
+        dups = sorted({n for n in fnames if fnames.count(n) > 1})
         decl_lines = count_decl_lines(src)
         reasons = []
+        # Дайджест ключуется именем, а не именем с классом: два объекта под одним именем (теорема и
+        # `def` с совпадающими названиями) делает заморозку одного неотличимой от подмены другого.
+        if dups:
+            reasons.append(f"NAME: дайджест ключуется именем, а имя встречается дважды: {dups[:3]} — "
+                           "под заморозкой два объекта под одним ключом")
         if decl_lines != len(names):
             reasons.append(f"PARSER: деклараций {decl_lines}, разобрано имён {len(names)} — "
                            "имя не извлечено, счёт аксиом по нему ничего не проверяет")
@@ -280,7 +330,8 @@ def cmd_check(args):
         std_total += std
         custom_total += custom
         clean_total += len(names) - native - sorry - custom - std
-        # замороженные формулировки
+        # замороженные формулировки: подписи теорем ПЛЮС тела `def`/`abbrev`
+        frozen_total += len(fprs)
         fp = frozen_path(root, model)
         if not os.path.isfile(fp):
             reasons.append("FROZEN: нет lab/lean/frozen/" + base +
@@ -288,7 +339,7 @@ def cmd_check(args):
             digest_bad += 1
         else:
             frozen = read_frozen(fp)
-            now = {n: hashlib.sha256(s.encode("utf-8")).hexdigest()[:16] for _, n, s in pairs}
+            now = {n: hashlib.sha256(s.encode("utf-8")).hexdigest()[:16] for _, n, s in fprs}
             changed = sorted(n for n, d in now.items() if n in frozen and frozen[n] != d)
             gone = sorted(n for n in frozen if n not in now)
             new = sorted(n for n in now if n not in frozen)
@@ -296,7 +347,7 @@ def cmd_check(args):
                 reasons.append(f"STATEMENT: формулировка изменена после заморозки: {changed[:5]}")
                 digest_bad += 1
             if gone:
-                reasons.append(f"STATEMENT: теорема исчезла из модели: {gone[:5]}")
+                reasons.append(f"STATEMENT: декларация исчезла из модели: {gone[:5]}")
                 digest_bad += 1
             if new:
                 reasons.append(f"STATEMENT: декларация появилась без заморозки: {new[:5]}")
@@ -307,13 +358,15 @@ def cmd_check(args):
             rc_all = 1
         print(f"LEAN_FILE={base} EXIT={rc} ERRORS={errors} SORRY={sorry_grep} SORRYAX={sorry} "
               f"NATIVE_AXIOMS={native} STD_AXIOMS={std} CUSTOM_AXIOMS={custom} "
-              f"AXIOM_FREE={len(names) - native - sorry - custom - std} DECLS={len(names)} MS={ms} OK={ok}")
+              f"AXIOM_FREE={len(names) - native - sorry - custom - std} DECLS={len(names)} "
+              f"DEFS={len(fprs) - len(names)} MS={ms} OK={ok}")
         # причина отказа печатается всегда, в том числе с `--quiet`: смысл этого прибора в том, что
         # отказ обязан быть назван, а `--quiet` в прежнем скрипте приглушал только дамп компилятора
         if not ok:
             for r in reasons:
                 print(f"  ПРОТИВ {base}: {r}")
-    print(f"LEAN_TOTAL={total} DECLS_TOTAL={decls_total} BROKEN={broken} SORRY_TOTAL={sorry_total} "
+    print(f"LEAN_TOTAL={total} DECLS_TOTAL={decls_total} FROZEN_ROWS={frozen_total} "
+          f"BROKEN={broken} SORRY_TOTAL={sorry_total} "
           f"SORRYAX_TOTAL={sorryax_total} "
           f"NATIVE_AXIOMS={native_total} STD_AXIOMS={std_total} CUSTOM_AXIOMS={custom_total} "
           f"AXIOM_FREE={clean_total} DIGEST_BAD={digest_bad} LEAN_MS_TOTAL={ms_total}")
@@ -330,19 +383,29 @@ def cmd_freeze(args):
         print("FREEZE=0 — каталог lab/lean/VecDHT пуст")
         return 1
     n = 0
+    rows_total = 0
     for model in models:
         src = open(model, encoding="utf-8").read()
-        pairs = statements(src)
+        # Заморозка замораживает то же множество объектов, что и проверка: подписи теорем И тела
+        # `def`/`abbrev`. Если бы freeze писал только теоремы, а check сверял бы и `def`, гейт
+        # краснел бы на годном дереве; если бы наоборот — тела остались бы незащищёнными.
+        pairs = frozen_pairs(src)
+        thm = statements(src)
         digest, block = digest_of(pairs)
         path = frozen_path(root, model)
-        with open(path, "w", encoding="utf-8") as fh:
+        # `newline="\n"` обязателен: `.gitattributes` держит репозиторий на LF, а Windows-Python
+        # по умолчанию пишет CRLF. Blob нормализуется, но рабочее дерево расходится с коммитом
+        # побайтно, и любой `git diff` по замороженному снимку становится шумом из CR.
+        with open(path, "w", encoding="utf-8", newline="\n") as fh:
             fh.write(f"{FROZEN_HEADER}\n")
             fh.write(f"# cycle: {args.cycle or 'без цикла — правка вне замера запрещена'}\n")
             fh.write(f"# digest: {digest}\n")
             fh.write(block + "\n")
         n += 1
-        print(f"FREEZE_FILE={os.path.basename(model)} DECLS={len(pairs)} DIGEST={digest[:16]}")
-    print(f"FREEZE файлов={n} каталог=lab/lean/frozen")
+        rows_total += len(pairs)
+        print(f"FREEZE_FILE={os.path.basename(model)} DECLS={len(thm)} DEFS={len(pairs) - len(thm)} "
+              f"FROZEN_ROWS={len(pairs)} DIGEST={digest[:16]}")
+    print(f"FREEZE файлов={n} FROZEN_ROWS={rows_total} каталог=lab/lean/frozen")
     return 0
 
 
@@ -390,6 +453,12 @@ end VecDHT.Good
 
 WEAKEN_FROM = "theorem there_are_eight_names : ((List.range rungs).map nameOf).eraseDups.length = 8 := by"
 WEAKEN_TO = "theorem there_are_eight_names : ((List.range rungs).map nameOf).eraseDups.length <= 8 := by"
+# E-0107: второй класс тихого ослабления — не в подписи теоремы, а в теле `def`, через которое
+# формулировка ∀-свойства и живёт. Квантор по всем расписаниям сужается до трёх первых: модель
+# остаётся компилируемой, все теоремы остаются истинными и доказуемыми, а утверждение перестаёт
+# быть ∀. Прежний страж на этом прогоне молчал (`PLANT_CAUGHT=0`) — он замораживал только подписи.
+WEAK_DEF_FROM = "  legalStarts.all fun st => traces.all fun t => leB (card (run step t st).1) cap"
+WEAK_DEF_TO = "  legalStarts.all fun st => (traces.take 3).all fun t => leB (card (run step t st).1) cap"
 
 
 def _tree(base, extra=None):
@@ -436,6 +505,10 @@ def cmd_selftest(args):
         ("аксиома в модели", {"Axiom.lean": BAD_AXIOM}, "пользовательской аксиомы"),
         ("sorry в модели", {"Sorry.lean": BAD_SORRY}, "SORRY:"),
         ("формулировка ослаблена", {"__weaken__": True}, "изменена после заморозки"),
+        # Причина обязана назвать именно ослабленное имя: иначе дефект засчитывался бы по любому
+        # красному выводу, а нужен факт «под дайджестом стоит тело def и оно охраняется».
+        ("∀ в def ослаблена (E-0107)", {"__weakdef__": True},
+         "изменена после заморозки: ['propBounded']"),
         ("теорема удалена", {"__drop__": True}, "исчезла из модели"),
         ("теорема во вложенном namespace", {"Nested.lean": BAD_NAMESPACE}, "прибор молчит"),
         ("модель без деклараций", {"Empty.lean": BAD_EMPTY}, "нет ни одной теоремы"),
@@ -459,6 +532,20 @@ def cmd_selftest(args):
                       "не найдена в CertLadder.lean (модель изменилась, мутатор устарел)")
                 continue
             open(p, "w", encoding="utf-8").write(t.replace(WEAKEN_FROM, WEAKEN_TO))
+        if mutation.get("__weakdef__"):
+            # Правится ТОЛЬКО тело `def propBounded` — строкаsignature теорем остаётся нетронутой,
+            # поэтому отбитый дефект доказывает охрану тел, а не охрану подписи.
+            p = os.path.join(d, "Bounded.lean")
+            t = open(p, encoding="utf-8").read()
+            if t.count(WEAK_DEF_FROM) != 1:
+                print(f"  ДЕФЕКТ {name}: ПОСАДКА НЕ СРАБОТАЛА — строка тела «{WEAK_DEF_FROM[:40]}…» "
+                      f"встречается {t.count(WEAK_DEF_FROM)} раз (модель изменилась, мутатор устарел)")
+                continue
+            if WEAKEN_FROM in t or WEAKEN_TO in t:
+                print(f"  ДЕФЕКТ {name}: ПОСАДКА НЕ СРАБОТАЛА — в Bounded.lean есть строка мутатора "
+                      "теорем, тела пришлось бы править дважды")
+                continue
+            open(p, "w", encoding="utf-8").write(t.replace(WEAK_DEF_FROM, WEAK_DEF_TO))
         if mutation.get("__drop__"):
             # Удаление обязано снять ВСЮ декларацию: строку `theorem … := by` и все последующие
             # строки доказательства (они с отступом) вплоть до следующей строки нулевой колонки.
