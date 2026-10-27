@@ -1,0 +1,32 @@
+# E-0134 · заморожено до первого прогона `lab/e0134-run.sh` (2026-10-27, base `30f1063`).
+# Ключ — имя печатного факта без `=`; значение — точное. Правка любого числа — новая карточка.
+# В таблицу НЕ внесены тайминги и счётчики итераций (`SOAK_WALL_SECS`, `DISK_FREE_MB`,
+# `TEXTGUARD_FILES`): они не инвариантны к расписанию хоста (правило 7 пункт (е)), печатаются
+# фактами в носитель, но порог над ними не ставится. Порог стоит над агрегатным булем
+# `SOAK_GE_1800` (восемь фаззер-тестов по 240 с в один поток) и над нулём паник.
+# PRE_FIX-числа (снимаются тем же прибором на дереве 30f1063 с финальными приборами, скопированными
+# в клон): PRE_FIX_CI_SECS_ENV_SET=0, PRE_FIX_CI_NIGHTLY_SOAK_JOB=0, PRE_FIX_SOAK_SKIPPED=1 —
+# то есть «ночного носителя гейта §18.3 нет», а не «носитель зелёный».
+GATE_H0134_OK	1	гейт круга H-0134 оформлен
+DISK_GE_15000	1	свободный диск перед прогоном не ниже порога носителя
+FUZZ_TESTS_TOTAL	8	счёт #[test] в двух фаззер-файлах: 4 decode + 4 verify
+FUZZ_IGNORED	0	ни один фаззер не спрятан под ignore — иначе соак не был бы обычным прогоном
+PER_TEST_SECS	240	wall-clock бюджет на тест, из которого собирается агрегат ≥ 1800 с
+ART_SOAK_EXIT	0	cargo test --release -p vecdht-artifact --test fuzz_decode (один поток)
+CRY_SOAK_EXIT	0	cargo test --release -p vecdht-crypto --test fuzz_verify (один поток)
+ART_PASSED	4	строка test result: ok. для decode-таргета
+CRY_PASSED	4	строка test result: ok. для verify-таргета
+PANICS_TOTAL	0	гейт §18.3: ни одной строки panicked at в обоих логах
+SOAK_GE_1800	1	агрегат wall-clock по всем восьми тестам не меньше 1800 с
+PLANT_PANIC_CAUGHT	1	посаженная строка panic в синтетическом логе названа экстрактором
+PANIC_EXTRACTOR_EMPTY_OK	1	на пустом входе экстрактор даёт ноль, а не панику (прибор деградирует в нули)
+CI_SECS_ENV_SET	1	verify.yml выставляет VEC_DHT_FUZZ_SECS (до цикла — 0)
+CI_NIGHTLY_SOAK_JOB	1	в verify.yml есть job fuzz-soak (до цикла — 0)
+STABLE	1	два исполнения на неизменном дереве совпадают по замороженным ключам
+RUST_TOUCHED	0	цикл не тронул crates/ относительно 30f1063
+SECRETS_EXIT	0	страж секретов зелён
+REFS_EXIT	0	страж цитат зелён
+TEXTGUARD_EXIT	0	страж текста зелён
+MIRROR_EXIT	0	зеркало спеки совпадает
+GATE_AUDIT_EXIT	0	аудит открытых карточек зелён
+REVIEW_EXIT	0	repo-review зелён

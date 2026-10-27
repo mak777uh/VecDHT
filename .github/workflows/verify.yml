@@ -398,3 +398,41 @@ jobs:
             | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           { echo "V913_EXIT=$r"; grep -aE '^V913_WORST=|^V913_ALL_OK=' "$L"; } | tee -a "$GITHUB_STEP_SUMMARY" || true
           exit $r
+
+  # Гейт §18.3 «fuzz-декод 30 мин без panic» до `E-0134` не имел носителя: фаззеры умеют
+  # wall-clock бюджет (`VEC_DHT_FUZZ_SECS`), но ни CI, ни lab-контур его никогда не выставлял, и
+  # обычный `cargo test --workspace` гоняет только бюджеты по числу итераций. Ночной запуск, потому
+  # что цена — сборка в release плюс 8 тестов по 240 с в один поток (~32 мин соака); `--test-threads=1`
+  # обязателен: бюджет считается на тест, и в параллели восемь тестов съели бы 240 с суммарно, а не
+  # по очереди, тогда как агрегат гейта (§18.3) именно суммарный.
+  fuzz-soak:
+    name: "Ночью: fuzz-соак §18.3 (декод артефакта и проверка подписи, по 240 с на тест)"
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Тулчейн runner (не пинствуем: в дереве нет rust-toolchain.toml)"
+        run: |
+          set -uo pipefail
+          { rustc --version; cargo --version; cc --version | head -1; } | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: fuzz-соак (VEC_DHT_FUZZ_SECS=240, один поток)
+        run: |
+          set -uo pipefail
+          L=/tmp/fuzz-soak.log
+          : > "$L"
+          export VEC_DHT_FUZZ_SECS=240
+          r1=0
+          cargo test --release -p vecdht-artifact --test fuzz_decode -- --test-threads=1 --nocapture >> "$L" 2>&1 || r1=$?
+          r2=0
+          cargo test --release -p vecdht-crypto --test fuzz_verify -- --test-threads=1 --nocapture >> "$L" 2>&1 || r2=$?
+          p=0
+          p=$(grep -c 'panicked at' "$L" || true)
+          s=0
+          s=$(grep -o 'за [0-9.]* с' "$L" | awk '{ t += $2 } END { printf "%.0f", t+0 }')
+          { echo "SOAK_ART_EXIT=$r1"; echo "SOAK_CRY_EXIT=$r2"; echo "SOAK_PANICS=$p"; echo "SOAK_WALL_SECS=$s"; } >> "$L"
+          grep -aE '^SOAK_|^test result' "$L" | tail -8 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          { echo "SOAK_ART_EXIT=$r1"; echo "SOAK_CRY_EXIT=$r2"; echo "SOAK_PANICS=$p"; echo "SOAK_WALL_SECS=$s"; } | tee -a "$GITHUB_STEP_SUMMARY" || true
+          [ "$r1" = 0 ] && [ "$r2" = 0 ] && [ "$p" = 0 ]
