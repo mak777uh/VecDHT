@@ -1,0 +1,68 @@
+# E-0138 · заморожено до официальных прогонов (числа предсказаны из кода прибора и разведки
+# 2026-10-27: на дереве без файла исключений прибор печатает 54 непокрытых карточки и краснеет,
+# на починенном дереве — ноль нарушений; вектор снимается на дереве починки ДО прогона полного
+# контура, потому что блок контура с меткой `E-0138` появляется только в контуре закрытия и
+# сдвинул бы `LIVE_BLOCK_LABELS`)
+GATE_H0138_OK	1	cycle-gate по карточке H-0138 зелёный
+DISK_GE_15000	1	свободный диск до прогона
+CONTOUR_GUARD_EXISTS	1	прибор лежит в дереве
+CONTOUR_EXCEPTIONS_EXISTS	1	файл исключений лежит в дереве
+CONTOUR_EXCEPTIONS_ROWS	54	строк-исключений: 45 «до-формы» и 9 «после-формы»
+PLANTED_TOTAL	9	посаженных дефектов в самопроверке
+PLANTED_CAUGHT	9	все девять отбиты
+PLANTED_FALSE	0	ни один законный случай не задет
+LEGAL_TOTAL	4	законных случаев в самопроверке
+ABSENT_UNEXPLAINED	8	probe без файла: прибор печатает число, а не паникует
+ABSENT_OK	1	проба на отсутствие файла годна (EXCEPTIONS_ABSENT=1, REASON_EMPTY=0)
+SELFTEST_EXIT	0	самопроверка зелёная
+PRE_FIX_PIN_FOUND	1	пин пре-регистрации найден по сообщению коммита
+PRE_FIX_PIN_FILE_ABSENT	1	на пине файла исключений нет — посадка воспроизводит именно его
+PRE_FIX_EXIT	1	на посаженном дереве прибор краснеет
+PRE_FIX_CLOSED_TOTAL	127	закрытых вердиктом карточек на пине
+PRE_FIX_BLOCK_LABELS	73	меток контура на пине
+PRE_FIX_COVERED	73	закрытых карточек с меткой
+PRE_FIX_MISSING_TOTAL	54	закрытых без метки
+PRE_FIX_EXPLAINED	0	из них прикрытых причиной
+PRE_FIX_UNEXPLAINED	54	дыра названа числом
+PRE_FIX_ERA_TOTAL	0	класс «до-формы» на посаженном дереве
+PRE_FIX_MODERN_TOTAL	0	класс «после-формы» на посаженном дереве
+PRE_FIX_EXCEPTIONS_ABSENT	1	прибор различает «файла нет» и «файл пуст»
+PRE_FIX_REASON_EMPTY	0	отсутствие файла не считается пустой причиной
+PRE_FIX_CLASS_BAD	0	
+PRE_FIX_GHOST	0	
+PRE_FIX_DUP	0	
+PRE_FIX_VIOLATIONS	54	
+PRE_FIX_DIFFERS	1	у прибора есть ключ, печатающий на пине другое число
+GUARD_EXIT	0	живое дерево зелёное
+LIVE_FORM_FIRST	E-0049	первая метка формы измерена из дерева
+LIVE_CLOSED_TOTAL	127	
+LIVE_BLOCK_LABELS	73	
+LIVE_COVERED	73	
+LIVE_MISSING_TOTAL	54	
+LIVE_EXPLAINED	54	
+LIVE_UNEXPLAINED	0	
+LIVE_ERA_TOTAL	45	исключений класса «до-формы»
+LIVE_MODERN_TOTAL	9	исключений класса «после-формы» — число заморожено, рост означает новую дыру
+LIVE_EXCEPTIONS_ABSENT	0	
+LIVE_REASON_EMPTY	0	
+LIVE_CLASS_BAD	0	
+LIVE_GHOST	0	
+LIVE_DUP	0	
+LIVE_VIOLATIONS	0	
+VERIFY_WIRES_CONTOURS	1	прибор стоит в `lab/workspace-verify.sh`
+CI_WIRES_CONTOURS	1	прибор стоит в `.github/workflows/verify.yml`
+SECRETS_EXIT	0	соседний страж секретов
+REFS_EXIT	0	страж цитируемых артефактов
+CLAIMMAP_EXIT	0	карта обещаний спеки
+CLAIMS_EXIT	0	реестр утверждений (`E-0132`)
+TEXTGUARD_ALL_EXIT	0	страж текста по всему дереву
+TEXTGUARD_ALL_DIRTY	0	грязных файлов нет
+TEXTGUARD_CYCLE_EXIT	0	страж текста по файлам этого цикла
+MIRROR_EXIT	0	зеркало спеки синхронно
+LINT_EXIT	0	страж порогов
+LINT_ORPHANS	0	сирот среди таблиц ожиданий нет
+GATE_AUDIT_EXIT	0	аудит гейтов карточек
+REVIEW_EXIT	0	страж разрешимости ссылок
+RUST_TOUCHED	0	продукт не тронут
+WORST_RC	0	худший из выходов контура
+STABLE	1	два исполнения на неизменном дереве печатают один вектор
