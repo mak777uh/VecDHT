@@ -1,0 +1,346 @@
+# E-0107 · Lean-модель ограниченного множества и дыра в заморозке её формулировок
+
+Карточка: `lab/experiments/E-0107-bounded-set-model.md`
+Гипотеза: `lab/hypotheses/H-0107-bounded-set-model.md`
+Модель: `lab/lean/VecDHT/Bounded.lean` (3 ключа, кап 2, 8 состояний, 259 расписаний длиной 0..3,
+4 политики, 7 свойств; числа печатает один `#eval`, ни одно не переписывается руками)
+Прибор: `lab/e0107-run.sh`; страж моделей `lab/lean-check.py`; проба `lab/plant-lean-weakening.py`;
+Rust-приборы соответствия: `crates/vecdht-net/tests/s16_lean_bounded_deny.rs` и
+`s16_lean_bounded_cache.rs`
+Таблица ожиданий: `lab/expectations/e0107.tsv` (89 порогов)
+Пре-регистрация: `2ec31ec` (пин сравнения). ДИАГНОЗ-1 (экстракторы helper'а): `38e6665`.
+Фикс прибора: `7a10475`. Официальные прогоны исполнены на неизменном дереве `7a10475`.
+
+## PRE_FIX (`E0107_PIN=2ec31ec bash lab/e0107-run.sh`, временное дерево на пине, helper после ДИАГНОЗ-1)
+
+На пине модель, заморозка и оба Rust-прибора уже на диске, а `lab/lean-check.py` ещё не знает про
+тела `def`. Именно поэтому пин красен по пробам стража и зелёнен по всем числам модели.
+
+    GATE_H0107_OK=1
+    DISK_FREE_MB=31798
+    DISK_GE_15000=1
+    LEAN_MODEL_EXISTS=1
+    LEAN_FROZEN_EXISTS=1
+    LEAN_CHECK_EXIT=0
+    LEAN_ALL_OK=1
+    LEAN_SORRY_TOTAL=0
+    LEAN_CUSTOM_AXIOMS_TOT=0
+    BOUND_ERRORS=0
+    BOUND_DECLS=33
+    BOUND_DEFS=none
+    LEAN_CHECK_DIGEST_BAD=0
+    LEAN_CHECK_FROZEN_ROWS=none
+    GUARD_SELFTEST_EXIT=0
+    GUARD_SELFTEST_TOTAL=10
+    GUARD_SELFTEST_PASSED=10
+    METRICS_EXIT=0
+    SWEEP_PAIRS=1813
+    TRACES=259
+    LEGAL_STARTS=7
+    ASKS=40
+    SPACE=8
+    REFUSE_BITS_SUM=5439
+    REFUSE_CARD_SUM=2331
+    REFUSE_AT_CAP_PAIRS=777
+    REFUSE_REFUSAL_SUM=363
+    REFUSE_AMNESTY_PAIRS=0
+    EVICT_BITS_SUM=5687
+    EVICT_CARD_SUM=2331
+    EVICT_AT_CAP_PAIRS=777
+    EVICT_REFUSAL_SUM=0
+    EVICT_AMNESTY_PAIRS=189
+    GROW_BITS_SUM=6048
+    GROW_AT_CAP_PAIRS=654
+    FILLS_TO_CAP_REFUSE=1
+    FROZEN_NEVER_FILLS=1
+    GROW_BOUNDED=0
+    EVICT_MOVES_UNDECLARED=1
+    REFUSE_LAST_EVENT_BREAKS=1
+    POLICIES_BREAKING_LAST_EVENT=3
+    EXACTLY_ONE_SURVIVOR=1
+    SURVIVOR_IS_REFUSE=1
+    REFUSE_LOSES_NOTHING=1
+    EVICT_LOSES_SOMETHING=1
+    TEST_DENY_EXISTS=1
+    TEST_CACHE_EXISTS=1
+    DENY_TEST_OK=1
+    BOUNDED_DENY_AGREE=1
+    BOUNDED_DENY_REAL_BITS=5439
+    BOUNDED_DENY_REAL_CARDS=2331
+    BOUNDED_DENY_REAL_ATCAP=777
+    BOUNDED_DENY_REAL_REFUSALS=363
+    BOUNDED_DENY_REAL_AMNESTY=0
+    BOUNDED_DENY_BOUND_VIOLATIONS=0
+    BOUNDED_DENY_REAL_PAIRS=1813
+    BOUNDED_DENY_TRACES=259
+    BOUNDED_DENY_CONSTS_FRESH=1
+    CACHE_TEST_OK=1
+    BOUNDED_CACHE_SIZE_AGREE=1
+    BOUNDED_CACHE_REAL_CARDS=2331
+    BOUNDED_CACHE_REAL_ATCAP=777
+    BOUNDED_CACHE_REAL_BITS=5496
+    BOUNDED_CACHE_REAL_AMNESTY=237
+    BOUNDED_CACHE_OVER_CAP=0
+    BOUNDED_CACHE_DISTRUST_WINDOW_PAIRS=1813
+    BOUNDED_CACHE_DISTRUST_CARDS=2061
+    BOUNDED_CACHE_DISTRUST_SKIPPED_SUM=378
+    BOUNDED_CACHE_EVICTED_SUM=363
+    BOUNDED_CACHE_REAL_PAIRS=1813
+    BOUNDED_CACHE_VICTIM_DELTA=-191
+    BOUNDED_CACHE_AMNESTY_DELTA=48
+    BOUNDED_CACHE_CONSTS_FRESH=1
+    DENY_REFUSAL_EQ_CACHE_EVICTED=1
+    PLANT_EXIT=1
+    PLANT_CONTROL_OK=1
+    PLANT_APPLIED=1
+    PLANT_CAUGHT=0
+    PLANT_REASON_DIGEST_BAD=0
+    PLANT_REASON_NAMES_THE_DEF=0
+    SRC_TOUCHED=0
+    SPEC_TOUCHED=0
+    TESTS_ADDED=0
+    LINT_EXIT=0
+    LINT_ORPHANS=0
+    SECRETS_EXIT=0
+    REFS_EXIT=0
+    TEXTGUARD_EXIT=0
+    MIRROR_EXIT=0
+    GATE_AUDIT_EXIT=0
+    REVIEW_EXIT=0
+    STABLE=0
+## ИСПОЛНЕНИЕ 1 (`E0107_PIN=2ec31ec bash lab/e0107-run.sh`, дерево фикса `7a10475`)
+
+    GATE_H0107_OK=1
+    DISK_FREE_MB=31711
+    DISK_GE_15000=1
+    LEAN_MODEL_EXISTS=1
+    LEAN_FROZEN_EXISTS=1
+    LEAN_CHECK_EXIT=0
+    LEAN_ALL_OK=1
+    LEAN_SORRY_TOTAL=0
+    LEAN_CUSTOM_AXIOMS_TOT=0
+    BOUND_ERRORS=0
+    BOUND_DECLS=33
+    BOUND_DEFS=52
+    LEAN_CHECK_DIGEST_BAD=0
+    LEAN_CHECK_FROZEN_ROWS=365
+    GUARD_SELFTEST_EXIT=0
+    GUARD_SELFTEST_TOTAL=11
+    GUARD_SELFTEST_PASSED=11
+    METRICS_EXIT=0
+    SWEEP_PAIRS=1813
+    TRACES=259
+    LEGAL_STARTS=7
+    ASKS=40
+    SPACE=8
+    REFUSE_BITS_SUM=5439
+    REFUSE_CARD_SUM=2331
+    REFUSE_AT_CAP_PAIRS=777
+    REFUSE_REFUSAL_SUM=363
+    REFUSE_AMNESTY_PAIRS=0
+    EVICT_BITS_SUM=5687
+    EVICT_CARD_SUM=2331
+    EVICT_AT_CAP_PAIRS=777
+    EVICT_REFUSAL_SUM=0
+    EVICT_AMNESTY_PAIRS=189
+    GROW_BITS_SUM=6048
+    GROW_AT_CAP_PAIRS=654
+    FILLS_TO_CAP_REFUSE=1
+    FROZEN_NEVER_FILLS=1
+    GROW_BOUNDED=0
+    EVICT_MOVES_UNDECLARED=1
+    REFUSE_LAST_EVENT_BREAKS=1
+    POLICIES_BREAKING_LAST_EVENT=3
+    EXACTLY_ONE_SURVIVOR=1
+    SURVIVOR_IS_REFUSE=1
+    REFUSE_LOSES_NOTHING=1
+    EVICT_LOSES_SOMETHING=1
+    TEST_DENY_EXISTS=1
+    TEST_CACHE_EXISTS=1
+    DENY_TEST_OK=1
+    BOUNDED_DENY_AGREE=1
+    BOUNDED_DENY_REAL_BITS=5439
+    BOUNDED_DENY_REAL_CARDS=2331
+    BOUNDED_DENY_REAL_ATCAP=777
+    BOUNDED_DENY_REAL_REFUSALS=363
+    BOUNDED_DENY_REAL_AMNESTY=0
+    BOUNDED_DENY_BOUND_VIOLATIONS=0
+    BOUNDED_DENY_REAL_PAIRS=1813
+    BOUNDED_DENY_TRACES=259
+    BOUNDED_DENY_CONSTS_FRESH=1
+    CACHE_TEST_OK=1
+    BOUNDED_CACHE_SIZE_AGREE=1
+    BOUNDED_CACHE_REAL_CARDS=2331
+    BOUNDED_CACHE_REAL_ATCAP=777
+    BOUNDED_CACHE_REAL_BITS=5496
+    BOUNDED_CACHE_REAL_AMNESTY=237
+    BOUNDED_CACHE_OVER_CAP=0
+    BOUNDED_CACHE_DISTRUST_WINDOW_PAIRS=1813
+    BOUNDED_CACHE_DISTRUST_CARDS=2061
+    BOUNDED_CACHE_DISTRUST_SKIPPED_SUM=378
+    BOUNDED_CACHE_EVICTED_SUM=363
+    BOUNDED_CACHE_REAL_PAIRS=1813
+    BOUNDED_CACHE_VICTIM_DELTA=-191
+    BOUNDED_CACHE_AMNESTY_DELTA=48
+    BOUNDED_CACHE_CONSTS_FRESH=1
+    DENY_REFUSAL_EQ_CACHE_EVICTED=1
+    PLANT_EXIT=0
+    PLANT_CONTROL_OK=1
+    PLANT_APPLIED=1
+    PLANT_CAUGHT=1
+    PLANT_REASON_DIGEST_BAD=1
+    PLANT_REASON_NAMES_THE_DEF=1
+    SRC_TOUCHED=0
+    SPEC_TOUCHED=0
+    TESTS_ADDED=0
+    LINT_EXIT=0
+    LINT_ORPHANS=0
+    SECRETS_EXIT=0
+    REFS_EXIT=0
+    TEXTGUARD_EXIT=0
+    MIRROR_EXIT=0
+    GATE_AUDIT_EXIT=0
+    REVIEW_EXIT=0
+## ИСПОЛНЕНИЕ 2 (тот же helper, то же неизменное дерево; снимок первого прогона)
+
+Совпадение с ИСПОЛНЕНИЕМ 1 полное: 90 фактов, различается только служебный ключ `STABLE`
+(`diff` по векторам без `DISK_FREE_MB`). `STABLE=1` — второй прогон на том же дереве дал тот же
+вектор, то есть ни один из фактов не зависит от расписания шагов (правило 7, пункт (е)).
+
+    GATE_H0107_OK=1
+    DISK_FREE_MB=31661
+    DISK_GE_15000=1
+    LEAN_MODEL_EXISTS=1
+    LEAN_FROZEN_EXISTS=1
+    LEAN_CHECK_EXIT=0
+    LEAN_ALL_OK=1
+    LEAN_SORRY_TOTAL=0
+    LEAN_CUSTOM_AXIOMS_TOT=0
+    BOUND_ERRORS=0
+    BOUND_DECLS=33
+    BOUND_DEFS=52
+    LEAN_CHECK_DIGEST_BAD=0
+    LEAN_CHECK_FROZEN_ROWS=365
+    GUARD_SELFTEST_EXIT=0
+    GUARD_SELFTEST_TOTAL=11
+    GUARD_SELFTEST_PASSED=11
+    METRICS_EXIT=0
+    SWEEP_PAIRS=1813
+    TRACES=259
+    LEGAL_STARTS=7
+    ASKS=40
+    SPACE=8
+    REFUSE_BITS_SUM=5439
+    REFUSE_CARD_SUM=2331
+    REFUSE_AT_CAP_PAIRS=777
+    REFUSE_REFUSAL_SUM=363
+    REFUSE_AMNESTY_PAIRS=0
+    EVICT_BITS_SUM=5687
+    EVICT_CARD_SUM=2331
+    EVICT_AT_CAP_PAIRS=777
+    EVICT_REFUSAL_SUM=0
+    EVICT_AMNESTY_PAIRS=189
+    GROW_BITS_SUM=6048
+    GROW_AT_CAP_PAIRS=654
+    FILLS_TO_CAP_REFUSE=1
+    FROZEN_NEVER_FILLS=1
+    GROW_BOUNDED=0
+    EVICT_MOVES_UNDECLARED=1
+    REFUSE_LAST_EVENT_BREAKS=1
+    POLICIES_BREAKING_LAST_EVENT=3
+    EXACTLY_ONE_SURVIVOR=1
+    SURVIVOR_IS_REFUSE=1
+    REFUSE_LOSES_NOTHING=1
+    EVICT_LOSES_SOMETHING=1
+    TEST_DENY_EXISTS=1
+    TEST_CACHE_EXISTS=1
+    DENY_TEST_OK=1
+    BOUNDED_DENY_AGREE=1
+    BOUNDED_DENY_REAL_BITS=5439
+    BOUNDED_DENY_REAL_CARDS=2331
+    BOUNDED_DENY_REAL_ATCAP=777
+    BOUNDED_DENY_REAL_REFUSALS=363
+    BOUNDED_DENY_REAL_AMNESTY=0
+    BOUNDED_DENY_BOUND_VIOLATIONS=0
+    BOUNDED_DENY_REAL_PAIRS=1813
+    BOUNDED_DENY_TRACES=259
+    BOUNDED_DENY_CONSTS_FRESH=1
+    CACHE_TEST_OK=1
+    BOUNDED_CACHE_SIZE_AGREE=1
+    BOUNDED_CACHE_REAL_CARDS=2331
+    BOUNDED_CACHE_REAL_ATCAP=777
+    BOUNDED_CACHE_REAL_BITS=5496
+    BOUNDED_CACHE_REAL_AMNESTY=237
+    BOUNDED_CACHE_OVER_CAP=0
+    BOUNDED_CACHE_DISTRUST_WINDOW_PAIRS=1813
+    BOUNDED_CACHE_DISTRUST_CARDS=2061
+    BOUNDED_CACHE_DISTRUST_SKIPPED_SUM=378
+    BOUNDED_CACHE_EVICTED_SUM=363
+    BOUNDED_CACHE_REAL_PAIRS=1813
+    BOUNDED_CACHE_VICTIM_DELTA=-191
+    BOUNDED_CACHE_AMNESTY_DELTA=48
+    BOUNDED_CACHE_CONSTS_FRESH=1
+    DENY_REFUSAL_EQ_CACHE_EVICTED=1
+    PLANT_EXIT=0
+    PLANT_CONTROL_OK=1
+    PLANT_APPLIED=1
+    PLANT_CAUGHT=1
+    PLANT_REASON_DIGEST_BAD=1
+    PLANT_REASON_NAMES_THE_DEF=1
+    SRC_TOUCHED=0
+    SPEC_TOUCHED=0
+    TESTS_ADDED=0
+    LINT_EXIT=0
+    LINT_ORPHANS=0
+    SECRETS_EXIT=0
+    REFS_EXIT=0
+    TEXTGUARD_EXIT=0
+    MIRROR_EXIT=0
+    GATE_AUDIT_EXIT=0
+    REVIEW_EXIT=0
+    STABLE=1
+## Сверка ожиданий
+
+    $ python lab/expect.py lab/expectations/e0107.tsv <вектор ИСПОЛНЕНИЯ 2>
+    ОЖИДАНИЙ=89 РАСХОЖДЕНИЙ=0
+    EXPECT_EXIT=0
+
+## Что вошло в вердикт (правило `E-0130`: только факты, отличающиеся пин -> фикс)
+
+Восемь ключей. `GUARD_SELFTEST_EXIT` совпадает (=0) и в вердикт не идёт: прежний страж был
+зелён на годном дереве ровно потому, что тел `def` не видел.
+
+
+## Различие пин -> фикс
+
+    BOUND_DEFS: пин=none -> фикс=52
+    GUARD_SELFTEST_TOTAL: пин=10 -> фикс=11
+    GUARD_SELFTEST_PASSED: пин=10 -> фикс=11
+    LEAN_CHECK_FROZEN_ROWS: пин=none -> фикс=365
+    PLANT_EXIT: пин=1 -> фикс=0
+    PLANT_CAUGHT: пин=0 -> фикс=1
+    PLANT_REASON_DIGEST_BAD: пин=0 -> фикс=1
+    PLANT_REASON_NAMES_THE_DEF: пин=0 -> фикс=1
+## ДИАГНОЗ-1 (закрыт в `38e6665`)
+
+Экстракторы helper'а молчали там, где факт есть: `BOUND_DEFS` печатал пустое значение вместо
+`none`, а `GUARD_SELFTEST_PASSED` не извлекался, потому что `val` не умеет искать второе число
+той же строки (`LEANGUARD_SELFTEST total=10 passed=10`). Починено `ornone()`/`fromline()`;
+полное число входов порог обязан называть сам.
+
+## ДИАГНОЗ-2 (правка ожиданий до официальных прогонов)
+
+Строки `BOUND_DEFS=50` и `LEAN_CHECK_FROZEN_ROWS=363` были сняты с черновика модели, в котором
+не хватало `def bit` и `def truthLines`, и были невыполнимы по построению. Проверено разбором
+`git show 2ec31ec:lab/lean/VecDHT/*.lean` правленым прибором: 78 + 54 + 85 + 27 + 49 + 72 = 365
+строк, `Bounded.lean` — 33 теоремы и 52 тела. Ожидания исправлены на 52 и 365 в коммите фикса,
+до первого официального прогона; ни один замер не переснимался ради совпадения.
+
+## Оговорка по рубрике
+
+Доказано для модели. Соответствие модели и кода засчитано только в объёме напечатанных агрегатов
+конечного пространства расписаний (`BOUNDED_DENY_AGREE=1`, `BOUNDED_CACHE_SIZE_AGREE=1`,
+`*_CONSTS_FRESH=1`, зависящие от выбора жертвы агрегаты распечатаны расхождением числом:
+`BOUNDED_CACHE_VICTIM_DELTA=-191`, `BOUNDED_CACHE_AMNESTY_DELTA=48`). Оно не распространяется на
+байты wire, криптографию, часы и сеть продукта.
+

@@ -1,10 +1,10 @@
 ---
 id: E-0107
 hypothesis: H-0107
-status: pre-registered
-verdict: pending
-finished: ""
-result: ""
+status: closed
+verdict: "supports"
+finished: "2026-10-27"
+result: "два прогона на неизменном дереве 7a10475, 89 порогов, 0 расходов, STABLE=1; в вердикт вошли 8 ключей, отличающих пин от фикса (BOUND_DEFS none->52, LEAN_CHECK_FROZEN_ROWS none->365, GUARD_SELFTEST_TOTAL/PASSED 10/10->11/11, PLANT_EXIT 1->0, PLANT_CAUGHT/DIGEST_BAD/NAMES_THE_DEF 0->1); модель: EXACTLY_ONE_SURVIVOR=1, SURVIVOR_IS_REFUSE=1, REFUSE_AMNESTY_PAIRS=0 против EVICT_AMNESTY_PAIRS=189"
 base_commit: "274f170"
 started: "2026-10-27"
 environment: "x86_64-pc-windows-gnu, хост владельца. Исполняются четыре настоящих прибора: компилятор
