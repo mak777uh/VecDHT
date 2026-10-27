@@ -83,8 +83,14 @@ emit HEADINGS_LIVE "$(grep -c '^## п\. ' lab/decisions/OPEN-QUESTIONS.md)"
 emit RUST_TOUCHED "$(git diff --name-only $PIN -- crates/ | wc -l | tr -d ' ')"
 emit SPEC_TOUCHED "$(git diff --name-only $PIN -- docs/VecDHT-SPEC-v8.md docs/VecDHT-SPEC-v9.md | wc -l | tr -d ' ')"
 # Починка считается исполненной в контуре, а не объявленной: прибор обязан стоять в verify и в CI.
-emit VERIFY_WIRES_OQ "$(grep -c 'check-oq-numbering' lab/workspace-verify.sh)"
-emit CI_WIRES_OQ "$(grep -c 'check-oq-numbering' .github/workflows/verify.yml)"
+# Ключ = флаг присутствия (0/1), а не число строк: замороженное ожидание `=1` означает «стоит», и
+# счётчик строк делал бы порог невыполнимым по построению (прецедент ДИАГНОЗа-1 в `E-0088`: у имени
+# факта один владелец — здесь владельцем названо присутствие, строки печатаются отдельным ключом).
+wired() { n=$(grep -c 'check-oq-numbering' "$1" 2>/dev/null); [ "${n:-0}" -ge 1 ] && echo 1 || echo 0; }
+emit VERIFY_WIRES_OQ "$(wired lab/workspace-verify.sh)"
+emit CI_WIRES_OQ "$(wired .github/workflows/verify.yml)"
+emit VERIFY_WIRES_LINES "$(grep -c 'check-oq-numbering' lab/workspace-verify.sh 2>/dev/null || true)"
+emit CI_WIRES_LINES "$(grep -c 'check-oq-numbering' .github/workflows/verify.yml 2>/dev/null || true)"
 
 # `--latest` выбирает цикл по наибольшему номеру, а он у нас меньше (E-0137), поэтому линт вызывается
 # явным списком файлов — иначе ключи E-0133 судились бы по чужому порогу.
