@@ -33,15 +33,20 @@ fi
 emit NARROW_RULE_PRESENT "$(grep -c '^CONNECTIVES = ' lab/check-text-clean.sh)"
 
 # Посаженные дефекты: связка написана латиницей в русской прозе вне кода.
-printf 'Отказ носителя therefore амнистирует отозванный сертификат.\n' > ${SCR}d1.md
-printf 'Проба должна however отличать дыру от слепоты прибора.\n' > ${SCR}d2.md
-printf 'Таблица иначе thus теряет смысл заморозки чисел.\n' > ${SCR}d3.md
-printf 'Страж молчит unless форма заголовка проверена прибором.\n' > ${SCR}d4.md
+# Сами связки собираются склейкой (`"there" "fore"`): этот файл попадает в репозиторный список
+# стража (`lab/*.sh`), и написанное целиком слово сделало бы прибор грязным по правилу, которое он
+# же проверяет — ровно тот же приём, что MARKER в `check-text-clean.sh`. Измерено до склейки:
+# `--all` дал 7 файлов с грязью, из них 4 строки этого файла.
+W1="there""fore"; W2="howe""ver"; W3="thu""s"; W4="unle""ss"
+printf 'Отказ носителя %s амнистирует отозванный сертификат.\n' "$W1" > ${SCR}d1.md
+printf 'Проба должна %s отличать дыру от слепоты прибора.\n' "$W2" > ${SCR}d2.md
+printf 'Таблица иначе %s теряет смысл заморозки чисел.\n' "$W3" > ${SCR}d3.md
+printf 'Страж молчит %s форма заголовка проверена прибором.\n' "$W4" > ${SCR}d4.md
 # Законные случаи: инлайн-код, fenced-блок, англоязычный файл, часть длинного идентификатора.
-printf 'Слово `therefore` в инлайн-коде — цитата, а не проза.\n' > ${SCR}c1.md
-printf 'Вот образец:\n\n```text\ntherefore замороженный вектор\n```\n\nи после блока.\n' > ${SCR}c2.md
-printf 'This guard is therefore blind to the shape of a heading.\n' > ${SCR}c3.md
-printf 'Функция therefore_checked ловит только вызовы воронки.\n' > ${SCR}c4.md
+printf 'Слово `%s` в инлайн-коде — цитата, а не проза этого файла.\n' "$W1" > ${SCR}c1.md
+printf 'Вот образец:\n\n```text\n%s замороженный вектор\n```\n\nи после блока.\n' "$W1" > ${SCR}c2.md
+printf 'This guard is %s blind to the shape of a heading.\n' "$W1" > ${SCR}c3.md
+printf 'Функция %s_checked ловит только вызовы воронки, а не текст.\n' "$W1" > ${SCR}c4.md
 
 caught=0; for f in ${SCR}d1.md ${SCR}d2.md ${SCR}d3.md ${SCR}d4.md; do
   if bash lab/check-text-clean.sh "$f" >/dev/null 2>&1; then :; else caught=$((caught + 1)); fi
@@ -94,7 +99,12 @@ bash lab/check-spec-mirror.sh >${SCR}mirror.txt 2>&1; emit MIRROR_EXIT $?
 python lab/cycle-gate.py audit >${SCR}audit.txt 2>&1; emit GATE_AUDIT_EXIT $?
 python lab/repo-review.py check >${SCR}review.txt 2>&1; emit REVIEW_EXIT $?
 
-SNAP=${TMPDIR:-/tmp}/e0137-post1.facts
+# Снимок привязан к дереву: имя ключа «HEAD + отпечаток несохранённых правок». Без привязки
+# строка «вектор уже сверялся» читается как факт про два исполнения одного дерева, а на деле
+# оказывалось сравнение прогона на пине с чужим снапшотом прошлого прогона (ДИАГНОЗ цикла:
+# на пине `0522144` первый запуск дал `STABLE=1` именно так).
+TREE_KEY="$(git rev-parse --short HEAD 2>/dev/null || echo nohead)-$(git status --porcelain 2>/dev/null | sha1sum | cut -c1-8)"
+SNAP="${TMPDIR:-/tmp}/e0137-${TREE_KEY}.facts"
 Filt() { grep -v -E '^DISK_FREE_MB=' "$1"; }
 if [ -f "$SNAP" ]; then
   if diff -q <(Filt "$buf") <(Filt "$SNAP") >/dev/null; then emit STABLE 1; else emit STABLE 0; fi
