@@ -8,7 +8,9 @@
 печатал), `E-0100` (cmp сравнивал файлы с `_r1`/`_r2`). Каждый раз это стоило полного прогона и
 разбора, и каждый раз ловилось глазами. Здесь те же три проверки делает машина:
 
-1. каждый ключ таблицы ожиданий обязан встречаться в ИСТОЧНИКЕ как печатный факт (`KEY=`);
+1. каждый ключ таблицы ожиданий обязан встречаться в ИСТОЧНИКЕ как печатный факт (`KEY=`,
+   воронка `emit KEY`, `emit_fact("KEY"`, шаблон семейства `PRE_"KEY_{}"` или список имён цикла
+   с воронкой `emit "PREFIX_$k"`);
 2. helper не вправе сравнивать файлы, в именах ключей которых вшита метка прогона, иначе
    `cmp` разойдётся на неизменном дереве;
 3. таблица не вправе быть пустой или состоять из комментариев.
@@ -89,6 +91,27 @@ def gather_sources(paths):
                    and "/logs/" not in f.replace("\\", "/")})
 
 
+def loop_emitted(text):
+    """Имена, которые helper печатает циклом: `for k in A B C; do emit "LIVE_$k"`.
+
+    Починка `E-0135` научила линт литеральной воронке `emit KEY`, но helper'ы печатают
+    семейства списком имён и одним `emit` с переменной. До этого цикла такие ключи объявлялись
+    сиротами, хотя печатались: на живой таблице `E-0138` линт дал 29 ложных сирот, а на уже
+    опубликованной `E-0132` даёт 11. Правило остаётся литеральным с обеих сторон: имя обязано
+    стоять в списке `for … in …`, а префикс — буквально предшествовать `$` в воронке `emit`;
+    «префикс + что угодно» и `emit "$k"` без списка имён по-прежнему сироты.
+    """
+    flat = text.replace("\\\n", "")
+    lists: dict[str, set] = {}
+    for m in re.finditer(r"\bfor\s+(\w+)\s+in\s+([^;{]*?)(?:;|\bdo\b)", flat):
+        lists.setdefault(m.group(1), set()).update(m.group(2).split())
+    names: set[str] = set()
+    for m in re.finditer(r'\bemit\s*"([A-Za-z0-9_]*)\$\{?(\w+)\}?[^"]*"', flat):
+        for n in lists.get(m.group(2), ()):
+            names.add(m.group(1) + n)
+    return names
+
+
 def dynamic_pattern(key):
     """Ключ, который прибор печатает шаблоном: `NODE_SLOT_ATTR_{}` для owner 101.
 
@@ -112,7 +135,11 @@ def lint(expect_path, helper, source_paths):
         except OSError:
             continue
     corpus = "\n".join(t for _, t in blobs)
+    families: set[str] = set()
+    for _, text in blobs:
+        families |= loop_emitted(text)
     bad = 0
+    cyc = 0
     if not keys:
         print("ПОРОГ БЕЗ ПРИБОРА: таблица ожиданий пуста")
         return 1
@@ -132,6 +159,9 @@ def lint(expect_path, helper, source_paths):
         if dyn is not None and dyn.search(corpus):
             print(f"ПОРОГ ДИНАМИЧЕСКИЙ: {key} — печатается шаблоном семейства")
             continue
+        if key in families:
+            cyc += 1
+            continue
         bad += 1
         print(f"ПОРОГ БЕЗ ПРИБОРА: {key} — ни один источник не печатает этот факт")
     # Сравнение файлов фактов без снятия метки прогона: `cmp -s "$F1" "$F2"` — невыполнимый порог.
@@ -142,7 +172,7 @@ def lint(expect_path, helper, source_paths):
                 bad += 1
                 print(f"ПОРОГ НЕВЫПОЛНИМ: {helper}:{n} сравнивает файлы без снятия метки "
                       f"прогона: {line.strip()}")
-    print(f"ПОРОГОВ={len(keys)} ИСТОЧНИКОВ={len(blobs)} СИРОТ={bad}")
+    print(f"ПОРОГОВ={len(keys)} ИСТОЧНИКОВ={len(blobs)} ЦИКЛОМ={cyc} СИРОТ={bad}")
     return 0 if bad == 0 else 1
 
 
@@ -163,6 +193,18 @@ CASES = [
     ("ключ напечатан воронкой emit - пропуск", "A", 'emit A "1"\n', None, 0),
     ("воронка печатает чужой ключ - сирота", "A", 'emit B "1"\n', None, 1),
     ("префикс PRE_FIX_ в воронке не печатает ключ", "A", 'emit PRE_FIX_A 1\n', None, 1),
+    # `E-0138`: семейства печатаются списком имён и одной воронкой с переменной.
+    ("ключ напечатан циклом с префиксом - пропуск", "LIVE_A",
+     'for k in A B; do\n  emit "LIVE_$k"\ndone\n', None, 0),
+    ("ключ напечатан циклом без префикса - пропуск", "A",
+     'for k in A B; do\n  emit "$k"\ndone\n', None, 0),
+    ("список цикла продолжен обратным слэшем - пропуск", "LIVE_B",
+     'for k in A \\\n  B; do\n  emit "LIVE_$k"\ndone\n', None, 0),
+    ("имени нет в списке цикла - сирота", "LIVE_C",
+     'for k in A B; do\n  emit "LIVE_$k"\ndone\n', None, 1),
+    ("префикс цикла не совпадает - сирота", "FIX_A",
+     'for k in A; do\n  emit "LIVE_$k"\ndone\n', None, 1),
+    ("воронка с переменной без списка имён - сирота", "A", 'emit "$k"\n', None, 1),
 ]
 
 
