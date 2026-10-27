@@ -1,0 +1,22 @@
+# lab/claims.tsv — соединённый реестр утверждений релизной готовности (`H-0132`, `ADR-0044`).
+# Колонки: id, тип свидетельства, номер условия v1 (или «-»), носитель, формулировка, ссылки.
+# Формулировка обязана встречаться в носителе дословно (пробелы и переносы — не часть утверждения),
+# каждая ссылка обязана резолвиться в карточку с вердиктом или в файл из дерева, а тип задаёт
+# потолок того, что в этой формулировке позволено сказать. Прибор — `lab/check-claims.py`; правка
+# носителя без правки строки делает реестр красным, и наоборот.
+C-001	gate-closed	1	docs/STATUS-v1.md	closed 4 of 4, in six closures	E-0087,E-0088,E-0091,E-0092,E-0094,E-0095	четыре дыры Batch A, шесть закрытий
+C-002	measured	2	docs/STATUS-v1.md	the stand was run in release	E-0105,ADR-0060	стенд P1 в release, пять прогонов на нашем хосте
+C-003	not-done	3	docs/STATUS-v1.md	the whole network path was verified in one process over real QUIC	lab/two-hosts.sh	две машины — не прогнано
+C-004	partial	4	docs/STATUS-v1.md	partial: §4 (the door, revocation consequences and their survivability, refusal names)	E-0123,lab/check-claim-map.py	§18 размечен не целиком
+C-005	measured	5	docs/STATUS-v1.md	the audit is an executable test	E-0108	аудит диска как тест
+C-006	estimate	-	docs/STATUS-v1.md	Approximate readiness — about 85 %	docs/STATUS-v1.md	цифра готовности: оценка, не измерение
+C-007	estimate	-	README.md	78 % ready for v1	docs/STATUS-v1.md	носитель цифры в английском README
+C-008	estimate	-	README.ru.md	Ориентировочная готовность v1 — около 78 %	docs/STATUS-v1.md	носитель цифры в русском README
+C-009	gate-closed	-	docs/STATUS-v1.md	Gates P2–P5 are closed	E-0012	закритие фаз P2…P5 одним предложением
+C-010	model-proof	-	docs/STATUS-v1.md	it proves statements about acceptance-arithmetic models, not about code	E-0099,ADR-0053	формальные контуры: модель, не код
+C-011	instrument	-	docs/STATUS-v1.md	the release kit is now an instrument that the cycles check	lab/check-release-kit.sh,E-0126	релизный комплект как прибор
+C-012	not-done	-	docs/STATUS-v1.md	Traffic padding is still promised	E-0077	паддинг трафика отсутствует
+C-013	not-done	-	README.md	no release tag or binary	lab/check-release-kit.sh	тег и бинарь — действие владельца
+C-014	not-done	-	README.md	it has not been run on two hosts yet	lab/two-hosts.sh	сценарий двух хостов не исполнен
+C-015	model-proof	-	README.md	the model-to-code correspondence is not checked by an executable instrument	lab/lean-check.py	соответствие модели и кода не проверено
+C-016	instrument	-	docs/STATUS-v1.md	the §18.9 "word → id" map is closed and guarded	lab/check-claim-map.py,E-0123	карта §18.9 под прибором
