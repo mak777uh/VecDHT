@@ -123,8 +123,12 @@ Stated as absences, because "ready" without a list of what is missing is how v7.
   README, prepared and dry-run on one host with all three nodes on loopback (`E-0122`), and the ~200-node
   stand has been run five times, all on a host we control. Item A5 of `docs/PLAN-v1.md` is the run itself
   and it needs a second machine.
-* **No uptime counter.** The 30-day criterion needs a startup-anchored counter in the node; it is code
-  work, tracked as A7b, and it is not part of this kit.
+* **The uptime counter exists; the 30 days do not.** Since `E-0130` (`ADR-0071`) a node keeps
+  `uptime.bin` — 46 bytes in its state directory — folds the previous session into
+  `accumulated_sec` when it restarts with the same `--dir`, and refuses to print seconds when the
+  history is missing or corrupt: `vecdht-cli node uptime` exits 2 and names the file instead of
+  answering `total_sec=0`. What is still missing is the accumulation itself, which needs the
+  long two-operator run (A5), not more code.
 * **Traffic padding is specified and measured as absent** (`E-0077`): fan-out costs what it costs, and
   an index node reads what it holds. The privacy wording in the spec is the weakened honest one.
 * **Revocation has a producer but no motive.** `vecdht-cli revoke` (`E-0120`) signs and spreads a

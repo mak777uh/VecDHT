@@ -1,10 +1,10 @@
 ---
 id: E-0130
 hypothesis: H-0130
-status: pre-registered
+status: completed
 base_commit: "80b81c0"
 started: "2026-10-27"
-finished: ""
+finished: "2026-10-27"
 environment: "x86_64-pc-windows-gnu, хост владельца; Rust из PATH (cargo/rustc), Python 3 из PATH,
 PYTHONIOENCODING=utf-8; PATH дополнен /c/Users/Admin/mingw64/bin (иначе MinGW из miniconda рвёт
 линковку GetHostNameW); debug-сборка инкрементально поверх дерева 80b81c0; сеть прибора — 127.0.0.1,
@@ -56,8 +56,15 @@ facts1 facts2` выход 0 при полном наборе. (6) Посадка
 факт мерит тот же смысл временем: отказ кодом 2 до истечения половины окна `--run-seconds 60`
 (запас ×2, отношение а не абсолютный порог — `ADR-0070`, правило 7). Мёртвый факт не переносится в
 спеку и не засчитывается в вердикт."
-result: ""
-verdict: pending
+result: "helper `WORST_RC=0`: `ОЖИДАНИЙ=58 РАСХОЖДЕНИЙ=0`, `STABLE=1`, PRE_FIX красен по предмету
+(`PRE_FIX_FILE_BYTES=0`, `PRE_FIX_OPEN1_STATUS=none`, `PRE_FIX_CORRUPT_RUN_CODE=0`,
+`PRE_FIX_LIVE_REPORT_CODE=1`, `PRE_FIX_TEST_FAILED=1`), после правки `UP_FILE_BYTES=46`,
+`UP_RESTART_STATUS=resumed`/`UP_RESTART_SESSIONS=2`/`UP_RESTART_ACCUM_EQ_CLOSED=1`,
+`UP_CORRUPT_RUN_CODE=2` с именем файла и `UP_CORRUPT_RUN_FAST_REFUSAL=1`, отчёт «не знаю» даёт код 2 и
+ноль секунд, `--uptime-reset` — 46 байт, `sessions=1`, `accumulated_sec=0`; стражи `PLANT_EXIT=1`,
+`GUARD_SELFTEST_EXIT=1` при `HITS=2`/`LINES=4,6`, `TEXTGUARD_CYCLE_EXIT=0`, `REPO_REVIEW_EXIT=0`;
+верификация финального дерева `VERIFY_FAIL=0` (132 среза, 783 passed, 0 failed, 9 ignored, 1633 с)"
+verdict: supports
 ---
 
 ## Pre-registration (до прогона)
@@ -107,3 +114,73 @@ store from backend")` и висящим над ним `TODO: return the error in
 Helper: PRE_FIX на пине (текущий прибор, product из `80b81c0`), затем два прогона на неизменном
 дереве, сверка `STABLE`, посадка, стражи. Верификация отдельно: `bash lab/workspace-verify.sh
 E-0130`.
+
+## Результат
+
+Утверждение H-0130 выполнено на названных приборах, вердикт `supports`.
+
+* Формат и размер: `UP_FILE_BYTES=46` на живом узле (магия, версия, восемь полей, 4-байтный
+  blake3-тег), `.partial` после барьера не остаётся (`UP_PARTIAL_LEFT=0`); арифметика и декодирование
+  покрыты модульными тестами — `LIB_UP_PASSED=7` при `LIB_EXIT=0`, полный набор библиотеки
+  `LIB_PASSED=68` при `LIB_EXIT=0`.
+* Рестарт продолжает счётчик: `UP_OPEN1_STATUS=never_started` в первой сессии, затем
+  `UP_RESTART_STATUS=resumed`, `UP_RESTART_SESSIONS=2`, накопленное выросло ровно на закрытое окно
+  (`UP_RESTART_ACCUM_EQ_CLOSED=1`), отчёт по закрытому узлу не меньше накопленного
+  (`UP_RESTART_TOTAL_GE_ACCUM=1`, `UP_RESTART_REPORT_CODE=0`).
+* Отказ назван и предшествует церемонии: `UP_CORRUPT_RUN_CODE=2`, `UP_CORRUPT_RUN_NAMES_FILE=1`,
+  `UP_CORRUPT_RUN_FAST_REFUSAL=1` (отказ наступил до конца окна `--run-seconds`, то есть до
+  `NODE_READY`); живьём отчёт печатает sessions (`UP_LIVE_REPORT_CODE=0`, `UP_LIVE_REPORT_SESSIONS=1`),
+  а в двух «не знаю»-случаях — код 2 и ни одной напечатанной секунды
+  (`UP_CORRUPT_REPORT_CODE=2`/`UP_CORRUPT_REPORT_ZERO=0`, `UP_ABSENT_REPORT_CODE=2`/
+  `UP_ABSENT_REPORT_ZERO=0`, имена файлов названы: `UP_CORRUPT_REPORT_NAMES_FILE=1`,
+  `UP_ABSENT_REPORT_NAMES_FILE=1`).
+* Обнуление — единственный явный путь: `UP_RESET_CODE=0`, `UP_RESET_FILE_BYTES=46`,
+  `UP_RESET_SESSIONS=1`, `UP_RESET_ACCUM=0`, отчёт после него зелёный (`UP_RESET_REPORT_CODE=0`).
+* Стабильность и предсказуемость: `STABLE=1` (два исполнения helper'а на неизменном дереве совпали
+  по всем инвариантным фактам), `ОЖИДАНИЙ=58 РАСХОЖДЕНИЙ=0`, `EXPECT_ROWS=58`, `WORST_RC=0`.
+* PRE_FIX на дереве пина `80b81c0` (упоминаний `uptime` в `node_cmd.rs`: 0 до, 39 после возврата):
+  `PRE_FIX_FILE_BYTES=0`, `PRE_FIX_OPEN1_STATUS=none`, `PRE_FIX_MISSING_PRINTED=0`,
+  `PRE_FIX_STATUS_HAS_ALL_FIELDS=0`, `PRE_FIX_STATUS_SESSIONS=none`, `PRE_FIX_RESTART_SESSIONS=none`,
+  `PRE_FIX_LIVE_REPORT_CODE=1`, `PRE_FIX_CORRUPT_RUN_CODE=0`, `PRE_FIX_CORRUPT_RUN_FAST_REFUSAL=0`,
+  `PRE_FIX_CORRUPT_REPORT_CODE=1`, `PRE_FIX_RESET_CODE=1`, `PRE_FIX_TEST_FAILED=1` — краснота по
+  предмету, а не по поломке прибора.
+* Стражи: посадка неверного ожидания красна (`PLANT_EXIT=1`), самопроверка стража текста красна там,
+  где обязана (`GUARD_SELFTEST_EXIT=1`, `GUARD_SELFTEST_HITS=2`, `GUARD_SELFTEST_LINES=4,6`), стража
+  текста по файлам цикла (`TEXTGUARD_CYCLE_EXIT=0`) и `REPO_REVIEW_EXIT=0` зелёные, гейт цикла
+  `GATE_H0130_OK=1`, диск `DISK_GE_15000=1` (19 642 МБ до измерений, 19 608 МБ после).
+
+### ДИАГНОЗ-1 (прибор): мёртвый факт не переносится в спеку
+
+Первая версия порога проверяла отказ битого ledger'а фактом «после отказа не напечатан `NODE_READY`»
+(`UP_CORRUPT_RUN_READY_PRINTED=0`). На пине это ожидание тоже дало бы 0 — там узел подставленный файл
+вообще не читает и печать `NODE_READY` не происходит по другой причине, а на исправленном дереве 0
+дала ветка, которую я хотел проверить. Факт, у которого предсказанное значение на пине и измеренное
+после фикса совпадают, ничего не различает и в вердикт не входит. Заменён на отношение
+`UP_CORRUPT_RUN_FAST_REFUSAL=1`: код 2 **и** время отказа меньше половины окна прогона. Правило
+переносимо: перед заморозкой таблицы каждый факт обязан быть проверен на различимость пина и дерева
+после правки.
+
+### ДИАГНОЗ-2 (страж): у разрешения обязан быть исполняемый тест на посадку
+
+Починка стража текста (escape-последовательность: латинская буква сразу после `\` не гибрид) — это
+правило, которое **разрешает** часть строк не краснить. Такое же разрешение в cycle'е `E-0116`
+(исключение по маркеру) уже ловило меня на том, что индульгенция шире дефекта. Добавлен шаг 4b:
+фикстура с двумя посаженными гибрид-дефектами (строки 4 и 6) прогоняется через стража и требует
+`GUARD_SELFTEST_EXIT=1`, `GUARD_SELFTEST_HITS=2`, `GUARD_SELFTEST_LINES=4,6`. Переносимо: у стража,
+который что-то разрешает, обязан быть исполняемый тест, что посадка всё ещё красная.
+
+## Артефакты цикла (пути названы здесь, потому что их читает страж)
+
+Таблица ожиданий — `lab/expectations/e0130.tsv` (58 строк), helper прогона — `lab/e0130-run.sh`,
+носитель замера — `lab/logs/e0130-all.log` (первый прогон `ОЖИДАНИЙ=55 РАСХОЖДЕНИЙ=2` `WORST_RC=1`
+и официальный прогон №2 `РАСХОЖДЕНИЙ=0` `WORST_RC=0`; оба блока оставлены в файле как есть) и
+`lab/logs/e0130-prefix-cli.log`. Изменённый продукт — `crates/vecdht-cli/src/uptime.rs` (новый модуль, 435 строк),
+`crates/vecdht-cli/src/node_cmd.rs` (+131), `crates/vecdht-cli/src/lib.rs` (+8) — три файла, коммит `e461230`, прибор — `crates/vecdht-cli/tests/node_run.rs`
+(коммит `a57e18d`). Пре-регистрация — `1ecbb68`, поправка пре-регистрации — `a57e18d`.
+
+Пункт (9) порога — полная верификация финального дерева: `bash lab/workspace-verify.sh E-0130`
+закончилась `VERIFY_FAIL=0`: 132 среза, 783 passed, 0 failed, 9 ignored, `SECONDS_total=1633`, диск
+19 576 МБ свободно до сборки и 18 627 МБ после (RAM 5 125 → 8 329, pagefile peak 7 660). Носитель —
+`lab/logs/workspace-verify-2026-10-22.log`, строки 133044…134926. Числа пересчитаны по метке срезов
+`test result:` в этом же блоке (входы пересчёта напечатаны в `## Результат` и в логе, а не взяты из
+памяти).

@@ -1,47 +1,47 @@
 
 running 3 tests
-publish: 164.7602ms
-find до рестарта: 85.7985ms
-find после рестарта: 88.9382ms
-..node1: NODE_STATUS t=2 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066648 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-node1: NODE_STATUS t=4 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066648 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-node1: NODE_STATUS t=6 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066648 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-node1: NODE_STATUS t=8 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066648 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-node2: NODE_STATUS t=2 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066648 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-node2: NODE_STATUS t=4 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066648 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-node2: NODE_STATUS t=6 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066648 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-node2: NODE_STATUS t=8 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066648 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_READY listen=/ip4/127.0.0.1/udp/20069/quic-v1 peer=12D3KooWEKyPsvgm7g8vyRA59466ph3t9VLxEUFzNqTXHJdfY2Wq owner=43046bfe4092b3e94994eada15dcc20d8aaa07b658fd3954eb8e0efb8bdca5de shard=0
-NODE_STATUS t=2 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=4 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=6 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=8 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=10 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=12 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=14 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=16 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=18 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=20 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=22 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=24 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=26 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=28 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=30 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=32 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=34 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=36 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=38 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=40 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=42 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=44 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=46 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=48 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=50 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066649 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+publish: 218.9512ms
+find до рестарта: 89.5273ms
+find после рестарта: 90.9568ms
+..node1: NODE_STATUS t=2 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066744 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+node1: NODE_STATUS t=4 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066744 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+node1: NODE_STATUS t=6 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066744 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+node1: NODE_STATUS t=8 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066744 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+node2: NODE_STATUS t=2 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066744 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+node2: NODE_STATUS t=4 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066744 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+node2: NODE_STATUS t=6 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066744 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+node2: NODE_STATUS t=8 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066744 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_READY listen=/ip4/127.0.0.1/udp/23116/quic-v1 peer=12D3KooWEKyPsvgm7g8vyRA59466ph3t9VLxEUFzNqTXHJdfY2Wq owner=43046bfe4092b3e94994eada15dcc20d8aaa07b658fd3954eb8e0efb8bdca5de shard=0
+NODE_STATUS t=2 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=4 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=6 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=8 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=10 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=12 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=14 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=16 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=18 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=20 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=22 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=24 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=26 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=28 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=30 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=32 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=34 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=36 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=38 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=40 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=42 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=44 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=46 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=48 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=50 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066745 serving_epoch=1 lease_io_errors=0 lease_rejects=0
 NODE_ERROR нет соединения с владельцем 4ed32f63…
-NODE_STATUS t=52 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066653 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=54 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066653 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=56 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066653 serving_epoch=1 lease_io_errors=0 lease_rejects=0
-NODE_STATUS t=58 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066653 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=52 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066749 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=54 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066749 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=56 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066749 serving_epoch=1 lease_io_errors=0 lease_rejects=0
+NODE_STATUS t=58 peers=0 kad=0 revocations=0 door_refusals=0 shard=0 cluster_reassigned=0 cluster_unverified=0 lease=1/112066749 serving_epoch=1 lease_io_errors=0 lease_rejects=0
 NODE_STOP t=60
 UP_OPEN1_STATUS=none
 UP_OPEN1_SESSIONS=none
@@ -62,7 +62,7 @@ UP_RESTART_REPORT_SESSIONS=none
 UP_RESTART_TOTAL_GE_ACCUM=0
 UP_CORRUPT_RUN_CODE=0
 UP_CORRUPT_RUN_NAMES_FILE=0
-UP_CORRUPT_RUN_READY_PRINTED=0
+UP_CORRUPT_RUN_FAST_REFUSAL=0
 UP_CORRUPT_REPORT_CODE=1
 UP_CORRUPT_REPORT_NAMES_FILE=0
 UP_CORRUPT_REPORT_ZERO=0
@@ -75,7 +75,7 @@ UP_RESET_REPORT_CODE=1
 UP_RESET_SESSIONS=none
 UP_RESET_ACCUM=none
 
-thread 'node_uptime_counter_survives_restart_and_refuses_corruption' (13496) panicked at crates\vecdht-cli\tests\node_run.rs:706:5:
+thread 'node_uptime_counter_survives_restart_and_refuses_corruption' (4756) panicked at crates\vecdht-cli\tests\node_run.rs:720:5:
 assertion `left == right` failed: первый старт обязан назвать отсутствие истории
   left: "none"
  right: "never_started"
@@ -88,6 +88,6 @@ failures:
 failures:
     node_uptime_counter_survives_restart_and_refuses_corruption
 
-test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 85.07s
+test result: FAILED. 2 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 85.42s
 
 error: test failed, to rerun pass `-p vecdht-cli --test node_run`

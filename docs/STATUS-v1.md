@@ -1,8 +1,8 @@
 # Status of v1: gates, what closed them, and what is not there
 
 > Cycle ids this page rests on: `E-0004`…`E-0012`, `E-0077`, `E-0079`…`E-0095`, `E-0099`, `E-0100`,
-> `E-0102`…`E-0105`, `E-0108`, `E-0119`, `E-0120`, `E-0123`, `E-0125`, `E-0126`, `ADR-0003`, `ADR-0004`,
-> `ADR-0042`…`ADR-0051`, `ADR-0054`, `ADR-0057`, `ADR-0058`, `ADR-0066`, `ADR-0067`. Measured quantities
+> `E-0102`…`E-0105`, `E-0108`, `E-0118`…`E-0126`, `E-0130`, `ADR-0003`, `ADR-0004`,
+> `ADR-0042`…`ADR-0051`, `ADR-0054`, `ADR-0057`, `ADR-0058`, `ADR-0066`, `ADR-0067`, `ADR-0071`. Measured quantities
 > and their commands: [`METRICS.md`](METRICS.md). Inventory counters:
 > [`../lab/INVENTORY.md`](../lab/INVENTORY.md).
 
@@ -20,16 +20,20 @@ in `../README.md` is an estimate over these five conditions, not a measurement.
 | §18 of the spec rewritten so that every word carries a measurement id or the mark "not implemented" | partial: §4 (the door, revocation consequences and their survivability, refusal names), §7.4 (provider-table finiteness), §9.3, §11.4 (survivability and the bound of the ban and of revocation), §13 (accountability), §14.4 (cell cap), §19.4/§19.5 and Appendix C already carry measurement ids (`E-0079`…`E-0095`, `ADR-0042`…`ADR-0051`); the §18.9 "word → id" map is closed and guarded (`E-0123`, `lab/check-claim-map.py`) |
 | The privacy layer = "what is actually protected", disk audit as a test | the audit is an executable test: `E-0108` (`s13_disk_privacy`) scans the node directory and the artifact directory for text, tokens, f32/f64 blocks and letter-like runs — 0 findings on a live corpus (owner codes and keys found 8 times and 8 times) and against five planted defects; `centroid.bin` is byte-equal to the reference. What this does NOT prove: absence of unknown byte sequences rather than only known ones; the production volume (1M records) was not scanned. Traffic padding is still promised (§13.3, §20.2 row 7) and measured as absent (`E-0077`); the honest v1 wording is that an index node reads what it holds |
 
-Approximate readiness — about 78 % (an estimate over the five conditions, not a measurement). The four
-Batch A holes are closed and each left a regression instrument; recomputing `cluster_id` on the publish
-path is closed by `E-0103`; the Appendix C metrics snapshot is finite by construction (`E-0104`); the
-protocol core, transport and door are built and measured; the `P1` stand ran in release and gives a
-measured p95 (`E-0105`); the disk audit is an executable test (`E-0108`). The increase over the
-previous estimate comes from exactly those two closures, not from rewording. Missing: an automatic
-motive for revocation (the producer exists since `E-0120`, nothing calls it on its own), a metrics
-endpoint, a two-machine scenario, traffic padding, an uptime counter for the "30 days" exit criterion
-(`A7b`), a release tag and a published binary — the release kit is now an instrument that the cycles
-check (`E-0126`, `lab/check-release-kit.sh`), the tag itself is an owner action; v9 exists as a document
+Approximate readiness — about 85 % (an estimate over the five conditions, not a measurement). The figure
+moved from 78 % because of named closures, not rewording: the signing ceremony and the genesis builder
+are a command (`E-0118`), `node run` starts a node from those files and the record is found again from
+the same directory after both processes stop (`E-0119`), `centroid.bin` is loaded and `cluster_id`
+recomputed by the shipped binary (`E-0121`), `revoke` signs and spreads a revocation that a running
+node applies without restart (`E-0120`), the lease survives a restart (`E-0124`), a cold-resolution miss
+names itself under a budget of ≤ 1 per 960 probes (`E-0125`), the release kit is an instrument
+(`E-0126`), and the node keeps a startup-anchored uptime counter that survives a restart and refuses to
+print seconds when its history is missing or corrupt (`E-0130`). Missing: an automatic motive for
+revocation (the producer exists since `E-0120`, nothing calls it on its own), a metrics
+endpoint, a two-machine scenario, traffic padding, the 30-day accumulation itself — the counter is an
+instrument now, the long run has not happened (`E-0130`), a release tag and a published binary — the
+release kit is now an instrument that the cycles check (`E-0126`, `lab/check-release-kit.sh`), the tag
+itself is an owner action; v9 exists as a document
 and a separate crate and is not in the node's dependency graph. Covering the absence of a number with
 the word "ready" is not allowed, so the figure is labelled as an estimate.
 
