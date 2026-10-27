@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# H-0136 / E-0136: отказ носителя `revocation.bin` и забывание отзыва (`ADR-0050`, OPEN-QUESTIONS п. 66).
+# H-0136 / E-0136: отказ носителя `revocation.bin` и забывание отзыва (`ADR-0050`, OPEN-QUESTIONS п. 73).
 # Прибор — тест-проба в том же модуле: он печатает пару ветвей (здоровый носитель / отказ), поэтому
 # краснота дыры отличается от слепоты пробы. Порог над числом фактов и над вектором значений;
 # вердикт этого цикла ничего не чинит — политика «отказываться ли обслуживать при ошибке диска»
@@ -16,11 +16,30 @@ emit DISK_FREE_MB "${D:-none}"; [ "${D:-0}" -ge 15000 ] && emit DISK_GE_15000 1 
 cargo test -p vecdht-node --lib a_write_failure_forgets -- --nocapture >${SCR}test.log 2>&1
 emit TEST_EXIT $?
 sed -n 's/^FACT \([A-Z_][A-Z0-9_]*\) \(.*\)$/\1=\2/p' ${SCR}test.log >>"$buf"
-# Контроль полноты пропечатки: каждый ключ обязан иметь источник и в тесте (`emit_fact`), и в
-# экстракторе (`printf FACT`). Девять строк одного и девять другого — единственный способ
-# отличить «факт равен нулю» от «факт не напечатан».
-emit FACT_EMITTED_BY_TEST "$(grep -c 'emit_fact(' crates/vecdht-node/src/revocation.rs)"
-emit FACT_PRINTED_BY_TEST "$(grep -c 'printf "FACT ' crates/vecdht-node/src/revocation.rs)"
+SRC=crates/vecdht-node/src/revocation.rs
+# Контроль полноты пропечатки: у каждого имени факта обязан быть ровно один владелец в источнике
+# (вызов воронки `emit_fact("ИМЯ"`) и ровно одно место, где печатается префикс `"FACT `.
+# Построчный grep по источнику непригоден дважды: длинный вызов переносится, поэтому `emit_fact(`
+# оказывается на одной строке, а литерал имени — на следующей (проверено на CTRL_INSERT_APPLIED);
+# и `grep -c` считает строки, то есть захватывает ещё и определение воронки `fn emit_fact(name:`.
+# Обе причины дали ложную красноту первого исполнения — прибор, а не мир.
+# newline=LF в обоих open() обязателен: в текстовом режиме Windows python пишет CRLF, а `diff`
+# с LF-файлом объявляет все девять строк разными при посимвольно равном содержимом (ДИАГНОЗ-3).
+python - "$SRC" ${SCR}names_src.txt ${SCR}names_count.txt <<'PY'
+import re, sys
+s = open(sys.argv[1], encoding="utf-8").read()
+names = re.findall("emit_fact\\(\\s*\\x22([A-Z_][A-Z0-9_]+)\\x22", s)
+open(sys.argv[2], "w", encoding="utf-8", newline="\n").write("\n".join(sorted(names)) + "\n")
+open(sys.argv[3], "w", encoding="utf-8", newline="\n").write("%d\n" % len(names))
+PY
+emit FACT_EMITTED_BY_TEST "$(cat ${SCR}names_count.txt)"
+emit FACT_PRINT_SITES "$(python -c 'import sys;print(open(sys.argv[1],encoding="utf-8").read().count(chr(34)+"FACT "))' "$SRC")"
+# Сверка множеств имён: «источник ↔ вывод», а не «вывод ↔ таблица». Счётчики совпадают и при
+# разменных именах, поэтому сравниваем именно набор ключей, объявленных в пробе, с набором
+# фактов, которые тест напечатал в этом прогоне. Дубликаты не схлопываются: второй владелец
+# имени тоже делает сверку красной.
+sed -n 's/^FACT \([A-Z_][A-Z0-9_]*\) \(.*\)$/\1/p' ${SCR}test.log | sort > ${SCR}names_out.txt
+if diff -q ${SCR}names_src.txt ${SCR}names_out.txt >/dev/null; then emit FACT_NAMES_MATCH 1; else emit FACT_NAMES_MATCH 0; fi
 emit FACTS_TOTAL "$(sed -n 's/^FACT \([A-Z_][A-Z0-9_]*\) \(.*\)$/\1/p' ${SCR}test.log | wc -l | tr -d ' ')"
 emit RUST_TOUCHED "$(git diff --name-only 7590463 -- crates/ | wc -l)"
 bash lab/check-secrets.sh --no-history >${SCR}sec.txt 2>&1; emit SECRETS_EXIT $?
