@@ -11,7 +11,7 @@ environment: "x86_64-pc-windows-gnu, хост владельца; релизны
 `lab/e0135-run.sh`, значение бюджета в ночном шаге `fuzz-soak` и таблица ожиданий; дата карточки
 судится по UTC (`ADR-0070`)"
 command: "bash lab/e0135-run.sh (дважды на неизменном дереве, сверка двух снимков фактов между
-собой); PRE_FIX — `bash lab/e0135-run.sh --skip-soak --tag PRE_FIX_` во временном клоне дерева
+собой и с таблицей `python lab/expect.py lab/expectations/e0135.tsv`); PRE_FIX — `bash lab/e0135-run.sh --skip-soak --tag PRE_FIX_` во временном клоне дерева
 `a675bf4`, куда скопированы финальные приборы; подтверждающая краснота — `VEC_E0135_PER_TEST_SECS=30
 bash lab/e0135-run.sh --tag PRE_SHORT_` (в таблицу не входит: тайминги не годятся в порог,
 правило 7 пункт (е))"

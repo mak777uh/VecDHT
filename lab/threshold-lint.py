@@ -60,6 +60,16 @@ def key_pattern(key):
     return re.compile(head + r"\s*=\s*\S")
 
 
+def emit_pattern(key):
+    """Shell-воронка `emit KEY значение` — печать факта без литерала `KEY=`.
+
+    До этого цикла линт знал только литеральные печати и объявлял сиротами ключи helper'ов
+    `E-0134`/`E-0135`, которые печатают факты воронкой `emit`. Требуется буквально `emit`
+    плюс имя ключа отдельным словом: `emit PRE_FIX_A` ключом `A` не считается.
+    """
+    return re.compile(r'\bemit\s+' + re.escape(key) + r'\b')
+
+
 def gather_sources(paths):
     files = []
     for p in paths:
@@ -109,6 +119,8 @@ def lint(expect_path, helper, source_paths):
     for key in keys:
         if key_pattern(key).search(corpus):
             continue
+        if emit_pattern(key).search(corpus):
+            continue
         dyn = dynamic_pattern(key)
         if dyn is not None and dyn.search(corpus):
             print(f"ПОРОГ ДИНАМИЧЕСКИЙ: {key} — печатается шаблоном семейства")
@@ -139,6 +151,10 @@ CASES = [
     # Блок 3 `E-0100`: счётчик печатается с ведущим `\n`, и прежняя граница «кавычка или пробел»
     # объявила четыре живых ключа сиротами. Escape в литерале — тоже печать.
     ("ключ после \\n-escape в литерале", "A", 'println!("\\nA={}", 1);\n', None, 0),
+    # `E-0135`: helper'ы печатают факты воронкой emit, а не литералом.
+    ("ключ напечатан воронкой emit - пропуск", "A", 'emit A "1"\n', None, 0),
+    ("воронка печатает чужой ключ - сирота", "A", 'emit B "1"\n', None, 1),
+    ("префикс PRE_FIX_ в воронке не печатает ключ", "A", 'emit PRE_FIX_A 1\n', None, 1),
 ]
 
 

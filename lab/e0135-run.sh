@@ -38,7 +38,7 @@ buf=$(mktemp) || exit 2
 emit() { printf '%s=%s\n' "$1" "$2" >>"$buf"; }
 
 # (0) Гейт карточки и диск.
-python lab/cycle-gate.py gate H-0135 >>"$buf" 2>&1 && emit GATE_H0134_OK 1 || emit GATE_H0134_OK 0
+python lab/cycle-gate.py gate H-0135 >>"$buf" 2>&1 && emit GATE_H0135_OK 1 || emit GATE_H0135_OK 0
 bash lab/disk-report.sh >${SCR}disk.txt 2>&1
 D=$(grep -o 'DISK_FREE_MB=[0-9]*' ${SCR}disk.txt | tail -1 | cut -d= -f2)
 emit DISK_FREE_MB "${D:-none}"
