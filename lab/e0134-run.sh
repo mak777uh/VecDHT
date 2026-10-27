@@ -81,7 +81,7 @@ if [ "$SKIP_SOAK" = 0 ]; then
           grep -o 'за [0-9.]* с' | awk '{ s += $2 } END { printf "%.0f", s+0 }')
   emit SOAK_WALL_SECS "${TOTAL:-0}"
   [ "${TOTAL:-0}" -ge 1800 ] && emit SOAK_GE_1800 1 || emit SOAK_GE_1800 0
-  cp ${SCR}art.log ${SCR}cry.log lab/logs/ 2>/dev/null || true
+  cp ${SCR}art.log ${SCR}cry.log "${TMPDIR:-/tmp}"/ 2>/dev/null || true
 else
   emit SOAK_SKIPPED 1
   emit SOAK_WALL_SECS 0
@@ -100,9 +100,10 @@ python lab/repo-review.py check >${SCR}review.txt 2>&1; emit REVIEW_EXIT $?
 
 # STABLE — сравнение с предыдущим снимком фактов того же дерева (тайминги исключены: они не годятся
 # в порог и не должны делать второй прогон «несходным» по причине скорости хоста).
-if [ -z "$TAG" ] && [ -f lab/.e0134-post1.facts ]; then
+SNAP=${TMPDIR:-/tmp}/e0134-post1.facts
+if [ -z "$TAG" ] && [ -f "$SNAP" ]; then
   Filt() { grep -v -E '^(DISK_FREE_MB|SOAK_WALL_SECS|TEXTGUARD_FILES)=' "$1"; }
-  if diff -q <(Filt "$buf") <(Filt lab/.e0134-post1.facts) >/dev/null; then
+  if diff -q <(Filt "$buf") <(Filt "$SNAP") >/dev/null; then
     emit STABLE 1
   else
     emit STABLE 0
@@ -110,7 +111,7 @@ if [ -z "$TAG" ] && [ -f lab/.e0134-post1.facts ]; then
 fi
 if [ -z "$TAG" ]; then
   Filt2() { grep -v -E '^(DISK_FREE_MB|SOAK_WALL_SECS|TEXTGUARD_FILES)=' "$1"; }
-  Filt2 "$buf" > lab/.e0134-post1.facts
+  Filt2 "$buf" > "$SNAP"
 fi
 if [ -n "$TAG" ]; then sed "s/^/${TAG}/" "$buf"; else cat "$buf"; fi
 rm -f "$buf"
