@@ -1,0 +1,237 @@
+########## E-0132 · носитель цикла · 2026-10-28T01:33:09+03:00 · дерево 7caad88 ##########
+
+Носитель цикла соединённого реестра утверждений релизной готовности (карточка
+`lab/hypotheses/H-0132-claims-registry.md`, замер `lab/experiments/E-0132-claims-registry.md`,
+реестр `lab/claims.tsv`, прибор `lab/check-claims.py`, таблица ожиданий
+`lab/expectations/e0132.tsv`, helper `lab/e0132-run.sh`). Предмет — связность собственных текстов
+очереди, а не продукт: `crates/` за цикл не тронут ни одним коммитом (факт `RUST_TOUCHED=0`),
+поэтому официальные прогоны helper'а не запускают `cargo`, а полный контур снят отдельно и
+приведён в ШАГЕ 3.
+
+Каждое утверждение реестра обязано иметь три вещи: дословную встречуемость формулировки в
+названном носителе, резолвящуюся ссылку на карточку с закрытым вердиктом или на файл из дерева, и
+тип свидетельства, который задаёт потолок формулировки. Прибор проверяет и покрытость таблицы пяти
+условий `docs/STATUS-v1.md`, и то, что у цифры готовности один владелец.
+
+### ШАГ 0 · пре-регистрация ### дерево f00bd2b
+
+Коммит `f00bd2b`: реестр из 16 строк, прибор `lab/check-claims.py` с `--selftest`, helper
+`lab/e0132-run.sh`, таблица из 49 ожиданий, карточки `H-0132` и `E-0132` с замороженным порогом, и
+запись в `lab/ref-allow-list.txt` (страж разрешимости читает метку второго исполнения `E-0107b` как
+адрес карточки; отдельной карточки под неё нет по построению). Гейт карточки на том дереве:
+`CYCLE H-0132=OK нарушений=0`, `GATE_H0132_OK=1`.
+
+Правило `check-claims` требует, чтобы у прибора был ключ, печатающий на пине другое число, чем на
+починенном дереве: иначе его зелёная строка ничего не стоит (`OPEN-QUESTIONS` п. 75, пункт (б)).
+Этим ключом выбран `PRE_FIX_DIFFERS`.
+
+### ШАГ 1 · починка ### дерево 7caad88
+
+Коммит `7caad88` меняет пять текстов и два прибора: `docs/STATUS-v1.md` (blanket-утверждение
+«Gates P2-P5 are closed» распределено по носителям, золотая половина P2 объявлена незакрытой,
+добавлен абзац о самом реестре), `README.md` и `README.ru.md` (цифра готовности 78 -> 85, тот же
+носитель гейтов), `lab/claims.tsv` (17 строк: добавлены `C-007`, `C-008`, `C-009`, `C-017`),
+`lab/workspace-verify.sh` и `.github/workflows/verify.yml` (прибор исполняется в контуре и в CI).
+`docs/RELEASE-MAP-v1.md` не тронут.
+
+### ШАГ 2 · два официальных исполнения на неизменном дереве
+
+Помощник вызывался дважды подряд, между вызовами дерево не правилось. Отличаются только
+`DISK_FREE_MB` (19221 и 19231 МБ); второе исполнение печатает `STABLE=1` — снимок фактов совпал с
+первым по всем ключам кроме диска.
+
+ИСПОЛНЕНИЕ 1 (вывод целиком):
+
+PRE_FIX_PIN_FOUND=1
+PRE_FIX_EXIT=1
+PRE_FIX_CLAIMS=16
+PRE_FIX_VIOLATIONS=3
+PRE_FIX_GATE_RATIO=1
+PRE_FIX_CEILING=1
+PRE_FIX_QUALIFIER=1
+PRE_FIX_READY_VALUES=2
+PRE_FIX_COND_COVERED=5
+ПРИОРАРТ H-0132: отказ от источников с причиной
+LEAN H-0132: модель не сделана, рубрика обязательной не требует
+E-CARD E-0132: порог, окружение и команда названы
+CYCLE H-0132=OK нарушений=0
+GATE_H0132_OK=1
+DISK_FREE_MB=19221
+DISK_GE_15000=1
+CLAIM_GUARD_EXISTS=1
+CLAIMS_REGISTRY_EXISTS=1
+SELFTEST_EXIT=0
+PLANTED_CAUGHT=8
+PLANTED_TOTAL=8
+PLANTED_FALSE=0
+LEGAL_TOTAL=5
+GUARD_EXIT=0
+LIVE_CLAIMS=17
+LIVE_VIOLATIONS=0
+LIVE_DANGLING=0
+LIVE_CEILING=0
+LIVE_QUALIFIER=0
+LIVE_TYPE_BAD=0
+LIVE_LINK_BAD=0
+LIVE_GATE_RATIO=0
+LIVE_COND_LINK_BAD=0
+LIVE_READY_VALUES=1
+LIVE_READY_CARRIERS=3
+LIVE_COND_TABLE=5
+LIVE_COND_COVERED=5
+PRE_FIX_DIFFERS=1
+VERIFY_WIRES_CLAIMS=1
+CI_WIRES_CLAIMS=1
+SECRETS_EXIT=0
+REFS_EXIT=0
+CLAIMMAP_EXIT=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+TEXTGUARD_CYCLE_EXIT=0
+MIRROR_EXIT=0
+LINT_EXIT=0
+LINT_ORPHANS=0
+GATE_AUDIT_EXIT=0
+REVIEW_EXIT=0
+RUST_TOUCHED=0
+WORST_RC=0
+
+ИСПОЛНЕНИЕ 2 (вывод целиком):
+
+PRE_FIX_PIN_FOUND=1
+PRE_FIX_EXIT=1
+PRE_FIX_CLAIMS=16
+PRE_FIX_VIOLATIONS=3
+PRE_FIX_GATE_RATIO=1
+PRE_FIX_CEILING=1
+PRE_FIX_QUALIFIER=1
+PRE_FIX_READY_VALUES=2
+PRE_FIX_COND_COVERED=5
+ПРИОРАРТ H-0132: отказ от источников с причиной
+LEAN H-0132: модель не сделана, рубрика обязательной не требует
+E-CARD E-0132: порог, окружение и команда названы
+CYCLE H-0132=OK нарушений=0
+GATE_H0132_OK=1
+DISK_FREE_MB=19231
+DISK_GE_15000=1
+CLAIM_GUARD_EXISTS=1
+CLAIMS_REGISTRY_EXISTS=1
+SELFTEST_EXIT=0
+PLANTED_CAUGHT=8
+PLANTED_TOTAL=8
+PLANTED_FALSE=0
+LEGAL_TOTAL=5
+GUARD_EXIT=0
+LIVE_CLAIMS=17
+LIVE_VIOLATIONS=0
+LIVE_DANGLING=0
+LIVE_CEILING=0
+LIVE_QUALIFIER=0
+LIVE_TYPE_BAD=0
+LIVE_LINK_BAD=0
+LIVE_GATE_RATIO=0
+LIVE_COND_LINK_BAD=0
+LIVE_READY_VALUES=1
+LIVE_READY_CARRIERS=3
+LIVE_COND_TABLE=5
+LIVE_COND_COVERED=5
+PRE_FIX_DIFFERS=1
+VERIFY_WIRES_CLAIMS=1
+CI_WIRES_CLAIMS=1
+SECRETS_EXIT=0
+REFS_EXIT=0
+CLAIMMAP_EXIT=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+TEXTGUARD_CYCLE_EXIT=0
+MIRROR_EXIT=0
+LINT_EXIT=0
+LINT_ORPHANS=0
+GATE_AUDIT_EXIT=0
+REVIEW_EXIT=0
+RUST_TOUCHED=0
+WORST_RC=0
+STABLE=1
+
+Сверка обоих снимков с замороженной таблицей:
+
+```
+$ python lab/expect.py lab/expectations/e0132.tsv <исполнение-1> <исполнение-2>
+ОЖИДАНИЙ=49 РАСХОЖДЕНИЙ=0
+```
+
+### ШАГ 3 · полный контур на дереве починки
+
+`bash lab/workspace-verify.sh E-0132` (блок `########## E-0132 · workspace-verify ·
+2026-10-28T00:53:29+03:00 ##########` в `lab/logs/workspace-verify-2026-10-22.log`, 1930 строк):
+
+```
+TEST_EXIT=0
+CLIPPY_EXIT=0
+CLAIMS_SELFTEST_EXIT=0
+CLAIMS_EXIT=0
+TEXTGUARD_EXIT=0
+VERIFY_FAIL=0
+SECONDS_total=1749
+```
+
+Срезы `^test result:` — 134, под ними 786 пройденных тестов, 0 падений, 9 `#[ignore]`. Суммарное
+время прогона 1749 с, диск после сборки 19334 МБ, до — 19703 МБ. Постановка прибора в контур
+снимается не только выводом: `VERIFY_WIRES_CLAIMS=1` и `CI_WIRES_CLAIMS=1` в ШАГЕ 2 ищут
+`check-claims.py` в `lab/workspace-verify.sh` и в workflow (`E-0133` как прецедент довода «прибор
+есть» не равно «прибор исполняется»).
+
+### ШАГ 4 · дыра, названная до починки
+
+PRE_FIX исполняется посадчиком в каждом прогоне: дерево пина `f00bd2b` возвращается по пяти файлам
+(`lab/claims.tsv`, `lab/check-claims.py`, `docs/STATUS-v1.md`, `README.md`, `README.ru.md`) с
+`trap`-возвратом, и прибор прогоняется на нём. Пинающий ключ: `PRE_FIX_DIFFERS=1`.
+
+```
+PRE_FIX_PIN_FOUND=1  PRE_FIX_EXIT=1  PRE_FIX_CLAIMS=16  PRE_FIX_VIOLATIONS=3
+PRE_FIX_GATE_RATIO=1  PRE_FIX_CEILING=1  PRE_FIX_QUALIFIER=1  PRE_FIX_READY_VALUES=2
+PRE_FIX_COND_COVERED=5
+```
+
+Три нарушения на пине — три настоящих дефекта речи: предложение «Gates P2-P5 are closed» называет
+три фазы и ноль носителей в своей строке, и то же предложение не называет id замера. Второе число —
+`PRE_FIX_READY_VALUES=2`: 78 % в двух README против 85 % в статус-документе.
+
+Посадка на временном дереве с поддельными носителями и карточками: `PLANTED_TOTAL=8`,
+`PLANTED_CAUGHT=8`, `PLANTED_FALSE=0`, `LEGAL_TOTAL=5`, `SELFTEST_EXIT=0`. Живое дерево:
+`LIVE_CLAIMS=17`, `LIVE_VIOLATIONS=0`, `LIVE_DANGLING=0`, `LIVE_GATE_RATIO=0`,
+`LIVE_READY_VALUES=1`, `LIVE_READY_CARRIERS=3`, `LIVE_COND_TABLE=5`, `LIVE_COND_COVERED=5`.
+
+### ШАГ 5 · ДИАГНОЗы цикла
+
+ДИАГНОЗ-1 — проверка «новых файлов без CR» командой `grep -c` с байтом `0x0D` в `Git Bash` печатает число
+строк файла, а не число строк с `CR`: у семи файлов прогон показал 465/22/107/..., тогда как
+побайтовый счёт дал нули. Истинный способ — считать байты. Ложь такого прибора в обратную сторону
+опаснее правды: он «починил» бы файл, в которого `CR` нет.
+
+ДИАГНОЗ-2 — правка существующего `LF`-файла инструментом редактирования на машине с `CRLF` по
+умолчанию переводит всё рабочее дерево файла в `CRLF`: `README.ru.md` получил 306 байт `CR` при трёх
+изменённых предложениях. В коммит это не попало (`.gitattributes` с `eol=lf` нормализует индекс), но
+рабочее дерево после правки обязано проверяться побайтово: иначе следующий `sha256`-замер по
+носителю краснеет из-за переносов, а не из-за текста.
+
+ДИАГНОЗ-3 — сканер разрешимости номеров читает метку второго исполнения (`E-0107b`) как адрес
+карточки и валит соседский страж (`REVIEW_EXIT=1`) на дереве, где продукт зелёный. Механика
+правильная, класс находки новый: суффикс у дескриптора — не адрес. Занесено в
+`lab/ref-allow-list.txt` с причиной; отдельная карточка под `E-0107b` не заводится, потому что это
+повтор `E-0107` на дереве `3cd31c9`.
+
+ДИАГНОЗ-4 — строка реестра не может ссылаться на карточку собственного незакрытого цикла: `pending`
+вне закрытого списка вердиктов, поэтому `C-017` ссылается на файлы прибора, а не на `E-0132`.
+Правило верное (реестр не имеет права ссылаться на незакрытое свидетельство), но оно делает первый
+цикл, заводящий реестр, единственным циклом, чей реестр не может сослаться на самого себя: `id`
+замера появляется в носителе только коммитом закрытия.
+
+### ШАГ 6 · что измерение НЕ доказывает
+
+Истинность самих утверждений: реестр сверяет связь слова с носителем и потолок типа, а не
+содержание. Полноту реестра: прибор проверяет строки вниз, а предложение носителя без строки не
+проверяется ничем (`OPEN-QUESTIONS` п. 77, кандидат `H-0139`). Готовность v1: условие 3 (две
+машины) и релизный тег остаются в красной зоне владельца. Цена прогона названа измерением: helper
+не запускает `cargo` и не поднимает сеть, он читает три носителя, реестр и семь соседних стражей;
+полный контур — 1749 с.
