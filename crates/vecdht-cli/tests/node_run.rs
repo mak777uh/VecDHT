@@ -10,17 +10,21 @@
 //! кодировщик. Публикация и поиск идут тем же `vecdht_net::Agent`, что и за командой CLI, и
 //! с той же сетевой дверью.
 //!
-//! Три утверждения:
+//! Три утверждения A1:
 //! 1. узел, собранный из файлов церемонии, принимает `Publish` и отвечает на `Find` по QUIC;
 //! 2. после остановки и повторного старта с тем же `--dir` запись находится — индекс пережил
 //!    рестарт, а не остался в памяти процесса;
 //! 3. неполная или чужая церемония отвергается кодом 2 с названным флагом: узел не открывает
 //!    порт, если кредашиал или genesis не прошли проверку.
+//!
+//! Четвёртое утверждение — A7b (`ADR-0071`): счётчик аптайма, привязанный к старту, тоже переживает
+//! рестарт файлом, а «истории нет» и «ноль дней» в его отчёте — разные ответы. Оно стоит отдельным
+//! тестом, потому что предмет другой: не сеть, а наблюдаемый след работы узла на диске.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::sync::mpsc;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use libp2p::Multiaddr;
 use vecdht_artifact::Artifact;
@@ -449,4 +453,285 @@ fn node_run_refuses_incomplete_or_foreign_ceremony() {
     let out = run(&args);
     assert_eq!(out.code, 2, "подменённый genesis: {}", out.stderr);
     assert!(out.stderr.contains("genesis"), "{}", out.stderr);
+}
+
+fn set_run_seconds(args: &mut [String], sec: &str) {
+    let pos = args
+        .iter()
+        .position(|x| x == "--run-seconds")
+        .expect("флаг в аргументах");
+    args[pos + 1] = sec.to_string();
+}
+
+/// Собрать строки, которые узел напечатал после `NODE_READY`: до пары `UPTIME_OPEN` +
+/// `NODE_STATUS` или до дедлайна.
+///
+/// Почему collecting, а не «ждать конкретный префикс и паниковать»: на пине строк счётчика нет
+/// вовсе, и ожидаемый провал обязан быть наблюдением (`none`/`0`), а не зависшим на 60 с тестом
+/// и паникой без чисел. Прибор деградирует в нули, а не паникует.
+fn drain(node: &mut NodeProc, secs: u64) -> Vec<String> {
+    let deadline = Instant::now() + Duration::from_secs(secs);
+    let mut out: Vec<String> = Vec::new();
+    loop {
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            break;
+        }
+        match node.lines.recv_timeout(left) {
+            Ok(line) => {
+                let stop = line.starts_with("NODE_STATUS ")
+                    && out.iter().any(|l| l.starts_with("UPTIME_OPEN "));
+                out.push(line);
+                if stop {
+                    break;
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    out
+}
+
+/// Значение поля `key=` из первой строки блока с префиксом `prefix`. `none` — если строки или
+/// поля нет: «поле выпало из формата» и «поле равно нулю» печатаются разными словами, потому что
+/// это разные находки, а ноль, подставленный вместо отсутствующего поля, был бы молчанием прогона.
+fn peek(lines: &[String], prefix: &str, key: &str) -> String {
+    lines
+        .iter()
+        .find(|l| l.starts_with(prefix))
+        .and_then(|l| l.split_whitespace().find(|t| t.starts_with(key)))
+        .map(|t| t.trim_start_matches(key).to_string())
+        .unwrap_or_else(|| "none".to_string())
+}
+
+/// `1` / `0` для факта-предиката: счётчик аптайма обязан называть ветку числом, а не строкой.
+fn bit(v: bool) -> u8 {
+    u8::from(v)
+}
+
+/// То же для вывода команды (`node uptime`), где строк может быть несколько, а префикс строки
+/// не нужен: ключ `total_sec=` здесь уникален внутри одной строки `NODE_UPTIME`.
+fn peek_text(text: &str, key: &str) -> String {
+    text.lines()
+        .filter(|l| l.starts_with("NODE_UPTIME"))
+        .find_map(|l| l.split_whitespace().find(|t| t.starts_with(key)))
+        .map(|t| t.trim_start_matches(key).to_string())
+        .unwrap_or_else(|| "none".to_string())
+}
+
+/// A7b: счётчик аптайма, привязанный к старту (`ADR-0071`, критерий H1 в `ROADMAP.md`).
+///
+/// Критерий сформулирован как отчёт, а не как слово оператора, поэтому проверяемое ядро — две
+/// половины одного слова «startup-anchored»: закрытие открытой сессии при рестарте (мёртвое время
+/// не записывается как живое) и переживание рестарта суммой сессий (из одной сессии «30 дней» не
+/// собираются). Плюс раздел `L-0013`: «не записано» и «ноль дней» обязаны быть разными ответами,
+/// значит битый ledger не может молча начать счёт заново.
+///
+/// Четыре утверждения:
+/// 1. первый старт называет отсутствие истории (`never_started` + `UPTIME_MISSING`), а не нолём,
+///    и пять полей счётчика стоят в `NODE_STATUS`;
+/// 2. повторный старт с тем же `--dir` продолжает счётчик (`sessions=2`, накопленное = закрытое
+///    окно), а `node uptime` читает его живым узлом;
+/// 3. ledger на диске — ровно 46 байт, `uptime.bin.partial` после бита не остаётся;
+/// 4. битый и отсутствующий ledger — код 2 с именем файла и без напечатанного `total_sec`; новый
+///    счёт с нуля только по `--uptime-reset`, и сброс оставляет после себя читаемый след.
+///
+/// Абсолютные секунды (`uptime_total_sec`, `accumulated_sec`) сюда не входят ни как проверки, ни
+/// как числа фактов: они зависят от расписания битов и от часов (`ADR-0070`), а проверяются только
+/// отношениями (`накопленное == закрытое окно`, `total ≥ накопленное`).
+#[test]
+fn node_uptime_counter_survives_restart_and_refuses_corruption() {
+    let tmp = Tmp::new("uptime");
+    let f = fixture(&tmp.0);
+    let dir = tmp.0.join("node-uptime");
+    let ledger = dir.join("uptime.bin");
+    let args = node_args(&f, &dir, MEMBER_SEEDS[0], &f.certs[0], &[]);
+    let mut facts: Vec<String> = Vec::new();
+    let mut fact = |name: &str, value: String| facts.push(format!("{name}{value}"));
+
+    // (1) Первый старт: истории нет — и это названо отсутствием истории.
+    let mut first = NodeProc::start(&args);
+    first.wait_ready();
+    let a = drain(&mut first, 10);
+    fact("UP_OPEN1_STATUS=", peek(&a, "UPTIME_OPEN ", "status="));
+    fact("UP_OPEN1_SESSIONS=", peek(&a, "UPTIME_OPEN ", "sessions="));
+    fact("UP_MISSING_PRINTED=", bit(a.iter().any(|l| l.starts_with("UPTIME_MISSING "))).to_string());
+    // Сырые секунды (`uptime_total_sec`, `uptime_open_sec`) фактами не печатаются: они зависят от
+    // расписания битов и от часов, а по `ADR-0070` clock-зависимое наблюдение живёт только в
+    // носителе. Здесь оно и живёт: строки узла эхом уходят в вывод теста, который и есть носитель
+    // цикла, а в замороженную таблицу попадают только инвариантные имена.
+    for line in &a {
+        println!("node1: {line}");
+    }
+    // Имена фактов печатаются литералом, а не циклом по именам полей: страж
+    // `lab/threshold-lint.py` требует, чтобы каждое имя ожидания стояло в источнике текстом, и
+    // «ключ собран в цикле» было бы находкой ровно того класса, что уже ловили в этом контуре.
+    // Литерал стоит вместе со знаком `=` (`"UP_FILE_BYTES="`): тот же страж считает печатью строку
+    // `ИМЯ=значение`, а не голое имя, иначе таблица могла бы держать ключ, которого вывод нет.
+    fact("UP_STATUS_UPTIME_SESSIONS=", peek(&a, "NODE_STATUS ", "uptime_sessions="));
+    fact("UP_STATUS_UPTIME_REGRESSIONS=", peek(&a, "NODE_STATUS ", "uptime_regressions="));
+    fact("UP_STATUS_UPTIME_IO_ERRORS=", peek(&a, "NODE_STATUS ", "uptime_io_errors="));
+    fact(
+        "UP_STATUS_HAS_ALL_FIELDS=",
+        bit(
+            peek(&a, "NODE_STATUS ", "uptime_total_sec=") != "none"
+                && peek(&a, "NODE_STATUS ", "uptime_sessions=") != "none"
+                && peek(&a, "NODE_STATUS ", "uptime_open_sec=") != "none"
+                && peek(&a, "NODE_STATUS ", "uptime_regressions=") != "none"
+                && peek(&a, "NODE_STATUS ", "uptime_io_errors=") != "none",
+        )
+        .to_string(),
+    );
+
+    // Отчёт по живому узлу: ровно тот путь, которым оператор снимает H1, не гася шард.
+    let report = cli(&["node", "uptime", "--dir", &s(&dir)]);
+    fact("UP_LIVE_REPORT_CODE=", report.code.to_string());
+    fact("UP_LIVE_REPORT_SESSIONS=", peek_text(&report.stdout, "sessions="));
+
+    // (3) Формат на диске: 46 байт и никакого хвоста записи.
+    let bytes = std::fs::read(&ledger).unwrap_or_default();
+    fact("UP_FILE_BYTES=", bytes.len().to_string());
+    fact(
+        "UP_PARTIAL_LEFT=",
+        bit(dir.join("uptime.bin.partial").exists()).to_string(),
+    );
+
+    // (2) Рестарт: сессия закрыта, сумма перенесена, счётчик продолжен.
+    drop(first);
+    let mut second = NodeProc::start(&args);
+    second.wait_ready();
+    let b = drain(&mut second, 10);
+    for line in &b {
+        println!("node2: {line}");
+    }
+    fact("UP_RESTART_STATUS=", peek(&b, "UPTIME_OPEN ", "status="));
+    fact("UP_RESTART_SESSIONS=", peek(&b, "UPTIME_OPEN ", "sessions="));
+    let closed = peek(&b, "UPTIME_OPEN ", "closed_now_sec=");
+    let acc = peek(&b, "UPTIME_OPEN ", "accumulated_sec=");
+    fact(
+        "UP_RESTART_ACCUM_EQ_CLOSED=",
+        bit(closed != "none" && closed == acc).to_string(),
+    );
+    drop(second);
+
+    let report2 = cli(&["node", "uptime", "--dir", &s(&dir)]);
+    fact("UP_RESTART_REPORT_CODE=", report2.code.to_string());
+    fact("UP_RESTART_REPORT_SESSIONS=", peek_text(&report2.stdout, "sessions="));
+    let total2 = peek_text(&report2.stdout, "total_sec=");
+    fact(
+        "UP_RESTART_TOTAL_GE_ACCUM=",
+        bit(total2.parse::<u64>().is_ok()
+            && acc.parse::<u64>().is_ok()
+            && total2.parse::<u64>().unwrap() >= acc.parse::<u64>().unwrap())
+        .to_string(),
+    );
+
+    // (4a) Битый ledger — отказ церемонии до открытия порта, названный файлом.
+    let corrupt = tmp.0.join("node-corrupt");
+    std::fs::create_dir_all(&corrupt).unwrap();
+    std::fs::write(corrupt.join("uptime.bin"), b"not an uptime ledger").unwrap();
+    let bad = {
+        let mut a = args.clone();
+        let pos = a.iter().position(|x| x == "--dir").unwrap();
+        a[pos + 1] = s(&corrupt);
+        a
+    };
+    let refs: Vec<&str> = bad.iter().map(String::as_str).collect();
+    let out = cli(&refs);
+    fact("UP_CORRUPT_RUN_CODE=", out.code.to_string());
+    fact(
+        "UP_CORRUPT_RUN_NAMES_FILE=",
+        bit(out.stderr.contains("uptime.bin")).to_string(),
+    );
+    fact(
+        "UP_CORRUPT_RUN_READY_PRINTED=",
+        bit(out.stdout.contains("NODE_READY")).to_string(),
+    );
+
+    // (4b) Тот же битый файл в отчёте: код 2 и ни одного напечатанного `total_sec` —
+    // «испорчено» ≠ «ноль дней».
+    let out = cli(&["node", "uptime", "--dir", &s(&corrupt)]);
+    fact("UP_CORRUPT_REPORT_CODE=", out.code.to_string());
+    fact(
+        "UP_CORRUPT_REPORT_NAMES_FILE=",
+        bit(out.stderr.contains("uptime.bin")).to_string(),
+    );
+    fact(
+        "UP_CORRUPT_REPORT_ZERO=",
+        bit(out.stdout.contains("total_sec")).to_string(),
+    );
+
+    // (4c) Каталога с историей нет — то же различие: отсутствие названо, ноль не напечатан.
+    let never = tmp.0.join("node-never");
+    let out = cli(&["node", "uptime", "--dir", &s(&never)]);
+    fact("UP_ABSENT_REPORT_CODE=", out.code.to_string());
+    fact(
+        "UP_ABSENT_REPORT_NAMES_FILE=",
+        bit(out.stderr.contains("uptime.bin")).to_string(),
+    );
+    fact(
+        "UP_ABSENT_REPORT_ZERO=",
+        bit(out.stdout.contains("total_sec")).to_string(),
+    );
+
+    // (4d) Сброс — только явным флагом, и он оставляет после себя читаемый след.
+    let mut reset = bad.clone();
+    set_run_seconds(&mut reset, "1");
+    reset.push("--uptime-reset".into());
+    let refs: Vec<&str> = reset.iter().map(String::as_str).collect();
+    let out = cli(&refs);
+    fact("UP_RESET_CODE=", out.code.to_string());
+    let after = std::fs::read(corrupt.join("uptime.bin")).unwrap_or_default();
+    fact("UP_RESET_FILE_BYTES=", after.len().to_string());
+    let report3 = cli(&["node", "uptime", "--dir", &s(&corrupt)]);
+    fact("UP_RESET_REPORT_CODE=", report3.code.to_string());
+    fact("UP_RESET_SESSIONS=", peek_text(&report3.stdout, "sessions="));
+    fact(
+        "UP_RESET_ACCUM=",
+        peek_text(&report3.stdout, "accumulated_sec="),
+    );
+
+    for line in &facts {
+        println!("{line}");
+    }
+
+    // Всё названо числом — теперь то же самое требование к миру, а не к отчёту.
+    let want = |name: &str| {
+        facts
+            .iter()
+            .find(|l| l.starts_with(&format!("{name}=")))
+            .map(|l| l.split_at(name.len() + 1).1.to_string())
+            .unwrap_or_else(|| panic!("факт {name} не напечатан — прибор молчит"))
+    };
+    assert_eq!(want("UP_OPEN1_STATUS"), "never_started", "первый старт обязан назвать отсутствие истории");
+    assert_eq!(want("UP_OPEN1_SESSIONS"), "1");
+    assert_eq!(want("UP_MISSING_PRINTED"), "1", "строка UPTIME_MISSING обязательна");
+    assert_eq!(want("UP_STATUS_HAS_ALL_FIELDS"), "1", "пять полей счётчика в NODE_STATUS");
+    assert_eq!(want("UP_STATUS_UPTIME_SESSIONS"), "1");
+    assert_eq!(want("UP_STATUS_UPTIME_REGRESSIONS"), "0", "без подставных часов откатов быть не может");
+    assert_eq!(want("UP_STATUS_UPTIME_IO_ERRORS"), "0", "запись бита не падала");
+    assert_eq!(want("UP_LIVE_REPORT_CODE"), "0", "отчёт по живому узлу");
+    assert_eq!(want("UP_LIVE_REPORT_SESSIONS"), "1");
+    assert_eq!(want("UP_FILE_BYTES"), "46", "цена ledger'а названа форматом (`ADR-0071`)");
+    assert_eq!(want("UP_PARTIAL_LEFT"), "0", "partial переживает rename только как провал барьера");
+    assert_eq!(want("UP_RESTART_STATUS"), "resumed", "ledger обязан пережить рестарт");
+    assert_eq!(want("UP_RESTART_SESSIONS"), "2");
+    assert_eq!(want("UP_RESTART_ACCUM_EQ_CLOSED"), "1", "накопленное выросло ровно на закрытое окно");
+    assert_eq!(want("UP_RESTART_REPORT_CODE"), "0");
+    assert_eq!(want("UP_RESTART_REPORT_SESSIONS"), "2");
+    assert_eq!(want("UP_RESTART_TOTAL_GE_ACCUM"), "1", "накопленное не обнуляется рестартом");
+    assert_eq!(want("UP_CORRUPT_RUN_CODE"), "2", "битый ledger — отказ церемонии, не тихое обнуление");
+    assert_eq!(want("UP_CORRUPT_RUN_NAMES_FILE"), "1");
+    assert_eq!(want("UP_CORRUPT_RUN_READY_PRINTED"), "0", "отказ обязан случиться до объявления узла");
+    assert_eq!(want("UP_CORRUPT_REPORT_CODE"), "2");
+    assert_eq!(want("UP_CORRUPT_REPORT_NAMES_FILE"), "1");
+    assert_eq!(want("UP_CORRUPT_REPORT_ZERO"), "0", "«испорчено» не печатается как «ноль дней»");
+    assert_eq!(want("UP_ABSENT_REPORT_CODE"), "2", "`L-0013`: отсутствие истории — не нулевой аптайм");
+    assert_eq!(want("UP_ABSENT_REPORT_NAMES_FILE"), "1");
+    assert_eq!(want("UP_ABSENT_REPORT_ZERO"), "0");
+    assert_eq!(want("UP_RESET_CODE"), "0", "сброс по явному флагу разрешён");
+    assert_eq!(want("UP_RESET_FILE_BYTES"), "46");
+    assert_eq!(want("UP_RESET_REPORT_CODE"), "0");
+    assert_eq!(want("UP_RESET_SESSIONS"), "1", "сброшенный счётчик начинается с одной сессии");
+    assert_eq!(want("UP_RESET_ACCUM"), "0", "обнуление названо действием, а не молчанием");
 }

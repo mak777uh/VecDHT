@@ -1,0 +1,62 @@
+# E-0130 · заморожено до первого прогона `lab/e0130-run.sh` (2026-10-27).
+# Ключ — имя печатного факта без `=`; значение — точное. Правка любого числа — новая карточка.
+# Числа сняты подготовительным исполнением на неизменном дереве (прибор уже написан, продукт ещё
+# не закоммичен): `cargo test -q -p vecdht-cli --lib uptime::` дал 7, полный `--lib` дал 68,
+# `--test node_run` дал перечисленные ниже 31 факт. PRE_FIX-числа предсказаны поведению пина
+# `80b81c0` и отличаются от замеренных именно предметом: команды `node uptime` там нет вовсе
+# (код 1, а не 2), подставленный `uptime.bin` игнорируется (код 0 с напечатанным NODE_READY).
+GATE_H0130_OK	1	гейт карточки H-0130 пройден
+DISK_GE_15000	1	свободно на диске до прогона, МБ
+PRE_FIX_FILE_BYTES	0	на дереве до правки файла счётчика не появляется
+PRE_FIX_OPEN1_STATUS	none	на дереве до правки первая строка аптайма не печатается
+PRE_FIX_MISSING_PRINTED	0	на дереве до правки строки UPTIME_MISSING нет
+PRE_FIX_STATUS_HAS_ALL_FIELDS	0	на дереве до правки в NODE_STATUS нет ни одного поля аптайма
+PRE_FIX_STATUS_SESSIONS	none	на дереве до правки uptime_sessions= отсутствует
+PRE_FIX_RESTART_SESSIONS	none	на дереве до правки вторая сессия не названа
+PRE_FIX_LIVE_REPORT_CODE	1	на дереве до правки команды `node uptime` нет: разбор даёт код 1
+PRE_FIX_CORRUPT_RUN_CODE	0	на дереве до правки битый файл молча игнорируется и узел стартует
+PRE_FIX_CORRUPT_RUN_READY_PRINTED	1	на дереве до правки NODE_READY печатается поверх битого ledger
+PRE_FIX_CORRUPT_REPORT_CODE	1	на дереве до правки отчёт по битому каталогу — неизвестная команда
+PRE_FIX_RESET_CODE	1	на дереве до правки флага `--uptime-reset` нет
+PRE_FIX_TEST_FAILED	1	на дереве до правки прибор красен ровно одним тестом
+LIB_EXIT	0	модульные тесты креата CLI зелёные
+LIB_UP_PASSED	7	тестов модуля uptime:: (арифметика, формат, откат часов, посадки)
+LIB_PASSED	68	полный набор модульных тестов креата CLI не сломан
+CLI_EXIT	0	прибор node_run зелёный
+CLI_FAILED	0	упавших тестов в приборе нет
+CLI_PASSED	3	тесты файла node_run: прежние A1 и новый счётчик
+UP_OPEN1_STATUS	never_started	первый старт называет отсутствие истории словом
+UP_OPEN1_SESSIONS	1	первая сессия засчитана с одного, а не с нуля
+UP_MISSING_PRINTED	1	строка UPTIME_MISSING обязательна на пустом каталоге
+UP_STATUS_UPTIME_SESSIONS	1	NODE_STATUS печатает uptime_sessions=
+UP_STATUS_UPTIME_REGRESSIONS	0	на честных часах откатов не было (ветка проверена модульным тестом)
+UP_STATUS_UPTIME_IO_ERRORS	0	запись бита статуса не падала
+UP_STATUS_HAS_ALL_FIELDS	1	пять полей аптайма стоят в NODE_STATUS
+UP_LIVE_REPORT_CODE	0	отчёт `node uptime` по живому узлу зелёный
+UP_LIVE_REPORT_SESSIONS	1	отчёт по живому узлу называет одну сессию
+UP_FILE_BYTES	46	ledger ровно формата: 46 байт (ADR-0071)
+UP_PARTIAL_LEFT	0	partial не переживает успешный rename
+UP_RESTART_STATUS	resumed	вторая сессия названа продолжением, а не началом
+UP_RESTART_SESSIONS	2	счётчик сессий переживает рестарт процесса
+UP_RESTART_ACCUM_EQ_CLOSED	1	накопленное выросло ровно на закрытое окно
+UP_RESTART_REPORT_CODE	0	отчёт по закрытому узлу зелёный
+UP_RESTART_REPORT_SESSIONS	2	отчёт по закрытому узлу видит две сессии
+UP_RESTART_TOTAL_GE_ACCUM	1	накопленное не обнуляется рестартом
+UP_CORRUPT_RUN_CODE	2	битый ledger — отказ `node run`, а не тихое обнуление
+UP_CORRUPT_RUN_NAMES_FILE	1	в отказе названо `uptime.bin`
+UP_CORRUPT_RUN_READY_PRINTED	0	отказ наступил до объявления узла на порту
+UP_CORRUPT_REPORT_CODE	2	отчёт по битому ledger отказывает
+UP_CORRUPT_REPORT_NAMES_FILE	1	отчёт называет файл, а не «ноль»
+UP_CORRUPT_REPORT_ZERO	0	«испорчено» не печатается как «ноль дней» (L-0013)
+UP_ABSENT_REPORT_CODE	2	отчёт по каталогу без истории отказывает
+UP_ABSENT_REPORT_NAMES_FILE	1	отсутствие названо именем файла
+UP_ABSENT_REPORT_ZERO	0	«истории нет» не печатается как «ноль дней»
+UP_RESET_CODE	0	сброс явным флагом разрешён
+UP_RESET_FILE_BYTES	46	после сброса файл остаётся ровно формата
+UP_RESET_REPORT_CODE	0	отчёт после сброса зелёный
+UP_RESET_SESSIONS	1	сброшенный счётчик начинается с одной сессии
+UP_RESET_ACCUM	0	обнуление названо действием, а не молчанием
+STABLE	1	наборы фактов двух прогонов на неизменном дереве совпали
+PLANT_EXIT	1	посадка неверного ожидания обязана краснеть
+TEXTGUARD_CYCLE_EXIT	0	страж текста на файлах цикла
+REPO_REVIEW_EXIT	0	repo-review без замечаний к файлам цикла
