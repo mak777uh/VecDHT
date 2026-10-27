@@ -121,6 +121,13 @@ def lint(expect_path, helper, source_paths):
             continue
         if emit_pattern(key).search(corpus):
             continue
+        # Rust-воронка `emit_fact("KEY", value)` — печать факта из теста-пробы: литерал ключа
+        # ищется как `emit_fact("` + ключ + `"`), поэтому чужой ключ не засчитывается.
+        # Пробел свёрнут: rustfmt переносит литерал на новую строку, и проверка по исходному
+        # тексту объявляла бы такие факты сиротами.
+        flat = "".join(corpus.split())
+        if ("emit_fact(" + chr(34) + key + chr(34)) in flat:
+            continue
         dyn = dynamic_pattern(key)
         if dyn is not None and dyn.search(corpus):
             print(f"ПОРОГ ДИНАМИЧЕСКИЙ: {key} — печатается шаблоном семейства")
@@ -140,6 +147,7 @@ def lint(expect_path, helper, source_paths):
 
 
 CASES = [
+    ("rust-воронка emit_fact узнаётся", 'fn t() { emit_fact("A", 1); }', "A", "1", True),
     # (имя, ключ таблицы, текст источника, строка cmp в helper или None, ожидаемый rc)
     ("ключ напечатан — пропуск", "A", "A=1\n", None, 0),
     ("ключа нет — сирота", "A", "B=1\n", None, 1),

@@ -417,6 +417,49 @@ mod tests {
         assert!(r.contains(&nonce(7)));
     }
 
+    /// Прибор `H-0136`: что делает код, когда носитель отказывает. Тест ничего не утверждает о
+    /// желаемом и ничего не чинит: он печатает наблюдаемые числа, потому что политика (отказываться
+    /// ли обслуживать при ошибке диска) относится к владельцу.
+    ///
+    /// Пара ветвей обязательна: без контрольной ветки «носитель исправен» проба печатала бы `0` и
+    /// на здоровом дереве, то есть была бы слепой, а не красной. Каждый факт печатается воронкой
+    /// `emit_fact` ровно один раз — прибор `lab/e0136-run.sh` сверяет число воронок в источнике с
+    /// числом строк `FACT` в выводе, и расхождение делает сверку красной, а не молчаливой.
+    #[test]
+    fn a_write_failure_forgets_the_revocation_while_a_healthy_carrier_remembers_it() {
+        fn emit_fact(name: &str, value: impl std::fmt::Display) {
+            println!("FACT {name} {value}");
+        }
+        let n = nonce(4242);
+
+        // (1) Контроль: обычный каталог, отзыв применяется и ложится в файл ценой `18 + 16·1`.
+        let ok = tmp("write-ok");
+        let mut healthy = Revocations::open(Some(ok.clone())).expect("пустой каталог открывается");
+        let ok_res = healthy.insert(n);
+        emit_fact(
+            "CTRL_INSERT_APPLIED",
+            matches!(ok_res, Ok(Insert::Applied)) as u8,
+        );
+        emit_fact("CTRL_NONCE_FORGOTTEN", (!healthy.contains(&n)) as u8);
+        emit_fact("CTRL_FILE_BYTES", healthy.file_bytes());
+        emit_fact("CTRL_SAVE_ERRORS", healthy.save_errors);
+        std::fs::remove_dir_all(&ok).unwrap();
+
+        // (2) Отказ носителя: на пути временного файла стоит каталог, поэтому `create` обязан
+        //     упасть на любой платформе. Это названный способ вывести носитель из строя, а не
+        //     игра с правами: `readonly`-каталог на Windows пишущий процесс не останавливает.
+        let bad = tmp("write-fail");
+        let mut degraded = Revocations::open(Some(bad.clone())).expect("пустой каталог открывается");
+        std::fs::create_dir_all(bad.join(format!("{FILE}.partial"))).expect("каталог вместо .partial");
+        let err = degraded.insert(n);
+        emit_fact("FAIL_INSERT_IS_ERR", matches!(err, Err(_)) as u8);
+        emit_fact("FAIL_NONCE_FORGOTTEN", (!degraded.contains(&n)) as u8);
+        emit_fact("FAIL_SET_LEN", degraded.len());
+        emit_fact("FAIL_SAVE_ERRORS", degraded.save_errors);
+        emit_fact("FAIL_STATE_FILE_BYTES", degraded.file_bytes());
+        std::fs::remove_dir_all(&bad).unwrap();
+    }
+
     #[test]
     fn a_corrupt_file_refuses_to_open_rather_than_losing_every_revocation() {
         let d = tmp("corrupt");
