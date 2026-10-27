@@ -1,0 +1,173 @@
+=== БЛОК PRE_SHORT (VEC_E0135_PER_TEST_SECS=30, подтверждающая краснота; в порог не входит) ===
+2026-10-27T07:25:26+00:00
+PRE_SHORT_ПРИОРАРТ H-0135: отказ от источников с причиной
+PRE_SHORT_LEAN H-0135: модель не сделана, рубрика обязательной не требует
+PRE_SHORT_E-CARD E-0135: порог, окружение и команда названы
+PRE_SHORT_CYCLE H-0135=OK нарушений=0
+PRE_SHORT_GATE_H0135_OK=1
+PRE_SHORT_DISK_FREE_MB=16119
+PRE_SHORT_DISK_GE_15000=1
+PRE_SHORT_FUZZ_TESTS_TOTAL=8
+PRE_SHORT_FUZZ_IGNORED=0
+PRE_SHORT_PER_TEST_SECS=30
+PRE_SHORT_CI_SECS_ENV_SET=3
+PRE_SHORT_CI_NIGHTLY_SOAK_JOB=2
+PRE_SHORT_CI_SOAK_EXPORT_SECS=260
+PRE_SHORT_PLANT_PANIC_CAUGHT=1
+PRE_SHORT_PANIC_EXTRACTOR_EMPTY_OK=1
+PRE_SHORT_ART_SOAK_EXIT=0
+PRE_SHORT_CRY_SOAK_EXIT=0
+PRE_SHORT_ART_PASSED=4
+PRE_SHORT_CRY_PASSED=4
+PRE_SHORT_PANICS_TOTAL=0
+PRE_SHORT_FUZZ_BUDGETED_TESTS=7
+PRE_SHORT_SOAK_WALL_SECS=210
+PRE_SHORT_SOAK_GE_1800=0
+PRE_SHORT_RUST_TOUCHED=0
+PRE_SHORT_SECRETS_EXIT=0
+PRE_SHORT_REFS_EXIT=0
+PRE_SHORT_TEXTGUARD_EXIT=0
+PRE_SHORT_MIRROR_EXIT=0
+PRE_SHORT_GATE_AUDIT_EXIT=0
+PRE_SHORT_REVIEW_EXIT=0
+PRE_SHORT_DONE=0
+=== ИСПОЛНЕНИЕ 1 (260 с на бюджетируемый тест) ===
+2026-10-27T07:31:15+00:00
+ПРИОРАРТ H-0135: отказ от источников с причиной
+LEAN H-0135: модель не сделана, рубрика обязательной не требует
+E-CARD E-0135: порог, окружение и команда названы
+CYCLE H-0135=OK нарушений=0
+GATE_H0135_OK=1
+DISK_FREE_MB=16119
+DISK_GE_15000=1
+FUZZ_TESTS_TOTAL=8
+FUZZ_IGNORED=0
+PER_TEST_SECS=260
+CI_SECS_ENV_SET=3
+CI_NIGHTLY_SOAK_JOB=2
+CI_SOAK_EXPORT_SECS=260
+PLANT_PANIC_CAUGHT=1
+PANIC_EXTRACTOR_EMPTY_OK=1
+ART_SOAK_EXIT=0
+CRY_SOAK_EXIT=0
+ART_PASSED=4
+CRY_PASSED=4
+PANICS_TOTAL=0
+FUZZ_BUDGETED_TESTS=7
+SOAK_WALL_SECS=1820
+SOAK_GE_1800=1
+RUST_TOUCHED=0
+SECRETS_EXIT=0
+REFS_EXIT=0
+TEXTGUARD_EXIT=0
+MIRROR_EXIT=0
+GATE_AUDIT_EXIT=0
+REVIEW_EXIT=0
+RUN1_DONE=0
+=== ИСПОЛНЕНИЕ 2 (то же дерево) ===
+2026-10-27T08:03:52+00:00
+ПРИОРАРТ H-0135: отказ от источников с причиной
+LEAN H-0135: модель не сделана, рубрика обязательной не требует
+E-CARD E-0135: порог, окружение и команда названы
+CYCLE H-0135=OK нарушений=0
+GATE_H0135_OK=1
+DISK_FREE_MB=16105
+DISK_GE_15000=1
+FUZZ_TESTS_TOTAL=8
+FUZZ_IGNORED=0
+PER_TEST_SECS=260
+CI_SECS_ENV_SET=3
+CI_NIGHTLY_SOAK_JOB=2
+CI_SOAK_EXPORT_SECS=260
+PLANT_PANIC_CAUGHT=1
+PANIC_EXTRACTOR_EMPTY_OK=1
+ART_SOAK_EXIT=0
+CRY_SOAK_EXIT=0
+ART_PASSED=4
+CRY_PASSED=4
+PANICS_TOTAL=0
+FUZZ_BUDGETED_TESTS=7
+SOAK_WALL_SECS=1820
+SOAK_GE_1800=1
+RUST_TOUCHED=0
+SECRETS_EXIT=0
+REFS_EXIT=0
+TEXTGUARD_EXIT=0
+MIRROR_EXIT=0
+GATE_AUDIT_EXIT=0
+REVIEW_EXIT=0
+STABLE=1
+RUN2_DONE=0
+=== svod ===
+2026-10-27T08:36:33+00:00
+=== PRE_FIX (база a675bf4, --skip-soak, носитель из финального дерева) ===
+2026-10-27T08:38:28+00:00
+PRE_FIX_ПРИОРАРТ H-0135: отказ от источников с причиной
+PRE_FIX_LEAN H-0135: модель не сделана, рубрика обязательной не требует
+PRE_FIX_E-CARD E-0135: порог, окружение и команда названы
+PRE_FIX_CYCLE H-0135=OK нарушений=0
+PRE_FIX_GATE_H0135_OK=1
+PRE_FIX_DISK_FREE_MB=16068
+PRE_FIX_DISK_GE_15000=1
+PRE_FIX_FUZZ_TESTS_TOTAL=8
+PRE_FIX_FUZZ_IGNORED=0
+PRE_FIX_PER_TEST_SECS=260
+PRE_FIX_CI_SECS_ENV_SET=3
+PRE_FIX_CI_NIGHTLY_SOAK_JOB=2
+PRE_FIX_CI_SOAK_EXPORT_SECS=240
+PRE_FIX_PLANT_PANIC_CAUGHT=1
+PRE_FIX_PANIC_EXTRACTOR_EMPTY_OK=1
+PRE_FIX_SOAK_SKIPPED=1
+PRE_FIX_SOAK_WALL_SECS=0
+PRE_FIX_SOAK_GE_1800=0
+PRE_FIX_PANICS_TOTAL=0
+PRE_FIX_RUST_TOUCHED=0
+PRE_FIX_SECRETS_EXIT=0
+PRE_FIX_REFS_EXIT=0
+PRE_FIX_TEXTGUARD_EXIT=0
+PRE_FIX_MIRROR_EXIT=0
+PRE_FIX_GATE_AUDIT_EXIT=0
+PRE_FIX_REVIEW_EXIT=0
+PRE_FIX_DONE=0
+
+=== СВЕРКА с замороженной таблицей (python lab/expect.py lab/expectations/e0135.tsv) ===
+первая сверка: ОЖИДАНИЙ=23 РАСХОЖДЕНИЙ=1, EXPECT_EXIT=1
+  РАСХОЖДЕНИЕ: ключ ждали «ожидание», напечатано «нет такого ключа»
+ДИАГНОЗ-1: расхождение не про продукт и не про тайминг. В TSV-таблице строка заголовка
+«ключ<TAB>ожидание<TAB>комментарии» не была закомментирована, а `lab/expect.py` пропускает только
+пустые строки и строки с `#`: заголовок стал ожиданием для печатного факта `ключ=ожидание`, которого
+прибор печатать не может. Эффект — всегда красный `expect`, то есть ложный красный, а не слепой
+зелёный: ловушка заметна, но жрёт цикл. Таблица исправлена символом `#` в первой строке; ни одно
+замороженное значение порога не изменено (22 ожидания остались теми же байтами). Предпосылка
+таблица-до-замера не пострадала: значения заморожались в `544abc7`, и правка шапки не меняет ни одного
+предсказания.
+повторная сверка тех же фактов исполнения 2: ОЖИДАНИЙ=22 РАСХОЖДЕНИЙ=0, EXPECT_EXIT=0
+
+=== ВЕРДИКТ ===
+satisfies. Оба официальных исполнения на неизменном дереве (база прогона `b8e3135`) дают
+SOAK_WALL_SECS=1820, SOAK_GE_1800=1, PANICS_TOTAL=0, FUZZ_BUDGETED_TESTS=7, ART_PASSED=4,
+CRY_PASSED=4, CI_SOAK_EXPORT_SECS=260, STABLE=1; PRE_FIX на дереве `a675bf4` тем же прибором печатает
+CI_SOAK_EXPORT_SECS=240, то есть дыра названа числом до починки. Арифметика гейта §18.3 закрыта
+носителем: 7 бюджетируемых тестов × 260 с = 1 820 с ≥ 1 800 с.
+
+=== ПОДТВЕРЖДАЮЩАЯ КРАСНОТА (в таблицу не входит, правило 7 пункт (е)) ===
+PRE_SHORT_ (30 с на тест): SOAK_WALL_SECS=210 = 7 × 30, SOAK_GE_1800=0, PANICS_TOTAL=0.
+Факт гейта двигается от бюджета, а не застывает: при 260 с он зелёный, при 30 с красный.
+
+=== ДИАГНОЗ-2 ===
+grep-счётчик строк «за N с» в двух логах (FUZZ_BUDGETED_TESTS) считает напечатанные длительности, а
+не число тестов с бюджетом: восьмой тест (`known_non_canonical_shapes_are_rejected` в `fuzz_decode.rs`, не вызывает `deadline()`)
+не печатает длительность, поэтому совпадение 7 с предсказанием 7 подтверждает предпосылку, но не
+доказывает, что «бюджет есть у семи»: доказательство — арифметика 1 820 = 7 × 260 и ноль строк
+длительности у восьмого.
+
+=== ЧЕГО ЭТОТ ЦИКЛ НЕ ДЕЛАЕТ ===
+Не трогает продуктовый Rust-код (RUST_TOUCHED=0 во всех трёх исполнениях). Не исполняет ночной джоб
+CI: `workflow_dispatch` — действие вне зелёной зоны, в CI доказано только значение бюджета в файле.
+Не меняет вердикт `E-0134` (`refutes` остаётся) и не переписывает его пороги. Не правит формулировку
+спеки §18.3 («30 мин без panic») и не объявляет other-гейты P2 закрытыми: golden-векторы на второй
+машине (§18.3, строка выше) по-прежнему не сверены.
+
+=== ОСТАТОК ПОСЛЕ ЦИКЛА ===
+Гейт §18.3 по строке fuzz закрыт числом. Измеренное: 1 820 с агрегата дважды, 0 паник, `STABLE=1`.
+Не измерено: исполнение ночного шака в CI, побайтовая сверка golden-векторов на чужом хосте.
