@@ -285,6 +285,18 @@ jobs:
           tail -12 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
+      - name: check-contours — закрытые карточки против блоков прогона контура
+        run: |
+          set -uo pipefail
+          L=/tmp/contours.log
+          r=0
+          python lab/check-contours.py --selftest > "$L" 2>&1 || r=$?
+          python lab/check-contours.py >> "$L" 2>&1 || r=$?
+          echo "CONTOURS_EXIT=$r" >> "$L"
+          grep -aoE '^(CLOSED_TOTAL|BLOCK_LABELS|COVERED|MISSING_TOTAL|UNEXPLAINED|ERA_TOTAL|MODERN_TOTAL|VIOLATIONS)=' "$L" | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -16 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       - name: xcheck-paid-orders — спека v9 против порождённых векторов
         run: |
           set -uo pipefail

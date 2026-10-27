@@ -125,6 +125,14 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "CLAIMS_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-claims.py 2>&1 | tail -12
   rc=${PIPESTATUS[0]}; echo "CLAIMS_EXIT=$rc"; note $rc
+  # Сведение двух множеств: у карточки, закрытой вердиктом, обязан найтись блок прогона контура с
+  # её меткой — или исключение с классом и напечатанной причиной (`H-0138`, `OPEN-QUESTIONS` п. 76).
+  # Пять кругов жили без контура именно потому, что «вердикт» был словом, а не исполнением.
+  echo "### contour coverage guard ### $(date +%FT%T%:z)"
+  python lab/check-contours.py --selftest 2>&1 | tail -6
+  rc=${PIPESTATUS[0]}; echo "CONTOURS_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-contours.py 2>&1 | tail -16
+  rc=${PIPESTATUS[0]}; echo "CONTOURS_EXIT=$rc"; note $rc
   # Отчётные трубы workflow'ов проверяются здесь же, где и всё остальное: шаг, который краснеет от
   # собственного grep'а раньше вердикта, — это красный CI при зелёном продукте (`E-0127`). Прибор
   # обязан самопроверяться посаженными формами: гейт, который никто не гоняет с дефектом, через
