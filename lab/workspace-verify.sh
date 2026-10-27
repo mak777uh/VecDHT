@@ -133,6 +133,15 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "RCC_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-ci-rc-capture.py check --limit 30 2>&1 | tail -4
   rc=${PIPESTATUS[0]}; echo "RCC_EXIT=$rc"; note $rc
+  # Третий класс красноты `verify` (`E-0129`): даты контура ставились местным часом хоста (UTC+3),
+  # а runner судит по UTC, за записью, закрытой после 21:00 по хосту. Здесь добавлен `--require-git`:
+  # на хосте полная история есть, и проверка «источник не мог быть найден раньше, чем его добавили в
+  # индекс» исполнима; в CI тот же флаг дал бы ложную красноту на shallow-клоне (см. шаг в verify.yml).
+  echo "### date-domain guard ### $(date +%FT%T%:z)"
+  python lab/check-date-domain.py selftest 2>&1 | tail -12
+  rc=${PIPESTATUS[0]}; echo "DDF_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-date-domain.py check --require-git 2>&1 | tail -6
+  rc=${PIPESTATUS[0]}; echo "DDF_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc

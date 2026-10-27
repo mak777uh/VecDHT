@@ -27,6 +27,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+# Одна дата на весь контур: UTC (`E-0129`). Черновик, датированный местным вечером хоста
+# UTC+3, приходит на runner (он в UTC) с датой «завтра», и `library check` краснит работу
+# `verify` при зелёном продукте. Ищем функцию в `lab/library.py`: скрипт запускают как
+# `python lab/sources.py`, поэтому каталог `lab/` уже в sys.path[0].
+from library import utc_today  # noqa: E402
+
 try:
     sys.stdout.reconfigure(encoding="utf-8")
 except Exception:
@@ -59,7 +65,7 @@ def gh_json(url, timeout=25.0):
 
 
 def draft(title, url, cite, kind, depth, note, **extra):
-    today = dt.date.today().isoformat()
+    today = utc_today()
     row = {"id": "L-NNNN", "title": title, "url": url, "cite": cite, "verified": today,
            "depth": depth, "kind": kind, "gives": note, "targets": [],
            "status": "не использован", "action": "", "cost_min": 0, "opened": today}

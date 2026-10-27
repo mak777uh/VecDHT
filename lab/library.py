@@ -58,6 +58,20 @@ DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # ветка указывает на код, которого завтра нет, и запись перестаёт быть проверяемой.
 GH_REF_RE = re.compile(r"^(?:[0-9a-f]{7,40}|[vV]?\d[\w.\-]*)$")
 GITHUB_URL_RE = re.compile(r"^https://github\.com/([\w.\-]+/[\w.\-]+)/")
+
+
+def utc_today() -> str:
+    """Единственная дата контура: сегодня по UTC (`E-0129`, `ADR-0070`).
+
+    Runner'ы GitHub живут в UTC, хост владельца — UTC+3. Пока прибор штамповал и судил по
+    местной дате, запись, закрытая между 21:00 и 24:00 по местному, получала дату, которой
+    в UTC ещё нет, и шаг `library check` краснил работу `verify` на чужой машине при зелёном
+    продукте (наблюдение 2026-10-27: `LIBCHECK records=39 read=39 errors=1`). Один домен для
+    записи и для сверки — меньше всего спорно: поле обязано означать одно и то же число и
+    здесь, и там.
+    """
+    return dt.datetime.now(dt.timezone.utc).date().isoformat()
+
 # Действие обязано указывать, что именно изменено: номер цикла, ADR, § или порог.
 ACTION_REF_RE = re.compile(r"(H-\d{4}|E-\d{4}|ADR-\d{4}|S-\d{4}|§|порог|PLAN|OPEN-QUESTIONS)")
 # Бюджет одного шага сверки, минут (решение владельца 2026-10-23, ADR-0045).
@@ -148,6 +162,27 @@ def check_row(row, today, errors, warnings, seen_ids):
         fail(f"{rid}: поле «verified» вне формата YYYY-MM-DD", errors)
     elif v > today:
         fail(f"{rid}: дата сверки {v} в будущем", errors)
+    # Поля того же домена, что и «verified»: дат в записи теперь три (найдена, использована,
+    # закрыта), и судить они обязаны по одному числу — UTC (`E-0129`).
+    for k in ("closed", "used"):
+        d = str(row.get(k, ""))
+        if not d:
+            continue
+        if not DATE_RE.match(d):
+            fail(f"{rid}: поле «{k}» вне формата YYYY-MM-DD", errors)
+        elif d > today:
+            fail(f"{rid}: дата «{k}» {d} в будущем", errors)
+    o = str(row.get("opened", ""))
+    # Правила «сверка не раньше находки» здесь НЕТ, хотя оно кажется естественным: шесть
+    # исторических строк (L-0001…L-0005, L-0018) читали источник до того, как для него
+    # завели запись, и новое правило покраснило бы историю, а не дефект. Порядок «найдено
+    # раньше, чем добавлено в индекс» проверяет `lab/check-date-domain.py` — и только для строк,
+    # открытых с даты принятия `ADR-0070` и далее, с независимым свидетельством из git.
+    # Правило, которое требует переписать прошлое, чтобы стать зелёным, — это не правило, а
+    # часы (`E-0129`, ДИАГНОЗ: прибор и механизм рассинхронизировались на 6 находках).
+    if DATE_RE.match(o) and DATE_RE.match(str(row.get("closed", ""))) \
+            and str(row["closed"]) < o:
+        fail(f"{rid}: закрыта {row['closed']} раньше, чем найдена {o}", errors)
     if row.get("depth") not in DEPTHS:
         fail(f"{rid}: глубина «{row.get('depth')}» вне списка {DEPTHS}", errors)
     kind = row.get("kind")
@@ -211,7 +246,7 @@ def check_row(row, today, errors, warnings, seen_ids):
 
 
 def cmd_check(_args):
-    today = dt.date.today().isoformat()
+    today = utc_today()
     rows = load()
     errors, warnings, seen = [], [], {}
     if not rows:
@@ -267,7 +302,7 @@ def covered_sections(rows):
 
 def cmd_digest(_args):
     rows = load()
-    today = dt.date.today().isoformat()
+    today = utc_today()
     unused = [r for r in rows if r.get("status") == "не использован"]
     open_wip = [r for r in rows if r.get("status") == "в работе"]
     done = [r for r in rows if r.get("status") in ("изменено", "не повлияло")]
@@ -340,12 +375,12 @@ def cmd_add(args):
     row.setdefault("action", "")
     row.setdefault("status", "не использован")
     row.setdefault("cost_min", 0)
-    row.setdefault("opened", dt.date.today().isoformat())
+    row.setdefault("opened", utc_today())
     errors, warnings, seen = [], [], {}
     for r in load():
-        check_row(r, dt.date.today().isoformat(), errors, warnings, seen)
+        check_row(r, utc_today(), errors, warnings, seen)
     before = len(errors)
-    check_row(row, dt.date.today().isoformat(), errors, warnings, seen)
+    check_row(row, utc_today(), errors, warnings, seen)
     if len(errors) > before:
         print(f"ADD отклонён: запись не проходит проверку ({len(errors) - before} ошибок)")
         return 1
@@ -372,7 +407,12 @@ def cmd_use(args):
     if args.target not in (r.get("targets") or []):
         r["targets"] = (r.get("targets") or []) + [args.target]
     r["status"] = "в работе"
-    r["opened"] = dt.date.today().isoformat()
+    # `opened` НЕ перезаписывается: это дата, в которую источник найден, и по ней
+    # `lab/cycle-gate.py` судит, не найден ли источник уже после формулировки гипотезы
+    # (`E-0129`). Прежняя строка `r["opened"] = utc_today()` стирала это доказательствие при
+    # каждом переиспользовании и производила ложную находку; переиспользование теперь видно
+    # по отдельному полю `used`.
+    r["used"] = utc_today()
     r["action"] = ""
     _rewrite(rows)
     print(f"USE {args.id} -> цель {args.target}, статус «в работе»")
@@ -389,6 +429,10 @@ def cmd_close(args):
     r["status"] = args.action
     r["action"] = args.what
     r["cost_min"] = args.cost
+    # Дата закрытия — отдельное поле, а не новая версия `opened` (`E-0129`): иначе «когда
+    # источник нашли» и «когда цикл его использовал» нельзя отличить друг от друга даже
+    # глазами, и гейт круга судит по стертому следу.
+    r["closed"] = utc_today()
     _rewrite(rows)
     print(f"CLOSE {args.id} статус={args.action} минут={args.cost}")
     return cmd_check(args)

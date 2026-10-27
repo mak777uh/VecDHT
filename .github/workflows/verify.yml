@@ -156,6 +156,39 @@ jobs:
         # внешних хостов и падает по чужим 404, а не по нашему дефекту. Он остаётся локальным
         # прибором круга (`AGENTS.md`, раздел «Что считается проверкой»).
 
+      # Третий класс красноты CI (`E-0129`): лабораторный код ставил и сверял даты местным часом
+      # хоста (UTC+3), а runner судит по UTC. Запись, закрытая между 21:00 и 24:00 по хосту,
+      # получает дату «завтра» относительно runner'а, и `library check` краснеет на следующем пуше,
+      # а все шаги после него пропускаются. Прибор ниже проверяет и код (единая воронка дат), и
+      # данные (ни одной даты в будущем домена UTC).
+      # `--require-git` здесь НЕ ставится: `actions/checkout@v4` даёт клон глубиной 1 коммит, и
+      # дата появления строк в истории runner'ом не измеряется — на shallow-клоне проверка
+      # «источник не мог быть найден раньше, чем его добавили» стала бы ложной краснотой. На хосте
+      # она исполняется в `lab/workspace-verify.sh`.
+      - name: check-date-domain — даты контура в домене UTC, не местного часа
+        run: |
+          set -uo pipefail
+          L=/tmp/check-date-domain.log
+          r=0
+          python lab/check-date-domain.py check > "$L" 2>&1 || r=$?
+          echo "DDF_STEP_EXIT=$r" >> "$L"
+          grep -aE '^DDF_(FINDINGS|DATES_AFTER_UTC|LOCAL_TODAY_CALLS|BLIND)=' "$L" | tail -6 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -14 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      # Гейт без посаженного дефекта через пять циклов превращается в зелёный текст (тот же довод,
+      # что посадил самопроверку в `lean-check.py` и в двух приборах класса `E-0127`/`E-0128`).
+      - name: check-date-domain selftest — девять посаженных дефектов обязаны отбиваться
+        run: |
+          set -uo pipefail
+          L=/tmp/check-date-domain-selftest.log
+          r=0
+          python lab/check-date-domain.py selftest > "$L" 2>&1 || r=$?
+          echo "DDF_SELFTEST_STEP_EXIT=$r" >> "$L"
+          grep -aE '^DDF_SELFTEST|^PLANT_' "$L" | tail -12 | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -14 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       # Этот шаг исполняется на runner, и до `E-0128` он назывался обратное: «НЕ ИСПОЛНЯЕТСЯ
       # ЗДЕСЬ». Он исполнял себя и краснел. Причина механическая: `lab/check-spec-mirror.sh`
       # сравнивает `docs/*.md` с `${HOME}/OneDrive/Desktop/*.md`, а зеркало живёт ВНЕ git

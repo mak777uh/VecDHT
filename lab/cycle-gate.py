@@ -314,6 +314,11 @@ def cmd_audit(args):
     files = sorted(glob.glob(os.path.join(ROOT, "lab", "hypotheses", "H-*.md")))
     files = files[-args.n:] if args.n else files
     legacy = 0
+    # Счётчик находок обязана иметь выходную ветку: до `E-0129` аудит печатал
+    # `CYCLE H-xxxx=FAIL нарушений=N` и возвращал ноль всегда, поэтому названный вердикт
+    # покраснить шаг не мог — хвост `E-0127`, п. 3 («прибор знает форму, но не знает, есть
+    # ли в шаге чем вынести вердикт»).
+    bad_cards = 0
     for path in files:
         fm, err = front_matter(path)
         m = re.search(r"(H-\d{4})", os.path.basename(path))
@@ -327,8 +332,13 @@ def cmd_audit(args):
             continue
         rc = cmd_gate(type("A", (), {"hid": str(hid), "skip_lean": True})())
         print(f"КАРТОЧКА {hid}: под правилом, {'оформлена' if rc == 0 else 'НАРУШЕНИЯ'}")
+        bad_cards += 1 if rc else 0
     print(f"AUDIT карточек={len(files)} исторических={legacy} под_правилом={len(files) - legacy}")
-    return 0
+    # Отдельная строка, а не хвост прежней: строка `AUDIT ` заморожена в таблицах ожиданий
+    # закрытых циклов, и менять её ради нового счётчика — значит сделать чужой прогон
+    # несходным (правило «замороженные пороги не правятся задним числом»).
+    print(f"AUDIT_BAD карточек_с_нарушениями={bad_cards}")
+    return 1 if bad_cards else 0
 
 
 GOOD_CARD = {
