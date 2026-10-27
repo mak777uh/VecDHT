@@ -178,6 +178,6 @@ instrument is a wish, and we do not write those.
   because a path in this file is required by `lab/check-artifact-refs.py` to resolve in this tree).
   Our nearest equivalent is
   `lab/check-claim-map.py`, which binds each §18.9 sentence to a card id or to an executable instrument;
-  the joint eight-column table is open as `H-0132` and is not yet implemented.
+  the joint eight-column table is in our queue but has no card id yet: a card is opened only together with its instrument and frozen thresholds, so an id would promise an instrument that does not exist.
 * M7 independent rebuild — nobody has it. We will not declare a bundle before there is an artifact to
   cite.
