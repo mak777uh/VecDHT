@@ -154,3 +154,30 @@ Rule 8 of `../AGENTS.md` is "do not invent mechanisms", so here is what is actua
   (honest-but-curious), cipher-traffic padding is out of scope;
 * the authority key-rotation chain is not defined (§20.2 row 8); "sum of occupancies ≤ capacity" (§9.3)
   is marked as not implementable in v1 (`ADR-0042`) and has no mechanism.
+
+## Quality-kit v0 as declared for the interop channel (`2026-10-27`)
+
+The neighbouring repository `flowguard-spec` maintains a list of quality instruments (M1…M7) and reads
+our `interop/` daily. This is our declaration of what we actually have, so that the channel can close on
+a fact rather than on silence. Each line names the instrument that enforces it; a line without an
+instrument is a wish, and we do not write those.
+
+* M1 experiment card — `lab/templates/experiment.md`, filled per cycle by `lab/cycle-gate.py` (it fails
+  a card that lacks `claim`, `falsifier`, `oracle`, `prior_art`, `lean`).
+* M2 metrics with a command — `lab/INVENTORY.md` plus `lab/expectations/*.tsv`: every number in a closed
+  card is frozen before the run and compared by `python lab/expect.py`, and two runs of an unchanged tree
+  must agree (`STABLE=1`).
+* M5 status document — this file.
+* M6 guards — `lab/check-secrets.sh` (credential shapes, host home paths, credentials inside
+  `.git/config`, token patterns in `git log -p --all`) and `lab/check-artifact-refs.py` (1333 backtick
+  citations, 0 dangling, 17 allowances each carrying a written reason; a stale allowance is a finding).
+  Both are executed from `.github/workflows/verify.yml` and exit non-zero on any finding; neither of them
+  warns.
+* M3 evidence-type registry and M4 elimination register — not ours, they live in the `flowguard-spec`
+  repository (their CLAIMS and eliminations documents; we deliberately do not cite them as paths,
+  because a path in this file is required by `lab/check-artifact-refs.py` to resolve in this tree).
+  Our nearest equivalent is
+  `lab/check-claim-map.py`, which binds each §18.9 sentence to a card id or to an executable instrument;
+  the joint eight-column table is open as `H-0132` and is not yet implemented.
+* M7 independent rebuild — nobody has it. We will not declare a bundle before there is an artifact to
+  cite.
