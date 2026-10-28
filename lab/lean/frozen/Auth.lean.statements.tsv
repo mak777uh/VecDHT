@@ -1,6 +1,11 @@
 # lean-statement-digest v1
-# cycle: E-0107
-# digest: e414d81a1257e97b2a2897d2285fd4ff75e992cc1a9fbb5f93c0ec0985d6d0e5
+# cycle: E-0141
+# digest: ecbf8c0f71d443c13f6f892ae05a374d798e1eaf1dfddf3381e5f251df571d77
+cmd	#eval#1	9edcd9db886869bd
+cmd	#eval#2	79b780bd05d8d181
+cmd	#eval#3	3c901a4c85aff989
+cmd	#eval#4	b1713cc6c67adaf9
+cmd	#eval#5	45a223031ef87d29
 abbrev	Key	026243ff19004141
 def	alphabet	851ea7ed8f09bdce
 def	attributedAll	591950ecaad75636
@@ -42,6 +47,8 @@ def	sigLists3	3f0eab7a363e0865
 def	sigListsUpTo2	7fb6ebc0f16c1daf
 theorem	strict_door_all_bound	90d15ad50ba700b1
 theorem	strict_rejects_witness	6ff1ebbd9963f1da
+structure	structure Sig	6110c31465073229
+structure	structure Thresholds	dfc4591dfdf7920a
 def	transitionDoor	48dd54e6dc7e78e6
 def	twoSigs	ab335c305754aff8
 theorem	two_sources_diverge	19aaac0671892633

@@ -1,6 +1,11 @@
 # lean-statement-digest v1
-# cycle: E-0107
-# digest: 0203898fc5c6cd8ff64569ff1a8c05c730687eaa50a95213ff2ffbfe804f137c
+# cycle: E-0141
+# digest: 861b3faed1a291702ff9341e11980451f69a7dd1aa2b0ff59654f41511438dbc
+cmd	#eval#1	0dcfef54307ee4bb
+cmd	#eval#2	cac23889f050c6e0
+cmd	#eval#3	85beea1d12c4b6a0
+cmd	#eval#4	45b5daf6b48a540c
+cmd	#eval#5	884cc6b671fec6ba
 abbrev	St	c3aef59610f28614
 def	about	71b0d814838910da
 def	amnestyPairs	5f968dd67341dd64
@@ -42,6 +47,7 @@ theorem	grow_last_event_wins	c4fcf1d8bfb7d5d6
 theorem	grow_needs_no_room	249b234411ab3455
 theorem	grow_only_declared	a5c56dbea19d2bd8
 theorem	grow_unbounded	d32657517965d749
+inductive	inductive Ev	114230d40c5f0ef1
 def	isIn	09690d2f23e90e45
 def	keyIdx	a4950cba9568df9c
 def	keyOf	2d177efa3b3aed31

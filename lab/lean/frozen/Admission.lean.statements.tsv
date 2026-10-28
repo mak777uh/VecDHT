@@ -1,6 +1,15 @@
 # lean-statement-digest v1
-# cycle: E-0107
-# digest: e7e3036092053d473544ca53f3ba2707bd47a591e4132f8ede8e84e56c16fee2
+# cycle: E-0141
+# digest: 60503566f23d35bf48c6891577abb26338e8cb191ddfa5057563f5d5007b0fcc
+cmd	#eval#1	8e05a4d765ad489f
+cmd	#eval#2	1927aeda15344ef7
+cmd	#eval#3	6823f45f143f53b5
+cmd	#eval#4	613734955a3a7a92
+cmd	#eval#5	075c093302562bc4
+cmd	#eval#6	7059def66bd42da9
+cmd	#eval#7	bde46d6218c7468c
+cmd	#eval#8	62b8ccb2906ed70d
+cmd	#eval#9	545d0ee8073b443f
 def	CAP	70823d656660c44c
 def	CLUSTERS	c401835614c33185
 abbrev	Cluster	b95ee2b877f62867
@@ -75,6 +84,7 @@ def	setDigit	67e4ca7d17860e9c
 def	shapeBit	fe7ad9073053203d
 def	shapeIdx	24d5edcb8d6ecc3d
 def	step	1a09d75dfb64e87f
+structure	structure Pub	2ee67de6377fdb2f
 theorem	teeth_follows_cap	89542f5b28670eb7
 theorem	the_two_agree_everywhere_it_can_be_asked	0ee4ef2c92fd4e68
 def	total	48ed1f101aefa81e

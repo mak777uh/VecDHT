@@ -1,6 +1,10 @@
 # lean-statement-digest v1
-# cycle: E-0107
-# digest: 6d45131bd89ec52e71762dd0306a75d92e5ed60bfe9f8e5a7ba586e25387b6f8
+# cycle: E-0141
+# digest: ea6de7b602a6893310440ad1aae9cb43d824c1eb5459976d43afe0f8281eb577
+cmd	#eval#1	a9f6ad09ae22cac1
+cmd	#eval#2	7052422b164eba3d
+cmd	#eval#3	53d1f5c96d7cef80
+cmd	#eval#4	cac84f2d0833a9c7
 def	broken	89d3f91f55350109
 theorem	collision_pairs_are_exactly_seven_and_eight	59941e31f67e14cf
 def	door	8d1bae9cb5e8a374

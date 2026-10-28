@@ -1,6 +1,12 @@
 # lean-statement-digest v1
-# cycle: E-0107
-# digest: c1ac99cd8f489932428c3d2d64427d21cd6eb9773784441a12562d7177386cf0
+# cycle: E-0141
+# digest: b43ccf1e1f12480fd6a4a548c28d032c980d3e417866237d8340cced55ae5ff0
+cmd	#eval#1	835198d9c20c3686
+cmd	#eval#2	6d3c7bb863c93dd2
+cmd	#eval#3	e8873ce54994ec91
+cmd	#eval#4	d210f4f8bd1e3b3b
+cmd	#eval#5	fa33a369c8914c96
+cmd	#eval#6	3fc693ac768bf200
 def	allLists	4633f3ee1c690bc0
 def	cap	c976907a176b639d
 def	card	3f26a5a8bf6d752d

@@ -29,6 +29,11 @@
    или появившаяся без заморозки формулировка — провал с именем теоремы. Это ровно то, что ядро Lean
    гарантировать не может (`L-0011`, Lean Atlas: type checker проверяет правильность доказательства,
    но не то, что утверждение выражает задуманное), поэтому проверяется отдельным дайджестом.
+   Под заморозкой три класса объектов: подписи теорем (`E-0093`), тела `def`/`abbrev` (`E-0107`) и
+   печатаемые формы — строки `#eval`/`#print`/`#check`/`#lint` и целиком объявления `structure`/
+   `inductive` с последующей строкой `deriving` (`E-0141`: разведка показала 56 таких объектов вне
+   дайджеста при 365 замороженных, и три компилируемые посадки — ослабление печатаемого числа,
+   перестановка полей, перестановка конструкторов — проходили прежний страж зелёным).
 
 Употребление:
   python lab/lean-check.py check [--quiet] [--root DIR]
@@ -74,6 +79,15 @@ DECL_START = re.compile(r"^(theorem|lemma)\s+([^\s:(,]+)")
 # делала тихое сужение квантора невидимым — `E-0107` измерил это как `PLANT_CAUGHT=0` на посаженном
 # `traces.take 3`.
 DEF_START = re.compile(r"^(?:partial\s+|private\s+|protected\s+)*(def|abbrev)\s+([^\s:(,=]+)")
+# Третий класс замораживаемых объектов (`E-0141`): печатаемые формы. Команды `#eval`/`#print`/
+# `#check`/`#lint` — это те самые числа, которые модель печатает в лог и которые потом живут в
+# карточках; `structure`/`inductive` — форма данных, от которой зависит, что именно посчитано.
+# Разведка круга: 47 строк `#eval`, 5 `structure`, 4 `inductive` — 56 объектов вне дайджеста при 365
+# замороженных, и каждая из трёх посаженных правок (ослабление печатаемого числа, перестановка полей,
+# перестановка конструкторов) компилировалась и проходила прежний страж зелёным.
+CMD_START = re.compile(r"^#(eval|print|check|lint)\b")
+TYPE_START = re.compile(r"^(?:private\s+|protected\s+)*(structure|inductive)\s+([^\s:(,]+)")
+DERIVING_START = re.compile(r"^deriving\b")
 NS_RE = re.compile(r"^namespace\s+([A-Za-z0-9_.]+)", re.M)
 END_RE = re.compile(r"^(end)\s+([A-Za-z0-9_.]+)", re.M)
 AX_RE = re.compile(r"^'([^']+)' depends on axioms: \[([^\]]*)\]", re.M)
@@ -180,14 +194,97 @@ def bodies(text):
     return out
 
 
+def _expr_end(lines, i):
+    """Первая строка после выражения, начатого в строке `i` (скобки сбалансированы на её конце).
+
+    Нужен именно баланс, а не «до следующей строки нулевой колонки»: `#eval` у нас в моделях
+    многострочный (`#eval cellAt (run admit ((List.range CAP).map fun k =>` и далее с отступом), и
+    резать его по пустой строке означало бы заморозить половину напечатанного выражения.
+    """
+    depth, in_str = 0, False
+    n = len(lines)
+    j = i
+    while j < n:
+        line = lines[j]
+        k = 0
+        while k < len(line):
+            ch = line[k]
+            if in_str:
+                if ch == '"':
+                    in_str = False
+            elif ch == '"':
+                in_str = True
+            elif ch in "([{":
+                depth += 1
+            elif ch in ")]}":
+                depth -= 1
+            k += 1
+        if depth <= 0:
+            return j + 1
+        j += 1
+    return n
+
+
+def extras(text):
+    """[(класс, ключ, нормализованный текст)] для печатаемых форм: `#eval`-строк и объявлений
+    `structure`/`inductive`.
+
+    Третий класс заморозки (`E-0141`). До этого круга под дайджестом лежали подписи теорем и тела
+    `def`, а числа модель печатала строками `#eval` — то есть ровно теми формами, которые никто не
+    сравнивал: посадка `traces.take 3` в `#eval` компилировалась и проходила стража зелёным. Ключ
+    команды — `#eval#<номер в файле>`, потому что у команды нет имени; ключ `structure`/`inductive` —
+    `structure Point`, то есть класс с именем: он читается в причине отказа и не путается с телом
+    `def` под тем же именем.
+
+    Тело объявления берётся целиком, вместе со следующей строкой `deriving`: порядок полей записи и
+    порядок конструкторов суммы — часть формулировки (позиционные конструкторы `⟨a, b⟩` от них
+    зависят), а `deriving` решает, чем эту форму вообще можно сравнивать и перебирать.
+    """
+    out = []
+    lines = text.splitlines()
+    n = len(lines)
+    i = 0
+    seq = 0
+    while i < n:
+        m = CMD_START.match(lines[i])
+        if m:
+            seq += 1
+            j = _expr_end(lines, i)
+            out.append(("cmd", f"#{m.group(1)}#{seq}", norm("\n".join(lines[i:j]))))
+            i = j if j > i else i + 1
+            continue
+        m = TYPE_START.match(lines[i])
+        if m:
+            kind, name = m.group(1), m.group(2)
+            j = i + 1
+            while j < n and (not lines[j].strip() or lines[j][:1].isspace()):
+                j += 1
+            while j < n and DERIVING_START.match(lines[j]):
+                j += 1
+            out.append((kind, f"{kind} {name}", norm("\n".join(lines[i:j]))))
+            i = j if j > i else i + 1
+            continue
+        i += 1
+    return out
+
+
+def count_extra_lines(text):
+    """Сколько печатаемых форм начинается на нулевой колонке — независимый счётчик для стража
+    парсера: форма, которую парсер не увидел, снова оказывается вне заморозки, а молчание прибора
+    опаснее красного гейта."""
+    return sum(1 for L in text.splitlines() if CMD_START.match(L) or TYPE_START.match(L))
+
+
 def frozen_pairs(text):
-    """Всё, что уходит под заморозку: формулировки теорем + тела `def`/`abbrev`.
+    """Всё, что уходит под заморозку: формулировки теорем + тела `def`/`abbrev` + печатаемые формы.
 
     Подсчёт аксиом при этом остаётся строго по теоремам: у `def` нет термина доказательства, а
     `#print axioms` по нему печатал бы пустоту, и смешение классов означало бы либо молчание про
-    `native_decide`, либо красный инвентарь без права на объяснение.
+    `native_decide`, либо красный инвентарь без права на объяснение. Печатаемые формы (`#eval`,
+    `structure`, `inductive`) под аксиомный счёт не попадают по той же причине — у них нет
+    доказательства, но есть текст, который модель печатает числом.
     """
-    return statements(text) + bodies(text)
+    return statements(text) + bodies(text) + extras(text)
 
 
 def namespace_of(text):
@@ -256,6 +353,7 @@ def cmd_check(args):
     sorry_total = sorryax_total = native_total = std_total = custom_total = clean_total = 0
     decls_total = 0
     frozen_total = 0
+    extras_total = 0
     digest_bad = 0
     ms_total = 0
     rc_all = 0
@@ -267,9 +365,11 @@ def cmd_check(args):
         pairs = statements(src)
         names = [n for _, n, _ in pairs]
         fprs = frozen_pairs(src)
+        ex = extras(src)
         fnames = [n for _, n, _ in fprs]
         dups = sorted({n for n in fnames if fnames.count(n) > 1})
         decl_lines = count_decl_lines(src)
+        extra_lines = count_extra_lines(src)
         reasons = []
         # Дайджест ключуется именем, а не именем с классом: два объекта под одним именем (теорема и
         # `def` с совпадающими названиями) делает заморозку одного неотличимой от подмены другого.
@@ -279,6 +379,11 @@ def cmd_check(args):
         if decl_lines != len(names):
             reasons.append(f"PARSER: деклараций {decl_lines}, разобрано имён {len(names)} — "
                            "имя не извлечено, счёт аксиом по нему ничего не проверяет")
+        # Тот же счётчик-страж для третьего класса (`E-0141`): неразобранная печатаемая форма — это
+        # снова незащищённое число, и узнать об этом надо по красной строке, а не по удаче.
+        if extra_lines != len(ex):
+            reasons.append(f"PARSER: печатаемых форм на нулевой колонке {extra_lines}, разобрано "
+                           f"{len(ex)} — неразобранная форма остаётся вне заморозки")
         if not names:
             reasons.append("EMPTY: в модели нет ни одной теоремы — проверять нечего")
         rc, out, ms = temp_compile(augmented(src, ns, names))
@@ -356,16 +461,22 @@ def cmd_check(args):
         if not ok:
             broken += 1
             rc_all = 1
+        # `DEFS` остаётся числом тел `def`/`abbrev`, а не «всем, кроме теорем»: ключ уже читают
+        # чужие прогоны (`lab/e0107-run.sh`), и расширить его значение задним числом означало бы
+        # тихо переопределить имя факта, у которого есть другой владелец.
+        defs_n = sum(1 for k, _, _ in fprs if k in ("def", "abbrev"))
+        extras_total += len(ex)
         print(f"LEAN_FILE={base} EXIT={rc} ERRORS={errors} SORRY={sorry_grep} SORRYAX={sorry} "
               f"NATIVE_AXIOMS={native} STD_AXIOMS={std} CUSTOM_AXIOMS={custom} "
               f"AXIOM_FREE={len(names) - native - sorry - custom - std} DECLS={len(names)} "
-              f"DEFS={len(fprs) - len(names)} MS={ms} OK={ok}")
+              f"DEFS={defs_n} EXTRAS={len(ex)} MS={ms} OK={ok}")
         # причина отказа печатается всегда, в том числе с `--quiet`: смысл этого прибора в том, что
         # отказ обязан быть назван, а `--quiet` в прежнем скрипте приглушал только дамп компилятора
         if not ok:
             for r in reasons:
                 print(f"  ПРОТИВ {base}: {r}")
     print(f"LEAN_TOTAL={total} DECLS_TOTAL={decls_total} FROZEN_ROWS={frozen_total} "
+          f"EXTRAS_TOTAL={extras_total} "
           f"BROKEN={broken} SORRY_TOTAL={sorry_total} "
           f"SORRYAX_TOTAL={sorryax_total} "
           f"NATIVE_AXIOMS={native_total} STD_AXIOMS={std_total} CUSTOM_AXIOMS={custom_total} "
@@ -386,11 +497,14 @@ def cmd_freeze(args):
     rows_total = 0
     for model in models:
         src = open(model, encoding="utf-8").read()
-        # Заморозка замораживает то же множество объектов, что и проверка: подписи теорем И тела
-        # `def`/`abbrev`. Если бы freeze писал только теоремы, а check сверял бы и `def`, гейт
-        # краснел бы на годном дереве; если бы наоборот — тела остались бы незащищёнными.
+        # Заморозка замораживает то же множество объектов, что и проверка: подписи теорем, тела
+        # `def`/`abbrev` и печатаемые формы (`E-0141`). Если бы freeze писал только теоремы, а check
+        # сверял бы и `def`, гейт краснел бы на годном дереве; если бы наоборот — тела и числа
+        # остались бы незащищёнными.
         pairs = frozen_pairs(src)
         thm = statements(src)
+        defs = bodies(src)
+        ex = extras(src)
         digest, block = digest_of(pairs)
         path = frozen_path(root, model)
         # `newline="\n"` обязателен: `.gitattributes` держит репозиторий на LF, а Windows-Python
@@ -403,8 +517,8 @@ def cmd_freeze(args):
             fh.write(block + "\n")
         n += 1
         rows_total += len(pairs)
-        print(f"FREEZE_FILE={os.path.basename(model)} DECLS={len(thm)} DEFS={len(pairs) - len(thm)} "
-              f"FROZEN_ROWS={len(pairs)} DIGEST={digest[:16]}")
+        print(f"FREEZE_FILE={os.path.basename(model)} DECLS={len(thm)} DEFS={len(defs)} "
+              f"EXTRAS={len(ex)} FROZEN_ROWS={len(pairs)} DIGEST={digest[:16]}")
     print(f"FREEZE файлов={n} FROZEN_ROWS={rows_total} каталог=lab/lean/frozen")
     return 0
 
@@ -459,6 +573,22 @@ WEAKEN_TO = "theorem there_are_eight_names : ((List.range rungs).map nameOf).era
 # быть ∀. Прежний страж на этом прогоне молчал (`PLANT_CAUGHT=0`) — он замораживал только подписи.
 WEAK_DEF_FROM = "  legalStarts.all fun st => traces.all fun t => leB (card (run step t st).1) cap"
 WEAK_DEF_TO = "  legalStarts.all fun st => (traces.take 3).all fun t => leB (card (run step t st).1) cap"
+# E-0141: третий класс тихой правки — печатаемые формы. Все три мутатора выбраны так, чтобы модель
+# ОСТАВАЛАСЬ КОМПИЛИРУЕМОЙ: иначе страж краснел бы по чужой причине (COMPILE), и отбитый дефект
+# ничего не говорил бы о дайджесте. Измерено до заморозки порога: каждая посадка даёт `rc=0`,
+# `ERRORS=0` и зелёный прежний прибор.
+WEAK_EVAL_FROM = "#eval (space.length, cap, traces.length, asks.length, legalStarts.length)"
+WEAK_EVAL_TO = "#eval (space.length, cap, (traces.take 3).length, asks.length, legalStarts.length)"
+# Перестановка полей `structure`: модель компилируется дальше (запись конструируется и по именам),
+# а смысл позиционных конструкций `⟨a, b⟩` и код, генерируемый `deriving`, уже другие. Для стража
+# важно даже другое: это правка текста объявления, и она обязана быть названа, а не промолчана.
+WEAK_STRUCT_FROM = "structure Point where\n  first : Nat\n  factor : Nat\n"
+WEAK_STRUCT_TO = "structure Point where\n  factor : Nat\n  first : Nat\n"
+# Перестановка конструкторов суммы: имена остаются на месте, компилятор молчит, а меняются номера
+# конструкторов, порядок индукции и то, что печатают `deriving Repr`/`BEq`. Тот же класс дыры, что с
+# полями: текст объявления модели никто не сравнивал.
+WEAK_INDUCTIVE_FROM = "inductive Mem\n  | none\n  | some (l : List Key)\n"
+WEAK_INDUCTIVE_TO = "inductive Mem\n  | some (l : List Key)\n  | none\n"
 
 
 def _tree(base, extra=None):
@@ -509,6 +639,15 @@ def cmd_selftest(args):
         # красному выводу, а нужен факт «под дайджестом стоит тело def и оно охраняется».
         ("∀ в def ослаблена (E-0107)", {"__weakdef__": True},
          "изменена после заморозки: ['propBounded']"),
+        # Три дефекта `E-0141`: печатаемое число, поля записи и конструкторы суммы. Причина обязана
+        # назвать класс и ключ — «красный вообще» не отличает охрану дайджеста от случайной поломки
+        # компиляции по соседству.
+        ("печатаемое число ослаблено (E-0141)", {"__weakeval__": True},
+         "изменена после заморозки: ['#eval#"),
+        ("поля записи переставлены (E-0141)", {"__weakstruct__": True},
+         "изменена после заморозки: ['structure Point']"),
+        ("конструкторы суммы переставлены (E-0141)", {"__weakinductive__": True},
+         "изменена после заморозки: ['inductive Mem']"),
         ("теорема удалена", {"__drop__": True}, "исчезла из модели"),
         ("теорема во вложенном namespace", {"Nested.lean": BAD_NAMESPACE}, "прибор молчит"),
         ("модель без деклараций", {"Empty.lean": BAD_EMPTY}, "нет ни одной теоремы"),
@@ -546,6 +685,24 @@ def cmd_selftest(args):
                       "теорем, тела пришлось бы править дважды")
                 continue
             open(p, "w", encoding="utf-8").write(t.replace(WEAK_DEF_FROM, WEAK_DEF_TO))
+        # Посадки третьего класса (`E-0141`): тот же договор, что у `__weakdef__` — правится ровно
+        # один объект, модель обязана компилироваться, а отбитый дефект обязан назвать ключ формы.
+        plant = None
+        if mutation.get("__weakeval__"):
+            plant = ("Bounded.lean", WEAK_EVAL_FROM, WEAK_EVAL_TO, "печатаемая строка `#eval`")
+        if mutation.get("__weakstruct__"):
+            plant = ("Shard.lean", WEAK_STRUCT_FROM, WEAK_STRUCT_TO, "блок `structure Point`")
+        if mutation.get("__weakinductive__"):
+            plant = ("Shard.lean", WEAK_INDUCTIVE_FROM, WEAK_INDUCTIVE_TO, "блок `inductive Mem`")
+        if plant:
+            fname, frm, to, what = plant
+            p = os.path.join(d, fname)
+            t = open(p, encoding="utf-8").read()
+            if t.count(frm) != 1:
+                print(f"  ДЕФЕКТ {name}: ПОСАДКА НЕ СРАБОТАЛА — {what} встречается "
+                      f"{t.count(frm)} раз (модель изменилась, мутатор устарел)")
+                continue
+            open(p, "w", encoding="utf-8").write(t.replace(frm, to))
         if mutation.get("__drop__"):
             # Удаление обязано снять ВСЮ декларацию: строку `theorem … := by` и все последующие
             # строки доказательства (они с отступом) вплоть до следующей строки нулевой колонки.

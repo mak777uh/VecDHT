@@ -1,6 +1,24 @@
 # lean-statement-digest v1
-# cycle: E-0107
-# digest: 1ea34deb39291c5a0b96e650949def5016f903b1bcd50735fb4e831d91850d7c
+# cycle: E-0141
+# digest: c14607ce1f902dd68e7c5080d1e35555593aa40d915a475ba89926fdb10e0351
+cmd	#eval#1	c7e18548530a7d87
+cmd	#eval#10	6244d62ed92a629b
+cmd	#eval#11	528d66088143fce2
+cmd	#eval#12	290030bbc354f606
+cmd	#eval#13	4666486f042eb0f5
+cmd	#eval#14	fec3b5114aaf806a
+cmd	#eval#15	be9c6ff9b2d81fde
+cmd	#eval#16	7eaa3d46e2b999b0
+cmd	#eval#17	83044a66c5c7ac57
+cmd	#eval#18	68045d4af0731f4d
+cmd	#eval#2	f76d6f09d95bf42c
+cmd	#eval#3	33bfd134468d0a3b
+cmd	#eval#4	99f801c580194650
+cmd	#eval#5	ba56e8c73c9b3944
+cmd	#eval#6	b24574c5854e12da
+cmd	#eval#7	33bfd134468d0a3b
+cmd	#eval#8	32f3655b85d5874e
+cmd	#eval#9	e2acdff254862d10
 abbrev	Key	026243ff19004141
 def	acceptType	3e0f27b68782de6e
 theorem	accept_is_primary_and_lease	5e3c91f261a3a5e8
@@ -29,6 +47,9 @@ theorem	hopeless_cost_is_length	d3acabc613a226e5
 def	implyingForms	730dc044333e600a
 theorem	implyingForms_are_exactly_the_supersets	894f0c9bf1be26f8
 theorem	implyingForms_are_sixteen	377c7c311238d97c
+inductive	inductive Mem	8bd2c680b81f2ae3
+inductive	inductive Principal	182bf90e854dfa6f
+inductive	inductive PubOutcome	2888b54509f4978f
 def	isMember	05a6969b68c66c29
 def	isPrimary	97aed22544d702f2
 def	lastQuery	60b26b4071004254
@@ -63,6 +84,8 @@ def	shapeBit	fe7ad9073053203d
 def	shapeHolds	37f7ed07b16b0954
 def	states	c21e756f82b332af
 theorem	states_are_32	5c067baad40f887f
+structure	structure Local	3a0e993b15430e7d
+structure	structure Point	ed7c0be9d8570aec
 def	tAuth	96e7e92bb2ff1f1e
 theorem	tail_is_never_covered	03f975ba15cc4519
 def	takesFind	bfd05d402109bc14
