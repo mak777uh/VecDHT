@@ -1,7 +1,8 @@
 ---
 id: E-0143
 hypothesis: H-0143
-status: pending
+status: closed
+verdict: supports
 base_commit: "d835f5b"
 started: "2026-10-28"
 environment: "x86_64-pc-windows-gnu, хост владельца; bash, python и cargo — прибор читает документ и
@@ -58,3 +59,28 @@ citations» при счётчике стража 1580. Круг заводит �
 доказывает поведение — что `with_centroids` грузит центроиды, доказывает `node_centroids.rs`, и
 носитель круга прогоняет его отдельно. Условие 3 (`ADR-0044`) не закрывается: прогон на второй
 машине остаётся за владельцем (`E-0142`, `OPEN-QUESTIONS` п. 82).
+
+## Результат (официальные прогоны)
+
+Порог исполнен: `GATE_H0143_OK=1`, `DISK_GE_15000=1`; прибора в пине нет (`PRE_FIX_INSTRUMENT=0`,
+`PRE_FIX_STALE=none`, `PRE_FIX_KEYS=0`); самопроверка `SELFTEST_TOTAL=13`, `SELFTEST_PASSED=13`;
+документ пина — `CHK_PREFIX_EXIT=1`, `CHK_PREFIX_STALE=3`, `CHK_PREFIX_CONSISTENT=1`,
+`CHK_PREFIX_IDS=S-01,S-02,S-04`, все три с причиной `doc-contradicts`, `PRE_S03=consistent`;
+исправленный документ — `CHK_EXIT=0`, `CHK_OK=1`, `CHK_STALE=0`, `CHK_IDS=none`, `CHK_CLAIMS=4`,
+`CHK_CONSISTENT=4`, `CHK_FACTS=9`, `CHK_FACTS_OK=9`, `CHK_FACTS_MISSING=none`, `POST_S01..S04=consistent`;
+носители — `ORACLE_NODE_CENTROIDS_PASSED=2`, `ORACLE_NODE_RUN_PASSED=3`, `ORACLE_TESTS_OK=1`;
+`CI_STATUS_STEP=1`; все соседние стражи 0, `LINT_ORPHANS=0`, `RUST_TOUCHED=0`, `WORST_RC=0`.
+
+Два исполнения на неизменном дереве `6b7fc74` сверились с таблицей целиком:
+`ОЖИДАНИЙ=55 РАСХОЖДЕНИЙ=0`, `STABLE=1`. Полный контур `workspace-verify.sh E-0143`:
+`VERIFY_FAIL=0`, 134 среза, 786 тестов, 0 падений, 9 `#[ignore]`, `SECONDS_total=2162`,
+диск 23 052 → 22 961 МБ.
+
+## Итог исполнения
+
+Пре-регистрация `5d56e99`, починка `b94526a` и `6b7fc74` (после ДИАГНОЗА-1), носитель
+`lab/logs/e0143-all.log`. Продукт не тронут (`RUST_TOUCHED=0`): цикл документный, а поведение
+владельцев строк доказывают их собственные тесты, которые носитель прогоняет отдельно. Страж
+`lab/check-status-claims.py` стоит в `.github/workflows/verify.yml`. Условие 3 релиза не засчитано.
+Остатки — `OPEN-QUESTIONS` п. 83; голова очереди в зелёной зоне — флаги `--class`/`--dir`
+(Batch C, п. 53.2, `E-0100`).

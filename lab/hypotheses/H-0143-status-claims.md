@@ -1,6 +1,7 @@
 ---
 id: H-0143
-status: open
+status: closed
+verdict: supports
 date: 2026-10-28
 claim: "`docs/STATUS-v1.md` содержит ровно три утверждения, опровергнутых деревом, и прибор
 `lab/check-status-claims.py` называет их по именам: (1) «The shipping binary does not load centroids
@@ -100,11 +101,13 @@ citations», а страж печатает 1580.
 
 ## Результат (официальные прогоны)
 
-Замер подтвердил утверждение. Пин прибора пуст (`PRE_FIX_INSTRUMENT=0`). Самопроверка 13 из 13.
-Прибор по документу пина дал `CHK_PREFIX_STALE=3` с именами `S-01,S-02,S-04` и оставил `S-03`
-согласованным; по исправленному документу — `CHK_STALE=0`, `CHK_IDS=none`, `CHK_CLAIMS=4`. Носители
-зелёные: `node_centroids` 2 из 2, `node_run` 3 из 3. Ожиданий 61, расхождений 0, `STABLE=1`;
-соседние стражи зелёные, `RUST_TOUCHED=0`.
+Замер подтвердил утверждение. Пин прибора пуст (`PRE_FIX_INSTRUMENT=0`, `PRE_FIX_STALE=none`,
+`PRE_FIX_KEYS=0`). Самопроверка 13 из 13. Прибор по документу пина (`git show 5d56e99` во временный
+файл, `--doc`) дал `CHK_PREFIX_EXIT=1`, `CHK_PREFIX_STALE=3` с именами `S-01,S-02,S-04` и оставил
+`S-03` согласованным; по исправленному документу — `CHK_EXIT=0`, `CHK_STALE=0`, `CHK_IDS=none`,
+`CHK_CLAIMS=4`, `CHK_FACTS=9 из 9`. Носители зелёные: `node_centroids` 2 из 2, `node_run` 3 из 3.
+Ожиданий 55, расхождений 0, `STABLE=1`; соседние стражи зелёные, `RUST_TOUCHED=0`. Цена двух
+прогонов — 4 мин 37,5 с и 4 мин 26,1 с.
 
 ## Поправка после исполнения
 
