@@ -1,0 +1,73 @@
+# E-0142 · заморожено до официальных прогонов (числа сняты разведкой 2026-10-28 на пине `0a34422`:
+# снимок 35 ключей, blob-байты 4509/23137/11787 и их sha256, рабочая форма 4539/23203/11809 байт при
+# CRLF 30/66/22 — тест перезаписывает фикстуры через `writeln!`, а blob в git хранит LF; сверщик
+# 13 ключей, самопроверка 24/24; в пине прибора нет — дыра называется отсутствием). Рабочие байты
+# мерены побайтово в python: `grep -c $'\r'` на этих же файлах печатает 0 (ДИАГНОЗ круга о том, что
+# строковый счётчик переводов строк не является байтовым).
+# `SNAP_MACHINE` не заморожен: на второй машине он законно другой, а сверка смотрит blob, HEAD и
+# чистоту. `DISK_FREE_MB` в таблицу не входит: он дышит между прогонами.
+GATE_H0142_OK	1	гейт цикла видит пре-регистрацию карточки
+DISK_GE_15000	1	диск не меньше 15 000 МБ до сбора снимка
+PIN_FOUND	1	коммит пре-регистрации найден по сообщению
+PRE_FIX_INSTRUMENT	0	в пине прибора нет: `git show <пин>:lab/two-machine.py` пуст
+PRE_FIX_KEYS	0	пин не напечатал ни одного ключа снимка (молчание не засчитано как снимок)
+PRE_FIX_SNAPSHOT	none	снимка до круга нет — дыра называется отсутствием
+SELFTEST_EXIT	0	самопроверка сверщика завершена без отказа
+SELFTEST_TOTAL	24	посаженных случаев в самопроверке
+SELFTEST_PASSED	24	все посаженные дефекты отбиты
+SNAP_EXIT	0	снимок собран без отказа
+SNAP_KEYS	35	ключей в снимке: 14 скалярных и 21 по трём фикстурам
+SNAP_OK	1	три фикстуры прочитаны, путь за корень не уходил
+SNAP_ESCAPE	0	ни один путь фикстуры не вышел за корень дерева
+SNAP_DIRTY	0	дерево на момент снимка чисто
+SNAP_ROOT_NAME	vecdht	корень назван именем каталога, без домашнего абсолютного пути
+SNAP_TESTS_RAN	3	три золотых теста прогнаны при сборе снимка
+SNAP_TESTS_OK	3	три золотых теста зелены на этом дереве
+SNAP_FIXTURE_crypto_BLOB_SHA256	15a4d7f145ff750d7c69142dc47df0291f3e6f11fb10d3dcdc15ba39d7384921	байты вектора — blob git, а не рабочая форма
+SNAP_FIXTURE_crypto_BLOB_BYTES	4509	blob крипто-векторов в байтах
+SNAP_FIXTURE_wire_BLOB_SHA256	ce0bd8a4db523f941c22a457834cb37ad1bdf5d882c74f77f5cd134ca25ab9c4	blob wire-векторов
+SNAP_FIXTURE_wire_BLOB_BYTES	23137	blob wire-векторов в байтах
+SNAP_FIXTURE_artifact_BLOB_SHA256	411f91b942546bf7d1dd82b47f517a4464cc69f2ba844ae447ae9dcb9c7fcb91	blob артефакта
+SNAP_FIXTURE_artifact_BLOB_BYTES	11787	blob артефакта в байтах
+SNAP_FIXTURE_crypto_WORK_BYTES	4539	рабочая форма длиннее blob на число CR: 30
+SNAP_FIXTURE_wire_WORK_BYTES	23203	рабочая форма длиннее blob на 66 байт
+SNAP_FIXTURE_artifact_WORK_BYTES	11809	рабочая форма длиннее blob на 22 байта
+SNAP_FIXTURE_crypto_WORK_CRLF	30	ловушка воспроизведена: рабочая форма крипто-векторов в CRLF
+SNAP_FIXTURE_wire_WORK_CRLF	66	рабочая форма wire-векторов в CRLF
+SNAP_FIXTURE_artifact_WORK_CRLF	22	рабочая форма артефакта в CRLF
+SNAP_FIXTURE_crypto_CLEAN	1	рабочая форма фикстуры нормализуется в blob
+SNAP_FIXTURE_wire_CLEAN	1	рабочая форма wire-фикстуры нормализуется в blob
+SNAP_FIXTURE_artifact_CLEAN	1	рабочая форма артефакта нормализуется в blob
+VERIFY_EXIT	0	собственный снимок засчитан
+V_MATCH	9	9 сверенных ключей (3 фикстуры × blob-хеш, blob-байты, CLEAN)
+V_MISMATCH	none	расхождений нет
+V_MISSING	none	пропущенных ключей нет
+V_FOREIGN	none	чужих ключей нет
+V_DUPLICATE	none	повторов нет
+V_HEAD_MATCH	1	HEAD снимка совпадает с локальным
+V_TESTS	3	снимок называет три прогона тестов
+V_TESTS_OK	3	все три прогона зелены
+V_VERDICT	pass	вердикт собственного снимка
+V_REASONS	none	ни одной причины отказа
+TAMPER_EXIT	1	подменённый blob-хеш отвергнут
+TAMPER_VERDICT	fail	вердикт подменённого снимка — отказ
+TAMPER_MATCH	8	из девяти сверенных ключей совпали восемь
+TAMPER_MISMATCH	TM_FIXTURE_wire_BLOB_SHA256	отказ называет подменённый ключ поимённо
+OTHER_EXIT	0	снимок с чужой рабочей формой засчитан
+OTHER_VERDICT	pass	законное различие рабочей формы вердикт не меняет
+SECRETS_EXIT	0	страж секретов
+REFS_EXIT	0	страж цитат путей
+CLAIMMAP_EXIT	0	страж карты утверждений
+CLAIMS_EXIT	0	страж реестра утверждений
+CONTOURS_EXIT	0	страж блоков контура
+TEXTGUARD_ALL_EXIT	0	страж текста по всему дереву
+TEXTGUARD_ALL_DIRTY	0	файлов с грязью алфавита нет
+TEXTGUARD_CYCLE_EXIT	0	страж текста по файлам цикла
+MIRROR_EXIT	0	зеркало спеки синхронно
+LINT_LATEST_EXIT	0	линт порогов по свежей таблице
+LINT_ORPHANS	0	сирот в свежей таблице нет
+GATE_AUDIT_EXIT	0	аудит гейтов
+REVIEW_EXIT	0	repo-review без находок
+RUST_TOUCHED	0	цикл не тронул продукт
+WORST_RC	0	ни один замороженный порог не нарушен
+STABLE	1	два исполнения на неизменном дереве печатают один вектор
