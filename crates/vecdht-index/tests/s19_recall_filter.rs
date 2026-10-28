@@ -48,9 +48,9 @@ fn jitter(seed: u64) -> i32 {
 
 fn vec_near(row: &[i8; DIM], seed: u64) -> [i8; DIM] {
     let mut v = *row;
-    for d in 0..DIM {
-        let x = i32::from(v[d]) + jitter(seed.wrapping_add((d as u64).wrapping_mul(1_000_003)));
-        v[d] = x.clamp(-127, 127) as i8;
+    for (d, slot) in v.iter_mut().enumerate() {
+        let x = i32::from(*slot) + jitter(seed.wrapping_add((d as u64).wrapping_mul(1_000_003)));
+        *slot = x.clamp(-127, 127) as i8;
     }
     v
 }
@@ -139,11 +139,7 @@ fn matched(hits: &[(u32, u32)], oracle: &[(u64, u32)]) -> u64 {
 }
 
 fn pm(num: u64, den: u64) -> u64 {
-    if den == 0 {
-        0
-    } else {
-        num * 1000 / den
-    }
+    (num * 1000).checked_div(den).unwrap_or(0)
 }
 
 fn print(key: impl std::fmt::Display, value: impl std::fmt::Display) {
