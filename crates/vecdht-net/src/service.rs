@@ -20,12 +20,14 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use libp2p::futures::StreamExt;
+use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::gossipsub::{self, IdentTopic, MessageAuthenticity, ValidationMode};
 use libp2p::kad::store::MemoryStore;
 use libp2p::kad::{self, QueryResult, RecordKey};
 use libp2p::request_response::{self, OutboundRequestId, ProtocolSupport};
+use libp2p::multiaddr::Protocol;
 use libp2p::swarm::{Swarm, SwarmEvent};
-use libp2p::{identify, noise, tcp, yamux, Multiaddr, PeerId, StreamProtocol, SwarmBuilder};
+use libp2p::{identify, noise, relay, tcp, yamux, Multiaddr, PeerId, StreamProtocol, SwarmBuilder};
 use thiserror::Error;
 use vecdht_crypto::{verify_body, verify_revoke, AuthoritySet, Identity};
 use vecdht_node::{Clock, Envelope, RevocationInsert, Revocations, ShardNode};
@@ -186,6 +188,15 @@ pub struct NetService {
     /// Сколько provider-запросов §7.4 завершилось успехом. Наблюдаемость для гейтов: «узел
     /// объявил шард» и «узел попытался объявить» — разные утверждения.
     pub provider_announcements: u64,
+    /// Circuit relay v2 (§16.3), четыре независимых факта транспорта: сервер принял слот
+    /// (`reservation_req_accepted`), сервер провёл контур (`circuit_accepted`), клиент получил
+    /// слот (`reservation_granted`), клиент открыл контур к цели (`circuit_established`).
+    /// Счётчики, а не текст: «релей включён» и «через релей прошли байты» — разные утверждения,
+    /// и второе обязано быть наблюдаемым до замеров WAN (P6).
+    relay_server_reservations: u64,
+    relay_server_circuits: u64,
+    relay_client_reservations: u64,
+    relay_client_circuits: u64,
     cfg: NetConfig,
     last_tick_sec: u64,
     last_provide_sec: u64,
@@ -246,6 +257,8 @@ impl NetService {
         // `ADD_PROVIDER`: клиент libp2p-kad отвечает `DeniedUpgrade` и запись провайдера не
         // сохраняет. Агент остаётся клиентом — он только спрашивает.
         let is_server = role != Role::Agent;
+        // Релей — роль, а не побочный эффект: серверную половину получает только `Role::Relay`.
+        let is_relay = role == Role::Relay;
         let model_version = cfg.model_version.clone();
         let agent_version = cfg.agent_version.clone();
         let request_timeout = cfg.request_timeout;
@@ -271,7 +284,12 @@ impl NetService {
                     idle_timeout.as_millis().min(u128::from(u32::MAX)) as u32;
                 c
             })
-            .with_behaviour(move |key| {
+            // §16.3: клиентская половина circuit relay нужна всем ролям, а не только релею.
+            // Транспорт `/p2p-circuit` добавляется здесь же; серверная половина живёт в
+            // `Behaviour` и включается только у `Role::Relay` (см. `behaviour.rs`).
+            .with_relay_client(noise::Config::new, yamux::Config::default)
+            .map_err(|e| NetError::Build(e.to_string()))?
+            .with_behaviour(move |key, relay_client| {
                 let peer = key.public().to_peer_id();
                 let mut kad_cfg = kad::Config::new(StreamProtocol::new("/vecdht/v8/kad"));
                 kad_cfg.set_query_timeout(Duration::from_secs(30));
@@ -297,7 +315,12 @@ impl NetService {
                     protocols,
                     request_response::Config::default().with_request_timeout(request_timeout),
                 );
-                Ok(Behaviour { frames, kad, identify, gossip })
+                let relay_server = if is_relay {
+                    Toggle::from(Some(relay::Behaviour::new(peer, relay::Config::default())))
+                } else {
+                    Toggle::from(None)
+                };
+                Ok(Behaviour { frames, kad, identify, gossip, relay_client, relay_server })
             })
             .map_err(|e| NetError::Build(e.to_string()))?
             .with_swarm_config(|c| c.with_idle_connection_timeout(idle_timeout))
@@ -350,6 +373,10 @@ impl NetService {
             listen_addrs: Vec::new(),
             errors: Vec::new(),
             provider_announcements: 0,
+            relay_server_reservations: 0,
+            relay_server_circuits: 0,
+            relay_client_reservations: 0,
+            relay_client_circuits: 0,
             cfg,
             last_tick_sec: 0,
             last_provide_sec: 0,
@@ -517,6 +544,18 @@ impl NetService {
         self.door.count(reason)
     }
 
+    /// Circuit relay v2 (§16.3): `(сервер: слоты, контуры; клиент: слоты, контуры)`.
+    /// Четыре нуля у узла — это «релей не участвовал», а не «релей не настроен»: включённость
+    /// серверной половины задаётся ролью, а не этим счётчиком.
+    pub fn relay_stats(&self) -> (u64, u64, u64, u64) {
+        (
+            self.relay_server_reservations,
+            self.relay_server_circuits,
+            self.relay_client_reservations,
+            self.relay_client_circuits,
+        )
+    }
+
     /// Число пиров в таблице маршрутизации Kademlia. Тестам нужно отличать «запись не ушла,
     /// потому что некого было спрашивать» от «запись ушла и не дошла».
     pub fn kad_peer_count(&mut self) -> usize {
@@ -524,6 +563,23 @@ impl NetService {
     }
 
     // --- действия -----------------------------------------------------------
+
+    /// Зарезервировать слот на релее (§16.3). Адрес обязан нести `/p2p/<relay-id>`: без него
+    /// клиентский транспорт не знает, кому слать HOP-запрос, и «резервация» молча не начнётся.
+    /// Возвращается адрес слушателя `/p2p-circuit`; полный адрес цели для дозвона — он же плюс
+    /// `/p2p/<target-id>`.
+    pub fn reserve_circuit(&mut self, relay: Multiaddr) -> Result<Multiaddr, NetError> {
+        if !relay.iter().any(|p| matches!(p, Protocol::P2p(_))) {
+            return Err(NetError::Listen(
+                "адрес релея без /p2p/<peer-id>: резервация не адресуема".to_string(),
+            ));
+        }
+        let addr = relay.with(Protocol::P2pCircuit);
+        self.swarm
+            .listen_on(addr.clone())
+            .map_err(|e| NetError::Listen(e.to_string()))?;
+        Ok(addr)
+    }
 
     pub fn dial(&mut self, addr: Multiaddr) -> Result<(), NetError> {
         self.swarm.dial(addr).map_err(|e| NetError::Dial(e.to_string()))
@@ -665,7 +721,16 @@ impl NetService {
 
     fn on_swarm_event(&mut self, ev: SwarmEvent<BehaviourEvent>) {
         match ev {
-            SwarmEvent::NewListenAddr { address, .. } => self.listen_addrs.push(address),
+            SwarmEvent::NewListenAddr { address, .. } => {
+                // `E-0145`: релей обязан объявить адрес, по которому к нему придут клиенты, —
+                // иначе OK резервации несёт пустой список адресов, и клиент отвергает слот
+                // (`NoAddressesInReservation`). В v1 внешним считается собственный listen-адрес;
+                // WAN за NAT требует отдельного решения оператора — это граница, а не свойство.
+                if self.role == Role::Relay {
+                    self.swarm.add_external_address(address.clone());
+                }
+                self.listen_addrs.push(address)
+            }
             SwarmEvent::ConnectionEstablished { peer_id, .. } => {
                 if peer_id == self.local_peer {
                     self.errors.push("соединение с самим собой".to_string());
@@ -715,6 +780,34 @@ impl NetService {
             BehaviourEvent::Kad(e) => self.on_kad_event(e),
             BehaviourEvent::Identify(e) => self.on_identify_event(e),
             BehaviourEvent::Gossip(e) => self.on_gossip_event(e),
+            BehaviourEvent::RelayClient(e) => self.on_relay_client_event(e),
+            BehaviourEvent::RelayServer(e) => self.on_relay_server_event(e),
+        }
+    }
+
+    /// События клиентской половины: только успехи считаются. Отказ резервации у клиента
+    /// приходит таймаутом транспорта, а не отдельным вариантом, и потому виден в `errors`.
+    fn on_relay_client_event(&mut self, ev: relay::client::Event) {
+        match ev {
+            relay::client::Event::ReservationReqAccepted { .. } => {
+                self.relay_client_reservations += 1;
+            }
+            relay::client::Event::OutboundCircuitEstablished { .. } => {
+                self.relay_client_circuits += 1;
+            }
+            _ => {}
+        }
+    }
+
+    fn on_relay_server_event(&mut self, ev: relay::Event) {
+        match ev {
+            relay::Event::ReservationReqAccepted { .. } => {
+                self.relay_server_reservations += 1;
+            }
+            relay::Event::CircuitReqAccepted { .. } => {
+                self.relay_server_circuits += 1;
+            }
+            _ => {}
         }
     }
 

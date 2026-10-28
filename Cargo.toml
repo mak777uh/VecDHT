@@ -52,7 +52,7 @@ sha2 = "0.10"
 tokio = { version = "1", features = ["net", "rt", "rt-multi-thread", "sync", "time", "macros", "fs"] }
 libp2p = { version = "0.54", features = [
     "ed25519", "kad", "quic", "noise", "tcp", "yamux", "gossipsub", "identify",
-    "dns", "ping", "request-response", "tokio", "macros",
+    "dns", "ping", "request-response", "tokio", "macros", "relay",
 ] }
 # Только макрос для реализации чужого трейта `request_response::Codec`: libp2p объявляет его
 # через `#[async_trait]`, и без того же атрибута на impl сигнатуры не совпадают. Это не
