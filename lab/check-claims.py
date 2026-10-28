@@ -9,12 +9,21 @@
 «доказано для кода», «оценка» — назваться измерением, «гейт закрыт» — назвать три гейта, не назвав
 трёх носителей.
 
-Проверка двусторонняя, иначе реестр становится параллельной правдой:
+Проверка трёхсторонняя, иначе реестр становится параллельной правдой:
 
 * вниз — каждая строка обязана найтись в носителе (`DANGLING`), иначе это выдуманное утверждение;
 * вверх — каждый пункт таблицы пяти условий `docs/STATUS-v1.md` обязан иметь хотя бы одну строку
   (`CONDITIONS_COVERED` против `CONDITIONS_TABLE`), иначе реестр не покрывает то множество,
-  которое читает посторонний.
+  которое читает посторонний;
+* вверх по тексту — каждое сильное утверждение трёх носителей (`TRIGGER_SENTENCES`) обязано быть
+  покрыто строкой реестра (`UNREGISTERED`), иначе опубликованная готовность живёт вне прибора:
+  ровно так blanket-утверждение о гейтах P2–P5 нашёл `grep` в круге `E-0132`, а не контур.
+
+Сильным считается утверждение, в котором есть и глагол сверки (closed / measured / verified /
+proved / checked / run / готов / закрыт / измерен / проверен), и якорь — id карточки или процент.
+Без якоря предложение остаётся prose'ом: прибор не читает романы, он читает ссылки. Покрытым
+считается предложение, накрывающее вхождение формулировки хоть одной строки реестра с тем же
+носителем — поэтому в реестр кладут различимый фрагмент, а не пересказ.
 
 Отдельным правилом живёт «у имени факта один владелец»: цифра готовности ищется по списку носителей
 и обязана иметь одно значение (`READY_VALUES`), а не два — расхождение 78 % в README против 85 % в
@@ -29,8 +38,8 @@
 Выход: 0 — нарушений нет и покрытие полное; 1 — есть хотя бы одно; 2 — реестр не читается.
 
 `--selftest` собирает временное дерево (поддельные носители и карточки) и прогоняет восемь посаженных
-дефектов и четыре законных случая: первые обязаны быть отбиты, вторые — не тронуты. Посадка
-исполняется, а не описывается в комментарии.
+нисходящих дефектов, шесть законных случаев и три посаженные восходящие дыры: первые и третьи обязаны
+быть отбиты, вторые — не тронуты. Посадка исполняется, а не описывается в комментарии.
 """
 
 from __future__ import annotations
@@ -63,6 +72,17 @@ NEG_BEFORE = re.compile(r"\b(?:not|no|never|without)\b[^.;]{0,18}$", re.I)
 def negated(text: str, at: int) -> bool:
     return bool(NEG_BEFORE.search(text[max(0, at - 24):at]))
 
+# Восходящая сверка текста → реестр. Закрытый список: глагол сверки в любой из трёх языков носителей
+# плюс якорь (id карточки или процент). Расширять список — заводить строку в реестре, а не слово в
+# файле: иначе прибор начинает ловить то, чего автор карточки не ждал.
+STRONG_RE = re.compile(
+    r"\b(?:is|was|are|were|has|have|had)\s+been\s+(?:closed|measured|verified|proved|checked|run)"
+    r"|\b(?:is|was|are|were)\s+(?:closed|measured|verified|proved|checked|run)\b"
+    r"|\bclosed\b|\bmeasured\b|\bverified\b|\bproved\b|\bchecked\b"
+    r"|закрыт|измерен|проверен|готов", re.I)
+PERCENT_RE = re.compile(r"\d[\d\s  ]*%")
+UP_CARRIERS = READY_SCAN
+
 # Тип свидетельства → потолок формулировки. Закрытый список: новый тип заводится строкой здесь, а не
 # надеждой на то, что автор реестра знал английский порядок слов.
 TYPES = {
@@ -90,7 +110,7 @@ ID_DIRS = {"E": "lab/experiments", "H": "lab/hypotheses", "ADR": "lab/decisions"
 L_INDEX = "lab/library/index.jsonl"
 COLUMNS = ("id", "type", "cond", "carrier", "wording", "links")
 FACT_KEYS = ("CLAIMS", "VIOLATIONS", "DANGLING", "CEILING", "QUALIFIER", "TYPE_BAD", "LINK_BAD",
-             "GATE_RATIO", "COND_LINK_BAD")
+             "GATE_RATIO", "COND_LINK_BAD", "TRIGGER_SENTENCES", "UNREGISTERED", "UP_CARRIERS")
 
 
 def norm(text: str) -> str:
@@ -159,6 +179,72 @@ def sentence_of(text: str, fragment: str) -> str:
     if m:
         hi = m.start()
     return cell_of(text[lo:hi].strip(), fragment)
+
+
+def sentences(text: str) -> list[tuple[int, int, str]]:
+    """Предложения с их местами в нормализованном тексте: покрытие меряется вхождением, а не словом."""
+    out = []
+    lo = 0
+    for m in SENT_SPLIT.finditer(text):
+        seg = text[lo:m.start()]
+        if seg.strip():
+            out.append((lo, m.start(), seg.strip()))
+        lo = m.end()
+    if text[lo:].strip():
+        out.append((lo, len(text), text[lo:].strip()))
+    return out
+
+
+def spans_of(text: str, needle: str) -> list[tuple[int, int]]:
+    out = []
+    at = text.find(needle)
+    while at >= 0:
+        out.append((at, at + len(needle)))
+        at = text.find(needle, at + 1)
+    return out
+
+
+def body_for_up(root: str, rel: str) -> str | None:
+    """Носитель для восходящей сверки: заголовки выбрасываются, они называют раздел, а не заявляют факт.
+
+    Измерено на живом дереве: строка `# Status of v1: gates, what closed them, and what is not there`
+    попадала в утверждения, потому что нормализация склеивала заголовок со следующим предложением.
+    """
+    body = read_file(root, rel)
+    if body is None:
+        return None
+    return "\n".join(l for l in body.splitlines() if not l.lstrip().startswith("#"))
+
+
+def up_check(root: str, rows: list[dict]) -> tuple[dict, list[str]]:
+    """Текст вверх: сильное утверждение носителя без строки реестра — дыра, а не стиль."""
+    counts = {"UP_CARRIERS": 0, "TRIGGER_SENTENCES": 0, "UNREGISTERED": 0}
+    problems: list[str] = []
+    for rel in UP_CARRIERS:
+        body = body_for_up(root, rel)
+        if body is None:
+            continue
+        counts["UP_CARRIERS"] += 1
+        text = norm(body)
+        covered: list[tuple[int, int]] = []
+        for row in rows:
+            if row["carrier"] != rel:
+                continue
+            frag = norm(row["wording"])
+            if frag:
+                covered.extend(spans_of(text, frag))
+        for lo, hi, seg in sentences(text):
+            bare = strip_quoted(seg)
+            if not STRONG_RE.search(bare):
+                continue
+            if not (ID_RE.search(seg) or PERCENT_RE.search(seg)):
+                continue
+            counts["TRIGGER_SENTENCES"] += 1
+            if any(a < hi and b > lo for a, b in covered):
+                continue
+            counts["UNREGISTERED"] += 1
+            problems.append(f"НАРУШЕНИЕ UNREGISTERED: {rel}: {seg[:90]!r}")
+    return counts, problems
 
 
 def known_ids(root: str) -> set[str]:
@@ -340,6 +426,11 @@ def check_rows(root: str, registry: str) -> tuple[dict, list[str]]:
                         f"{sorted(values, key=int)} — у имени факта один владелец")
     elif seen and not values:
         fire("QUALIFIER", "ни один носитель не печатает цифру готовности: правило сверяет пустоту")
+
+    up, up_problems = up_check(root, rows)
+    counts.update(up)
+    problems.extend(up_problems)
+    counts["VIOLATIONS"] += up["UNREGISTERED"]
     return counts, problems
 
 
@@ -373,6 +464,8 @@ CASES = [
      "Gates P2 and P4 are closed by `E-0001`", "E-0001", True, "два гейта, один носитель"),
     ("C-113", "not-done", "-", "docs/STATUS-v1.md", "Everything is complete",
      "docs/STATUS-v1.md", True, "not-done без отрицания"),
+    ("C-114", "measured", "-", "docs/STATUS-v1.md", "The door was verified by `E-0001`",
+     "E-0001", False, "законное измерение, зарегистрированное вверх"),
 ]
 
 SELFTEST_DOC = (
@@ -381,8 +474,18 @@ SELFTEST_DOC = (
     "It proves statements about the model, not about code. "
     "The run has not happened. Everything is complete. "
     "Gates P2 and P4 are closed by `E-0001`. Gates P3 and P5 are closed by `E-0001` and "
-    "`lab/claims.tsv`. Readiness is about 40 %.\n"
+    "`lab/claims.tsv`. Readiness is about 40 %. "
+    "The door was verified by `E-0001`. The cache was closed by `E-0001`. "
+    "The wire was measured by `E-0001`, and the roster was proved by `E-0001`. "
+    "The queue is measured without an identifier.\n"
 )
+
+# Что восходящая сверка обязана увидеть в SELFTEST_DOC: первые два предложения посажены как
+# незарегистрированные, «door» зарегистрирована строкой C-114, а последнее сильное слово без якоря
+# не является утверждением и не обязано попадать ни в `TRIGGER_SENTENCES`, ни в `UNREGISTERED`.
+PLANTED_UNREG = ("The cache was closed by", "The wire was measured by", "the roster was proved by")
+REGISTERED_STRONG = "The door was verified by"
+UNANCHORED = "The queue is measured without"
 
 
 def selftest_tree(root: str) -> None:
@@ -419,8 +522,19 @@ def selftest(root: str) -> dict:
               f"нарушение={int(hit)} ожидалось={int(should)}")
     for line in problems:
         print("  " + line)
+    unreg_text = " || ".join(p for p in problems
+                             if "UNREGISTERED:" in p and "docs/STATUS-v1.md:" in p)
+    up_hits = [m for m in PLANTED_UNREG if m in unreg_text]
+    up_false = [m for m in (REGISTERED_STRONG, UNANCHORED) if m in unreg_text]
+    up_ok = len(up_hits) == len(PLANTED_UNREG) and not up_false
+    print(f"СЕЛФТЕСТ {'ok' if up_ok else 'ПРОВАЛ'}: вверх — поймано {len(up_hits)} из "
+          f"{len(PLANTED_UNREG)}, ложных {len(up_false)}, "
+          f"TRIGGER_SENTENCES={counts['TRIGGER_SENTENCES']}, "
+          f"UNREGISTERED={counts['UNREGISTERED']}")
     return {"PLANTED_TOTAL": len(planted), "PLANTED_CAUGHT": caught,
-            "PLANTED_FALSE": false, "LEGAL_TOTAL": len(legal), "ROWS": len(CASES)}
+            "PLANTED_FALSE": false, "LEGAL_TOTAL": len(legal), "ROWS": len(CASES),
+            "UP_PLANTED": len(PLANTED_UNREG), "UP_CAUGHT": len(up_hits),
+            "UP_FALSE": len(up_false), "UP_OK": int(up_ok)}
 
 
 def main(argv=None) -> int:
@@ -441,7 +555,10 @@ def main(argv=None) -> int:
         print(f"PLANTED_CAUGHT={res['PLANTED_CAUGHT']}/{res['PLANTED_TOTAL']}")
         print(f"PLANTED_FALSE={res['PLANTED_FALSE']}")
         print(f"LEGAL_TOTAL={res['LEGAL_TOTAL']}")
-        ok = (res["PLANTED_CAUGHT"] == res["PLANTED_TOTAL"] and res["PLANTED_FALSE"] == 0)
+        print(f"UP_PLANTED={res['UP_PLANTED']} UP_CAUGHT={res['UP_CAUGHT']} "
+              f"UP_FALSE={res['UP_FALSE']}")
+        ok = (res["PLANTED_CAUGHT"] == res["PLANTED_TOTAL"] and res["PLANTED_FALSE"] == 0
+              and res["UP_OK"] == 1)
         print(f"CLAIMS_SELFTEST_EXIT={0 if ok else 1}")
         return 0 if ok else 1
     registry = (args.registry if os.path.isabs(args.registry)
@@ -456,6 +573,9 @@ def main(argv=None) -> int:
         print(f"{key}={counts[key]}")
     for key in ("CONDITIONS_TABLE", "CONDITIONS_COVERED", "READY_CARRIERS", "READY_VALUES"):
         print(f"{key}={counts[key]}")
+    listed = [p.split(": ", 1)[1] for p in problems if "UNREGISTERED:" in p]
+    print("UNREGISTERED_LIST=" + (", ".join(f"{i + 1}:{s}" for i, s in enumerate(listed))
+                                  if listed else "none"))
     print(f"VIOLATIONS={counts['VIOLATIONS']}")
     print(f"CLAIMS_GUARD_EXIT={0 if counts['VIOLATIONS'] == 0 else 1}")
     return 0 if counts["VIOLATIONS"] == 0 else 1
