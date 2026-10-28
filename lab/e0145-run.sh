@@ -17,7 +17,9 @@ FACTS="${OUT}facts.txt"
 : > "$FACTS"
 
 emit() { printf '%s=%s\n' "$1" "$2" | tee -a "$FACTS"; }
-grab() { v=$(grep -o "^$2=[0-9A-Za-z/.,:%;_-]*" "$1" 2>/dev/null | tail -1 | cut -d= -f2); [ -n "$v" ] && printf '%s' "$v" || printf 'none'; }
+# Факт напечатан тестом как `МЕРЕНО <ключ>=<значение>`; якорь обязан допускать префикс,
+# иначе все значения выходят `none` при зелёном тесте (ДИАГНОЗ-1 этого цикла).
+grab() { v=$(grep -oE "(^|[[:space:]])$2=[0-9A-Za-z/.,:%;_-]*" "$1" 2>/dev/null | tail -1 | sed 's/.*=//'); [ -n "$v" ] && printf '%s' "$v" || printf 'none'; }
 
 PIN=$(git log --format=%H --grep="H-0145 пре-регистрация" -1)
 emit PIN_FOUND "$([ -n "$PIN" ] && echo 1 || echo 0)"
