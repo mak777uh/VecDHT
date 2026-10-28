@@ -1,0 +1,252 @@
+########## E-0138 · носитель цикла · 2026-10-28T03:01:00+03:00 · дерево af49739 ##########
+
+Что измеряет носитель. Замкнуто ли множество «закрытая вердиктом карточка обязана иметь блок
+прогона контура», и исполняется ли это сведение контуром и CI, а не лежит текстом правила.
+Прибор `lab/check-contours.py`, таблица исключений `lab/contour-exceptions.tsv`, helper
+`lab/e0138-run.sh`, 63 замороженных ожидания. Числа ниже берутся из исполнений; ни одно не
+выведено из текста карточки.
+
+### ШАГ 0 · пре-регистрация ### дерево 07e299d
+
+Заведены пять файлов: прибор, helper, таблица ожиданий, H-карточка и E-карточка. Файла исключений
+на этом дереве нет, и это годное состояние пробы: отсутствие подтверждено не словами, а
+`git ls-tree 07e299d -- lab/contour-exceptions.tsv` (пустой вывод), в фактах —
+`PRE_FIX_PIN_FILE_ABSENT=1`. Ожидания заморожены до первого официального прогона.
+
+### ШАГ 1 · починка ### деревья d7f669e и af49739
+
+`d7f669e` — таблица исключений из 54 строк (45 класса `до-формы`, 9 класса `после-формы`, у
+каждой строки причина называет предмет карточки), постановка прибора в контур
+(`lab/workspace-verify.sh`) и в CI (`.github/workflows/verify.yml`, job `guards`).
+
+`af49739` — второй коммит починки, его не было в тексте карточки: на первом официальном прогоне
+краснело ожидание `LINT_EXIT=0`, и краснело не из-за прибора сведения. См. ДИАГНОЗ-3.
+
+### ШАГ 2 · два официальных исполнения на неизменном дереве ### дерево af49739
+
+Команда `bash lab/e0138-run.sh` дважды на одном дереве, затем
+`python lab/expect.py lab/expectations/e0138.tsv` по обоим снимкам: `ОЖИДАНИЙ=63 РАСХОЖДЕНИЙ=0`.
+Снимки различаются одной строкой — `STABLE=1` появляется во втором, потому что первому не с чем
+сравнивать, и это единственная разрешённая разница; сверка печатает её в `diff` ниже.
+
+Вектор исполнения A:
+  PRE_FIX_PIN_FILE_ABSENT=1
+  PRE_FIX_PIN_FOUND=1
+  PRE_FIX_EXIT=1
+  PRE_FIX_CLOSED_TOTAL=127
+  PRE_FIX_BLOCK_LABELS=73
+  PRE_FIX_COVERED=73
+  PRE_FIX_MISSING_TOTAL=54
+  PRE_FIX_EXPLAINED=0
+  PRE_FIX_UNEXPLAINED=54
+  PRE_FIX_ERA_TOTAL=0
+  PRE_FIX_MODERN_TOTAL=0
+  PRE_FIX_EXCEPTIONS_ABSENT=1
+  PRE_FIX_REASON_EMPTY=0
+  PRE_FIX_CLASS_BAD=0
+  PRE_FIX_GHOST=0
+  PRE_FIX_DUP=0
+  PRE_FIX_VIOLATIONS=54
+  ПРИОРАРТ H-0138: отказ от источников с причиной
+  LEAN H-0138: модель не сделана, рубрика обязательной не требует
+  E-CARD E-0138: порог, окружение и команда названы
+  CYCLE H-0138=OK нарушений=0
+  GATE_H0138_OK=1
+  DISK_FREE_MB=18774
+  DISK_GE_15000=1
+  CONTOUR_GUARD_EXISTS=1
+  CONTOUR_EXCEPTIONS_EXISTS=1
+  CONTOUR_EXCEPTIONS_ROWS=54
+  SELFTEST_EXIT=0
+  PLANTED_TOTAL=9
+  PLANTED_CAUGHT=9
+  PLANTED_FALSE=0
+  LEGAL_TOTAL=4
+  ABSENT_UNEXPLAINED=8
+  ABSENT_OK=1
+  GUARD_EXIT=0
+  LIVE_FORM_FIRST=E-0049
+  LIVE_CLOSED_TOTAL=127
+  LIVE_BLOCK_LABELS=73
+  LIVE_COVERED=73
+  LIVE_MISSING_TOTAL=54
+  LIVE_EXPLAINED=54
+  LIVE_UNEXPLAINED=0
+  LIVE_ERA_TOTAL=45
+  LIVE_MODERN_TOTAL=9
+  LIVE_EXCEPTIONS_ABSENT=0
+  LIVE_REASON_EMPTY=0
+  LIVE_CLASS_BAD=0
+  LIVE_GHOST=0
+  LIVE_DUP=0
+  LIVE_VIOLATIONS=0
+  PRE_FIX_DIFFERS=1
+  VERIFY_WIRES_CONTOURS=1
+  CI_WIRES_CONTOURS=1
+  SECRETS_EXIT=0
+  REFS_EXIT=0
+  CLAIMMAP_EXIT=0
+  CLAIMS_EXIT=0
+  TEXTGUARD_ALL_EXIT=0
+  TEXTGUARD_ALL_DIRTY=0
+  TEXTGUARD_CYCLE_EXIT=0
+  MIRROR_EXIT=0
+  LINT_EXIT=0
+  LINT_ORPHANS=0
+  GATE_AUDIT_EXIT=0
+  REVIEW_EXIT=0
+  RUST_TOUCHED=0
+  WORST_RC=0
+
+Вектор исполнения B:
+  PRE_FIX_PIN_FILE_ABSENT=1
+  PRE_FIX_PIN_FOUND=1
+  PRE_FIX_EXIT=1
+  PRE_FIX_CLOSED_TOTAL=127
+  PRE_FIX_BLOCK_LABELS=73
+  PRE_FIX_COVERED=73
+  PRE_FIX_MISSING_TOTAL=54
+  PRE_FIX_EXPLAINED=0
+  PRE_FIX_UNEXPLAINED=54
+  PRE_FIX_ERA_TOTAL=0
+  PRE_FIX_MODERN_TOTAL=0
+  PRE_FIX_EXCEPTIONS_ABSENT=1
+  PRE_FIX_REASON_EMPTY=0
+  PRE_FIX_CLASS_BAD=0
+  PRE_FIX_GHOST=0
+  PRE_FIX_DUP=0
+  PRE_FIX_VIOLATIONS=54
+  ПРИОРАРТ H-0138: отказ от источников с причиной
+  LEAN H-0138: модель не сделана, рубрика обязательной не требует
+  E-CARD E-0138: порог, окружение и команда названы
+  CYCLE H-0138=OK нарушений=0
+  GATE_H0138_OK=1
+  DISK_FREE_MB=18757
+  DISK_GE_15000=1
+  CONTOUR_GUARD_EXISTS=1
+  CONTOUR_EXCEPTIONS_EXISTS=1
+  CONTOUR_EXCEPTIONS_ROWS=54
+  SELFTEST_EXIT=0
+  PLANTED_TOTAL=9
+  PLANTED_CAUGHT=9
+  PLANTED_FALSE=0
+  LEGAL_TOTAL=4
+  ABSENT_UNEXPLAINED=8
+  ABSENT_OK=1
+  GUARD_EXIT=0
+  LIVE_FORM_FIRST=E-0049
+  LIVE_CLOSED_TOTAL=127
+  LIVE_BLOCK_LABELS=73
+  LIVE_COVERED=73
+  LIVE_MISSING_TOTAL=54
+  LIVE_EXPLAINED=54
+  LIVE_UNEXPLAINED=0
+  LIVE_ERA_TOTAL=45
+  LIVE_MODERN_TOTAL=9
+  LIVE_EXCEPTIONS_ABSENT=0
+  LIVE_REASON_EMPTY=0
+  LIVE_CLASS_BAD=0
+  LIVE_GHOST=0
+  LIVE_DUP=0
+  LIVE_VIOLATIONS=0
+  PRE_FIX_DIFFERS=1
+  VERIFY_WIRES_CONTOURS=1
+  CI_WIRES_CONTOURS=1
+  SECRETS_EXIT=0
+  REFS_EXIT=0
+  CLAIMMAP_EXIT=0
+  CLAIMS_EXIT=0
+  TEXTGUARD_ALL_EXIT=0
+  TEXTGUARD_ALL_DIRTY=0
+  TEXTGUARD_CYCLE_EXIT=0
+  MIRROR_EXIT=0
+  LINT_EXIT=0
+  LINT_ORPHANS=0
+  GATE_AUDIT_EXIT=0
+  REVIEW_EXIT=0
+  RUST_TOUCHED=0
+  WORST_RC=0
+  STABLE=1
+
+Отличия A от B (пока без метки прогона): ровно `> STABLE=1`.
+
+### ШАГ 3 · полный контур на дереве починки
+
+Команда `bash lab/workspace-verify.sh E-0138`, блок `########## E-0138 · workspace-verify ·
+2026-10-28T02:26:25+03:00 ##########` в `lab/logs/workspace-verify-2026-10-22.log`.
+
+    TEST_EXIT=0  SECONDS_test=1421
+    CLIPPY_EXIT=0  SECONDS_clippy=5
+    LEAN_EXIT=0
+    CONTOURS_SELFTEST_EXIT=0  CONTOURS_EXIT=0
+    VERIFY_FAIL=0  SECONDS_total=1748
+    DISK_FREE_MB=18419  RAM_FREE_MB=3815  PAGEFILE_PEAK_MB=7660
+
+Срезы `^test result:` — 134, под ними 786 пройденных тестов, 0 падений, 9 `#[ignore]`. Диск до
+прогона 18 767 МБ, после 18 419 МБ; порог `DISK_GE_15000=1` выполнен и в ШАГЕ 2, и здесь.
+
+Постконтурное сведение (тот же прибор, уже на дереве с новым блоком):
+
+    FORM_FIRST=E-0049  CLOSED_TOTAL=127  BLOCK_LABELS=74  COVERED=73
+    MISSING_TOTAL=54  EXPLAINED=54  UNEXPLAINED=0
+    ERA_TOTAL=45  MODERN_TOTAL=9  GHOST=0  DUP=0  REASON_EMPTY=0  CLASS_BAD=0
+    VIOLATIONS=0  CONTOURS_EXIT=0
+
+Метка `E-0138` появилась в блоке контура, но её карточка на момент прогона ещё не закрыта
+вердиктом, поэтому `BLOCK_LABELS` вырос на единицу, а `COVERED` остался 73. После того как
+вердикт поставлен, пара становится `128 / 74`, и это печатается в закрытии, а не утверждается
+заранее: прибор не требует, чтобы блок и вердикт появились одним шагом, он требует, чтобы у
+закрытой карточки блок нашёлся.
+
+### ШАГ 4 · дыра, названная до починки (измерено, а не описано)
+
+На живом дереве до починки прибор печатал: закрытых вердиктом карточек 127, меток блока контура
+73, покрытых 73, без блока и без причины 54 — то есть 54 закрытых цикла утверждали результат,
+которого контур не видел. Разделение по эрам дала сама таблица: 45 карточек раньше первой метки
+формы (`E-0049`) и 9 карточек после неё (`E-0086`, `E-0089`, `E-0123`, `E-0131`, `E-0133`,
+`E-0134`, `E-0135`, `E-0136`, `E-0137`).
+
+На дереве пина (`07e299d`, файл исключений убран посадчиком) тот же прибор печатал
+`UNEXPLAINED=54`, `VIOLATIONS=54`, `EXCEPTIONS_ABSENT=1`, выход 1. Ключ различия пина и починки
+есть: `PRE_FIX_DIFFERS=1`, поэтому зелёная строка `LIVE_VIOLATIONS=0` чего-то стоит.
+
+Прежняя оценка «126 закрытых и ровно 7 свежих без блока» была невера по обоим числам; в карточке
+они заменены измеренными 127 и 9.
+
+### ШАГ 5 · ДИАГНОЗы цикла
+
+ДИАГНОЗ-1 · относительный путь читал не то дерево. Файл исключений сначала разрешался проверкой
+`os.path.exists` от текущего каталога оболочки, и селфтест во временном дереве читал живую таблицу
+репозитория: `GHOST=53`, `PLANTED_CAUGHT=6`, `PLANTED_FALSE=1` — то есть прибор на подставном
+дереве давал красное число по чужим данным и ловил не все посадки. Разрешение пути обязано идти от
+корня прогона (`os.path.join(root, rel)`), проверка «а нет ли готового пути» — вторым шагом.
+Класс тот же, что у `E-0137`: проверка формы там, где надо проверять множество.
+
+ДИАГНОЗ-2 · «нет файла» и «в файле пустая причина» были одним состоянием. Отсутствие таблицы
+исключений сначала краснело как `REASON_EMPTY`, и из вектора нельзя было понять, убран файл или
+в нём пустые строки. Теперь отсутствие — отдельный ключ `EXCEPTIONS_ABSENT=1` со своим числом
+`UNEXPLAINED`, и для него в селфтесте отдельная проба (`ABSENT_UNEXPLAINED=8`, `ABSENT_OK=1`).
+
+ДИАГНОЗ-3 · линт порогов объявлял сиротами факты, которые helper печатал. Первый официальный
+прогон дал `LINT_EXIT=1`, `LINT_ORPHANS=29`, хотя все 29 ключей стоят в том же векторе: починка
+`E-0135` научила `lab/threshold-lint.py` литеральной воронке `emit KEY`, а семейства печатаются
+списком имён и одной воронкой `emit "PREFIX_$k"`. На уже опубликованной таблице `E-0132` тот же
+дефект даёт 11 ложных сирот из 49 ключей. Починка сохранила литеральность с обеих сторон (имя
+обязано стоять в `for … in …`, префикс — буквально предшествовать `$`), посажены четыре ложных
+пропуска, селфтест `total=18 passed=18`, сводка печатает `ЦИКЛОМ=n`. Остатки названы
+`OPEN-QUESTIONS` п. 78: склейка списков по имени переменной внутри файла и то, что `--latest`
+линтует только самую свежую таблицу.
+
+### ШАГ 6 · что измерение НЕ доказывает
+
+Зелёный выход прибора означает только то, что в перебранном множестве пар (закрытая карточка,
+метка блока) связь замкнута или закрыта названным исключением с причиной. Он не утверждает, что
+замеры в карточках верны, что их пороги годны и что вердикт следовало ставить другой: 54
+исключения — это признание «контур по этой карточке не исполнялся», а не её оправдание.
+
+Числа множества живут на дереве: `CLOSED_TOTAL` растёт каждым закрытием цикла, поэтому таблица
+ожиданий замораживает и их, и `MISSING_UNEXPLAINED_LIST=none`; новое закрытие без блока краснит
+контур, а не объясняется устно. Список классов (`до-формы`, `после-формы`) замкнут и печатается в
+ошибке прибора, но полон он ровно на сегодня: новый класс — строка в `CLASSES`, и он, как
+`AXIOM_ALLOWLIST` в `E-0112` и список типов в `E-0132`, обязан перечитываться, а не предполагать
+собственную полноту.

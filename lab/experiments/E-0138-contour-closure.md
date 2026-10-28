@@ -1,8 +1,8 @@
 ---
 id: E-0138
 hypothesis: H-0138
-status: pre-registered
-verdict: pending
+status: closed
+verdict: supports
 base_commit: "10c0835"
 started: "2026-10-28"
 environment: "x86_64-pc-windows-gnu, хост владельца; только bash и python — цикл не исполняет cargo и
@@ -65,3 +65,44 @@ threshold: "(1) `python lab/cycle-gate.py gate H-0138` выход 0 (`GATE_H0138
 корня (`os.path.join(root, …)` с проверкой существования), проба «файла нет» добавлена отдельным
 случаем. Класс находки тот же, что у прибора `E-0137`: проверка формы там, где надо проверять
 множество, и разрешение пути там, где надо брать названный корень.
+
+## Результат (измерено, носитель `lab/logs/e0138-all.log`)
+
+Цепочка деревьев: пре-регистрация `07e299d` → починка `d7f669e` → починка `af49739` (второй коммит
+не был в тексте карточки, см. «Поправка»).
+
+Два официальных исполнения на неизменном дереве `af49739`: `ОЖИДАНИЙ=63 РАСХОЖДЕНИЙ=0`,
+`STABLE=1`, `WORST_RC=0`, `RUST_TOUCHED=0`. Вектор снимается до полного контура, поэтому он печатает
+`LIVE_BLOCK_LABELS=73`/`LIVE_COVERED=73`.
+
+Посадка: `PLANTED_TOTAL=9`, `PLANTED_CAUGHT=9`, `PLANTED_FALSE=0`, `LEGAL_TOTAL=4`, проба «файла
+нет» — `ABSENT_UNEXPLAINED=8`, `ABSENT_OK=1`, `SELFTEST_EXIT=0`. PRE_FIX «посадкой отсутствием»:
+`PRE_FIX_PIN_FILE_ABSENT=1`, `PRE_FIX_EXIT=1`, `PRE_FIX_UNEXPLAINED=54`, `PRE_FIX_VIOLATIONS=54`,
+`PRE_FIX_EXCEPTIONS_ABSENT=1`, `PRE_FIX_REASON_EMPTY=0`, `PRE_FIX_DIFFERS=1`.
+
+Живое дерево после починки: `CLOSED_TOTAL=127`, `BLOCK_LABELS=73`, `COVERED=73`,
+`MISSING_TOTAL=54`, `EXPLAINED=54`, `UNEXPLAINED=0`, `FORM_FIRST=E-0049`, `ERA_TOTAL=45`,
+`MODERN_TOTAL=9`, `CONTOUR_EXCEPTIONS_ROWS=54`, `VIOLATIONS=0`, `GUARD_EXIT=0`. Постановка в контур
+и в CI: `VERIFY_WIRES_CONTOURS=1`, `CI_WIRES_CONTOURS=1`.
+
+Полный контур `bash lab/workspace-verify.sh E-0138`: `VERIFY_FAIL=0`, 134 среза `^test result:`,
+786 пройденных, 0 падений, 9 `#[ignore]`, `SECONDS_total=1748` (`SECONDS_test=1421`,
+`SECONDS_clippy=5`), `TEST_EXIT=0`, `CLIPPY_EXIT=0`, `LEAN_EXIT=0`, внутри контура
+`CONTOURS_SELFTEST_EXIT=0` и `CONTOURS_EXIT=0`, диск 18 767 МБ до и 18 419 МБ после.
+Соседние стражи цикла: `SECRETS_EXIT=0`, `REFS_EXIT=0`, `CLAIMMAP_EXIT=0`, `CLAIMS_EXIT=0`,
+`TEXTGUARD_ALL_EXIT=0` при `файлов_с_грязью=0`, `TEXTGUARD_CYCLE_EXIT=0`, `MIRROR_EXIT=0`,
+`LINT_EXIT=0`, `LINT_ORPHANS=0`, `GATE_AUDIT_EXIT=0`, `REVIEW_EXIT=0`.
+
+Числы после появления блока контура и после вердикта: `CLOSED_TOTAL=128`, `BLOCK_LABELS=74`,
+`COVERED=74`, `MISSING_TOTAL=54`, `UNEXPLAINED=0`, `VIOLATIONS=0`. Именно эта пара и есть
+смысл прибора: закрытая карточка перестает быть находкой не тогда, когда о ней написали, а когда
+контур по ней отпечатал блок.
+
+Ложные сироты линта, закрытые вторым коммитом: до починки `LINT_EXIT=1`, `LINT_ORPHANS=29` при
+напечатанных helper'ом 29 ключах; после — `ЦИКЛОМ=29`, `СИРОТ=0`. На опубликованной таблице
+`E-0132` тот же дефект: `ЦИКЛОМ=11`, `СИРОТ=0` (было 11 сирот). Селфтест линта `total=18
+passed=18`.
+
+Вердикт `supports`: фальсификатор не сработал ни по одному пункту. Остатки класса «прибор знает
+форму, а не множество» названы `OPEN-QUESTIONS` п. 78, кандидат `H-0140`.
+
