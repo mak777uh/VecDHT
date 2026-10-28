@@ -61,8 +61,12 @@ GATE_RE = re.compile(r"\bP\d\b")
 SENT_SPLIT = re.compile(r"(?<=[.!?;])\s")  # граница — знак и пробел: «§19.3» не два предложения
 CODE_STRIP = (re.compile(r"`[^`]*`"), re.compile(r"“[^”]*”"), re.compile(r"\"[^\"]*\""),
               re.compile(r"«[^»]*»"))
-NEGATION = r"\b(?:not|no|never|without|absent|partial)\b"
+NEGATION = r"\b(?:not|no|never|without|absent|partial)\b|\b(?:не|ни|нет|без|отсутств\w*)\b"
 MEASURED_MARK = r"\bmeasure(?:d|ment|s)?\b"
+# Корень, а не словарная форма: русские падежи («оценкой», «оценка») — одно и то же слово. Измерено
+# в круге `E-0139`: строка README.ru.md «…является оценкой по пяти условиям…» не проходила потолок
+# типа `estimate`, потому что правило требовало форму `оценка`.
+ESTIMATE_MARK = r"\bestimate\w*\b|оценк"
 # Отрицание до слова делает его чужим утверждением: «not a measurement» не утверждает, что
 # измерение было. Окно в 18 знаков — потому что отрицание стоит в одной фразе со словом, а не
 # в начале параграфа.
@@ -89,7 +93,7 @@ TYPES = {
     "measured": {"forbid": [r"\balways\b", r"\bany machine\b", r"\bany host\b",
                             r"\bguarantee\w*", r"\bnever fails\b"],
                  "require": None, "need_id": True, "min_links": 1},
-    "estimate": {"forbid": [MEASURED_MARK], "require": r"\bestimate\b|оценка",
+    "estimate": {"forbid": [MEASURED_MARK], "require": ESTIMATE_MARK,
                  "need_id": False, "min_links": 1},
     "not-done": {"forbid": [r"\bare closed\b", r"\bis closed\b", r"\bready for v1\b"],
                  "require": NEGATION, "need_id": False, "min_links": 1},
