@@ -3,9 +3,14 @@
 # трёх носителей (`docs/STATUS-v1.md`, `README.md`, `README.ru.md`) обязано быть покрыто строкой
 # `lab/claims.tsv` (`lab/check-claims.py`, ключ `UNREGISTERED`). Цикл приборный: продукта не
 # касается (`RUST_TOUCHED=0`). PRE_FIX исполняется посадкой пина: файл реестра меняется на версию
-# пре-регистрации (`git checkout "$PIN" -- lab/claims.tsv`), на этом дереве гоняется тот же прибор,
-# затем `trap` возвращает живую копию; носители при этом не трогаются, поэтому число сильных
-# утверждений на пине и на живом дереве обязано совпасть.
+# пре-регистрации, на этом дереве гоняется тот же прибор, затем `trap` возвращает живую копию;
+# носители при этом не трогаются, поэтому число сильных утверждений на пине и на живом дереве обязано
+# совпасть.
+#
+# Посадка пишется в файл через `git show "$PIN:$REG" > "$REG"`, а не `git checkout "$PIN" -- "$REG"`.
+# Причина измерена этим кругом: `git checkout <пин> -- файл` кладёт/blob в индекс, а следующий
+# `git commit` берёт весь индекс — и починка молча откатывается в HEAD, при этом рабочий каталог
+# правится повторным `git checkout HEAD -- файл` и теряется вовсе (ДИАГНОЗ круга `E-0139`).
 set -uo pipefail
 if [ -z "${VEC_DHT_ROOT:-}" ]; then VEC_DHT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"; export VEC_DHT_ROOT; fi
 cd "$VEC_DHT_ROOT"; export PYTHONIOENCODING=utf-8
@@ -28,7 +33,7 @@ if [ -n "${PIN:-}" ] && [ -f "$REG" ]; then
   emit PRE_FIX_PIN_FOUND 1
   emit PRE_FIX_PIN_ROWS "$(git show "$PIN:$REG" | grep -vc '^#\|^$')"
   emit PRE_FIX_PIN_ROWS_LIVE "$(grep -vc '^#\|^$' "$REG")"
-  git checkout "$PIN" -- "$REG" || true
+  git show "$PIN:$REG" > "$REG" || true
   python lab/check-claims.py >${SCR}prefix.txt 2>&1; emit PRE_FIX_EXIT $?
   for k in CLAIMS TRIGGER_SENTENCES UNREGISTERED UP_CARRIERS VIOLATIONS DANGLING CEILING QUALIFIER \
            TYPE_BAD LINK_BAD GATE_RATIO COND_LINK_BAD CONDITIONS_TABLE CONDITIONS_COVERED \
