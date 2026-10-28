@@ -64,7 +64,10 @@ emit PRE_FIX_TABLES "$PRE_TABS"
 emit PRE_FIX_SIROT "$PRE_TOTAL"
 emit PRE_FIX_TABLES_WITH_SIROT "$PRE_WITH"
 emit PRE_FIX_NO_SUMMARY "$PRE_NOSUM"
-pre_tab() { v=$(grep -o "^### $1.tsv СИРОТ=[0-9]*" "${SCR}pin-sweep.txt" | tail -1 | cut -d= -f2); [ -n "$v" ] && echo "$v" || echo none; }
+# Имя таблицы печатается без суффикса (строка выше — `### %s СИРОТ=…` от `$base`), поэтому шаблон
+# обязан брать то же имя: `^### e0093.tsv` не находил ни одной строки, и пять фактов стали `none`
+# на верном пин-приборе (ДИАГНОЗ-1 этого круга: расхождение формы печати и формы чтения).
+pre_tab() { v=$(grep -o "^### $1 СИРОТ=[0-9]*" "${SCR}pin-sweep.txt" | tail -1 | cut -d= -f2); [ -n "$v" ] && echo "$v" || echo none; }
 emit PRE_FIX_E0093 "$(pre_tab e0093)"
 emit PRE_FIX_E0095 "$(pre_tab e0095)"
 emit PRE_FIX_E0099 "$(pre_tab e0099)"
