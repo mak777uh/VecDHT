@@ -32,9 +32,11 @@ if [ -n "$PIN" ] && git cat-file -e "$PIN:$TEST" 2>/dev/null; then
 else
   emit PRE_FIX_TEST 1
 fi
-count_in_pin() { local n; n=$(git show "$PIN:$1" 2>/dev/null | grep -c -- "$2") || true; printf '%s' "${n:-none}"; }
-emit PRE_FIX_FILTER "$(count_in_pin crates/vecdht-index/src/ivf.rs 'fn search_filtered')"
-emit PRE_FIX_ATTR "$(count_in_pin crates/vecdht-index/src/ivf.rs 'insert_with_attr')"
+# Наличие символа в пине — это факт «есть/нет», а не число строк: `grep -c` на имени, которое
+# встречается и в объявлении, и в вызовах, печатал 11 и назывался тем же ключом (ДИАГНОЗ-1).
+has_in_pin() { if git show "$PIN:$1" 2>/dev/null | grep -q -- "$2"; then echo 1; else echo 0; fi; }
+emit PRE_FIX_FILTER "$(has_in_pin crates/vecdht-index/src/ivf.rs 'fn search_filtered')"
+emit PRE_FIX_ATTR "$(has_in_pin crates/vecdht-index/src/ivf.rs 'fn insert_with_attr')"
 
 # --- ШАГ 1: гейт и диск -----------------------------------------------------------------------
 r=0; python lab/cycle-gate.py gate H-0146 > "${SCR}gate.log" 2>&1 || r=$?

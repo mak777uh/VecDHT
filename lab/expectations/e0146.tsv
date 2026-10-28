@@ -1,0 +1,65 @@
+# E-0146 — recall@10 под OnlyPaid на разреженном корпусе (заморожено до первого официального прогона)
+PIN_FOUND	1	пре-регистрация H-0146 найдена
+PRE_FIX_TEST	1	прибора в пине нет — дыра названа
+PRE_FIX_FILTER	1	search_filtered в пине есть: механизм стоял, замера не было
+PRE_FIX_ATTR	1	insert_with_attr в пине есть
+GATE_H0146_OK	1	гейт цикла
+DISK_GE_15000	1	диск
+ORACLE_EXIT	0	прибор зелёный
+ORACLE_PASSED	1	один тест
+ORACLE_FAILED	0	провалов нет
+CORPUS_CLUSTERS	16	кластеров шарда
+CORPUS_ENTRIES	2048	записей в корпусе
+QUERIES	48	запросов (три на кластер)
+TOP_K	10	размер выдачи
+PAID_TOTAL_100	2048	платных при плотности 100 %
+PAID_TOTAL_10	201	платных при плотности 10 %
+PAID_TOTAL_2	38	платных при плотности 2 %
+PAID_TOTAL_1	21	платных при плотности 1 %
+RECALL_PAID_100_NP16_PM	1000	полнота к идеальному ответу, все кластеры
+COVERAGE_PAID_100_NP16_PM	1000	потолок покрытия теми же кластерами
+RECALL_PAID_100_NP4_PM	1000	четыре кластера
+COVERAGE_PAID_100_NP4_PM	1000	потолок покрытия
+RECALL_PAID_100_NP1_PM	1000	один кластер
+COVERAGE_PAID_100_NP1_PM	1000	потолок покрытия
+RECALL_PAID_10_NP16_PM	1000	десять процентов, все кластеры
+COVERAGE_PAID_10_NP16_PM	1000	потолок покрытия
+RECALL_PAID_10_NP4_PM	1000	четыре кластера
+COVERAGE_PAID_10_NP4_PM	1000	потолок покрытия
+RECALL_PAID_10_NP1_PM	1000	один кластер
+COVERAGE_PAID_10_NP1_PM	1000	потолок покрытия
+RECALL_PAID_2_NP16_PM	1000	два процента, все кластеры
+COVERAGE_PAID_2_NP16_PM	1000	потолок покрытия
+RECALL_PAID_2_NP4_PM	906	четыре кластера — 435 из 480
+COVERAGE_PAID_2_NP4_PM	906	потолок покрытия совпал с полнотой
+RECALL_PAID_2_NP1_PM	237	один кластер — 114 из 480
+COVERAGE_PAID_2_NP1_PM	237	потолок покрытия совпал с полнотой
+RECALL_PAID_1_NP16_PM	1000	один процент, все кластеры
+COVERAGE_PAID_1_NP16_PM	1000	потолок покрытия
+RECALL_PAID_1_NP4_PM	520	четыре кластера — 250 из 480
+COVERAGE_PAID_1_NP4_PM	520	потолок покрытия совпал с полнотой
+RECALL_PAID_1_NP1_PM	131	один кластер — 63 из 480
+COVERAGE_PAID_1_NP1_PM	131	потолок покрытия совпал с полнотой
+CTRL_POST_TRUNC_2_NP4_PM	22	«сначала top_k, потом фильтр» на тех же данных
+IDENTITY_MISMATCHES	0	все кластеры: выдача совпала с независимым оракулом
+FILTER_ADDS_MISSES	0	фильтр не потерял годное внутри просканированного списка
+EMPTY_WITH_ORACLE_2_NP4	0	пустых ответов при непустом идеальном нет
+PROBES_EMPTY_2_NP4	0	список зондирования непуст
+RECALL_EQ_COVERAGE	1	полнота равна покрытию во всех 12 клетках
+CTRL_LT_300	1	запрещённая реализация отличима числом
+SECRETS_EXIT	0	страж секретов
+REFS_EXIT	0	страж ссылок на артефакты
+CLAIMMAP_EXIT	0	реестр утверждений
+CLAIMS_EXIT	0	стражи утверждений
+CONTOURS_EXIT	0	контуры закрытых карточек
+MIRROR_EXIT	0	зеркало спеки
+GATE_AUDIT_EXIT	0	аудит гейтов
+REVIEW_EXIT	0	обзор репозитория
+LINT_LATEST_EXIT	0	линт порогов по свежей таблице
+LINT_ORPHANS	0	сирот нет
+TEXTGUARD_ALL_EXIT	0	страж текста по всему репозиторию
+TEXTGUARD_ALL_DIRTY	0	грязных файлов нет
+TEXTGUARD_CYCLE_EXIT	0	страж текста по файлам круга
+WIRE_TOUCHED	0	провод не тронут
+RUST_TOUCHED	1	один файл продукта — сам прибор
+WORST_RC	0	все названные условия выполнены
