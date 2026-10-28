@@ -116,10 +116,12 @@ Rule 8 of `../AGENTS.md` is "do not invent mechanisms", so here is what is actua
 * the `P1` stand had never been run when this list was first written; it has since been run once, by
   us, in release (`E-0105`, see the table above) — what remains unmeasured is a host we do not control,
   and the fan-out decision (§12.1) still has no second-machine evidence;
-* relay/DCUtR from §16.3 are not up: addresses are spread by identify/Kademlia, and a path through NAT
-  without a direct dial is unverified; there is no "empty DHT answer" promise in the code at all — an
-  empty answer never happens, backoff is a fixed step, and there is no "ready to take an episode"
-  predicate (`E-0080`);
+* circuit relay v2 from §16.3 is up since `E-0145` (`Role::Relay` is a server, any role is a client;
+  a target with no direct listeners is reachable over `/p2p/<relay>/p2p-circuit/p2p/<target>` on
+  loopback), but DCUtR is not: a direct connection is never upgraded, and a path through NAT with a
+  real WAN is unverified; addresses are spread by identify/Kademlia, and there is no "empty DHT
+  answer" promise in the code at all — an empty answer never happens, backoff is a fixed step, and
+  there is no "ready to take an episode" predicate (`E-0080`);
 * the denylist survives a restart since `E-0092`, the set of **revoked credchecks** since `E-0094`:
   `revocation.bin` in the node directory, bound 4096 with refusal instead of eviction. The node
   directory is passed by the product since `E-0119` (`node_cmd.rs`: `revoked_dir: Some(dir)`), and

@@ -1,7 +1,8 @@
 ---
 id: E-0145
 hypothesis: H-0145
-status: pending
+status: closed
+verdict: "supports"
 base_commit: "b351dfe"
 started: "2026-10-28"
 environment: "x86_64-pc-windows-gnu, хост владельца; cargo и bash; стенд — один процесс,
@@ -59,3 +60,34 @@ Loopback без NAT и WAN-RTT; P6 двумя машинами не закрыв
 Только факты, названные в пороге: слот и контур на релее, слот у цели, контур у клиента, handshake
 в обе стороны, ноль прямых слушателей у цели, нули в отрицательном контроле, `WIRE_TOUCHED=0` и
 `STABLE=1`. Время в порог не входит: deadline ограничивает ожидание, а не измеряет путь.
+
+## Результат (первый прогон носителя)
+
+Порог выполнен: два прогона на неизменном дереве дали `ОЖИДАНИЙ=49 РАСХОЖДЕНИЙ=0`, `WORST_RC=0`,
+`STABLE=1`. Пин — пять нулей `PRE_FIX_*`; продукт — `RELAY_FEATURE=1`, `RELAY_CLIENT_FIELD=1`,
+`RELAY_SERVER_FIELD=1`, `RESERVE_CIRCUIT=1`, `RELAY_STATS=1`. Носитель — `ORACLE_PASSED=2`,
+`ORACLE_FAILED=0`: у цели `target_direct_listeners=0`, на релее
+`positive_server_reservations=1` и `positive_server_circuits=1`, у цели
+`positive_target_reservations=1`, у клиента `positive_client_reservations=0` и
+`positive_client_circuits=1`, handshake — `positive_auth_client_to_target=1`,
+`positive_auth_target_to_client=1`, `positive_relay_auth_target=1`,
+`positive_relay_auth_client=1`, отказов двери `positive_target_door_refusals=0`. Отрицательный
+контроль — четыре нуля. Границы — `WIRE_TOUCHED=0`, `RUST_TOUCHED=3`, `LOCK_TOUCHED=1`. Соседние
+стражи зелёные, `LINT_ORPHANS=0`, `TEXTGUARD_ALL_DIRTY=0`.
+
+## Итог исполнения
+
+Пре-регистрация — `b60aa96`. Фикс — `7a7933d`: фича `relay`; `relay_client` у всех ролей;
+`relay_server: Toggle<relay::Behaviour>` только при `role == Role::Relay`;
+`reserve_circuit(relay)` строит `/p2p/<relay>/p2p-circuit` и слушает `Protocol::P2pCircuit`;
+`relay_stats()` отдаёт четыре счётчика; релей объявляет каждый `NewListenAddr` внешним. Прибор —
+`38da1ba`: якорь `grab` допускает префикс `МЕРЕНО` (ДИАГНОЗ-4). Wire v8, список 18 кодов и формат
+кадров не тронуты.
+
+Верификация `bash lab/workspace-verify.sh E-0145`: третий блок зелёный — `VERIFY_FAIL=0`, 135
+срезов, 790 passed, 0 failed, 9 `#[ignore]`, `TEST_EXIT=0`, `CLIPPY_EXIT=0`, `LEAN_ALL_OK=1`,
+`LEANGUARD_SELFTEST_EXIT=0`, `CYCLEGATE_EXIT=0`, `SECONDS_total=2513`. Первые два блока красные по
+чужим для релея причинам: нагрузочный флейк `s53_door_branches` и сломанный дефолтный тулчейн Lean
+`v4.36.0-rc1`; изолированный прогон и `ELAN_TOOLCHAIN=v4.33.1` это подтвердили. Оба блока остались
+в `lab/logs/workspace-verify-2026-10-22.log`; вердикт опирается на зелёный. Числа прогонов и
+ДИАГНОЗы — `lab/logs/e0145-all.log`.
