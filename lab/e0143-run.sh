@@ -115,7 +115,7 @@ run_guard REVIEW_EXIT python lab/repo-review.py check
 run_guard LINT_LATEST_EXIT python lab/threshold-lint.py --latest
 emit LINT_ORPHANS "$(grep -o 'СИРОТ=[0-9]*' "${SCR}LINT_LATEST_EXIT.log" 2>/dev/null | tail -1 | cut -d= -f2 | grep . || echo none)"
 run_guard TEXTGUARD_ALL_EXIT bash lab/check-text-clean.sh --all
-emit TEXTGUARD_ALL_DIRTY "$(grep -o 'ГРЯЗНЫХ=[0-9]*' "${SCR}TEXTGUARD_ALL_EXIT.log" 2>/dev/null | tail -1 | cut -d= -f2 | grep . || echo none)"
+emit TEXTGUARD_ALL_DIRTY "$(grep -o 'файлов_с_грязью=[0-9]*' "${SCR}TEXTGUARD_ALL_EXIT.log" 2>/dev/null | tail -1 | cut -d= -f2 | grep . || echo none)"
 r=0; bash lab/check-text-clean.sh lab/check-status-claims.py lab/e0143-run.sh \
   lab/expectations/e0143.tsv lab/hypotheses/H-0143-status-claims.md \
   lab/experiments/E-0143-status-claims.md > "${SCR}textcycle.log" 2>&1 || r=$?
