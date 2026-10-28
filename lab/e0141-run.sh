@@ -251,7 +251,11 @@ emit WORST_RC "$WORST"
 
 TREE_KEY="$(git rev-parse --short HEAD 2>/dev/null || echo nohead)-$(git status --porcelain 2>/dev/null | sha1sum | cut -c1-8)"
 SNAP="${TMPDIR:-/tmp}/e0141-${TREE_KEY}.facts"
-Filt() { grep -v -E '^DISK_FREE_MB=' "$1"; }
+# Из сравнения исключены две строки: измерение диска (оно дышит между прогонами) и собственный
+# вердикт этого же блока. Без второй ловушки первый прогон пишет в снимок `STABLE=none`, а второй
+# сравнивает свой `STABLE=1` с чужим `none` и краснеет на годном дереве (ДИАГНОЗ круга: вердикт о
+# повторяемости не имеет права входить в то, что он сверяет).
+Filt() { grep -v -E '^(DISK_FREE_MB|STABLE)=' "$1"; }
 if [ -f "$SNAP" ]; then
   if diff -q <(Filt "$buf") <(Filt "$SNAP") >/dev/null; then emit STABLE 1; else emit STABLE 0; fi
 else
