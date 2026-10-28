@@ -261,6 +261,19 @@ jobs:
           set -uo pipefail
           python lab/check-artifact-refs.py | tail -12
 
+      - name: check-status-claims — строки статус-документа против дерева
+        run: |
+          set -uo pipefail
+          L=/tmp/status-claims.log
+          r=0
+          python lab/check-status-claims.py selftest > "$L" 2>&1 || r=$?
+          python lab/check-status-claims.py >> "$L" 2>&1 || r=$?
+          echo "STATUS_GUARD_EXIT=$r" >> "$L"
+          grep -aE '^(STATUS_CLAIMS|STATUS_CONSISTENT|STATUS_STALE|STATUS_STALE_IDS|STATUS_EXIT)=' "$L" \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -8 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       - name: check-text-clean — гибрид алфавитов и битая кодировка по всему дереву
         run: |
           set -uo pipefail

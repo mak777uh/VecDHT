@@ -143,8 +143,11 @@ Rule 8 of `../AGENTS.md` is "do not invent mechanisms", so here is what is actua
   is rejected by the existing `SHARD_MISMATCH`, and divergence plus fail-open without an artifact are
   visible by counters (`cluster_reassigned`/`cluster_cross_shard`/`cluster_unverified`). `pow_input`
   still does not cover `cluster_id` — deliberately: the shard is paid for, the cell is chosen by
-  geometry. The shipping binary does not load centroids yet — Batch C (`lab/decisions/OPEN-QUESTIONS.md`
-  item 53.2). The tail of the cap "a victim in the cell is invisible to the reservoir" is closed by
+  geometry. The shipping binary loads `centroid.bin` from `--artifact` and refuses to start without it
+  since `E-0121` (`with_centroids` in `crates/vecdht-cli/src/node_cmd.rs`); the price of `assign` under
+  that load remains an open measurement (`E-0103`), and the agreement of node and client centroids is a
+  separate open question (`lab/decisions/OPEN-QUESTIONS.md` item 53.2). The tail of the cap "a victim in
+  the cell is invisible to the reservoir" is closed by
   `E-0102`: a window of live cell slots with a 256 budget and a cursor; at `live = 34 286` the answer
   changed from `refuse` to `move`;
 * search-poisoning protection is not claimed, but its price is measured: on the 50 000 corpus, ten
@@ -153,9 +156,9 @@ Rule 8 of `../AGENTS.md` is "do not invent mechanisms", so here is what is actua
   of 5000) but it does not explain the recall drop 0.8303 — the probe truncation does (`TRUE10_IN_PROBE`
   0.8304); a point copy of a query captures top-1 1000/1000 with one record, and there is no protection
   against it;
-* there is no "start a node" command: `agent run` raises a listener but there is no semantic layer for
-  incoming traffic — `IntentTextRequest` is not served; `node` (a shard machine with membership
-  bootstrap and genesis) is P6;
+* `node run` starts a shard node from a certificate and genesis, prints `NODE_READY`/`NODE_STATUS`,
+  and loads `centroid.bin` from `--artifact` (`E-0119`, `E-0121`); what is still absent is the semantic
+  layer on incoming traffic — `agent run` raises a listener, but `IntentTextRequest` is not served;
 * the SDK does not do weights — only an explicit surrogate with `allow_surrogate=True`;
 * paid intents and order search: §5.5 (class `free`/`paid` with a price, direction `buy`/`sell`), §12.7
   (a selection function in search) and `ADR-0052` are specified by the spec, and since `E-0100`
@@ -188,10 +191,12 @@ instrument is a wish, and we do not write those.
   must agree (`STABLE=1`).
 * M5 status document — this file.
 * M6 guards — `lab/check-secrets.sh` (credential shapes, host home paths, credentials inside
-  `.git/config`, token patterns in `git log -p --all`) and `lab/check-artifact-refs.py` (1333 backtick
-  citations, 0 dangling, 17 allowances each carrying a written reason; a stale allowance is a finding).
+  `.git/config`, token patterns in `git log -p --all`) and `lab/check-artifact-refs.py` (every backtick
+  citation of a path must resolve; the guard prints its own counts — citations, dangling, allowances;
+  every allowance carries a written reason, and a stale allowance is a finding).
   Both are executed from `.github/workflows/verify.yml` and exit non-zero on any finding; neither of them
-  warns.
+  warns. The status-claims guard `lab/check-status-claims.py` runs there too: it binds the claims above
+  to their owners in the tree (`E-0143`).
 * M3 evidence-type registry and M4 elimination register — not ours, they live in the `flowguard-spec`
   repository (their CLAIMS and eliminations documents; we deliberately do not cite them as paths,
   because a path in this file is required by `lab/check-artifact-refs.py` to resolve in this tree).
