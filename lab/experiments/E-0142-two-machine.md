@@ -1,7 +1,8 @@
 ---
 id: E-0142
 hypothesis: H-0142
-status: pre-registered
+status: closed
+verdict: supports
 base_commit: "0a34422"
 started: "2026-10-28"
 environment: "x86_64-pc-windows-gnu, хост владельца; bash, python и cargo — прибор гоняет три золотых
@@ -50,3 +51,27 @@ threshold: "(1) `python lab/cycle-gate.py gate H-0142` выход 0 (`GATE_H0142
 таблицей ожиданий `lab/expectations/e0142.tsv`. Утверждение, фальсификатор и оракул — в
 `lab/hypotheses/H-0142-two-machine.md`; здесь лежит только замороженный порог. Снимок называется
 `machine-A` — это метка прогона на хосте владельца, а не имя машины в сети.
+
+## Результат (официальные прогоны)
+
+Порог исполнен целиком: `GATE_H0142_OK=1`, `DISK_GE_15000=1`; `PRE_FIX_INSTRUMENT=0`, `PRE_FIX_KEYS=0`,
+`PRE_FIX_SNAPSHOT=none`; `SELFTEST_EXIT=0`, `SELFTEST_TOTAL=24`, `SELFTEST_PASSED=24`; `SNAP_EXIT=0`,
+`SNAP_KEYS=35`, `SNAP_OK=1`, `SNAP_ESCAPE=0`, `SNAP_DIRTY=0`, `SNAP_ROOT_NAME=vecdht`,
+`SNAP_TESTS_RAN=3`, `SNAP_TESTS_OK=3`; blob-хеши и байты 4509/23137/11787, рабочая форма
+4539/23203/11809 при CRLF 30/66/22, `CLEAN=1` у трёх; `VERIFY_EXIT=0`, `V_MATCH=9`, `V_MISMATCH=none`,
+`V_MISSING=none`, `V_FOREIGN=none`, `V_DUPLICATE=none`, `V_HEAD_MATCH=1`, `V_TESTS=3`, `V_TESTS_OK=3`,
+`V_VERDICT=pass`, `V_REASONS=none`; `TAMPER_EXIT=1`, `TAMPER_VERDICT=fail`, `TAMPER_MATCH=8`,
+`TAMPER_MISMATCH=TM_FIXTURE_wire_BLOB_SHA256`; `OTHER_EXIT=0`, `OTHER_VERDICT=pass`; все соседние
+стражи 0 (`SECRETS_EXIT`, `REFS_EXIT`, `CLAIMMAP_EXIT`, `CLAIMS_EXIT`, `CONTOURS_EXIT`,
+`TEXTGUARD_ALL_EXIT`, `TEXTGUARD_CYCLE_EXIT`, `MIRROR_EXIT`, `LINT_LATEST_EXIT`, `GATE_AUDIT_EXIT`,
+`REVIEW_EXIT`), `LINT_ORPHANS=0`; `RUST_TOUCHED=0`, `WORST_RC=0`, `STABLE=1`.
+
+Два исполнения на неизменном дереве сверились с таблицей целиком: `ОЖИДАНИЙ=65 РАСХОЖДЕНИЙ=0`.
+Полный контур `workspace-verify.sh E-0142`: `VERIFY_FAIL=0`, 134 среза, 786 тестов, 0 падений, 9 `#[ignore]`, `SECONDS_total=2490`, диск 24 936 → 23 171 МБ.
+
+## Итог исполнения
+
+Пре-регистрация `63f8c0e`, починка `b94cb88`, носитель `lab/logs/e0142-all.log`. Продукт не тронут
+(`RUST_TOUCHED=0`): цикл приборный. Прогон на машине B не засчитан — это красная зона владельца;
+здесь закрыто «чем сверять и по какому праву». Находки вне предмета — `OPEN-QUESTIONS` п. 82:
+устаревшие строки `docs/STATUS-v1.md` про центроиды и `node run`.
