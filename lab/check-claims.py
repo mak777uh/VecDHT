@@ -556,11 +556,13 @@ def main(argv=None) -> int:
         with tempfile.TemporaryDirectory(prefix="claims-selftest-") as tmp:
             res = selftest(tmp)
         print(f"PLANTED_TOTAL={res['PLANTED_TOTAL']}")
-        print(f"PLANTED_CAUGHT={res['PLANTED_CAUGHT']}/{res['PLANTED_TOTAL']}")
+        print(f"PLANTED_CAUGHT={res['PLANTED_CAUGHT']}")
+        print(f"PLANTED_OF_TOTAL={res['PLANTED_CAUGHT']}/{res['PLANTED_TOTAL']}")
         print(f"PLANTED_FALSE={res['PLANTED_FALSE']}")
         print(f"LEGAL_TOTAL={res['LEGAL_TOTAL']}")
-        print(f"UP_PLANTED={res['UP_PLANTED']} UP_CAUGHT={res['UP_CAUGHT']} "
-              f"UP_FALSE={res['UP_FALSE']}")
+        print(f"UP_PLANTED={res['UP_PLANTED']}")
+        print(f"UP_CAUGHT={res['UP_CAUGHT']}")
+        print(f"UP_FALSE={res['UP_FALSE']}")
         ok = (res["PLANTED_CAUGHT"] == res["PLANTED_TOTAL"] and res["PLANTED_FALSE"] == 0
               and res["UP_OK"] == 1)
         print(f"CLAIMS_SELFTEST_EXIT={0 if ok else 1}")

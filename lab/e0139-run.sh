@@ -11,7 +11,10 @@ if [ -z "${VEC_DHT_ROOT:-}" ]; then VEC_DHT_ROOT="$(cd "$(dirname "$0")/.." && p
 cd "$VEC_DHT_ROOT"; export PYTHONIOENCODING=utf-8
 SCR=$(mktemp -d)/; buf=$(mktemp) || exit 2
 emit() { printf '%s=%s\n' "$1" "$2" >>"$buf"; }
-grab() { grep -o "^$2=[0-9A-Za-z/.,:%_-]*" "$1" | tail -1 | cut -d= -f2; }
+# Ключ, которого прибор не напечатал, обязан стать `none`, а не пустой строкой: пустое значение
+# сверка ожиданиями читает как «значение не найдено», и расхождение тонет в форме печати (ДИАГНОЗ
+# круга `E-0139`: три ключа самопроверки печатались на одной строке, и helper брал с неё только первый).
+grab() { v=$(grep -o "^$2=[0-9A-Za-z/.,:%_-]*" "$1" | tail -1 | cut -d= -f2); [ -n "$v" ] && echo "$v" || echo none; }
 
 REG=lab/claims.tsv
 HELD="${SCR}claims.tsv.live"

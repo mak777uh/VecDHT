@@ -21,23 +21,3 @@ C-014	not-done	-	README.md	it has not been run on two hosts yet	lab/two-hosts.sh
 C-015	model-proof	-	README.md	the model-to-code correspondence is not checked by an executable instrument	lab/lean-check.py	соответствие модели и кода не проверено
 C-016	instrument	-	docs/STATUS-v1.md	the §18.9 "word → id" map is closed and guarded	lab/check-claim-map.py,E-0123	карта §18.9 под прибором
 C-017	instrument	-	docs/STATUS-v1.md	Every wording of this section and of both READMEs is a row of `lab/claims.tsv`	lab/check-claims.py,lab/claims.tsv	реестр под собственным прибором: носитель без строки и строка без носителя красны
-C-018	gate-closed	-	README.md	the admission door, provider-cache bounds, durable denylist, durable revocation set and observable denial reasons were each closed	E-0087,E-0095,E-0012,ADR-0004	перечисление закрытых дыр Batch A и гейта recall: две фразы одного носителя
-C-019	measured	-	README.md	the ~200-node stand ran in release	E-0105	стенд P1: p95 из пяти прогонов на нашем хосте
-C-020	not-done	-	README.md	traffic padding is specified and measured as absent	E-0077	паддинг трафика отсутствует, и это названо измерением отсутствия
-C-021	measured	-	README.md	The vectors were re-checked by an independent `hashlib` recomputation	E-0111,E-0112,ADR-0062	перепроверка векторов и исправленное правило вердикта
-C-022	estimate	-	README.ru.md	она опирается на закрытия `E-0105`, `E-0108`, `E-0119` и `E-0130`	docs/STATUS-v1.md	русская оговорка оценки: тип estimate требует корня «оценк»
-C-023	gate-closed	-	README.ru.md	дверь приёма, пределы таблицы провайдеров, переживаемый запрет	E-0087,E-0095	русская пара фразы README.md: каждый закрыт своим циклом
-C-024	gate-closed	-	README.ru.md	гейт recall закрыт на ровной связной карте шардов с названной ценой	E-0012,ADR-0004	recall с названной ценой на двух корпусах
-C-025	measured	-	README.ru.md	стенд ~200 узлов прогнан в release	E-0105	русская пара стенда P1
-C-026	not-done	-	README.ru.md	ни релизного тега, ни опубликованного бинарника	E-0126,lab/check-release-kit.sh	тег и бинарь — действие владельца; комплект под прибором
-C-027	not-done	-	README.ru.md	padding трафика описан в спеке и измерен как отсутствующий	E-0077	русская пара паддинга
-C-028	gate-closed	-	README.ru.md	Каждый гейт §18 называет свой носитель закрытия	E-0134,E-0135,crates/vecdht-net/tests/transport.rs	русская пара C-009: семья гейтов с носителем на каждого
-C-029	measured	-	README.ru.md	Векторы перепроверены независимым `hashlib`	E-0111,E-0112,ADR-0062	русская пара перепроверки векторов
-C-030	not-done	-	docs/STATUS-v1.md	Two thresholds inside (4B) are not closed	E-0095	остаток блокера (4B) назван невыполненным порогом
-C-031	gate-closed	-	docs/STATUS-v1.md	The two claims this row used to carry as open are since closed	E-0119,E-0120	producer отзыва и revoked_dir в node run — закрыты, а не обещаны
-C-032	not-done	-	docs/STATUS-v1.md	What remains open is a motive (no revocation is issued automatically)	E-0104,ADR-0059	мотив отзыва отсутствует; метрики — снимок, не эндпоинт
-C-033	gate-closed	-	docs/STATUS-v1.md	The rest of what §18 asks sits in the same map row by row	E-0003,E-0012,ADR-0004,crates/vecdht-node/tests/adversarial.rs	семья гейтов P0 с носителями, а не blanket-фраза
-C-034	measured	-	docs/STATUS-v1.md	before `E-0087` the author's signature was checked but the record went into the index	E-0087	история дыры до замера: подпись проверялась, индекс — нет
-C-035	measured	-	docs/STATUS-v1.md	the silence of a revoked node was verified by a live handshake	E-0094	молчание отозванного переживает рестарт — измерено двумя срезами
-C-036	gate-closed	-	docs/STATUS-v1.md	The tail of the cap "a victim in the cell is invisible to the reservoir" is closed	E-0102	хвост капа ячейки закрыт окном живых слотов
-C-037	measured	-	docs/STATUS-v1.md	search-poisoning protection is not claimed, but its price is measured	E-0090,ADR-0057	защита не обещана, цена отравления измерена на 50 000
