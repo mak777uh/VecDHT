@@ -284,6 +284,16 @@ impl ShardStore {
         ))
     }
 
+    /// `publish` с байтом объявления (§5.5). Путь тот же — WAL → fsync → apply, — но байт едет
+    /// в теле фрейма и переживает рестарт вместе с записью, а не остаётся «параметром вызова».
+    pub fn publish_with_attr(&mut self, e: IndexEntry, slot_attr: u8) -> Result<u32, StoreError> {
+        self.stage_insert_with_attr(e, slot_attr)?;
+        self.commit()?;
+        self.index.owner_slot(&e.owner_ed25519).ok_or_else(|| StoreError::Invariants(
+            "publish_with_attr отработал, но записи нет в индексе".into(),
+        ))
+    }
+
     pub fn stage_insert(&mut self, e: IndexEntry) -> Result<u64, StoreError> {
         self.stage_insert_with_attr(e, 0)
     }

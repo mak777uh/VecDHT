@@ -167,8 +167,11 @@ Rule 8 of `../AGENTS.md` is "do not invent mechanisms", so here is what is actua
   corpus without announcements stayed byte-for-byte the same, the price is not stored, memory grows by
   +1.0 B/record. Three boundaries remain: the node filters by itself and a client cannot machine-check
   that, the price reaches the searcher only in the publisher's signed text, and `recall` under a filter
-  is not measured; there are no CLI flags `--class`/`--dir` (Batch C), and there is no settlement,
-  escrow or tender in the protocol (§13.2);
+  is not measured; the CLI accepts `--class` and `--intent-dir` on `index add`/`index search`
+  (`crates/vecdht-cli/src/index_cmd.rs`, `E-0144`), so an operator can declare and select the same
+  byte the node writes, but that is a
+  local instrument, not a network-visible promise; there is no settlement, escrow or tender in the
+  protocol (§13.2);
 * the §18.3 gate "golden vectors matched on two different machines" is not closed: a second host is
   needed; the cross-platform part of P0 (iv) (AVX-512 / AVX2 / NEON) needs three machines;
 * there is no penalty/reputation table, no signal of divergence between owners of one cluster, no

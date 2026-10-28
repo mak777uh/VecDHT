@@ -17,6 +17,7 @@ use std::path::{Path, PathBuf};
 
 use vecdht_crypto::quant::{clusters_of_shard, shard_of_cluster, similarity_from_d2};
 use vecdht_index::{IndexEntry, ShardStore, INDEX_ENTRY_BYTES, SNAPSHOT_OPS};
+use vecdht_wire::messages::{ClassFilter, DirFilter, IntentDir, SLOT_ATTR_PAID};
 use vecdht_wire::{CLUSTERS_PER_SHARD, DIM, NLIST, SHARDS};
 
 use crate::args::Parsed;
@@ -29,9 +30,11 @@ pub const CMD_STATS: &str = "index stats";
 pub const CMD_SNAPSHOT: &str = "index snapshot";
 
 pub const FLAGS_CREATE: &[&str] = &["dir", "shard", "epoch"];
-pub const FLAGS_ADD: &[&str] = &["dir", "shard", "entries", "epoch", "time-mark", "gc", "limit"];
+pub const FLAGS_ADD: &[&str] =
+    &["dir", "shard", "entries", "epoch", "time-mark", "gc", "limit", "class", "intent-dir"];
 pub const FLAGS_SEARCH: &[&str] = &[
-    "dir", "shard", "vec", "clusters", "artifact", "nprobe", "top-k", "show-entries",
+    "dir", "shard", "vec", "clusters", "artifact", "nprobe", "top-k", "show-entries", "class",
+    "intent-dir",
 ];
 pub const FLAGS_STATS: &[&str] = &["dir", "shard"];
 pub const FLAGS_SNAPSHOT: &[&str] = &["dir", "shard", "epoch"];
@@ -52,7 +55,9 @@ index add — записи через WAL (§10.1: append → fsync → apply)
   --epoch N        подтвердить эпизоду перед записью, иначе publish будет отвергнут
   --time-mark N    применённый TimeMark-бакет после пачки (§9.6)
   --gc N           GcTick в бакет N: снимает всё, у чего published+ttl <= N
-  --limit N        остановиться после N записей";
+  --limit N        остановиться после N записей
+  --class free|paid         класс записи в байт объявления (§5.5); без флага — 0 (free)
+  --intent-dir unspecified|buy|sell  направление автора в тот же байт; без флага — 0";
 
 pub const HELP_SEARCH: &str = "\
 index search — поиск по int8-вектору внутри одного шарда
@@ -63,7 +68,10 @@ index search — поиск по int8-вектору внутри одного �
   --artifact DIR   глобальные центроиды: из них берётся топ-nprobe (§7.5)
   --nprobe N       сколько глобальных кластеров зондировать (нужен --artifact)
   --top-k N        сколько хитов печатать; по умолчанию 10
-  --show-entries   напечатать владельца, бакет публикации, TTL и дедлайн каждого хита";
+  --show-entries   напечатать владельца, бакет публикации, TTL и дедлайн каждого хита
+  --class any|free|paid      фильтр класса по байту объявления (§12.7); по умолчанию any
+  --intent-dir any|unspecified|buy|sell  фильтр направления автора; по умолчанию any
+                   (--dir остаётся каталогом шарда: для направления имя --intent-dir)";
 
 pub const HELP_STATS: &str = "\
 index stats — состояние шарда: seq, слоты, эпоха, снапшот, память (§8.2, §10.3)
@@ -124,6 +132,75 @@ fn maybe_grant(
     Ok(())
 }
 
+/// Класс из флага. Без флага — `Any`: для `search` это прежний ответ, для `add` — нулевой бит.
+/// `any` у `add` не принимается: объявление записи не бывает «любым», это отсутствие флага.
+fn parse_class(p: &Parsed, cmd: &'static str, search: bool) -> Result<ClassFilter, CliError> {
+    let Some(raw) = p.value(cmd, "class")? else { return Ok(ClassFilter::Any) };
+    match raw.as_str() {
+        "free" => Ok(ClassFilter::OnlyFree),
+        "paid" => Ok(ClassFilter::OnlyPaid),
+        "any" if search => Ok(ClassFilter::Any),
+        _ => Err(CliError::Fail(if search {
+            format!("--class {raw}: допустимо any|free|paid; имя класса — часть протокола (§5.5)")
+        } else {
+            format!(
+                "--class {raw}: у add допустимо free|paid; `any` — это отсутствие флага, а не \
+                 значение: запись обязана объявить свой класс (§5.5)"
+            )
+        })),
+    }
+}
+
+/// Направление из флага, уже в фильтровой форме. `unspecified` у `add` — нулевые биты.
+fn parse_dir(p: &Parsed, cmd: &'static str, search: bool) -> Result<DirFilter, CliError> {
+    let Some(raw) = p.value(cmd, "intent-dir")? else { return Ok(DirFilter::Any) };
+    match raw.as_str() {
+        "buy" => Ok(DirFilter::Buy),
+        "sell" => Ok(DirFilter::Sell),
+        "unspecified" => Ok(DirFilter::Unspecified),
+        "any" if search => Ok(DirFilter::Any),
+        _ => Err(CliError::Fail(if search {
+            format!("--intent-dir {raw}: допустимо any|unspecified|buy|sell (§12.7)")
+        } else {
+            format!(
+                "--intent-dir {raw}: у add допустимо unspecified|buy|sell; `any` — это отсутствие \
+                 флага, а не направление автора"
+            )
+        })),
+    }
+}
+
+/// Фильтровая форма → биты объявления. `Any` и `Unspecified` дают 0, как `IntentDir::Unspecified`
+/// на узле: у фильтра свой код (`Unspecified = 3`), и писать его в `slot_attr` значило бы объявить
+/// направление, которого нет.
+fn dir_for_attr(dir: DirFilter) -> IntentDir {
+    match dir {
+        DirFilter::Buy => IntentDir::Buy,
+        DirFilter::Sell => IntentDir::Sell,
+        DirFilter::Any | DirFilter::Unspecified => IntentDir::Unspecified,
+    }
+}
+
+fn dir_label(dir: IntentDir) -> &'static str {
+    match dir {
+        IntentDir::Buy => "buy",
+        IntentDir::Sell => "sell",
+        IntentDir::Unspecified => "unspecified",
+    }
+}
+
+/// Обратный разбор для `--show-entries`: биты `slot_attr` — это направление `IntentDir` и бит
+/// `paid` (§5.5), а не коды фильтра, поэтому `3` здесь означало бы испорченный байт.
+fn attr_label(attr: u8) -> String {
+    let dir = match attr & 0b11 {
+        0 => "unspecified",
+        1 => "buy",
+        2 => "sell",
+        _ => "неизвестно",
+    };
+    format!("класс {}, направление {dir}", if attr & SLOT_ATTR_PAID != 0 { "paid" } else { "free" })
+}
+
 pub fn exec_create(p: &Parsed, out: &mut String) -> Result<(), CliError> {
     let (dir, shard) = dir_and_shard(p, CMD_CREATE)?;
     let path = Path::new(&dir);
@@ -173,9 +250,25 @@ pub fn exec_add(p: &Parsed, out: &mut String) -> Result<(), CliError> {
         return Err(CliError::Fail("--limit 0 не имеет смысла: публиковать нечего".into()));
     }
     let take = limit.min(entries.len());
+    // Объявление едет в том же WAL-фрейме, что и запись (§5.5): отдельного «параметра вызова»
+    // здесь нет, иначе после рестарта фильтр поиска видел бы не то, что публиковали.
+    let class = parse_class(p, CMD_ADD, false)?;
+    let dir = parse_dir(p, CMD_ADD, false)?;
+    let slot_attr = dir_for_attr(dir).as_u8()
+        | if class == ClassFilter::OnlyPaid { SLOT_ATTR_PAID } else { 0 };
+    if p.value(CMD_ADD, "class")?.is_some() || p.value(CMD_ADD, "intent-dir")?.is_some() {
+        out.push_str(&format!(
+            "объявление записей: класс {}, направление {} → slot_attr {slot_attr:#04x}\n",
+            match class {
+                ClassFilter::OnlyPaid => "paid",
+                _ => "free",
+            },
+            dir_label(dir_for_attr(dir))
+        ));
+    }
     let mut published = 0usize;
     for (n, e) in entries.iter().take(take).enumerate() {
-        let slot = o.store.publish(*e).map_err(|err| {
+        let slot = o.store.publish_with_attr(*e, slot_attr).map_err(|err| {
             fail(
                 format!(
                     "запись №{} (кластер {}, owner {}…)",
@@ -240,6 +333,9 @@ pub fn exec_search(p: &Parsed, out: &mut String) -> Result<(), CliError> {
              а гарантированно пустой ответ".into(),
         ));
     }
+    let class = parse_class(p, CMD_SEARCH, true)?;
+    let dir = parse_dir(p, CMD_SEARCH, true)?;
+    let filtered = class != ClassFilter::Any || dir != DirFilter::Any;
     let (clusters, how) = clusters_to_scan(p, &o, &q, out)?;
     out.push_str(&format!(
         "шард {} ищет в {} кластерах ({}): {:?}\n",
@@ -248,6 +344,22 @@ pub fn exec_search(p: &Parsed, out: &mut String) -> Result<(), CliError> {
         how,
         clusters
     ));
+    if filtered {
+        out.push_str(&format!(
+            "фильтр по объявлению (§12.7): класс {}, направление {}\n",
+            match class {
+                ClassFilter::OnlyPaid => "paid",
+                ClassFilter::OnlyFree => "free",
+                ClassFilter::Any => "any",
+            },
+            match dir {
+                DirFilter::Buy => "buy",
+                DirFilter::Sell => "sell",
+                DirFilter::Unspecified => "unspecified",
+                DirFilter::Any => "any",
+            }
+        ));
+    }
     out.push_str(&format!("vec_q {}\n", vector_hex(&q)));
     out.push_str(&format!("TimeMark индекса: бакет {}\n", o.store.time_mark_bucket));
     if clusters.is_empty() {
@@ -257,7 +369,9 @@ pub fn exec_search(p: &Parsed, out: &mut String) -> Result<(), CliError> {
         );
         return Ok(());
     }
-    let hits = o.store.search(&q, &clusters, top_k);
+    // `Any/Any` — ровно `search` (§12.7), поэтому один путь и для фильтрованного, и для
+    // прежнего ответа: отдельная ветка разошлась бы с ним молча.
+    let hits = o.store.search_filtered(&q, &clusters, top_k, class, dir);
     out.push_str(&format!("хитов {} (top_k {top_k})\n", hits.len()));
     let show = p.bool_flag(CMD_SEARCH, "show-entries")?;
     for (d2, slot) in &hits {
@@ -269,13 +383,15 @@ pub fn exec_search(p: &Parsed, out: &mut String) -> Result<(), CliError> {
             similarity_from_d2(*d2)
         ));
         if show {
+            let attr = o.store.index.slot_attr(*slot).unwrap_or(0);
             out.push_str(&format!(
-                "    owner {}… cluster {} published {} ttl {} дедлайн {}\n",
+                "    owner {}… cluster {} published {} ttl {} дедлайн {}; объявление: {}\n",
                 &hex::encode(e.owner_ed25519)[..16],
                 e.cluster_id,
                 e.published_bucket,
                 e.ttl_buckets,
-                e.deadline_bucket()
+                e.deadline_bucket(),
+                attr_label(attr)
             ));
         }
     }
@@ -283,7 +399,13 @@ pub fn exec_search(p: &Parsed, out: &mut String) -> Result<(), CliError> {
     // правильного ответа (§18.1, часть ii). Расхождение с ним — не «так и должно быть», а то, что
     // измеряется как потеря recall, поэтому здесь оно печатается числами.
     if clusters.len() < CLUSTERS_PER_SHARD as usize {
-        let full = o.store.search(&q, &clusters_of_shard(o.shard), top_k);
+        let full = o.store.search_filtered(
+            &q,
+            &clusters_of_shard(o.shard),
+            top_k,
+            class,
+            dir,
+        );
         let same = full == hits;
         let shared = full.iter().filter(|h| hits.contains(h)).count();
         out.push_str(&format!(
@@ -699,6 +821,108 @@ mod tests {
         assert!(
             matches!(direct, Err(StoreError::NeedLease)),
             "store обязан отказать сам, а не только через CLI"
+        );
+        vecdht_index::testing::remove(&d);
+    }
+
+    #[test]
+    fn filters_are_stored_in_slot_attr_and_survive_reopen() {
+        let d = vecdht_index::testing::dir("cli-index-filters");
+        let ds = d.display().to_string();
+        let mut out = String::new();
+        exec_create(&parse("create", &["--dir", &ds, "--shard", "0", "--epoch", "1"]), &mut out)
+            .unwrap();
+
+        // Свободная запись ближе к запросу, платная — дальше. Фильтр обязан применяться до
+        // усечения: иначе `--top-k 1 --class paid` вернул бы именно свободную, то есть чужой класс.
+        let free = d.join("free.bin");
+        std::fs::write(&free, entry(1, 0, 0, 100).to_bytes()).unwrap();
+        let paid = d.join("paid.bin");
+        std::fs::write(&paid, entry(2, 0, 0, 100).to_bytes()).unwrap();
+        let fs = free.display().to_string();
+        let ps = paid.display().to_string();
+        let mut out = String::new();
+        exec_add(
+            &parse(
+                "add",
+                &["--dir", &ds, "--shard", "0", "--entries", &fs, "--epoch", "1",
+                  "--class", "free", "--intent-dir", "buy"],
+            ),
+            &mut out,
+        )
+        .unwrap();
+        assert!(out.contains("slot_attr 0x01"), "{out}");
+        let mut out = String::new();
+        exec_add(
+            &parse(
+                "add",
+                &["--dir", &ds, "--shard", "0", "--entries", &ps, "--epoch", "1",
+                  "--class", "paid", "--intent-dir", "sell"],
+            ),
+            &mut out,
+        )
+        .unwrap();
+        assert!(out.contains("slot_attr 0x06"), "{out}");
+
+        // Байт объявления едет в WAL-фрейме, значит его видно после открытия каталога заново.
+        let back = ShardStore::open(&d, 0).unwrap();
+        assert_eq!(back.index.slot_attr(0), Some(0x01));
+        assert_eq!(back.index.slot_attr(1), Some(0x06));
+
+        let q = [0i8; DIM];
+        let hits =
+            back.search_filtered(&q, &clusters_of_shard(0), 1, ClassFilter::OnlyPaid, DirFilter::Sell);
+        assert_eq!(hits.len(), 1, "фильтр обязан применяться до усечения: {hits:?}");
+        assert_eq!(hits[0].1, 1, "единственный хит — платная запись: {hits:?}");
+
+        let qh = vector_hex(&q);
+        let mut out = String::new();
+        exec_search(
+            &parse(
+                "search",
+                &["--dir", &ds, "--shard", "0", "--vec", &qh, "--clusters", "0", "--top-k", "1",
+                  "--class", "paid", "--intent-dir", "sell", "--show-entries"],
+            ),
+            &mut out,
+        )
+        .unwrap();
+        assert!(out.contains("хитов 1"), "{out}");
+        assert!(out.contains("объявление: класс paid, направление sell"), "{out}");
+        vecdht_index::testing::remove(&d);
+    }
+
+    #[test]
+    fn any_filter_reproduces_the_unfiltered_answer() {
+        let d = vecdht_index::testing::dir("cli-index-any");
+        let ds = d.display().to_string();
+        let mut out = String::new();
+        exec_create(&parse("create", &["--dir", &ds, "--shard", "1", "--epoch", "1"]), &mut out)
+            .unwrap();
+        let mut bytes = Vec::new();
+        for n in 1..4u8 {
+            bytes.extend_from_slice(&entry(n, 16 + u16::from(n), 0, 100).to_bytes());
+        }
+        let f = d.join("entries.bin");
+        std::fs::write(&f, &bytes).unwrap();
+        let fs = f.display().to_string();
+        let mut out = String::new();
+        exec_add(
+            &parse(
+                "add",
+                &["--dir", &ds, "--shard", "1", "--entries", &fs, "--epoch", "1",
+                  "--class", "paid", "--intent-dir", "buy"],
+            ),
+            &mut out,
+        )
+        .unwrap();
+
+        let back = ShardStore::open(&d, 1).unwrap();
+        let q = [0i8; DIM];
+        let clusters = clusters_of_shard(1);
+        // `Any/Any` — это прежний ответ, а не «фильтр, который ничего не нашёл» (§12.7).
+        assert_eq!(
+            back.search(&q, &clusters, 3),
+            back.search_filtered(&q, &clusters, 3, ClassFilter::Any, DirFilter::Any)
         );
         vecdht_index::testing::remove(&d);
     }

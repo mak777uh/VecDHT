@@ -1,7 +1,8 @@
 ---
 id: E-0144
 hypothesis: H-0144
-status: pending
+status: closed
+verdict: "supports"
 base_commit: "f1e3ade"
 started: "2026-10-28"
 environment: "x86_64-pc-windows-gnu, хост владельца; bash, python и cargo — прибор прогоняет
@@ -56,3 +57,30 @@ threshold: "(1) пин и диск: `PIN_FOUND=1`, `GATE_H0144_OK=1`, `DISK_GE_1
 по-прежнему не может машинно проверить, что узел применил фильтр. Цена не хранится: в `slot_attr`
 её бита нет. `--intent-dir` — новое имя, а не обещанное очередью `--dir`; переименование каталога
 не делается (оно сломало бы все команды).
+
+## Результат (первый прогон носителя)
+
+Порог выполнен; пять ключей шага (5) оставались красными ровно до закрытия этой карточки, потому что
+`S-03` судится ею и до вердикта печатает `oracle-missing` — это и есть замороженная форма проверки,
+а не дефект дерева. Пин: `PRE_FIX_FLAGS=0`, `PRE_FIX_INTENT=0`, `PRE_FIX_FILTER=0`, `PRE_FIX_ATTR=0`;
+бинарник пина отвечает `ADD_CLASS_RC=1` и `SEARCH_DIR_RC=1` (`PREFIX_LOG_ADD_CLASS=1`,
+`PREFIX_LOG_DIR_COLLISION=1`). Документ пина — ровно `S-03`, причина `oracle-missing`; `S-01`, `S-02`
+и `S-04` согласованы. Самопроверка стража статуса 13 из 13. Носители зелёные: тест фильтра 1 из 1,
+`Any/Any` 1 из 1, `vecdht-cli` lib 70 passed / 1 ignored, `vecdht-index` lib 86 passed. Ручки видны
+в help обеих команд (`HELP_ADD_CLASS=1`, `HELP_SEARCH_CLASS=1`, `HELP_ADD_INTENT=1`,
+`HELP_SEARCH_INTENT=1`), `--dir` остался каталогом (`DIR_IS_DIRECTORY=1`). Соседние стражи зелёные,
+`LINT_ORPHANS=0`, `TEXTGUARD_ALL_DIRTY=0`, `RUST_TOUCHED=2`.
+
+## Итог исполнения
+
+Пре-регистрация — `298fa79`. Фикс: `ShardStore::publish_with_attr` (тот же WAL-путь, байт в теле
+фрейма), `--class`/`--intent-dir` у `index add` и `index search`, предикат до усечения в обоих
+поисках (включая оракул полного скана), объявление в `--show-entries`, два юнит-теста. Строка `S-03`
+в `docs/STATUS-v1.md` переписана в положительную форму и называет владельца
+`crates/vecdht-cli/src/index_cmd.rs`; страж статуса судит её карточкой круга.
+
+Верификация `bash lab/workspace-verify.sh E-0144`: `VERIFY_FAIL=0`, 134 среза, 788 passed, 0 failed,
+9 ignored; `TEST_EXIT=0`, `CLIPPY_EXIT=0`, `LEAN_EXIT=0`, `LEANGUARD_SELFTEST_EXIT=0`, `VERUS_EXIT=0`;
+`SECONDS_total=2488`; диск 22 707 → 22 147 МБ. Официальные прогоны носителя — двумя исполнениями на
+неизменном дереве после закрытия карточки: `ОЖИДАНИЙ=54 РАСХОЖДЕНИЙ=0`, `WORST_RC=0`,
+`STABLE=none` → `STABLE=1`; их числа записаны в `lab/logs/e0144-all.log`.

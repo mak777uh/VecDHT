@@ -34,7 +34,7 @@
 
 `selftest` строит временное дерево и тринадцать посаженных случаев: положительный контроль,
 каждую из четырёх поломок документа, ослабленную карточку-владельца, пропавший символ, удалённый
-тест, появившийся флаг `--class`, число в прозе, удалённое имя стража, отсутствующий документ и
+тест, ослабленную карточку `S-03`, число в прозе, удалённое имя стража, отсутствующий документ и
 пропавшую карточку второго утверждения.
 """
 
@@ -88,11 +88,13 @@ CLAIMS = [
     ),
     Claim(
         "S-03",
-        "флагов фильтра --class/--dir в CLI нет (хвост Batch C)",
+        "CLI объявляет и фильтрует класс/направление: --class и --intent-dir",
+        [r"accepts `--class` and `--intent-dir`", r"`crates/vecdht-cli/src/index_cmd\.rs`",
+         r"`E-0144`"],
         [r"there are no CLI flags `--class`"],
-        [],
         [
-            ("absent", "crates/vecdht-cli/src/args.rs", r'"--class"'),
+            # Владелец строки — карточка круга: флаг без закрытого измерения не доказательство.
+            ("card", "lab/experiments/E-0144-*.md", None),
         ],
     ),
     Claim(
@@ -228,7 +230,8 @@ The signing ceremony is a command (`E-0118`), `node run` starts a node from thos
 `centroid.bin` is loaded and `cluster_id` recomputed by the shipped binary (`E-0121`,
 `E-0119`).
 
-* paid intents: there are no CLI flags `--class`/`--dir` (Batch C), and there is no settlement.
+* paid intents: the CLI accepts `--class` and `--intent-dir` (`crates/vecdht-cli/src/index_cmd.rs`,
+  `E-0144`), and there is no settlement.
 * M6 guards — `lab/check-secrets.sh` and `lab/check-artifact-refs.py`; the guard prints its own
   counts, a stale allowance is a finding.
 """
@@ -248,7 +251,7 @@ def build_tree(root):
         "fn run() { let node = node.with_centroids(arc); }\nprintln!(\"NODE_READY listen=…\");\n")
     put("crates/vecdht-cli/tests/node_centroids.rs", "#[test] fn reassign() { cluster_reassigned(); }\n")
     put("crates/vecdht-cli/tests/node_run.rs", "#[test] fn ready() { NODE_READY(); }\n")
-    put("crates/vecdht-cli/src/args.rs", "// filter flags are Batch C\n")
+    put("lab/experiments/E-0144-a3.md", "---\nid: E-0144\nstatus: closed\nverdict: supports\n---\n# E\n")
     put("lab/check-artifact-refs.py", "REFS_CITED=1580\n")
 
 
@@ -321,9 +324,8 @@ def selftest():
     case("symbol-gone",
          edit("crates/vecdht-cli/src/node_cmd.rs", ".with_centroids(", ".without_centroids("), ["S-01"], 1)
     case("test-gone", remove("crates/vecdht-cli/tests/node_centroids.rs"), ["S-01"], 1)
-    case("flag-appeared",
-         edit("crates/vecdht-cli/src/args.rs", "// filter flags are Batch C",
-              'const FILTER: &str = "--class";'), ["S-03"], 1)
+    case("filter-card-pending",
+         edit("lab/experiments/E-0144-a3.md", "verdict: supports", "verdict: pending"), ["S-03"], 1)
     case("prose-number",
          append("\nThe guard checks 1333 backtick citations.\n"), ["S-04"], 1)
     case("guard-unnamed", drop(r"check-artifact-refs\.py"), ["S-04"], 1)

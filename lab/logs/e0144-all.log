@@ -1,0 +1,209 @@
+# E-0144 — флаги фильтра у CLI: `--class` и `--intent-dir`: носитель круга
+
+Круг `H-0144`, Batch C. Предмет — операторская ручка к механизму `E-0100`: узел писал класс и
+направление в `slot_attr`, а CLI не мог ни объявить их при `index add`, ни выбрать при
+`index search`. Продукт тронут в двух файлах (`crates/vecdht-cli/src/index_cmd.rs` — флаги, help,
+разбор, объявление в `--show-entries`; `crates/vecdht-index/src/store.rs` — `publish_with_attr`),
+`RUST_TOUCHED=2`. Строка `S-03` в `docs/STATUS-v1.md` переписана из отрицательной в положительную и
+получила владельца — карточку этого круга.
+
+## ШАГ 0. Пре-регистрация и дыра, названная пином
+
+```
+PIN_FOUND=1
+PRE_FIX_FLAGS=0
+PRE_FIX_INTENT=0
+PRE_FIX_FILTER=0
+PRE_FIX_ATTR=0
+PREFIX_LOG_ADD_CLASS=1
+PREFIX_LOG_DIR_COLLISION=1
+GATE_H0144_OK=1
+DISK_FREE_MB=21257
+DISK_GE_15000=1
+```
+
+Пин `298fa79` (карточки H и E в `pending`, таблица `lab/expectations/e0144.tsv` на 54 ожидания,
+носитель `lab/e0144-run.sh`, замороженный снимок поведения пина `lab/logs/e0144-prefix.txt`).
+Четыре счётчика по исходникам пина — нули: `"class"`, `"intent-dir"`, `search_filtered` и
+`publish_with_attr` в пине отсутствуют. Дыра названа ещё и поведением: бинарник пина отвечает
+`ADD_CLASS_RC=1` («`index add` не знает флага `--class`»), а `index search --dir T --dir buy`
+даёт «`--dir` указан 2 раз» — имя `--dir` занято каталогом шарда, поэтому направление получает
+новое имя `--intent-dir`. Гейт цикла зелёный: `CYCLE H-0144=OK нарушений=0`.
+
+## ШАГ 1. Починка
+
+* `ShardStore::publish_with_attr(e, slot_attr)` — тот же путь `stage_insert_with_attr → commit`,
+  байт едет телом WAL-фрейма и переживает рестарт; `publish` остаётся обёрткой с `slot_attr = 0`,
+  поэтому прежнее поведение не меняется.
+* `index add`: `--class free|paid` (по умолчанию `free`, как у узла) и
+  `--intent-dir unspecified|buy|sell` (по умолчанию `unspecified`); при названных флагах печатается
+  «объявление записей: класс …, направление … → slot_attr 0xNN».
+* `index search`: `--class any|free|paid`, `--intent-dir any|unspecified|buy|sell`; предикат
+  `search_filtered` применяется до усечения `top_k` и в ответе, и в оракуле полного скана;
+  `Any/Any` — прежний путь. `--show-entries` печатает «объявление: класс …, направление …».
+* Направление в `slot_attr` пишется кодировкой `IntentDir` (0…2), а не `DirFilter`
+  (`Unspecified=3`): `dir_for_attr` отображает `Any|Unspecified → 0`.
+* Два юнит-теста: `filters_are_stored_in_slot_attr_and_survive_reopen` (free/buy → 0x01,
+  paid/sell → 0x06, рестарт, `top_k=1` не пропускает чужой класс, вывод CLI называет объявление) и
+  `any_filter_reproduces_the_unfiltered_answer` (`search == search_filtered(Any, Any)` после reopen).
+* `docs/STATUS-v1.md`: `S-03` больше не говорит «флагов нет»; она называет
+  `crates/vecdht-cli/src/index_cmd.rs` и `E-0144` и сохраняет честную границу (локальный прибор, не
+  сетевое обещание).
+* `lab/check-status-claims.py`: `S-03` перевёрнута — положительные формы `accepts \`--class\` and
+  \`--intent-dir\``, путь владельца и `E-0144`, отрицательная форма прежнего текста; факт-владелец —
+  карточка `lab/experiments/E-0144-*.md` с вердиктом. Посаженный случай селфитеста заменён:
+  `filter-card-pending` (карточка `pending` → `S-03` краснеет). Селфитест 13 из 13.
+* `lab/e0144-run.sh`: PRE_FIX по `git show`, документ пина судится на **дереве пина**
+  (`git worktree`), `TREE_KEY` включает содержимое `git diff HEAD`.
+
+## ШАГ 2. Официальные прогоны
+
+Два исполнения на неизменном дереве после закрытия карточки, затем
+`python lab/expect.py lab/expectations/e0144.tsv run1.txt run2.txt`:
+
+```
+ОЖИДАНИЙ=54 РАСХОЖДЕНИЙ=0
+```
+
+Вектор фактов (58 строк) одинаков в обоих прогонах, кроме двух выпущенных ключей: `DISK_FREE_MB`
+(21 257 / 21 120) и `STABLE` (`none` → `1`):
+
+```
+PIN_FOUND=1
+PRE_FIX_FLAGS=0
+PRE_FIX_INTENT=0
+PRE_FIX_FILTER=0
+PRE_FIX_ATTR=0
+PREFIX_LOG_ADD_CLASS=1
+PREFIX_LOG_DIR_COLLISION=1
+GATE_H0144_OK=1
+DISK_FREE_MB=21257
+DISK_GE_15000=1
+SELFTEST_EXIT=0
+SELFTEST_TOTAL=13
+SELFTEST_PASSED=13
+CHK_PREFIX_EXIT=1
+CHK_PREFIX_STALE=1
+CHK_PREFIX_IDS=S-03
+CHK_PREFIX_REASONS=S-03:oracle-missing
+PRE_S01=consistent
+PRE_S02=consistent
+PRE_S03=stale
+PRE_S04=consistent
+CHK_EXIT=0
+CHK_STALE=0
+CHK_IDS=none
+CHK_CLAIMS=4
+CHK_FACTS=9
+CHK_FACTS_OK=9
+POST_S01=consistent
+POST_S02=consistent
+POST_S03=consistent
+POST_S04=consistent
+ORACLE_FILTER_EXIT=0
+ORACLE_FILTER_PASSED=1
+ORACLE_ANY_EXIT=0
+ORACLE_ANY_PASSED=1
+ORACLE_CLI_LIB_EXIT=0
+ORACLE_INDEX_LIB_EXIT=0
+HELP_ADD_CLASS=1
+HELP_SEARCH_CLASS=1
+HELP_ADD_INTENT=1
+HELP_SEARCH_INTENT=1
+DIR_IS_DIRECTORY=1
+SECRETS_EXIT=0
+REFS_EXIT=0
+CLAIMMAP_EXIT=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+MIRROR_EXIT=0
+GATE_AUDIT_EXIT=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+LINT_ORPHANS=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=2
+WORST_RC=0
+STABLE=none
+```
+
+Пять ключей шага (5) — `CHK_PREFIX_*` и `PRE_S03` — красные при закрытой карточке **по построению**:
+документ пина судится на дереве пина, где владельца строки ещё нет; это замороженная форма
+`oracle-missing`, а не дефект дерева. Оракул `vecdht-cli --lib` — 70 passed / 1 ignored (прежний
+ignored), `vecdht-index --lib` — 86 passed.
+
+## ШАГ 3. Верификация контура
+
+`bash lab/workspace-verify.sh E-0144` (фон, блок в `lab/logs/workspace-verify-2026-10-22.log`):
+
+```
+VERIFY_FAIL=0
+срезов ^test result: 134
+passed 788, failed 0, ignored 9
+SECONDS_total=2488
+DISK_FREE_MB=22707 -> 22147
+TEST_EXIT=0
+CLIPPY_EXIT=0
+LEAN_EXIT=0
+LEANGUARD_SELFTEST_EXIT=0
+VERUS_EXIT=0
+```
+
+Число срезов совпало с `E-0143` (134), passed вырос на 2 — ровно два новых юнит-теста круга.
+Верификация исполнена **до** закрытия карточки: страж контура (`CONTOURS_EXIT=0`) требует у закрытой
+карточки блок `########## E-XXXX · workspace-verify` в `lab/logs/`.
+
+## ШАГ 4. Цена
+
+Официальные прогоны: 5 мин 04 с и 4 мин 15 с (`time` снаружи, не таймер прибора). Свободный диск:
+21 257 МБ перед прогоном A, 21 120 МБ перед прогоном B, 22 345 МБ после верификации и уборки
+временных каталогов. Верификация стартовала при 22 707 МБ и закончила при 22 147 МБ. PRE_FIX-прогон
+не исполнялся: дыра снята `git show` и замороженным снимком бинарника пина, его цена — ноль.
+
+## ШАГ 5. ДИАГНОЗы
+
+1. **`grep -c` при нуле совпадений печатает `0` и выходит с кодом 1.** Первая версия
+   `PRE_FIX_*` писала `$(git show … | grep -c … || echo none)`: ноль превращался в две строки —
+   `0` и `none`. `expect.py` читает ключ по строке, и лишняя строка `none` стала бы расхождением при
+   верном числе. Исправлено ловушкой в переменной (`count_in_pin`); урок общий: команда, печатающая
+   ноль с ненулевым кодом, не имеет права стоять прямо в `$(…)` у факта.
+
+2. **Имя ключа — часть контракта, а не украшение.** `PREFIX_LOG_ADD_CLASS` искал `--class` в снимке
+   пина и находил две строки: про `index add` и про `index search`. Ключ, названный `ADD`, мерил бы
+   сумму двух команд. Строка ищется вместе с командой; значение — 1. Это правило «у имени факта один
+   владелец» в применении к самому прибору.
+
+3. **«До» и «после» обязаны судиться на своих деревьях.** После закрытия карточки `S-03` делается
+   согласованной на рабочем дереве — суд документа пина там дал бы `doc-missing` вместо
+   замороженного `oracle-missing`. Документ пина судится на `git worktree` пина: факты и документ
+   берутся из одного коммита. Рабочее дерево при этом не трогается, worktree снимается сразу.
+
+4. **`TREE_KEY` хешировал пути, а не содержимое.** После неудачной попытки на том же наборе грязных
+   файлов снимок `/tmp/eNNNN-<key>.facts` пережил правку, и второй прогон печатал `STABLE=0` при
+   неизменном дереве. Ключ теперь включает `git diff HEAD`; цена — 8 символов sha1. Урок уже был в
+   `E-0143`: ключ стабильности обязан различать **содержимое**, иначе он меряет расписание.
+
+5. **Победа флага в help — присутствие, а не количество.** `grep -c -- '--class'` по `help index add`
+   дал 2 (строка help + общая сводка флагов), `--intent` — 3; заморожено было 1. Ключ мерил вёрстку,
+   а не ручку оператора. До официальных прогонов заменено на `grep -q` → `1/0` и записано здесь как
+   поправка прибора; форма help от этого не менялась.
+
+6. **Страж контура ставит верификацию раньше закрытия.** `lab/check-contours.py` считает закрытую
+   карточку без блока контура находкой, поэтому `workspace-verify.sh E-0144` исполнен до
+   `verdict: supports`, а не после, как в кругах без продуктовых правок. Это не перестановка ради
+   зелёного: карточка уже использована как факт-владелец `S-03`, и её вердикт обязан опираться на
+   прогон, а не предшествовать ему.
+
+## ШАГ 6. Границы
+
+* Доказано отображение флагов в байт `slot_attr` и порядок «предикат до `top_k`» на **нашем**
+  `ShardStore`; поведение узла на проводе этим тестом не доказывается, и клиент по-прежнему не может
+  машинно проверить, что узел применил фильтр.
+* Цена не хранится: в `slot_attr` её бита нет.
+* `--intent-dir` — новое имя, а не обещанное очередью `--dir`; переименование каталога не делалось
+  (оно сломало бы все команды). `dir()` остаётся каталогом шарда.
+* Строка `S-03` — утверждение «прибор есть», а не «сеть обещает»: её граница про локальный
+  инструмент записана в самом документе.
+* Условие 3 релиза (вторая машина) этим кругом не закрыто (`E-0142`, `OPEN-QUESTIONS` п. 82).

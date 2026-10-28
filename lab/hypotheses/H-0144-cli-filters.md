@@ -1,7 +1,7 @@
 ---
 id: H-0144
-status: testing
-verdict: pending
+status: closed
+verdict: "supports"
 date: 2026-10-28
 claim: "CLI доводит механизм §5.5/§12.7 до оператора: `index add` принимает `--class free|paid` и
 `--intent-dir unspecified|buy|sell` и пишет биты объявления в `slot_attr` через тот же WAL-фрейм,
@@ -75,3 +75,18 @@ supersedes: null
 Клиент по-прежнему не может машинно проверить, что узел фильтрует: предикат исполняет узел, и это
 доверие, названное в `STATUS-v1.md`. Цена не хранится — в `slot_attr` её нет. Фильтр локального
 поиска — тот же предикат, что у узла, но не тот же код пути (у узла — `Find` TLV, здесь — флаги).
+
+## Результат
+
+Гипотеза поддержана (`E-0144`). Пин знает дыру: `PRE_FIX_FLAGS=0`, `PRE_FIX_INTENT=0`,
+`PRE_FIX_FILTER=0`, `PRE_FIX_ATTR=0`; бинарник пина отвечает «не знает флага `--class`» на `add` и
+«`--dir` указан 2 раз» на `search` (`PREFIX_LOG_ADD_CLASS=1`, `PREFIX_LOG_DIR_COLLISION=1`).
+Документ пина на дереве пина — ровно `S-03`, причина `oracle-missing`; после починки все четыре
+строки согласованы. Фикс: `publish_with_attr` в `ShardStore`, `--class`/`--intent-dir` у `add` и
+`search`, предикат до усечения в обоих поисках, объявление в `--show-entries`. Носители: тест
+фильтра 1 из 1 (биты в `slot_attr`, рестарт, `top_k=1` не пропускает чужой класс), `Any/Any` 1 из 1;
+`vecdht-cli` lib 70 passed / 1 ignored, `vecdht-index` lib 86 passed. Ручки видны в help
+(`HELP_ADD_CLASS=1`, `HELP_SEARCH_CLASS=1`, `HELP_ADD_INTENT=1`, `HELP_SEARCH_INTENT=1`), `--dir`
+остался каталогом (`DIR_IS_DIRECTORY=1`). Соседние стражи зелёные, `RUST_TOUCHED=2`. Верификация:
+`VERIFY_FAIL=0`, 134 среза, 788 passed / 0 failed / 9 ignored, `SECONDS_total=2488`. Официальные
+прогоны — `ОЖИДАНИЙ=54 РАСХОЖДЕНИЙ=0`, `WORST_RC=0`, `STABLE=none` → `STABLE=1`.

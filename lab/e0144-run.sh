@@ -26,13 +26,17 @@ PIN=$(git log --format=%H --grep="H-0144 пре-регистрация" -1)
 emit PIN_FOUND "$([ -n "$PIN" ] && echo 1 || echo 0)"
 
 # --- ШАГ 0: PRE_FIX пином ---------------------------------------------------------------------
-count_in_pin() { [ -n "$PIN" ] && git show "$PIN:$1" 2>/dev/null | grep -c -- "$2" || echo none; }
+# `grep -c` печатает 0 и выходит с кодом 1; без этой ловушки ноль превращался в две строки
+# «0» и «none» (ДИАГНОЗ-1). Значение у `emit` обязано быть ровно одним.
+count_in_pin() { local n; n=$(git show "$PIN:$1" 2>/dev/null | grep -c -- "$2") || true; printf '%s' "${n:-none}"; }
 emit PRE_FIX_FLAGS "$(count_in_pin crates/vecdht-cli/src/index_cmd.rs '"class"')"
 emit PRE_FIX_INTENT "$(count_in_pin crates/vecdht-cli/src/index_cmd.rs '"intent-dir"')"
 emit PRE_FIX_FILTER "$(count_in_pin crates/vecdht-cli/src/index_cmd.rs 'search_filtered')"
 emit PRE_FIX_ATTR "$(count_in_pin crates/vecdht-index/src/store.rs 'publish_with_attr')"
 PREFIX_LOG=lab/logs/e0144-prefix.txt
-emit PREFIX_LOG_ADD_CLASS "$(grep -c 'не знает флага `--class`' "$PREFIX_LOG" 2>/dev/null || echo none)"
+# Имя ключа — `index add`, а в снимке две строки про `--class` (add и search); поэтому строка
+# ищется вместе с командой, иначе счётчик мерил бы не то, что назван ключом (ДИАГНОЗ-2).
+emit PREFIX_LOG_ADD_CLASS "$(grep -c '`index add` не знает флага `--class`' "$PREFIX_LOG" 2>/dev/null || true)"
 emit PREFIX_LOG_DIR_COLLISION "$(grep -c 'указан 2 раз' "$PREFIX_LOG" 2>/dev/null || echo none)"
 
 # --- ШАГ 1: гейт и диск -----------------------------------------------------------------------
@@ -50,9 +54,15 @@ ST=$(grep -o 'СЕЛФТЕСТ_ИТОГ total=[0-9]* passed=[0-9]* failed=[0-9]*
 emit SELFTEST_TOTAL "$(printf '%s' "$ST" | sed -n 's/.*total=\([0-9]*\).*/\1/p' | grep . || echo none)"
 emit SELFTEST_PASSED "$(printf '%s' "$ST" | sed -n 's/.*passed=\([0-9]*\).*/\1/p' | grep . || echo none)"
 
-# --- ШАГ 3: документ пина ----------------------------------------------------------------------
-git show "$PIN:docs/STATUS-v1.md" > "${SCR}status-pin.md"
-r=0; python lab/check-status-claims.py --doc "${SCR}status-pin.md" > "${SCR}prefix.log" 2>&1 || r=$?
+# --- ШАГ 3: документ пина на дереве пина -------------------------------------------------------
+# Факты берутся из пина, а не из рабочего дерева: иначе закрытая карточка делает `S-03`
+# согласованной и «до» перестаёт отличаться от «после» (ДИАГНОЗ-3). Дерево пина — отдельный
+# worktree, снятый сразу после суда; рабочее дерево не трогается.
+PIN_TREE="${SCR}pin-tree"
+git worktree add --detach "$PIN_TREE" "$PIN" > "${SCR}worktree.log" 2>&1
+r=0; python lab/check-status-claims.py --root "$PIN_TREE" --doc "$PIN_TREE/docs/STATUS-v1.md" \
+  > "${SCR}prefix.log" 2>&1 || r=$?
+git worktree remove --force "$PIN_TREE" >> "${SCR}worktree.log" 2>&1
 emit CHK_PREFIX_EXIT "$r"
 emit CHK_PREFIX_STALE "$(grab "${SCR}prefix.log" STATUS_STALE)"
 emit CHK_PREFIX_IDS "$(grab "${SCR}prefix.log" STATUS_STALE_IDS)"
@@ -85,11 +95,14 @@ emit ORACLE_INDEX_LIB_EXIT "$r"
 r=0; cargo build -q -p vecdht-cli > "${SCR}build.log" 2>&1 || r=$?
 BIN=target/debug/vecdht-cli.exe
 [ -x "$BIN" ] || BIN=target/debug/vecdht-cli
-emit HELP_ADD_CLASS "$([ "$r" -eq 0 ] && "$BIN" help index add 2>/dev/null | grep -c -- '--class' || echo none)"
-emit HELP_SEARCH_CLASS "$([ "$r" -eq 0 ] && "$BIN" help index search 2>/dev/null | grep -c -- '--class' || echo none)"
-emit HELP_ADD_INTENT "$([ "$r" -eq 0 ] && "$BIN" help index add 2>/dev/null | grep -c -- '--intent-dir' || echo none)"
-emit HELP_SEARCH_INTENT "$([ "$r" -eq 0 ] && "$BIN" help index search 2>/dev/null | grep -c -- '--intent-dir' || echo none)"
-emit DIR_IS_DIRECTORY "$([ "$r" -eq 0 ] && "$BIN" help index create 2>/dev/null | grep -c -- '--dir DIR' || echo none)"
+# Ключ означает «ручка видна оператору», а не «сколько раз строка встретилась»: help печатает имя
+# флага и в тексте справки, и в сводке флагов, поэтому `grep -c` давал 2–3 при исправном коде.
+has() { if "$BIN" help "$1" 2>/dev/null | grep -q -- "$2"; then echo 1; else echo 0; fi; }
+emit HELP_ADD_CLASS "$([ "$r" -eq 0 ] && has "index add" '--class' || echo none)"
+emit HELP_SEARCH_CLASS "$([ "$r" -eq 0 ] && has "index search" '--class' || echo none)"
+emit HELP_ADD_INTENT "$([ "$r" -eq 0 ] && has "index add" '--intent-dir' || echo none)"
+emit HELP_SEARCH_INTENT "$([ "$r" -eq 0 ] && has "index search" '--intent-dir' || echo none)"
+emit DIR_IS_DIRECTORY "$([ "$r" -eq 0 ] && has "index create" '--dir DIR' || echo none)"
 
 # --- ШАГ 7: соседние стражи --------------------------------------------------------------------
 run_guard() { local key=$1; shift; local rr=0; "$@" > "${SCR}${key}.log" 2>&1 || rr=$?; emit "$key" "$rr"; }
@@ -173,7 +186,9 @@ emit WORST_RC "$BAD"
 
 # Повторяемость: снимок ключуется HEAD'ом и грязью дерева; диск и сам `STABLE` не сравниваются.
 # Первое исполнение печатает `STABLE=none`.
-TREE_KEY="$(git rev-parse --short HEAD 2>/dev/null || echo nohead)-$(git status --porcelain 2>/dev/null | sha1sum | cut -c1-8)"
+# Ключ обязан меняться от правки содержимого, а не только от списка грязных путей: иначе
+# «неизменное дерево» склеивается с прежней попыткой на тех же путях (ДИАГНОЗ-4).
+TREE_KEY="$(git rev-parse --short HEAD 2>/dev/null || echo nohead)-$({ git status --porcelain 2>/dev/null; git diff HEAD 2>/dev/null; } | sha1sum | cut -c1-8)"
 SNAP="${TMPDIR:-/tmp}/e0144-${TREE_KEY}.facts"
 Filt() { grep -v -E '^(DISK_FREE_MB|STABLE)=' "$1"; }
 if [ -f "$SNAP" ]; then
