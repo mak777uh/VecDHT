@@ -1,0 +1,50 @@
+# E-0145 — circuit relay v2: контур проводит прикладной handshake (заморожено до первого прогона)
+PIN_FOUND	1	пре-регистрация H-0145 найдена
+PRE_FIX_RELAY_FEATURE	0	в пине нет фичи relay
+PRE_FIX_RELAY_FIELD	0	в пине нет relay_client в Behaviour
+PRE_FIX_RESERVE	0	в пине нет reserve_circuit
+PRE_FIX_RELAY_STATS	0	в пине нет relay_stats
+PRE_FIX_TEST	0	в пине нет теста контура
+RELAY_FEATURE	1	фича relay в дереве
+RELAY_CLIENT_FIELD	1	клиентская половина в Behaviour
+RELAY_SERVER_FIELD	1	серверная половина в Behaviour
+RESERVE_CIRCUIT	1	резервация слота публичным API
+RELAY_STATS	1	наблюдаемые счётчики релея
+GATE_H0145_OK	1	гейт цикла
+DISK_GE_15000	1	диск
+ORACLE_EXIT	0	тест контура
+ORACLE_PASSED	2	два теста прошли
+ORACLE_FAILED	0	провалов нет
+target_direct_listeners	0	у цели нет прямых слушателей
+positive_server_reservations	1	релей принял слот
+positive_server_circuits	1	релей провёл контур
+positive_target_reservations	1	цель получила слот
+positive_client_reservations	0	клиент не резервировал
+positive_client_circuits	1	клиент открыл контур
+positive_auth_client_to_target	1	клиент авторизовал цель
+positive_auth_target_to_client	1	цель авторизовала клиента
+positive_relay_auth_target	1	релей авторизовал цель
+positive_relay_auth_client	1	релей авторизовал клиента
+positive_target_door_refusals	0	дверь не отказывала
+negative_server_reservations	0	агент не выдаёт слот
+negative_server_circuits	0	агент не проводит контур
+negative_target_reservations	0	слот не выдан
+negative_auth_client_to_target	0	контура нет
+WIRE_TOUCHED	0	wire не тронут
+RUST_TOUCHED	3	три файла крейта vecdht-net
+LOCK_TOUCHED	1	libp2p-relay в замке
+SECRETS_EXIT	0	секреты
+REFS_EXIT	0	цитаты
+CLAIMMAP_EXIT	0	карта утверждений
+CLAIMS_EXIT	0	реестр утверждений
+CONTOURS_EXIT	0	блоки контура
+MIRROR_EXIT	0	зеркало спеки
+GATE_AUDIT_EXIT	0	аудит гейтов
+REVIEW_EXIT	0	repo-review
+LINT_LATEST_EXIT	0	линт порогов
+LINT_ORPHANS	0	сирот нет
+TEXTGUARD_ALL_EXIT	0	текст всего дерева
+TEXTGUARD_ALL_DIRTY	0	грязных файлов нет
+TEXTGUARD_CYCLE_EXIT	0	текст файлов цикла
+WORST_RC	0	условия не нарушены
+STABLE	1	два исполнения на неизменном дереве
