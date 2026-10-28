@@ -24,6 +24,12 @@ emit() { printf '%s=%s\n' "$1" "$2" >>"$buf"; }
 # Ключ, которого прибор не напечатал, обязан стать `none`, а не пустой строкой (ДИАГНОЗ круга
 # `E-0139`: пустое значение сверка читает как «не найдено», и расхождение тонет в форме печати).
 grab() { v=$(grep -o "^$2=[0-9A-Za-z/.,:%_-]*" "$1" | tail -1 | cut -d= -f2); [ -n "$v" ] && echo "$v" || echo none; }
+# Выход стража читать тем же `grab` нельзя: `check` печатает итог одной строкой
+# (`LEAN_TOTAL=… FROZEN_ROWS=… EXTRAS_TOTAL=…`), а якорь `^` находит только первый ключ, и
+# остальные молча становятся `none` — расхождение, которого сверка не видит, потому что читает
+# напечатанный вектор. Поэтому чужой stdout сначала раскладывается по строкам, и только потом
+# ищется ключ с начала строки (тот же довод, что у молчания экстракторов в ДИАГНОЗ-1 `E-0107`).
+grabi() { v=$(tr ' \t' '\n\n' < "$1" | grep -o "^$2=[0-9A-Za-z/.,:%_-]*" | tail -1 | cut -d= -f2); [ -n "$v" ] && echo "$v" || echo none; }
 # Строки дайджеста — сумма по всем `.statements.tsv`; пустой набор даёт ноль, а не панику.
 rows() { n=$(find "$1" -name '*.statements.tsv' -print0 2>/dev/null | xargs -0 -r grep -h '^[^#]' 2>/dev/null | grep -c ''); echo "${n:-0}"; }
 # Сколько деклараций данного класса в моделях — считается по дереву, а не берётся из веры в прибор.
@@ -104,7 +110,7 @@ if [ -n "${PIN:-}" ]; then
   plant "$PINROOT" Bounded.lean "$EVAL_FROM" "$EVAL_TO"; r=$?
   emit PIN_EVAL_PLANTED "$([ "$r" = 0 ] && echo 1 || echo 0)"
   emit PIN_EVAL_EXIT "$(run_check "${SCR}lean-check-pin.py" "$PINROOT" "${SCR}pin-eval.txt")"
-  emit PIN_EVAL_ALL_OK "$(grab ${SCR}pin-eval.txt LEAN_ALL_OK)"
+  emit PIN_EVAL_ALL_OK "$(grabi ${SCR}pin-eval.txt LEAN_ALL_OK)"
   emit PIN_EVAL_REASONS "$(grep -c 'ПРОТИВ' "${SCR}pin-eval.txt")"
 else
   emit PIN_EVAL_PLANTED none; emit PIN_EVAL_EXIT none; emit PIN_EVAL_ALL_OK none; emit PIN_EVAL_REASONS none
@@ -125,7 +131,7 @@ if [ -n "${PIN:-}" ]; then
   plant "$PINROOT" Shard.lean "$STRUCT_FROM" "$STRUCT_TO"; r=$?
   emit PIN_STRUCT_PLANTED "$([ "$r" = 0 ] && echo 1 || echo 0)"
   emit PIN_STRUCT_EXIT "$(run_check "${SCR}lean-check-pin.py" "$PINROOT" "${SCR}pin-struct.txt")"
-  emit PIN_STRUCT_ALL_OK "$(grab ${SCR}pin-struct.txt LEAN_ALL_OK)"
+  emit PIN_STRUCT_ALL_OK "$(grabi ${SCR}pin-struct.txt LEAN_ALL_OK)"
   emit PIN_STRUCT_REASONS "$(grep -c 'ПРОТИВ' "${SCR}pin-struct.txt")"
 else
   emit PIN_STRUCT_PLANTED none; emit PIN_STRUCT_EXIT none; emit PIN_STRUCT_ALL_OK none
@@ -145,7 +151,7 @@ if [ -n "${PIN:-}" ]; then
   plant "$PINROOT" Shard.lean "$IND_FROM" "$IND_TO"; r=$?
   emit PIN_INDUCTIVE_PLANTED "$([ "$r" = 0 ] && echo 1 || echo 0)"
   emit PIN_INDUCTIVE_EXIT "$(run_check "${SCR}lean-check-pin.py" "$PINROOT" "${SCR}pin-ind.txt")"
-  emit PIN_INDUCTIVE_ALL_OK "$(grab ${SCR}pin-ind.txt LEAN_ALL_OK)"
+  emit PIN_INDUCTIVE_ALL_OK "$(grabi ${SCR}pin-ind.txt LEAN_ALL_OK)"
   emit PIN_INDUCTIVE_REASONS "$(grep -c 'ПРОТИВ' "${SCR}pin-ind.txt")"
 else
   emit PIN_INDUCTIVE_PLANTED none; emit PIN_INDUCTIVE_EXIT none; emit PIN_INDUCTIVE_ALL_OK none
@@ -170,12 +176,12 @@ emit PRE_FIX_DIFFERS "$([ "$(grab "$buf" PRE_FIX_HOLE)" = 1 ] && \
 
 # --- годное живое дерево обязано оставаться зелёным ----------------------------------------------
 python lab/lean-check.py check --quiet >${SCR}base.txt 2>&1; emit BASE_CHECK_EXIT $?
-emit BASE_ALL_OK "$(grab ${SCR}base.txt LEAN_ALL_OK)"
-emit BASE_FROZEN_ROWS "$(grab ${SCR}base.txt FROZEN_ROWS)"
-emit BASE_DECLS_TOTAL "$(grab ${SCR}base.txt DECLS_TOTAL)"
-emit BASE_EXTRAS_TOTAL "$(grab ${SCR}base.txt EXTRAS_TOTAL)"
-emit BASE_BROKEN "$(grab ${SCR}base.txt BROKEN)"
-emit BASE_DIGEST_BAD "$(grab ${SCR}base.txt DIGEST_BAD)"
+emit BASE_ALL_OK "$(grabi ${SCR}base.txt LEAN_ALL_OK)"
+emit BASE_FROZEN_ROWS "$(grabi ${SCR}base.txt FROZEN_ROWS)"
+emit BASE_DECLS_TOTAL "$(grabi ${SCR}base.txt DECLS_TOTAL)"
+emit BASE_EXTRAS_TOTAL "$(grabi ${SCR}base.txt EXTRAS_TOTAL)"
+emit BASE_BROKEN "$(grabi ${SCR}base.txt BROKEN)"
+emit BASE_DIGEST_BAD "$(grabi ${SCR}base.txt DIGEST_BAD)"
 # Счётчик-страж: насчитанное парсером прибора обязано совпасть с насчитанным `grep`'ом по дереву.
 # Расхождение означает, что форма не разобрана, — а неразобранная форма снова вне заморозки.
 emit EXTRA_PARSER_OK "$([ "$(grab "$buf" BASE_EXTRAS_TOTAL)" = \
