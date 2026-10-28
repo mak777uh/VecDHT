@@ -1,0 +1,23 @@
+# E-0144 PRE_FIX: флагов фильтра у CLI нет (пин)
+# снято до правки дерева, бинарник собран из пина
+PIN=f1e3ade
+TREE_KEY=1c86e34c
+BIN_SHA256=edf1c96b1d38102a63b88f790546dda230c835cea765ab39d440d784d331e7d6
+# --- index add --class paid ---
+разбор: `index add` не знает флага `--class`
+ADD_CLASS_RC=1
+# --- index search --class paid ---
+разбор: `index search` не знает флага `--class`
+SEARCH_CLASS_RC=1
+# --- index search --dir buy ---
+разбор: флаг `index search --dir` указан 2 раз: повтор для одного и того же флага — ошибка, а не «последнее выигрывает»
+SEARCH_DIR_RC=1
+# --- help index add: строка про класс ---
+0
+HELP_ADD_CLASS_LINES=1
+# --- index search --intent-dir buy (имя, которым флаг появится) ---
+разбор: `index search` не знает флага `--intent-dir`
+SEARCH_INTENT_DIR_RC=1
+# --- index add --intent-dir sell ---
+разбор: `index add` не знает флага `--intent-dir`
+ADD_INTENT_DIR_RC=1

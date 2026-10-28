@@ -1,0 +1,55 @@
+# E-0144 — флаги фильтра у CLI --class/--intent-dir (заморожено до первого прогона)
+PIN_FOUND	1	пре-регистрация H-0144 найдена
+PRE_FIX_FLAGS	0	в пине нет "class" в index_cmd.rs
+PRE_FIX_INTENT	0	в пине нет "intent-dir"
+PRE_FIX_FILTER	0	в пине index_cmd не зовёт search_filtered
+PRE_FIX_ATTR	0	в пине store не имеет publish_with_attr
+PREFIX_LOG_ADD_CLASS	1	бинарник пина: index add не знает --class
+PREFIX_LOG_DIR_COLLISION	1	бинарник пина: --dir buy — повтор имени каталога
+GATE_H0144_OK	1	гейт цикла
+DISK_GE_15000	1	диск
+SELFTEST_EXIT	0	самопроверка стража статуса
+SELFTEST_TOTAL	13	посаженных случаев
+SELFTEST_PASSED	13	отбито
+CHK_PREFIX_EXIT	1	документ пина расходится
+CHK_PREFIX_STALE	1	ровно одно утверждение
+CHK_PREFIX_IDS	S-03	это S-03
+CHK_PREFIX_REASONS	S-03:oracle-missing	владельца строки в пине ещё нет
+PRE_S01	consistent	центроиды согласованы
+PRE_S02	consistent	запуск узла согласован
+PRE_S03	stale	флагов в пине нет
+PRE_S04	consistent	счётчик цитат за стражем
+CHK_EXIT	0	рабочий документ согласован
+CHK_STALE	0	расхождений нет
+CHK_IDS	none	пустое множество словом
+CHK_CLAIMS	4	строк под стражем
+CHK_FACTS	9	владельцев проверено
+CHK_FACTS_OK	9	все на месте
+POST_S03	consistent	строка про флаги верна
+ORACLE_FILTER_EXIT	0	тест фильтра
+ORACLE_FILTER_PASSED	1	фильтр в slot_attr и после рестарта
+ORACLE_ANY_EXIT	0	тест Any/Any
+ORACLE_ANY_PASSED	1	Any/Any равен прежнему ответу
+ORACLE_CLI_LIB_EXIT	0	vecdht-cli lib
+ORACLE_INDEX_LIB_EXIT	0	vecdht-index lib
+HELP_ADD_CLASS	1	help index add знает --class
+HELP_SEARCH_CLASS	1	help index search знает --class
+HELP_ADD_INTENT	1	help index add знает --intent-dir
+HELP_SEARCH_INTENT	1	help index search знает --intent-dir
+DIR_IS_DIRECTORY	1	--dir остался каталогом
+SECRETS_EXIT	0	секреты
+REFS_EXIT	0	цитаты
+CLAIMMAP_EXIT	0	карта утверждений
+CLAIMS_EXIT	0	реестр утверждений
+CONTOURS_EXIT	0	блоки контура
+MIRROR_EXIT	0	зеркало спеки
+GATE_AUDIT_EXIT	0	аудит гейтов
+REVIEW_EXIT	0	repo-review
+LINT_LATEST_EXIT	0	линт порогов
+LINT_ORPHANS	0	сирот нет
+TEXTGUARD_ALL_EXIT	0	текст всего дерева
+TEXTGUARD_ALL_DIRTY	0	грязных файлов нет
+TEXTGUARD_CYCLE_EXIT	0	текст файлов цикла
+RUST_TOUCHED	2	два продуктовых файла
+WORST_RC	0	условия не нарушены
+STABLE	1	два исполнения на неизменном дереве
