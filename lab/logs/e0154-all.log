@@ -1,0 +1,116 @@
+#### КРУГ E-0154 · число в комментарии обязано иметь исполнителя ####
+измерено на рабочем дереве `bb33f31` (пин пре-регистрации `6d776d3`, база `46f73be`), дата 2026-10-29,
+хост владельца; сеть наружу не использовалась; продукт не правился (`RUST_TOUCHED=0`, `WIRE_TOUCHED=0`,
+`SPEC_TOUCHED=0`); дерево пина развёрнуто временным `git worktree` и снято тем же прогоном
+(`WT_REMOVED=1`); посадки строились в `mktemp -d`; рабочее дерево во время двух официальных прогонов
+и верификации не правилось.
+
+состав правки (7 файлов): `lab/check-ci-numbers.py` (412 строк) — читает названные формы утверждений
+из шапки `.github/workflows/verify.yml`, пересчитывает дерево по записанному там же определению счёта
+и краснеет на расхождении, на неизвестной команде, на пропавшем крейте, на одном имени с двумя числами
+и на снятом определении; `.github/workflows/verify.yml` — числа шапки приведены к дереву (762→802,
+764→804, разбивка `orders 16→24`, `index 117→118`, `node 203→208`, `net 102→105`, `cli 79→102`,
+производные «208 из 804 (26 %)» и «остальные 596 — 74 %»), определение счёта записано словами,
+добавлен шаг `check-ci-numbers` и его самотест; `lab/workspace-verify.sh` (+10 строк) — боевой вызов
+и семь посадок в локальном контуре; носитель `lab/e0154-run.sh`, таблица `lab/expectations/e0154.tsv`
+(118 ожиданий), карточки `H-0154` и `E-0154`.
+
+#### ШАГ 0 · PRE_FIX: дрейф посчитан отдельным кодом, шестнадцати приборов пина он не волнует ####
+команды, напечатанные в самой шапке пина, исполнены bash-`grep`ом в развёрнутом дереве пина, обещанные
+числа вынуты из той же строки:
+PRE_FIX_CLAIMED_TEST=762 PRE_FIX_TREE_TEST=802 PRE_FIX_TOTAL_DRIFT=1
+PRE_FIX_CLAIMED_ALL=764 PRE_FIX_TREE_ALL=804 PRE_FIX_ALL_DRIFT=1
+PRE_FIX_PAIR_DIFF_COUNT=5 PRE_FIX_PAIR_DIFF_NAMES=orders,index,node,net,cli
+развёрнутый файл сверен с blob'ом пина хешем, а не длиной: `WT_PIN_BLOB=f776d4f05a2e572f45426787e4317a712e1e1d16`
+= `WT_PIN_ONDISK`, `WT_PIN_BYTES=1`.
+Шестнадцать из семнадцати приборов пина над тем же деревом зелёные:
+PRE_FIX_PIN_RUN=16 PRE_FIX_PIN_INVISIBLE=1 PRE_FIX_PIN_OTHER_INVISIBLE=1
+PRE_FIX_PIN_BATTERY_RED=0 PRE_FIX_PIN_BATTERY_REDS=none
+PRE_FIX_PIN_OTHER_RED=0 PRE_FIX_PIN_OTHER_REDS=none
+единственная непрогнанная причина названа: `PRE_FIX_PIN_SECRETS_SKIPPED=1` (`check-secrets.sh` читает
+всю историю — 312 с на вызов — и арифметику комментария не видит).
+Тот же дрейф новым прибором на дереве пина красен и называет каждое утверждение:
+PRE_FIX_NEW_ON_PIN_RC=1 PRE_FIX_NEW_ON_PIN_CLAIMS=19 PRE_FIX_NEW_ON_PIN_MATCH=7
+PRE_FIX_NEW_ON_PIN_FINDINGS=13 PRE_FIX_NEW_ON_PIN_DRIFT_COUNT=12
+PRE_FIX_NEW_ON_PIN_CMD=1 PRE_FIX_NEW_ON_PIN_PAIRS=5 PRE_FIX_NEW_ON_PIN_DERIVED=6
+PRE_FIX_NEW_ON_PIN_TOKENS=1 PRE_FIX_NEW_ON_PIN_DEFINITION=missing
+PRE_FIX_NEW_ON_PIN_TOTAL_TEST=802
+Определение счёта не двоится: обход прибора и bash-`grep` по команде из шапки на одном дереве дают
+одно число — `TREE_EQ_PIN_BASH=1`.
+вердикт шага: 40 деклараций `#[test]` дрейфа (5 %) прожили несколько циклов, не покраснив ни одного
+из существовавших приборов; семнадцатый прибор (новый) краснит то же дерево и называет 12 расхождений
+тремя классами.
+
+#### ШАГ 1 · POST_FIX: починенная шапка зеленеет, семь посадок отбиваются ####
+POST_FIX_TREE_RC=0 POST_FIX_TREE_CLAIMS=19 POST_FIX_TREE_MATCH=19 POST_FIX_TREE_FINDINGS=0
+POST_FIX_TREE_DRIFT_COUNT=0 POST_FIX_TREE_DRIFT=none POST_FIX_TREE_DEFINITION=full
+POST_FIX_TREE_UNKNOWN=none POST_FIX_TREE_MISSING=none POST_FIX_TREE_MULTIPLE=none
+пустые множества названы `none`, а не молчанием.
+Посадки (`--selftest`): `CIN_SELFCASES=7` `CIN_SELFPASSED=7` `CIN_SELFTEST=ok` `CIN_SELFTEST_RC=0` —
+PLANT_GREEN=caught, PLANT_STALE=caught, PLANT_MISSING=caught, PLANT_UNKNOWN=caught,
+PLANT_NODEF=caught, PLANT_DUP=caught, PLANT_TARGET=caught.
+Последняя — ответ на находку V-2 внешней рецензии: девять меток, посаженных в
+`crates/vecdht-wire/target/`, зелёные, а те же девять рядом с ним красные, то есть исключение
+`target/` исполняется, а не записано в комментарии.
+Прибор вызван боевым режимом в обоих контурах: `CIN_BATTLE_HOST=1` `CIN_BATTLE_CI=1` `CIN_WIRED_BOTH=1`.
+
+#### ШАГ 2 · боевые факты настоящего дерева и соседи ####
+TREE_TOTAL_TEST=802 TREE_TOTAL_TOKIO=2 TREE_TOTAL_CASE=0 TREE_TOTAL_ALL=804 TREE_IGNORED=11
+TREE_RS_FILES=196
+разбивка: wire 57, orders 24, crypto 60, artifact 48, index 118, node 208, net 105, embed 80, cli 102
+(=`TREE_CRATE_*`).
+Соседи не изменились, кроме ожидаемого прироста счётчика приборов:
+GSE_GUARDS=17 = LS_CHECK_COUNT=17 (`GSE_GUARDS_MATCH_LS=1`), GSE_FINDINGS=0,
+GSE_SELFTEST_CASES=4 / GSE_SELFTEST_PASSED=4, PARITY_INSTRUMENTS=17, PARITY_FINDINGS=0,
+REFS_CITED=1692, REFS_MISSING=0, REFS_SELFTEST=ok, REFS_EXTERNAL_DIR=excluded,
+REFS_EXTERNAL_DIR_2=excluded, TEXTGUARD_ALL_DIRTY=0, LINT_ORPHANS=0,
+CRG_EXIT=0, RCC_EXIT=0, STATUS_EXIT=0, SECRETS_EXIT=0, KIT_EXIT=0, MIRROR_EXIT=0, REVIEW_EXIT=0,
+LINT_LATEST_EXIT=0, CLAIMS_EXIT=0, CONTOURS_EXIT=0, OQ_EXIT=0, DDF_EXIT=0,
+TEXTGUARD_ALL_EXIT=0, TEXTGUARD_CYCLE_EXIT=0, GSE_EXIT=0, PARITY_EXIT=0, REFS_EXIT=0.
+Границы круга: RUST_TOUCHED=0 WIRE_TOUCHED=0 SPEC_TOUCHED=0 TOUCHED_OUTSIDE=0
+TOUCHED_OUTSIDE_NAMES=none WT_REMOVED=1.
+
+#### ДВА ОФИЦИАЛЬНЫХ ПРОГОНА ####
+bash lab/e0154-run.sh дважды на неизменном дереве `bb33f31` (23:08 и 23:18 по локальному времени):
+python lab/expect.py lab/expectations/e0154.tsv r1/facts.txt r2/facts.txt → ОЖИДАНИЙ=118 РАСХОЖДЕНИЙ=0,
+код 0; WORST_RC=0, STABLE=1. Единственные отличающиеся строки прогонов — `DISK_FREE_MB` (7947 и 7760)
+и сам флаг `STABLE`.
+
+#### ПОЛНАЯ ВЕРИФИКАЦИЯ ####
+bash lab/workspace-verify.sh E-0154 на том же неизменном дереве, пуск 2026-10-29T23:28:31+03:00,
+после `cargo clean` по согласию владельца (освобождено 14.0 ГиБ, 18 631 файл):
+блок на строке 188 034 `lab/logs/workspace-verify-2026-10-22.log` (2 619 строк).
+cargo test --workspace: 136 сюит, 791 прошёл, 0 упало, 9 `#[ignore]`, TEST_EXIT=0 (2 414 с);
+clippy CLIPPY_EXIT=0 (145 с); lean-check LEAN_EXIT=0 (76 с) и его самопроверка (332 с);
+VERUS_TOTAL verified=8 errors=0 status=OK, VERUS_SELFTEST total=5 passed=5; kani-compile-check,
+cycle-gate, instruments, ledger, repo-review — зелёные;
+носитель круга в контуре: CIN_SELFCASES=7 CIN_SELFPASSED=7 CIN_SELFTEST=ok,
+CIN_TOTAL_TEST=802 CIN_TOTAL_ALL=804; GSE_GUARDS=17 GSE_FINDINGS=0; REFS_CITED=1692 REFS_MISSING=0;
+STATUS_OK=1; ИСТОРИЯ_СОВПАДЕНИЙ=0; SECRETS_FINDINGS=0; зеркало спеки: v8 2 300 строк f96bdd3ac427,
+v9 634 строки a121878a263f; ПАРИТЕТ_НАХОДОК=0; VERIFY_FAIL=0, SECONDS_total=3348.
+Диск: до clean свободно 7 719 МБ (ниже линии владельца — поэтому clean и был согласован), сразу после
+clean 21 589 МБ, в начале верификации 21 584 МБ, в конце 8 698 МБ: пересборка после `cargo clean`
+съела ~13 ГиБ обратно. Тяжёлые прогоны дальше остановлены до нового слова владельца.
+
+#### ВЕРДИКТ ####
+supports. Дрейф посчитан до правки отдельным кодом при шестнадцати зелёных приборах пина
+(`PRE_FIX_PIN_INVISIBLE=1`), тот же дрейф красится новым прибором с именами и классами
+(`PRE_FIX_NEW_ON_PIN_RC=1`, 12 расхождений, `TOKENS=1`), починенная шапка зеленеет (`POST_FIX_TREE_RC=0`,
+`CLAIMS=MATCH=19`, `DRIFT=none`), семь посадок отбиваются включая `target/`, боевые факты соседей
+не изменились кроме счётчика приборов 16→17, продукт и wire не тронуты, 118 ожиданий ×0, `STABLE=1`,
+полная верификация `VERIFY_FAIL=0`.
+
+#### Границы и остатки ####
+* Прибор сверяет названные формы утверждений, а не весь текст: число в свободной прозе вне четырёх форм
+  утверждением не считается. Производные фразы ищутся по плоскому тексту шапки, поэтому `N из M` способно
+  поймать число той же формы в прозе — названо, ложный охват честнее молчаливого пропуска.
+* `check-date-domain.py` над деревом пина вызывался без `--require-git`: в откреплённом worktree он не
+  получает историю файла (`DDF_GIT_EVIDENCE=0`) и краснеет на контексте прогона, а не на дереве. На
+  рабочем дереве контур зовёт его с флагом. Слепота прибора к own-контексту — отдельный класс, в круг
+  не входил.
+* Прибор считает написанное с написанным: сколько тестов реально запускает `cargo test --workspace` —
+  другой факт, его печатает верификация (791 passed против 802 статических деклараций, разница —
+  `#[ignore]` и сюиты без запуска).
+* Числа вне шапки `verify.yml` (README, спека) в круг не вошли: у них свои стражи, и README —
+  отдельная находка внешней рецензии (переносится карточкой `E-0155` вместе с колонкой ожидания).
+* Соответствие моделей Lean коду круг не утверждает: правка только в `lab/`, `.github/` и карточках.
