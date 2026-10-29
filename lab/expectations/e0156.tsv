@@ -1,0 +1,49 @@
+# E-0156: два литерала none не считаются равенством фактов — страж none-compare (H-0156).
+# Порог заморожен до первого официального прогона lab/e0156-run.sh.
+# Ключ	Значение	Смысл
+PIN_FOUND	1	пре-регистрация H-0156 найдена в истории
+PRE_FIX_RC	1	на дереве пина страж краснеет: реестра там нет
+PRE_FIX_CARRIERS	139	носителей на пине
+PRE_FIX_COMPARISONS	28	сравнений двух переменных в носителях пина
+PRE_FIX_SENTINEL_PAIRS	1	оба операнда могут быть литералом none — одна пара
+PRE_FIX_GUARDED	0	защищённых пар на пине нет
+PRE_FIX_BASELINE_ROWS	0	строк реестра в пине нет — дыра названа отсутствием
+PRE_FIX_BASELINE_DEFECTS	none	дефектов реестра нет, потому что нет реестра
+PRE_FIX_FINDINGS	1	единственная пара не названа причиной
+PRE_FIX_FINDING	lab/e0146-run.sh:80	сайт назван: полнота == покрытие на grab-фактах
+POST_RC	0	после правки страж зелёный
+POST_CARRIERS	140	носителей в рабочем дереве (добавлен e0156)
+POST_COMPARISONS	28	сравнений двух переменных; новый носитель пары не добавил
+POST_SENTINEL_PAIRS	1	пара по-прежнему одна
+POST_GUARDED	0	защищённых пар нет — единственная историческая названа реестром
+POST_BASELINE_ROWS	1	строка реестра: e0146:80 с причиной
+POST_BASELINE_DEFECTS	none	пустых причин и мёртвых строк нет
+POST_FINDINGS	0	неназванных пар нет
+NC_CARRIER_MATCH_LS	1	число носителей стража равно `ls lab/e*-run.sh`
+PLANT_NONE_RC	1	посаженная незащищённая пара краснит
+PLANT_NONE_NAMED	1	и находка называет файл и строку
+PLANT_EMPTY_RC	1	строка реестра с пустой причиной краснит
+PLANT_EMPTY_NAMED	1	и дефект называется EMPTY_REASON
+PLANT_STALE_RC	1	строка реестра без сайта краснит
+PLANT_STALE_NAMED	1	и дефект называется STALE
+PLANT_CASES	3	посадок носителя
+PLANT_PASSED	3	все три отбиты
+ROOT_RC	2	вне корня lab/ страж отказывается мерить
+ROOT_KIND	not-lab	причина отказа напечатана
+SELFTEST_RC	0	пять посадок прибора зелёные
+SELFTEST_CASES	5	посаженных дефектов
+SELFTEST_PASSED	5	все пять отбиты
+SELFTEST_FAILED	0	ни один не прошёл
+GSE_EXIT	0	мета-страж H-0151 зелёный
+GSE_FINDINGS	0	приборов без посадки или вызова нет
+PARITY_EXIT	0	страж паритета H-0152 зелёный
+REFS_EXIT	0	страж цитат
+CLAIMS_EXIT	0	реестр утверждений сходится
+CONTOURS_EXIT	0	прибор закрытых карточек зелёный
+STATUS_EXIT	0	страж STATUS зелёный
+EXPECT_FREEZE_EXIT	0	страж заморозки таблиц H-0155 зелёный
+RUST_TOUCHED	0	продукт не тронут
+WIRE_TOUCHED	0	wire не тронут
+DISK_READABLE	1	диск измерен
+WORST_RC	0	ни один шаг не краснел
+STABLE	1	два прогона на неизменном дереве совпали
