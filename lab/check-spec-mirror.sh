@@ -12,11 +12,52 @@
 #
 # Список документов живёт в одном массиве: цикл сверки обязан покрыть v9 тем же прибором, что и v8,
 # а не отдельной копией скрипта (иначе v9 расходится молча).
+#
+# `--selftest` (карточка `H-0151`) сажает дефект в temp-каталог: оригиналы и зеркала строятся
+# здесь же, поэтому посадка не зависит от OneDrive хоста. Корень и каталог зеркал
+# переопределяются `VEC_DHT_ROOT` / `SPEC_MIRROR_DIR`; без переменных поведение прежнее.
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
-MIRROR_DIR="${HOME}/OneDrive/Desktop"
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="${VEC_DHT_ROOT:-$(cd "$SELF_DIR/.." && pwd)}"
+MIRROR_DIR="${SPEC_MIRROR_DIR:-${HOME}/OneDrive/Desktop}"
 DOCS=(VecDHT-SPEC-v8.md VecDHT-SPEC-v9.md)
+
+if [[ "${1:-}" == "--selftest" ]]; then
+  SELF="$SELF_DIR/$(basename "$0")"
+  T="$(mktemp -d)" || { echo "ПРИБОР: mktemp не исполнен" >&2; exit 2; }
+  trap 'rm -rf "$T"' EXIT
+  mkdir -p "$T/orig/docs" "$T/mirror"
+  printf 'спека v8\n' > "$T/orig/docs/VecDHT-SPEC-v8.md"
+  printf 'спека v9\n' > "$T/orig/docs/VecDHT-SPEC-v9.md"
+  cp "$T/orig/docs/"*.md "$T/mirror/"
+  cases=0; passed=0
+  run_case() { # $1 имя, $2 ожидаемый rc, $3 подстрока вывода
+    cases=$((cases + 1))
+    rc=0
+    out=$(VEC_DHT_ROOT="$T/orig" SPEC_MIRROR_DIR="$T/mirror" bash "$SELF" 2>&1) || rc=$?
+    if [ "$rc" = "$2" ] && printf '%s\n' "$out" | grep -qF "$3"; then
+      passed=$((passed + 1)); echo "ПОСАДКА $1: OK (rc=$rc)"
+    else
+      echo "ПОСАДКА $1: FAIL — rc=$rc, ожидались rc=$2 и строка «$3»" >&2
+    fi
+  }
+  run_case match 0 'OK: VecDHT-SPEC-v8.md'
+  printf 'лишняя строка\n' >> "$T/mirror/VecDHT-SPEC-v9.md"
+  run_case divergent 1 'зеркало разошлось с оригиналом'
+  cp "$T/orig/docs/VecDHT-SPEC-v9.md" "$T/mirror/VecDHT-SPEC-v9.md"
+  rm -f "$T/mirror/VecDHT-SPEC-v8.md"
+  run_case no_mirror 1 'зеркала VecDHT-SPEC-v8.md нет на месте'
+  rm -f "$T/orig/docs/VecDHT-SPEC-v9.md"
+  run_case no_origin 2 'нет оригинала docs/VecDHT-SPEC-v9.md'
+  echo "SMK_SELFTEST_CASES=$cases"
+  echo "SMK_SELFTEST_PASSED=$passed"
+  echo "SMK_SELFTEST_FAILED=$((cases - passed))"
+  [ "$cases" = "$passed" ] && exit 0
+  exit 1
+fi
+
+cd "$ROOT"
 
 if [[ "${1:-}" == "--fix" ]]; then
   mkdir -p "$MIRROR_DIR"

@@ -50,7 +50,50 @@
 # которые ни в один прогон того дня явно не передавались (списки прогонов строятся вручную, поэтому
 # покрытие зависит от памяти вызывающего, а не от репозитория).
 # Выход: 0 — чисто, 1 — найдено.
+#
+# `--selftest` (карточка `H-0151`) сажает дефект каждого канала в temp-файл: связку, гибрид,
+# чужой алфавит, разрешающий маркер и чистый текст. Каждый канал проверяется отдельно, а не
+# одной строкой со всем сразу, иначе нельзя отличить «страж видит» от «страж печатает».
 set -u
+SELF_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+if [ "${1:-}" = "--selftest" ]; then
+  SELF="$SELF_DIR/$(basename "$0")"
+  T="$(mktemp -d)" || exit 2
+  trap 'rm -rf "$T"' EXIT
+  cases=0; passed=0
+  run_case() { # $1 имя, $2 файл, $3 ожидаемый rc, $4 подстрока вывода
+    cases=$((cases + 1))
+    rc=0
+    out=$(bash "$SELF" "$2" 2>&1) || rc=$?
+    if [ "$rc" = "$3" ] && printf '%s\n' "$out" | grep -qF "$4"; then
+      passed=$((passed + 1)); echo "ПОСАДКА $1: OK (rc=$rc)"
+    else
+      echo "ПОСАДКА $1: FAIL — rc=$rc, ожидались rc=$3 и «$4»" >&2
+    fi
+  }
+  printf 'Обычный русский текст с `кодом` и цифрой 5 в строке, ничего лишнего.\n' > "$T/clean.md"
+  # Посадочные слова собираются в переменных: литерал в этом файле красил бы сам страж (он
+  # гоняется по `lab/*.sh`). Правило то же, что у MARK ниже: называющий класс пишет его в защиту.
+  WC="therefore"
+  printf 'В русском тексте %s стоит связка, и строка обязана покраснеть.\n' "$WC" > "$T/connective.md"
+  printf 'В русском предложении затесался иероглиф \346\274\242 посреди слов.\n' > "$T/cjk.md"
+  HY="тест"; HY="${HY}x"
+  printf 'Слово с латиницей внутри: %s и ещё слова вокруг, строка русская.\n' "$HY" > "$T/hybrid.md"
+  MARK="страж-текста"; MARK="$MARK: разрешено"
+  { printf 'Маркер %s и иероглиф ' "$MARK"; printf '\346\274\242'; printf ' в строке.\n'; } > "$T/marker.md"
+  run_case clean "$T/clean.md" 0 'файлов_с_грязью=0'
+  run_case connective "$T/connective.md" 1 'связка:therefore'
+  run_case cjk "$T/cjk.md" 1 'ГРЯЗНО'
+  run_case hybrid "$T/hybrid.md" 1 'гибрид'
+  run_case marker "$T/marker.md" 0 'ИСКЛЮЧЕНИЕ'
+  echo "TCS_SELFTEST_CASES=$cases"
+  echo "TCS_SELFTEST_PASSED=$passed"
+  echo "TCS_SELFTEST_FAILED=$((cases - passed))"
+  [ "$cases" = "$passed" ] && exit 0
+  exit 1
+fi
+
 cd "${VEC_DHT_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 if [ "${1:-}" = "--all" ]; then
   shift

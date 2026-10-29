@@ -285,6 +285,22 @@ jobs:
           tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
+      - name: guard selftests — у каждого стража обязана быть посадка, и она обязана исполняться
+        run: |
+          set -uo pipefail
+          L=/tmp/guard-selftests.log
+          r=0
+          bash lab/check-release-kit.sh --selftest >> "$L" 2>&1 || r=$?
+          bash lab/check-spec-mirror.sh --selftest >> "$L" 2>&1 || r=$?
+          bash lab/check-text-clean.sh --selftest >> "$L" 2>&1 || r=$?
+          python lab/check-artifact-refs.py --selftest >> "$L" 2>&1 || r=$?
+          bash lab/check-secrets.sh --selftest >> "$L" 2>&1 || r=$?
+          python lab/check-guard-selftests.py --selftest >> "$L" 2>&1 || r=$?
+          python lab/check-guard-selftests.py >> "$L" 2>&1 || r=$?
+          echo "GUARD_SELFTESTS_EXIT=$r" >> "$L"
+          tail -30 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       - name: check-claims — реестр утверждений готовности против их носителей
         run: |
           set -uo pipefail

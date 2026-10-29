@@ -15,6 +15,92 @@ set -uo pipefail
 # Аргументы: [--dir ROOT] — корень дерева для проверки (по умолчанию корень репозитория). Посадка
 # дефектов исполняется именно так: helper копирует нужные поддерева в temp-корень и запускает
 # прибор с --dir, не трогая рабочее дерево во время прогона.
+#
+# `--selftest` (карточка `H-0151`) строит комплекты сам: пустой корень, здоровый комплект и
+# комплект с одним снятым флагом. Без третьего случая «краснеет» означало бы только «пусто»,
+# а не «видит конкретный нуль».
+
+# --- самопроверка посадки ------------------------------------------------------
+if [ "${1:-}" = "--selftest" ]; then
+  SELF="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+  T="$(mktemp -d)" || { echo "ПРИБОР: mktemp не исполнен" >&2; exit 2; }
+  trap 'rm -rf "$T"' EXIT
+  cases=0; passed=0
+  ok() { cases=$((cases + 1)); passed=$((passed + 1)); echo "ПОСАДКА $1: OK"; }
+  no() { cases=$((cases + 1)); echo "ПОСАДКА $1: FAIL — $2" >&2; }
+
+  mk_kit() { # $1 — корень здорового комплекта
+    d="$1"
+    mkdir -p "$d/.github/workflows" "$d/lab/decisions" "$d/sdk/vecdht-py"
+    {
+      echo '# Changelog'
+      echo '## [0.2.0]'
+      echo 'Релизный комплект, совместим с v7.5.'
+      echo '- ADR-0044-queue'
+    } > "$d/CHANGELOG.md"
+    {
+      echo 'on:'
+      echo '  push:'
+      echo '    tags:'
+      echo "      - 'v*'"
+      echo 'jobs:'
+      echo '  release:'
+      echo '    runs-on: ubuntu-latest'
+      echo '    steps:'
+      echo '      - run: cargo build --release -p vecdht-cli'
+      echo '      - run: lab/workspace-verify.sh "$GITHUB_REF_NAME"'
+      echo '      - uses: actions/upload-artifact@v4'
+      echo '        with:'
+      echo '          name: vecdht-cli'
+    } > "$d/.github/workflows/release.yml"
+    echo '[workspace.package]' > "$d/Cargo.toml"
+    echo 'version = "0.2.0"' >> "$d/Cargo.toml"
+    echo '[package]' > "$d/sdk/vecdht-py/Cargo.toml"
+    echo 'version = "0.2.0"' >> "$d/sdk/vecdht-py/Cargo.toml"
+    echo '# проект' > "$d/README.md"
+    echo 'cargo build --release -p vecdht-cli' >> "$d/README.md"
+    echo '# проект' > "$d/README.ru.md"
+    echo 'cargo build --release -p vecdht-cli' >> "$d/README.ru.md"
+    echo '# очередь' > "$d/lab/decisions/ADR-0044-queue.md"
+  }
+
+  # (а) пустой корень: обязательный флаг — ноль, выход 1
+  mkdir -p "$T/empty"
+  out=$(bash "$SELF" --dir "$T/empty" 2>&1); rc=$?
+  if [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -qx 'CK_CHANGELOG_EXISTS=0' \
+     && printf '%s\n' "$out" | grep -qx 'KIT_FAIL=1'; then
+    ok empty
+  else
+    no empty "rc=$rc, ожидались rc=1 и CK_CHANGELOG_EXISTS=0 плюс KIT_FAIL=1"
+  fi
+
+  # (б) здоровый комплект: выход 0
+  mk_kit "$T/good"
+  out=$(bash "$SELF" --dir "$T/good" 2>&1); rc=$?
+  if [ "$rc" = 0 ] && printf '%s\n' "$out" | grep -qx 'KIT_FAIL=0'; then
+    ok good
+  else
+    no good "rc=$rc, ожидался 0; нули: $(printf '%s\n' "$out" | grep -E '=0$' | tr '\n' ' ')"
+  fi
+
+  # (в) один снятый флаг в здоровом комплекте: rc 1, ноль ровно у него, соседний флаг цел
+  cp -r "$T/good" "$T/defect"
+  grep -v 'actions/upload-artifact' "$T/good/.github/workflows/release.yml" \
+    > "$T/defect/.github/workflows/release.yml"
+  out=$(bash "$SELF" --dir "$T/defect" 2>&1); rc=$?
+  if [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -qx 'CK_WORKFLOW_ARTIFACT=0' \
+     && printf '%s\n' "$out" | grep -qx 'CK_CHANGELOG_EXISTS=1'; then
+    ok defect
+  else
+    no defect "rc=$rc, ожидались rc=1, CK_WORKFLOW_ARTIFACT=0 и CK_CHANGELOG_EXISTS=1"
+  fi
+
+  echo "RKS_SELFTEST_CASES=$cases"
+  echo "RKS_SELFTEST_PASSED=$passed"
+  echo "RKS_SELFTEST_FAILED=$((cases - passed))"
+  [ "$cases" = "$passed" ] && exit 0
+  exit 1
+fi
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [ "${1:-}" = "--dir" ] && ROOT="$2"

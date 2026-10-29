@@ -179,6 +179,25 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "OQNUM_EXIT=$rc"; note $rc
   python lab/check-oq-numbering.py --pointers 2>&1 | tail -4
   rc=${PIPESTATUS[0]}; echo "OQPTR_EXIT=$rc"; note $rc
+  # Посадка обязана быть у КАЖДОГО стража `lab/check-*`, а не только у тех, кто вспомнил
+  # завести `selftest` (`H-0151`): зелёный страж без посадки неотличим от выключенного.
+  # Мета-страж считает список по каталогу, поэтому прибор, заведённый завтра, попадает в счёт
+  # без правки. Цена — секунды: каждая посадка строит свой temp-корень, а не копию дерева.
+  echo "### guard selftests ### $(date +%FT%T%:z)"
+  bash lab/check-release-kit.sh --selftest 2>&1 | tail -4
+  rc=${PIPESTATUS[0]}; echo "KIT_SELFTEST_EXIT=$rc"; note $rc
+  bash lab/check-spec-mirror.sh --selftest 2>&1 | tail -5
+  rc=${PIPESTATUS[0]}; echo "MIRROR_SELFTEST_EXIT=$rc"; note $rc
+  bash lab/check-text-clean.sh --selftest 2>&1 | tail -6
+  rc=${PIPESTATUS[0]}; echo "TEXTCLEAN_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-artifact-refs.py --selftest 2>&1 | tail -4
+  rc=${PIPESTATUS[0]}; echo "REFS_SELFTEST_EXIT=$rc"; note $rc
+  bash lab/check-secrets.sh --selftest 2>&1 | tail -3
+  rc=${PIPESTATUS[0]}; echo "SECRETS_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-guard-selftests.py --selftest 2>&1 | tail -5
+  rc=${PIPESTATUS[0]}; echo "GSE_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-guard-selftests.py 2>&1 | tail -6
+  rc=${PIPESTATUS[0]}; echo "GSE_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc

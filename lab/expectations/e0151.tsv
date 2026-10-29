@@ -1,0 +1,47 @@
+PIN_FOUND	1	пин H-0151 найден по сообщению коммита
+PRE_FIX_PIN_FILE_ABSENT	1	мета-стража в пине нет: дыра названа отсутствием
+PRE_FIX_PIN_GUARDS_SAME	1	стражи и контур пина побайтово равны дереву 3f47d0b, где мерилась карточка
+PRE_FIX_RC	1	мета-страж на контуре пина выходит кодом 1: находки есть
+PRE_FIX_GUARDS	14	приборов `lab/check-*` в пине
+PRE_FIX_WITHOUT	check-release-kit.sh,check-spec-mirror.sh,check-text-clean.sh	три прибора без режима самопроверки
+PRE_FIX_UNWIRED	check-artifact-refs.py,check-secrets.sh	две самопроверки, которых не зовёт контур пина
+PRE_FIX_FINDINGS	5	сумма двух списков: 3 без посадки + 2 без вызова
+POST_FIX_RC	0	мета-страж на рабочем дереве зелёный
+POST_FIX_GUARDS	15	приборов после заведения мета-стража (он считает и себя)
+POST_FIX_WITHOUT	none	без режима самопроверки не осталось ни одного
+POST_FIX_UNWIRED	none	все самопроверки вызваны контуром
+POST_FIX_FINDINGS	0	находок нет
+KIT_SELFTEST_RC	0	посадка выпускного комплекта зелёная
+KIT_SELFTEST_CASES	3	пустой корень, здоровый комплект, один снятый флаг
+KIT_SELFTEST_PASSED	3	
+KIT_SELFTEST_FAILED	0	
+MIRROR_SELFTEST_RC	0	посадка зеркала спеки зелёная
+MIRROR_SELFTEST_CASES	4	совпало, разошлось, нет зеркала, нет оригинала
+MIRROR_SELFTEST_PASSED	4	
+MIRROR_SELFTEST_FAILED	0	
+TEXT_SELFTEST_RC	0	посадка стража текста зелёная
+TEXT_SELFTEST_CASES	5	чистый, связка, чужой алфавит, гибрид, маркер
+TEXT_SELFTEST_PASSED	5	
+TEXT_SELFTEST_FAILED	0	
+REFS_SELFTEST_RC	0	посадка цитат путей зелёная
+REFS_SELFTEST	ok	вымышленный путь, внешний каталог и устаревшее разрешение отбиты
+SECRETS_SELFTEST_RC	0	посадка стража секретов зелёная
+SECRETS_SELFTEST	ok	две посадки, чистая ветка и исключение лога
+GSE_SELFTEST_RC	0	посадка мета-стража зелёная
+GSE_SELFTEST_CASES	3	грязная фикстура, чистая, пустой каталог
+GSE_SELFTEST_PASSED	3	
+GSE_SELFTEST_FAILED	0	
+GSE_SELFTEST_DIRTY	1	грязная фикстура назвала непривязанную посадку, а не только отсутствие режима
+KIT_EXIT	0	боевой прогон выпускного комплекта зелёный
+MIRROR_EXIT	0	боевое зеркало спеки совпадает
+TEXTGUARD_ALL_EXIT	0	полный перебор текста зелёный
+TEXTGUARD_ALL_DIRTY	0	ни одного файла с грязью
+REVIEW_EXIT	0	repo-review зелёный
+LINT_LATEST_EXIT	0	линт порогов по последнему логу зелёный
+LINT_ORPHANS	0	фактов без владельца нет
+CLAIMS_EXIT	0	реестр утверждений зелёный
+CONTOURS_EXIT	0	сведение закрытых карточек с блоками контура зелёное
+TEXTGUARD_CYCLE_EXIT	0	файлы этого круга чисты по алфавитам
+RUST_TOUCHED	0	продуктовый код не тронут
+WIRE_TOUCHED	0	провод не тронут
+DISK_GE_15000	1	свободно не меньше 15 000 МБ
