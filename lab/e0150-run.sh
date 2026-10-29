@@ -17,6 +17,10 @@ ROOT=$(pwd)
 SCR=$(mktemp -d)/
 OUT=${1:-$SCR}
 mkdir -p "$OUT"
+# Каталог вывода приходит без завершающего слэша (`lab/e0150-run.sh /tmp/x`), и склейка `$OUTfact`
+# писала бы файл рядом с каталогом. Прецедент — предварительный прогон `E-0150`: факты легли в
+# `/tmp/e0150-prefacts.txt`, логи — в `mktemp`-каталог, и разбор шёл не по тому файлу.
+OUT="${OUT%/}/"
 FACTS="${OUT}facts.txt"
 : > "$FACTS"
 
@@ -38,7 +42,7 @@ else
   : > "$PINCHECK"
   emit PRE_FIX_PIN_FILE 0
 fi
-r=0; ELAN_TOOLCHAIN=__nope__ python "$PINCHECK" check --quiet > "${SCR}pin-broken.log" 2>&1 || r=$?
+r=0; ELAN_TOOLCHAIN=__nope__ python "$PINCHECK" check --quiet --root "$(win "$ROOT")" > "${SCR}pin-broken.log" 2>&1 || r=$?
 emit PRE_FIX_PIN_RC "$r"
 emit PRE_FIX_PIN_BROKEN "$(grab "${SCR}pin-broken.log" BROKEN)"
 emit PRE_FIX_PIN_ENV_LINES "$(grep -cE '^LEAN_ENV=' "${SCR}pin-broken.log" || true)"
@@ -74,15 +78,18 @@ emit SELFTEST_TOTAL "$(grep -o 'LEANGUARD_SELFTEST total=[0-9]*' "${SCR}selftest
 emit SELFTEST_PASSED "$(grep -o 'LEANGUARD_SELFTEST total=[0-9]* passed=[0-9]*' "${SCR}selftest.log" | tail -1 | grep -o 'passed=[0-9]*' | cut -d= -f2 | grep . || echo none)"
 emit SELFTEST_FAILED "$(grep -o 'failed=[0-9]*' "${SCR}selftest.log" | tail -1 | cut -d= -f2 | grep . || echo none)"
 
-run_guard() { local key=$1; shift; local rr=0; "$@" > "${SCR}${key}.log" 2>&1 || rr=$?; emit "$key" "$rr"; }
-run_guard REVIEW_EXIT python lab/repo-review.py check
-run_guard LINT_LATEST_EXIT python lab/threshold-lint.py --latest
-run_guard TEXTGUARD_ALL_EXIT bash lab/check-text-clean.sh --all
-run_guard CLAIMS_EXIT python lab/check-claims.py
-run_guard CONTOURS_EXIT python lab/check-contours.py
-run_guard MIRROR_EXIT bash lab/check-spec-mirror.sh
-run_guard OQ_EXIT python lab/check-oq-numbering.py
-run_guard DATE_EXIT python lab/check-date-domain.py check
+# Код возврата соседнего стража. Ключ печатается литералом у каждой строки: линт порогов узнаёт
+# воронку `emit KEY`, а ключ, спрятанный в `run_guard $key`, он считает сиротой (предварительный
+# прогон `E-0150` покраснел именно так на `OQ_EXIT`/`DATE_EXIT`).
+rc_of() { local key=$1; shift; local rr=0; "$@" > "${SCR}${key}.log" 2>&1 || rr=$?; printf '%s' "$rr"; }
+emit REVIEW_EXIT "$(rc_of REVIEW_EXIT python lab/repo-review.py check)"
+emit LINT_LATEST_EXIT "$(rc_of LINT_LATEST_EXIT python lab/threshold-lint.py --latest)"
+emit TEXTGUARD_ALL_EXIT "$(rc_of TEXTGUARD_ALL_EXIT bash lab/check-text-clean.sh --all)"
+emit CLAIMS_EXIT "$(rc_of CLAIMS_EXIT python lab/check-claims.py)"
+emit CONTOURS_EXIT "$(rc_of CONTOURS_EXIT python lab/check-contours.py)"
+emit MIRROR_EXIT "$(rc_of MIRROR_EXIT bash lab/check-spec-mirror.sh)"
+emit OQ_EXIT "$(rc_of OQ_EXIT python lab/check-oq-numbering.py)"
+emit DATE_EXIT "$(rc_of DATE_EXIT python lab/check-date-domain.py check)"
 emit LINT_ORPHANS "$(grep -o 'СИРОТ=[0-9]*' "${SCR}LINT_LATEST_EXIT.log" 2>/dev/null | tail -1 | cut -d= -f2 | grep . || echo none)"
 emit TEXTGUARD_ALL_DIRTY "$(grep -o 'файлов_с_грязью=[0-9]*' "${SCR}TEXTGUARD_ALL_EXIT.log" 2>/dev/null | tail -1 | cut -d= -f2 | grep . || echo none)"
 r=0; bash lab/check-text-clean.sh lab/lean-check.py lab/e0150-run.sh lab/expectations/e0150.tsv \
