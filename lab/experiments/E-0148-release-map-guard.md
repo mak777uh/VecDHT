@@ -1,8 +1,8 @@
 ---
 id: E-0148
 hypothesis: H-0148
-status: open
-verdict: "pending"
+status: closed
+verdict: "supports"
 base_commit: "e1ac26e"
 started: "2026-10-29"
 environment: "x86_64-pc-windows-gnu, хост владельца; Python 3 и bash; сеть наружу не используется;
@@ -57,3 +57,24 @@ threshold: "(1) пин: `PIN_FOUND=1`, `PIN_MAP_FOUND=1`, `PRE_FIX_GUARD_ABSENT=
 `PRE_FIX_FALSE_ROW=1` против `POST_FIX_LIE_CAUGHT=1`, `POST_FIX_NUMBER_CAUGHT=1`,
 `POST_FIX_OWNER_CAUGHT=1`; покрытие — `MAP_ROWS=16`, `ROWS_REGISTERED=16`, `OWNERS=16`,
 `FACTS_OK=23`, `EIDS=25`, `PATHS=24`, `NUMBERS_OK=7` и нули находок.
+
+## Результат
+
+`supports`. Носитель — `lab/logs/e0148-all.log`. На пине (`9ba4c9d`) стража нет
+(`PRE_FIX_GUARD_ABSENT=1`), ложная строка P3 стоит (`PRE_FIX_FALSE_ROW=1`,
+`PRE_FIX_LIE_PASSES=1`); новый страж называет её `M-14` (`POST_FIX_LIE_CAUGHT=1`), ловит подмену
+числа (`POST_FIX_NUMBER_IDS=M-14:477.5`) и стёртого владельца (`M-14 owner-not-named`).
+
+На исправленной карте: `MAP_ROWS=16`, `ROWS_REGISTERED=16`, `ROWS_UNREGISTERED=0`,
+`ROWS_MISSING=0`, `MAP_DUP=0`; `EIDS=25`, `EIDS_MISSING=0`, `EIDS_OPEN=0`; `ADRS=3`,
+`ADRS_MISSING=0`; `PATHS=24`, `PATHS_MISSING=0`; `OWNERS=16`, `OWNERS_MISSING=0`;
+`FACTS=23`, `FACTS_OK=23`, `STALE=0`; `NUMBERS=7`, `NUMBERS_OK=7`, `NUMBERS_UNDECLARED=0`,
+`PROV_BAD=0`; самопроверка `15/15`.
+
+Два официальных прогона на неизменном дереве: `ОЖИДАНИЙ=57 РАСХОЖДЕНИЙ=0`, `WORST_RC=0`,
+`STABLE=1` во втором. Полная верификация: `VERIFY_FAIL=0`, 136 срезов, 791 passed, 0 failed,
+9 `#[ignore]`, `SECONDS_total=1975`, диск 16 527 МБ. Продукт и провод не тронуты
+(`RUST_TOUCHED=0`, `WIRE_TOUCHED=0`).
+
+Остатки: прибор читает формы, а не смысл; числа сверены только у P3; полнота реестра не
+доказывается (`OPEN-QUESTIONS` п. 88).
