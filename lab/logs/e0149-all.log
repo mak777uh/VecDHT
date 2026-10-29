@@ -178,3 +178,13 @@ VERIFY_FAIL=0
 #    workspace-verify.sh (LABEL="${1:?...}"), а не этапом: helper обязан передавать метку.
 # 3. Страж моделей не отличает «модель не компилируется» от «тулчейн неполон»: неполный тулчейн
 #    даёт BROKEN=6. Это ложный класс отказа; карточка на исправление — в OPEN-QUESTIONS п. 90.
+
+### КОНТРОЛЬНАЯ ПАРА НА ФИНАЛЬНОМ ДЕРЕВЕ ###
+# Дерево 945a1a4: карточки закрыты, PLAN и OPEN-QUESTIONS п. 89/90 в коммите, H-0150 зарезервирован.
+# Команда: bash lab/e0149-run.sh (дважды), затем python lab/expect.py lab/expectations/e0149.tsv
+#   /tmp/e0149-ctrl1.txt /tmp/e0149-ctrl2.txt
+# Прогон 1: RUN1_RC=0, STABLE=none (создаёт снимок TREE_KEY), 65 строк.
+# Прогон 2: RUN2_RC=0, STABLE=1 (сравнивает), 65 строк.
+# ОРАКУЛ: ОЖИДАНИЙ=64 РАСХОЖДЕНИЙ=0, EXPECT_RC=0.
+# Построчное сравнение без DISK_FREE_MB и STABLE: DIFF=none.
+# WORST_RC=0 в обоих, RUST_TOUCHED=0, WIRE_TOUCHED=0, DISK_FREE_MB=27593.
