@@ -1,0 +1,57 @@
+PIN_FOUND	1	пин круга найден по сообщению пре-регистрации
+PIN_MAP_FOUND	1	карта пина снята через git show
+PRE_FIX_GUARD_ABSENT	1	на пине стража карты нет — дыра воспроизводится отсутствием
+PRE_FIX_FALSE_ROW	1	ложная строка P3 («на фикстуре») стоит в карте пина
+PRE_FIX_LIE_PASSES	1	карта с ложью проходит на пине без имён
+POST_FIX_LIE_CAUGHT	1	новый страж ловит старую строку
+POST_FIX_LIE_IDS	M-14	и называет её M-14
+POST_FIX_NUMBER_CAUGHT	1	подменённое число 477,5 ловится как необъявленное
+POST_FIX_OWNER_CAUGHT	1	стёртый владелец E-0100 ловится как owner-not-named
+GATE_H0148_OK	1	гейт круга пройден
+DISK_GE_15000	1	свободного диска не меньше 15 000 МБ
+SELFTEST_EXIT	0	посадки прибора зелёные
+SELFTEST_TOTAL	15	посаженных случаев пятнадцать
+SELFTEST_PASSED	15	все проходят
+SELFTEST_FAILED	0	ни один не падает
+MAP_EXIT	0	страж на исправленной карте вышел нулём
+MAP_ROWS	16	табличных строк шестнадцать
+ROWS_REGISTERED	16	все строки зарегистрированы
+ROWS_UNREGISTERED	0	незарегистрированных строк нет
+ROWS_MISSING	0	пропавших зарегистрированных строк нет
+MAP_DUP	0	дублей ключей нет
+EIDS	25	карточек в карте двадцать пять
+EIDS_MISSING	0	все карточки существуют
+EIDS_OPEN	0	все карточки закрыты
+ADRS	3	ADR в карте три
+ADRS_MISSING	0	все ADR существуют
+PATHS	24	backtick-путей двадцать четыре
+PATHS_MISSING	0	все пути существуют
+OWNERS	16	у всех строк есть названный владелец
+OWNERS_MISSING	0	строк без владельца нет
+OWNERS_MISSING_IDS	none	имён пропавших владельцев нет
+FACTS	23	обязательных слов двадцать три
+FACTS_OK	23	все обязательные слова на месте
+STALE	0	запрещённых старых формулировок нет
+STALE_ROWS	none	строк со старой ложью нет
+NUMBERS	7	чисел P3 с провенансом семь
+NUMBERS_OK	7	все семь сверены с носителем
+NUMBERS_UNDECLARED	0	необъявленных чисел в P3 нет
+NUMBERS_UNDECLARED_IDS	none	имён необъявленных чисел нет
+PROV_BAD	0	сломанных провенанс-ссылок нет
+SECRETS_EXIT	0	страж секретов чист
+REFS_EXIT	0	страж цитат путей чист
+CLAIMMAP_EXIT	0	карта §18.9 сходится
+CLAIMS_EXIT	0	реестр утверждений сходится
+CONTOURS_EXIT	0	контур закрытых карточек сходится
+MIRROR_EXIT	0	зеркало спеки синхронно
+GATE_AUDIT_EXIT	0	аудит гейта кругов чист
+REVIEW_EXIT	0	repo-review чист
+LINT_LATEST_EXIT	0	линт порогов по свежей таблице
+LINT_ORPHANS	0	сирот нет
+TEXTGUARD_ALL_EXIT	0	страж текста по всему репозиторию
+TEXTGUARD_ALL_DIRTY	0	грязных файлов нет
+TEXTGUARD_CYCLE_EXIT	0	страж текста по файлам круга
+WIRE_TOUCHED	0	провод не тронут
+RUST_TOUCHED	0	продукт не тронут — круг документный
+WORST_RC	0	все названные условия выполнены
+STABLE	1	два исполнения на неизменном дереве дают один вектор
