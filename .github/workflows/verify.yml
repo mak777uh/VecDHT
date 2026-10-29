@@ -324,6 +324,10 @@ jobs:
           # а не молчать; исторические 19 названы базовой линией (OQ п. 93).
           python lab/check-expect-freeze.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-expect-freeze.py >> "$L" 2>&1 || r=$?
+          # Сравнение двух фактов, каждый из которых может быть `none` (`H-0156`): два молчания
+          # не считаются равенством; исторический сайт e0146:80 назван строкой реестра.
+          python lab/check-none-compare.py --selftest >> "$L" 2>&1 || r=$?
+          python lab/check-none-compare.py >> "$L" 2>&1 || r=$?
           # Паритет контуров (`H-0152`): прибор краснеет, если боевой вызов стража есть только в
           # одном из двух контуров и эта разница не названа строкой `lab/contour-parity.tsv`.
           python lab/check-contour-parity.py >> "$L" 2>&1 || r=$?

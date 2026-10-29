@@ -244,6 +244,12 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "EXPFREEZE_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-expect-freeze.py 2>&1 | tail -14
   rc=${PIPESTATUS[0]}; echo "EXPFREEZE_EXIT=$rc"; note $rc
+  # Сравнение двух фактов, каждый из которых может быть `none` (`H-0156`): два молчания не
+  # считаются равенством; исторический сайт e0146:80 назван реестром.
+  python lab/check-none-compare.py --selftest 2>&1 | tail -8
+  rc=${PIPESTATUS[0]}; echo "NONECMP_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-none-compare.py 2>&1 | tail -12
+  rc=${PIPESTATUS[0]}; echo "NONECMP_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc
