@@ -260,9 +260,9 @@ def evaluate(root, doc_path, reg_path):
                     owners_missing.append(row.rid + ":no-owner")
                     findings.append(row.rid + " absence-row-without-absence-word")
             else:
-                named = [c for c in cards if c in cells["evidence"]]
-                named += [p for p in rpaths if p in cells["evidence"]]
-                if named:
+                named_cards = [c for c in cards if c in cells["evidence"]]
+                named_paths = [p for p in rpaths if p in cells["evidence"]]
+                if len(named_cards) == len(cards) and len(named_paths) == len(rpaths):
                     owners += 1
                 else:
                     owners_missing.append(row.rid + ":owner-not-named")
