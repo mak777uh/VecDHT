@@ -3,7 +3,7 @@ id: E-0154
 hypothesis: H-0154
 status: pre-registered
 verdict: null
-base_commit: "121d3b6"
+base_commit: "46f73be"
 started: "2026-10-29"
 environment: "x86_64-pc-windows-gnu, хост владельца; Python 3, bash, git; сеть наружу не используется;
 дерево пина разворачивается `git worktree add --detach` и снимается тем же прогоном; посадки прибора
