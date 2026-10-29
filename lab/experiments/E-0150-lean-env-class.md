@@ -1,8 +1,8 @@
 ---
 id: E-0150
 hypothesis: H-0150
-status: testing
-verdict: ""
+status: closed
+verdict: supports
 base_commit: "10447f6"
 started: "2026-10-29"
 environment: "x86_64-pc-windows-gnu, хост владельца; Python 3, bash, elan и Lean v4.36.0-rc1;
@@ -79,3 +79,32 @@ threshold: "(1) пин: `PIN_FOUND=1`, `PRE_FIX_PIN_RC=1`, `PRE_FIX_PIN_BROKEN=6
 знает `LEAN_ENV`» против «новый страж печатает `LEAN_ENV=partial`, код 3 и ни одной строки
 `BROKEN`», плюс контроль «в здоровом окружении сломанная модель по-прежнему `BROKEN=1` с причиной
 `COMPILE:`» и неизменные числа настоящего дерева (`126/18/4`, `DIGEST_BAD=0`).
+
+## Результат
+
+`supports`. Носитель — `lab/logs/e0150-all.log`.
+
+Пин `4aa7f50` в среде `ELAN_TOOLCHAIN=__nope__` (корень дерева передан явно) назвал шесть моделей
+сломанными: `PRE_FIX_PIN_RC=1`, `PRE_FIX_PIN_BROKEN=6`, `PRE_FIX_PIN_ENV_LINES=0` — класса
+окружения у старого стража нет вовсе. Новый страж в той же среде: `POST_FIX_PARTIAL_RC=3`,
+`POST_FIX_PARTIAL_ENV=partial`, `POST_FIX_PARTIAL_BROKEN_LINES=0`, `POST_FIX_PARTIAL_ALL_OK=0`,
+`POST_FIX_PARTIAL_REFUSED=1`, причина названа — `error: invalid toolchain name: '__nope__'`.
+Контроль семантики в здоровом окружении с заведомо некомпилирующейся моделью:
+`POST_FIX_MODEL_RC=1`, `POST_FIX_MODEL_ENV=ok`, `POST_FIX_MODEL_BROKEN=1`, `POST_FIX_MODEL_COMPILE=1`,
+`POST_FIX_MODEL_ALL_OK=0` — отказ снова относится к модели.
+
+Настоящее дерево: `LEAN_ENV=ok`, `LEAN_ENV_PROBE_EXIT=0` (проба 1 902 и 2 023 мс), `LEAN_TOTAL=6`,
+`BROKEN=0`, `DIGEST_BAD=0`, `NATIVE_AXIOMS=126`, `STD_AXIOMS=18`, `AXIOM_FREE=4`, `LEAN_ALL_OK=1`,
+`LEAN_CHECK_EXIT=0`; самопроверка `SELFTEST_EXIT=0`, `SELFTEST_TOTAL=14`, `SELFTEST_PASSED=14`,
+`SELFTEST_FAILED=0`. Продукт и провод не тронуты (`RUST_TOUCHED=0`, `WIRE_TOUCHED=0`).
+
+Два официальных прогона на неизменном дереве `ddf28ef`: `ОЖИДАНИЙ=45 РАСХОЖДЕНИЙ=0`, `DIFF=none`,
+`WORST_RC=0`, `STABLE=1` во втором. Соседние стражи зелёные, `LINT_ORPHANS=0`,
+`TEXTGUARD_ALL_DIRTY=0`. Полная верификация: `VERIFY_FAIL=0`, 136 срезов, 791 passed, 0 failed,
+9 `#[ignore]`, `SECONDS_total=3346`.
+
+Цена пробы — один запуск `lean`, 1,9–2,0 с на прогон; печатается, гейтом не является.
+
+Граница названа и не снята: проба необходима, но не достаточна — сломанное глубже ядра снова даст
+модельный отказ. Соответствие моделей и кода этот круг не проверяет (`E-0150` про классификацию
+отказа прибора, не про верность теорем).

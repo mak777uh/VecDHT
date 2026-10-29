@@ -50,14 +50,26 @@ prints as `lean_models_outside_guard` (see [`../lab/INVENTORY.md`](../lab/INVENT
 The honest caveat: 93 of the 115 are proved by `native_decide`, and `native_decide` is trusted as an
 **axiom** — the Lean kernel does not re-check the result. Only `#print axioms` over the proof terms sees
 this, not `grep` over the source. Since 2026-10-24 that is a printed number rather than a manual caveat:
-`bash lab/lean-check.sh` outputs `DECLS_TOTAL=`, `NATIVE_AXIOMS=`, `STD_AXIOMS=`, `CUSTOM_AXIOMS=`,
-`AXIOM_FREE=`, `DIGEST_BAD=`, and `python lab/lean-check.py selftest` checks the guard itself against
-eight planted violations and two controls (`E-0093`, `ADR-0049`). The previous grep-shaped guard gave a
-green light with exit 0 on two of those plantings (an axiom in a model, and a formulation weakened after
-freezing) — snapshot `lab/logs/e0093-oracle-before-fix.txt`. Where `native_decide` is replaceable by the
-kernel `decide` is measured separately: in `Denylist.lean` it is replaceable entirely (4 s), in
-`CertLadder.lean` on the 256-vector theorems `decide` does not pass on recursion depth, and that is not
-done (`lab/decisions/OPEN-QUESTIONS.md` item 44).
+`bash lab/lean-check.sh` outputs `LEAN_ENV=`, `DECLS_TOTAL=`, `NATIVE_AXIOMS=`, `STD_AXIOMS=`,
+`CUSTOM_AXIOMS=`, `AXIOM_FREE=`, `DIGEST_BAD=`, and `python lab/lean-check.py selftest` checks the guard
+itself against twelve planted violations and two controls (`E-0093`, `ADR-0049`). The previous
+grep-shaped guard gave a green light with exit 0 on two of those plantings (an axiom in a model, and a
+formulation weakened after freezing) — snapshot `lab/logs/e0093-oracle-before-fix.txt`. Where
+`native_decide` is replaceable by the kernel `decide` is measured separately: in `Denylist.lean` it is
+replaceable entirely (4 s), in `CertLadder.lean` on the 256-vector theorems `decide` does not pass on
+recursion depth, and that is not done (`lab/decisions/OPEN-QUESTIONS.md` item 44).
+
+The environment class is named before any model is judged (`E-0150`): the guard compiles a one-line
+probe (`import Std` + `#check List`) and prints `LEAN_ENV=ok|partial` together with
+`LEAN_ENV_PROBE_EXIT=` and `LEAN_ENV_PROBE_MS=`. On `partial` it names the reason, prints
+`LEAN_ENV_REFUSED=1` and `LEAN_ALL_OK=0`, exits with code 3 and prints no `BROKEN=` line at all — a
+broken toolchain must not be reported as six broken models. A missing compiler is a third class,
+`LEAN_ENV=absent` with code 2. The probe is a necessary condition, not a diagnosis: a failure deeper
+than the toolchain still surfaces as a model failure. Measured price: one `lean` run, 1.9–2.0 s per
+check. The pinned guard (`4aa7f50`) in the same partial environment printed `BROKEN=6` and no `LEAN_ENV`
+line, the new guard prints `LEAN_ENV=partial` with code 3 and zero `BROKEN` lines, and a healthy
+toolchain with a deliberately broken model still gives `BROKEN=1` with reason `COMPILE:`
+(`lab/logs/e0150-all.log`).
 
 The Verus contour additionally pins the constant bridge: `CONST_MATCH=OK` prints `CONST_OK` for
 `CELL_CAP_NUM`, `CLUSTERS_PER_SHARD`, `CELL_CAP_MIN` and the body of the formula, and its self-check

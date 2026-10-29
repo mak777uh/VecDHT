@@ -1,0 +1,143 @@
+### КРУГ E-0150 · класс окружения в страже Lean ###
+дерево `ddf28ef` (пин `4aa7f50`, прибор `7abdfd6`, поправка носителя `ddf28ef`)
+дата 2026-10-29, хост владельца, Lean v4.36.0-rc1; сеть наружу не использовалась
+
+#### ШАГ 0 · PRE_FIX: страж с пина на неполном окружении (`ELAN_TOOLCHAIN=__nope__`) ####
+пять моделей реального дерева, `--root` передан явно; elan отвергает имя локально
+PIN_FOUND=1 PRE_FIX_PIN_FILE=1 PRE_FIX_PIN_RC=1 PRE_FIX_PIN_BROKEN=6 PRE_FIX_PIN_ENV_LINES=0
+вердикт шага: старый страж назвал шесть моделей сломанными и не напечатал ни одной строки LEAN_ENV
+
+#### ШАГ 1 · новый страж на том же неполном окружении ####
+POST_FIX_PARTIAL_RC=3 POST_FIX_PARTIAL_ENV=partial POST_FIX_PARTIAL_BROKEN_LINES=0
+POST_FIX_PARTIAL_ALL_OK=0 POST_FIX_PARTIAL_REFUSED=1
+LEAN_ENV_REASON=error: invalid toolchain name: '__nope__'
+вердикт шага: отказ назван классом окружения, ни одной строки BROKEN= нет, код 3
+
+#### ШАГ 2 · контроль семантики: здоровая среда, заведомо сломанная модель ####
+POST_FIX_MODEL_RC=1 POST_FIX_MODEL_ENV=ok POST_FIX_MODEL_BROKEN=1 POST_FIX_MODEL_COMPILE=1
+POST_FIX_MODEL_ALL_OK=0
+вердикт шага: прежняя семантика сохранена — отказала модель, а не окружение
+
+#### ШАГ 3 · настоящее дерево ####
+LEAN_CHECK_EXIT=0 LEAN_ENV=ok LEAN_ENV_PROBE_EXIT=0 (проба 1902 мс и 2023 мс на прогонах 1 и 2)
+LEAN_TOTAL=6 BROKEN=0 DIGEST_BAD=0 NATIVE_AXIOMS=126 STD_AXIOMS=18 AXIOM_FREE=4 LEAN_ALL_OK=1
+SELFTEST_EXIT=0 SELFTEST_TOTAL=14 SELFTEST_PASSED=14 SELFTEST_FAILED=0
+
+#### ПРОГОН 1 · факты целиком (STABLE=none — снимка не было) ####
+PIN_FOUND=1
+PRE_FIX_PIN_FILE=1
+PRE_FIX_PIN_RC=1
+PRE_FIX_PIN_BROKEN=6
+PRE_FIX_PIN_ENV_LINES=0
+POST_FIX_PARTIAL_RC=3
+POST_FIX_PARTIAL_ENV=partial
+POST_FIX_PARTIAL_BROKEN_LINES=0
+POST_FIX_PARTIAL_ALL_OK=0
+POST_FIX_PARTIAL_REFUSED=1
+POST_FIX_MODEL_RC=1
+POST_FIX_MODEL_ENV=ok
+POST_FIX_MODEL_BROKEN=1
+POST_FIX_MODEL_COMPILE=1
+POST_FIX_MODEL_ALL_OK=0
+LEAN_CHECK_EXIT=0
+LEAN_ENV=ok
+LEAN_ENV_PROBE_EXIT=0
+LEAN_TOTAL=6
+BROKEN=0
+DIGEST_BAD=0
+NATIVE_AXIOMS=126
+STD_AXIOMS=18
+AXIOM_FREE=4
+LEAN_ALL_OK=1
+SELFTEST_EXIT=0
+SELFTEST_TOTAL=14
+SELFTEST_PASSED=14
+SELFTEST_FAILED=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+TEXTGUARD_ALL_EXIT=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+MIRROR_EXIT=0
+OQ_EXIT=0
+DATE_EXIT=0
+LINT_ORPHANS=0
+TEXTGUARD_ALL_DIRTY=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+DISK_FREE_MB=24693
+DISK_GE_15000=1
+WORST_RC=0
+STABLE=none
+
+#### ПРОГОН 2 · факты целиком (STABLE=1 — дерево не менялось) ####
+PIN_FOUND=1
+PRE_FIX_PIN_FILE=1
+PRE_FIX_PIN_RC=1
+PRE_FIX_PIN_BROKEN=6
+PRE_FIX_PIN_ENV_LINES=0
+POST_FIX_PARTIAL_RC=3
+POST_FIX_PARTIAL_ENV=partial
+POST_FIX_PARTIAL_BROKEN_LINES=0
+POST_FIX_PARTIAL_ALL_OK=0
+POST_FIX_PARTIAL_REFUSED=1
+POST_FIX_MODEL_RC=1
+POST_FIX_MODEL_ENV=ok
+POST_FIX_MODEL_BROKEN=1
+POST_FIX_MODEL_COMPILE=1
+POST_FIX_MODEL_ALL_OK=0
+LEAN_CHECK_EXIT=0
+LEAN_ENV=ok
+LEAN_ENV_PROBE_EXIT=0
+LEAN_TOTAL=6
+BROKEN=0
+DIGEST_BAD=0
+NATIVE_AXIOMS=126
+STD_AXIOMS=18
+AXIOM_FREE=4
+LEAN_ALL_OK=1
+SELFTEST_EXIT=0
+SELFTEST_TOTAL=14
+SELFTEST_PASSED=14
+SELFTEST_FAILED=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+TEXTGUARD_ALL_EXIT=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+MIRROR_EXIT=0
+OQ_EXIT=0
+DATE_EXIT=0
+LINT_ORPHANS=0
+TEXTGUARD_ALL_DIRTY=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+DISK_FREE_MB=24693
+DISK_GE_15000=1
+WORST_RC=0
+STABLE=1
+
+#### ОРАКУЛ ####
+python lab/expect.py lab/expectations/e0150.tsv run1.txt run2.txt
+ОЖИДАНИЙ=45 РАСХОЖДЕНИЙ=0; сравнение прогонов без DISK_FREE_MB/STABLE — DIFF=none
+
+#### ЧТО НЕ ДОКАЗАНО ####
+Проба необходима, но не достаточна: успешный `import Std` не доказывает, что модель компилируется,
+и сломанное глубже ядро снова даст модельный отказ. Прибор не доказывает поведение моделей — только
+классификацию отказа.
+
+#### ШАГ 4 · полная верификация `bash lab/workspace-verify.sh E-0150` ####
+блок `########## E-0150 · workspace-verify · 2026-10-29T13:25:23+03:00 ##########` в
+`lab/logs/workspace-verify-2026-10-22.log` (строка 177 839; 2 486 строк блока)
+срезов=136 (блоков `test result:`), passed=791, failed=0, ignored=9
+стражи блока: REVIEW_EXIT=0 LINT_LATEST_EXIT=0 TEXTGUARD_ALL_EXIT=0 CLAIMS_EXIT=0
+CONTOURS_EXIT=0 MIRROR_EXIT=0 OQ_EXIT=0 DATE_EXIT=0; TEXTGUARD_EXIT=0; LEAN_ALL_OK=1
+SECONDS_total=3346 VERIFY_FAIL=0
+вердикт шага: ни один из 136 срезов не покраснел; модели и продукт целы
+
+#### ДИСК ####
+на обоих прогонах прибора свободно 24 693 МБ (`DISK_GE_15000=1`)
+к концу верификации свободно 10 359 МБ: `target/` вырос до 14 034 МБ — сборка всех тестовых бинарей
+решение владельца 2026-10-29: `cargo clean` — освобождено 14,1 ГиБ, свободно 24 364 МБ
