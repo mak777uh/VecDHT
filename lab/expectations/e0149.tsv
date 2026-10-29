@@ -28,7 +28,7 @@ EIDS_MISSING	0	все карточки существуют
 EIDS_OPEN	0	все карточки закрыты
 ADRS	3	ADR в карте три
 ADRS_MISSING	0	все ADR существуют
-PATHS	24	backtick-путей двадцать четыре
+PATHS	25	backtick-путей двадцать пять
 PATHS_MISSING	0	все пути существуют
 OWNERS	16	у всех строк есть названный владелец
 OWNERS_MISSING	0	строк без владельца нет

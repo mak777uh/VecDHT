@@ -23,7 +23,7 @@ falsifier: "Ложь, если хотя бы одно: (а) на пине нет
 `SELFTEST_FAILED` не 0); (д) на исправленной карте `MAP_EXIT` не 0, `MAP_ROWS` не 16,
 `ROWS_REGISTERED` не 16, `ROWS_UNREGISTERED` не 0, `ROWS_MISSING` не 0 или `MAP_DUP` не 0;
 (е) `EIDS` не 25, `EIDS_MISSING` не 0 или `EIDS_OPEN` не 0; `ADRS` не 3 или `ADRS_MISSING` не 0;
-`PATHS` не 24 или `PATHS_MISSING` не 0; (ж) `OWNERS` не 16, `OWNERS_MISSING` не 0, `FACTS_OK` не
+`PATHS` не 25 или `PATHS_MISSING` не 0; (ж) `OWNERS` не 16, `OWNERS_MISSING` не 0, `FACTS_OK` не
 равно `FACTS` (23), `STALE` не 0; (з) `NUMBERS` не 43, `NUMBERS_OK` не 43, `NONE_ROWS` не 7,
 `NUMBERS_UNDECLARED` не 0, `NUMBERS_PHANTOM` не 0 или `PROV_BAD` не 0; (и) два исполнения на
 неизменном дереве дают разные факты (`STABLE=0`); (к) `RUST_TOUCHED` не 0 или `WIRE_TOUCHED` не 0 —

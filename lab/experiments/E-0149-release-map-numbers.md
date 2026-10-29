@@ -18,7 +18,7 @@ threshold: "(1) пин: `PIN_FOUND=1`, `PRE_FIX_GUARD_OLD=1`, `PRE_FIX_NONE_PASS
 `SELFTEST_PASSED=20`, `SELFTEST_FAILED=0`; (3) строка P4: `P4_LOG_FOUND=1`, `P4_LOG_VALUE=5`,
 `P4_TEST_EXIT=0`, `P4_NOW=5`, `P4_MATCH=1`; (4) карта: `MAP_EXIT=0`, `MAP_ROWS=16`, `ROWS_REGISTERED=16`,
 `ROWS_UNREGISTERED=0`, `ROWS_MISSING=0`, `MAP_DUP=0`, `EIDS=25`, `EIDS_MISSING=0`, `EIDS_OPEN=0`,
-`ADRS=3`, `ADRS_MISSING=0`, `PATHS=24`, `PATHS_MISSING=0`, `OWNERS=16`, `OWNERS_MISSING=0`,
+`ADRS=3`, `ADRS_MISSING=0`, `PATHS=25`, `PATHS_MISSING=0`, `OWNERS=16`, `OWNERS_MISSING=0`,
 `OWNERS_MISSING_IDS=none`, `FACTS=23`, `FACTS_OK=23`, `STALE=0`, `STALE_ROWS=none`; (5) числа:
 `NUMBERS=43`, `NUMBERS_OK=43`, `NONE_ROWS=7`, `NUMBERS_UNDECLARED=0`, `NUMBERS_UNDECLARED_IDS=none`,
 `NUMBERS_PHANTOM=0`, `NUMBERS_PHANTOM_IDS=none`, `PROV_BAD=0`; (6) границы: `WIRE_TOUCHED=0`,
@@ -58,3 +58,13 @@ threshold: "(1) пин: `PIN_FOUND=1`, `PRE_FIX_GUARD_OLD=1`, `PRE_FIX_NONE_PASS
 `PRE_FIX_PREFIX_PASSES=1`, `PRE_FIX_LOG_UNSUPPORTED=1` против `POST_FIX_NONE_CAUGHT=1`,
 `POST_FIX_PREFIX_CAUGHT=1`, `POST_FIX_LOG_OK=1` и носитель `P4_LOG_VALUE=5`; покрытие —
 `NUMBERS=43`, `NONE_ROWS=7`, `SELFTEST_PASSED=20` и нули находок.
+
+## Поправка до официальных прогонов
+
+Пин `cced85f` заморозил `PATHS=24` — это был мой ручной счёт. Предварительный прогон helper'а
+напечатал `PATHS=25`. Независимый пересчёт карты тем же правилом отбора (обратные кавычки, есть
+`/`, нет пробелов, не `/p2p`, не `<`) даёт те же 25 имён, каждое разрешается на диске; новых путей
+этот круг в карту не добавлял (лог P4 живёт в реестре как `log:`, а не в тексте карты). По правилу
+«свип покрывает ровно столько единиц, сколько насчитал прибор» замороженное число исправлено на 25
+до первого официального прогона; пороги исхода (посадочные лжи, `P4_*`, `NUMBERS`, `NONE_ROWS`,
+селфтест) не менялись. История: пин хранит 24, и это видно в `git show cced85f:…`.
