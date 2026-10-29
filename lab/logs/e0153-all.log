@@ -1,0 +1,147 @@
+#### КРУГ E-0153 · форма записи не принимается за механизм ####
+измерено на рабочем дереве `f30786f` (пин пре-регистрации `087164f`, база `2f07908`), дата 2026-10-29,
+хост владельца; сеть наружу не использовалась; продукт не правился (`RUST_TOUCHED=0`, `WIRE_TOUCHED=0`);
+рабочее дерево во время прогонов не правилось; фикстуры строились в `mktemp -d`.
+
+состав правки (7 файлов, все в `lab/` и в карточках): `lab/check-guard-selftests.py` — мета-страж
+читает режим и вызов как код, а не как упоминание в комментарии; `lab/check-artifact-refs.py` —
+самотест цитат доказывает исключение каталога настоящим файлом в `interop/`, а не его отсутствием;
+`lab/check-text-clean.sh` — `--all` читает собственные списки разрешений (`lab/*.txt`, `lab/*.tsv`);
+носитель `lab/e0153-run.sh`, таблица `lab/expectations/e0153.tsv` (56 ожиданий), карточки `H-0153`
+и `E-0153`.
+
+#### ШАГ 0 · PRE_FIX: три зелёных на приборах пина ####
+приборы пина `2f07908` материализованы через `git show`, посадки те же, что в шаге 1:
+PRE_FIX_GSE_RC=0 PRE_FIX_GSE_FINDINGS=0 PRE_FIX_GSE_FALSE_GREEN=1
+PRE_FIX_REFS_RC=0 PRE_FIX_REFS_SELFTEST=ok PRE_FIX_REFS_FALSE_GREEN=1
+PRE_FIX_TEXT_TXT_RC=0 PRE_FIX_TEXT_TXT_DIRTY=0 PRE_FIX_TEXT_FALSE_GREEN=1
+вердикт шага: мета-страж принимает фикстуру, у которой режим и вызов записаны только комментариями;
+самотест цитат печатает `ok`, доказывая unreadable вместо excluded; полный перебор не читает ни
+одного `lab/*.txt`. Все три — форма записи, принятая за механизм.
+
+#### ШАГ 1 · POST_FIX: те же посадки на рабочем дереве красные ####
+POST_FIX_GSE_RC=1 POST_FIX_GSE_FINDINGS=2 POST_FIX_GSE_NAMES=lab/check-beta.sh,lab/check-commentonly.sh
+POST_FIX_GSE_NAMES_BOTH=1
+POST_FIX_REFS_SELFTEST_OK_RC=0 POST_FIX_REFS_SELFTEST_OK=ok POST_FIX_REFS_EXTERNAL_DIR=excluded
+POST_FIX_REFS_SELFTEST_RC=1 POST_FIX_REFS_BAD_STATE=fail POST_FIX_REFS_REMOVAL=tested
+POST_FIX_TEXT_TXT_RC=1 POST_FIX_TEXT_TXT_DIRTY=1 POST_FIX_TEXT_TSV_RC=1 POST_FIX_TEXT_TSV_DIRTY=1
+POST_FIX_TEXT_CLEAN_RC=0 POST_FIX_TEXT_CLEAN_DIRTY=0
+вердикт шага: две находки названы именами приборов (вызов только комментарием и режим только
+комментарием), снятое исключение каталога красит самотест и падение названо словом `fail`, гибрид
+пойман и в `.txt`, и в `.tsv`, чистое временное дерево не краснеет.
+
+#### ШАГ 2 · посадки самих приборов исполняются ####
+GSE_SELFTEST_CASES=4 GSE_SELFTEST_PASSED=4 GSE_SELFTEST_FAILED=0 GSE_SELFTEST_EXIT=0
+TCS_SELFTEST_CASES=6 TCS_SELFTEST_PASSED=6 TCS_SELFTEST_FAILED=0 TEXTCLEAN_SELFTEST_EXIT=0
+вердикт шага: у мета-стража четыре случая (в том числе «прибор без посадки» и «посадка без
+исполнения»), у стража текста шесть (в том числе `all_extensions` — гибрид именно в `.tsv`);
+`PARITY_SELFTEST_CASES=3`, `RKS_SELFTEST_CASES=3`, `SMK_SELFTEST_CASES=4` — соседние самопроверки
+полны.
+
+#### ШАГ 3 · боевые факты настоящего дерева ####
+GSE_EXIT=0 GSE_GUARDS=16 LS_CHECK_COUNT=16 GSE_GUARDS_MATCH_LS=1 GSE_FINDINGS=0
+GSE_WITH_SELFTEST=16 GSE_WITHOUT_SELFTEST=none GSE_SELFTEST_UNWIRED=none
+REFS_EXIT=0 REFS_CITED=1683 REFS_MISSING=0 REFS_ALLOWED=18 REFS_ALLOWLIST_EMPTY=0
+TEXTGUARD_ALL_EXIT=0 ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=2 исключено=1
+PARITY_EXIT=0 ПАРИТЕТ_НАХОДОК=0 ПАРИТЕТ_БЕЗ_ПРИЧИНЫ=none STATUS_EXIT=0 STATUS_FACTS_MISSING=none
+SECRETS_EXIT=0 SECRETS_FINDINGS=0 KIT_EXIT=0 MIRROR_EXIT=0 REVIEW_EXIT=0 LINT_LATEST_EXIT=0
+LINT_ORPHANS=0 CLAIMS_EXIT=0 CONTOURS_EXIT=0 TEXTGUARD_CYCLE_EXIT=0
+вердикт шага: число приборов сверено с каталогом (`ls lab/check-* | wc -l` = 16), а не с литералом;
+ни один из 16 не остался без посадки и без вызова; соседние стражи зелёные; два подозрения стража
+текста — латинские слова внутри встроенных однострочных команд, не глифы.
+
+#### ПРОГОН 1 · факты целиком ####
+PIN_FOUND=1
+PIN_SHORT=087164f
+PIN_BASE_SAME_BYTES=1
+PRE_FIX_GSE_RC=0
+PRE_FIX_GSE_FINDINGS=0
+PRE_FIX_GSE_FALSE_GREEN=1
+PRE_FIX_REFS_RC=0
+PRE_FIX_REFS_SELFTEST=ok
+PRE_FIX_REFS_FALSE_GREEN=1
+PRE_FIX_TEXT_TXT_RC=0
+PRE_FIX_TEXT_TXT_DIRTY=0
+PRE_FIX_TEXT_FALSE_GREEN=1
+POST_FIX_GSE_RC=1
+POST_FIX_GSE_FINDINGS=2
+POST_FIX_GSE_NAMES=lab/check-beta.sh,lab/check-commentonly.sh
+POST_FIX_GSE_NAMES_BOTH=1
+POST_FIX_REFS_SELFTEST_OK_RC=0
+POST_FIX_REFS_SELFTEST_OK=ok
+POST_FIX_REFS_EXTERNAL_DIR=excluded
+POST_FIX_REFS_REMOVAL=tested
+POST_FIX_REFS_SELFTEST_RC=1
+POST_FIX_REFS_BAD_STATE=fail
+POST_FIX_TEXT_TXT_RC=1
+POST_FIX_TEXT_TXT_DIRTY=1
+POST_FIX_TEXT_TSV_RC=1
+POST_FIX_TEXT_TSV_DIRTY=1
+POST_FIX_TEXT_CLEAN_RC=0
+POST_FIX_TEXT_CLEAN_DIRTY=0
+GSE_SELFTEST_CASES=4
+GSE_SELFTEST_PASSED=4
+TCS_SELFTEST_CASES=6
+TCS_SELFTEST_PASSED=6
+GSE_EXIT=0
+GSE_GUARDS=16
+GSE_FINDINGS=0
+LS_CHECK_COUNT=16
+GSE_GUARDS_MATCH_LS=1
+REFS_EXIT=0
+REFS_CITED=1683
+REFS_MISSING=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+PARITY_EXIT=0
+STATUS_EXIT=0
+SECRETS_EXIT=0
+KIT_EXIT=0
+MIRROR_EXIT=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+LINT_ORPHANS=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+DISK_FREE_MB=23118
+DISK_GE_15000=1
+WORST_RC=0
+STABLE=none
+
+#### ПРОГОН 2 · отличия от прогона 1 ####
+единственные отличающиеся строки: `DISK_FREE_MB=22842` (замер состояния машины, не факт круга) и
+`STABLE=1` (флаг сводится только на втором прогоне). Остальные 56 фактов совпадают побайтово.
+
+#### ОРАКУЛ ####
+python lab/expect.py lab/expectations/e0153.tsv /tmp/e0153/r1.out /tmp/e0153/r2.out
+ОЖИДАНИЙ=56 РАСХОЖДЕНИЙ=0
+STABLE=1 WORST_RC=0 DISK_GE_15000=1 (входы пересчёта: 23118 МБ и 22842 МБ свободного диска)
+
+#### ПОЛНАЯ ВЕРИФИКАЦИЯ ####
+bash lab/workspace-verify.sh на том же неизменном дереве, пуск 2026-10-29T19:49:34+03:00:
+cargo test --workspace: 136 сюит, 791 прошёл, 0 упало, 9 `#[ignore]`, TEST_EXIT=0 (последний проход
+2724 с); clippy CLIPPY_EXIT=0 (200 с); lean-check LEAN_EXIT=0 (96 с) и его самопроверка зелёная;
+verus-check (required) и самопроверка, kani-compile-check, cycle-gate, instruments, ledger,
+repo-review — зелёные; CLAIMMAP_SENTENCES=30 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=28
+CLAIMMAP_MISSING_IDS=0; указатели очереди: 106, висячих 0; ИСТОРИЯ_СОВПАДЕНИЙ=0;
+зеркало спеки: v8 2300 строк f96bdd3ac427, v9 634 строки a121878a263f;
+носитель после сборки: DISK_FREE_MB=9314 RAM_FREE_MB=6800 (верификация съела ~13,5 ГиБ);
+VERIFY_FAIL=0, VERIFY_RC=0, SECONDS_total=3818.
+
+#### ВЕРДИКТ ####
+supports. Три зелёных на форме против трёх красных на механизме воспроизведены на одних и тех же
+посадках, боевые факты настоящего дерева не изменились (16 приборов, 0 находок, 1683 цитаты),
+продукт и wire не тронуты, 56 ожиданий ×0 дважды, `STABLE=1`, полная верификация `VERIFY_FAIL=0`.
+
+#### Границы и остатки ####
+* Мета-страж вырезает строки, начинающиеся с `#` после отступа; хвостовой комментарий после кода
+  остаётся текстом и теоретически может дать ложный зелёный — названо в карточке, не починено.
+* В круг перебора входят `lab/*.txt` и `lab/*.tsv`; прочие расширения и каталоги — нет.
+* Правило «`lab/logs/` не даёт локальных путей» этим прибором не проверяется: оно живёт в
+  `check-secrets.sh`.
+* Соответствие моделей Lean коду круг не утверждает: правка только в `lab/`.
+* Свободный диск после верификации 9314 МБ — ниже линии владельца 15 000 МБ; тяжёлые прогоны
+  остановлены до его слова о `cargo clean`.
