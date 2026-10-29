@@ -159,6 +159,16 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "RCC_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-ci-rc-capture.py check --limit 30 2>&1 | tail -4
   rc=${PIPESTATUS[0]}; echo "RCC_EXIT=$rc"; note $rc
+  # Четвёртый класс расхождения слова и дерева (`E-0154`): шапка `verify.yml` обещала 764 теста, пока
+  # внешний рецензент пересчитал дерево и получил 804. Число с командами в комментарии всё равно не
+  # исполняется, а значит остаётся формой записи, а не механизмом. Прибор читает определения шапки и
+  # пересчитывает их по дереву; самопроверка сажаем семью формами, включая «команду я не знаю»
+  # и поддельные метки внутри `target/`.
+  echo "### ci header-numbers guard ### $(date +%FT%T%:z)"
+  python lab/check-ci-numbers.py --selftest 2>&1 | tail -10
+  rc=${PIPESTATUS[0]}; echo "CIN_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-ci-numbers.py 2>&1 | tail -30
+  rc=${PIPESTATUS[0]}; echo "CIN_EXIT=$rc"; note $rc
   # Третий класс красноты `verify` (`E-0129`): даты контура ставились местным часом хоста (UTC+3),
   # а runner судит по UTC, за записью, закрытой после 21:00 по хосту. Здесь добавлен `--require-git`:
   # на хосте полная история есть, и проверка «источник не мог быть найден раньше, чем его добавили в

@@ -20,8 +20,8 @@ threshold: "(1) до правки drift посчитан носителем от
 новым прибором на дереве пина: `PRE_FIX_NEW_ON_PIN_RC=1`, `PRE_FIX_NEW_ON_PIN_DEFINITION=missing`,
 `PRE_FIX_NEW_ON_PIN_MATCH=7` при `PRE_FIX_NEW_ON_PIN_CLAIMS=19` и
 `PRE_FIX_NEW_ON_PIN_FINDINGS=13`, классы названы (`CMD=1`, `PAIRS=5`, `DERIVED=6`,
-`PRE_FIX_NEW_ON_PIN_TOKENS=1`), определение счёта не двоится (`TREE_EQ_PIN_BASH=1`, борешный пересчёт
-762-строки против обхода прибора на одном дереве); (3) после починки шапки на рабочем дереве:
+`PRE_FIX_NEW_ON_PIN_TOKENS=1`), определение счёта не двоится (`TREE_EQ_PIN_BASH=1`: пересчёт
+оболочкой по команде, напечатанной в шапке, и обход прибора дают на одном дереве одно число); (3) после починки шапки на рабочем дереве:
 `POST_FIX_TREE_RC=0`, `POST_FIX_TREE_CLAIMS=19` = `POST_FIX_TREE_MATCH=19`,
 `POST_FIX_TREE_FINDINGS=0`, `POST_FIX_TREE_DRIFT=none`, `POST_FIX_TREE_DEFINITION=full`,
 пустые множества названы `none`; (4) посадки `--selftest`: `CIN_SELFCASES=7`, `CIN_SELFPASSED=7`,

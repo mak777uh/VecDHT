@@ -2,26 +2,32 @@
 #
 # Почему этот файл появился (`lab/notes/AUDIT-2026-10-25-repo-spec-readme.md`, находитка 4 и раздел 7).
 # До него в CI был только `formal.yml`: три формальных конвейера плюс работа `admission`, которая
-# гоняла `cargo test -p vecdht-node` и `cargo clippy -p vecdht-node`. То есть 203 статических
-# деклараций теста из 764 по воркспейсу (27 %), и НИ ОДИН текстовый страж лаборатории. `AGENTS.md`
-# тем временем определяет «проверено» как `cargo test --workspace` и clippy по воркспейсу. Разрыв
-# между определением и исполнением и закрывает этот файл.
+# гоняла `cargo test -p vecdht-node` и `cargo clippy -p vecdht-node`. Тогда это была меньшая часть
+# воркспейса, и её не сверял НИ ОДИН текстовый страж лаборатории. `AGENTS.md` тем временем
+# определяет «проверено» как `cargo test --workspace` и clippy по воркспейсу. Разрыв между
+# определением и исполнением и закрывает этот файл.
 #
 # Числа тестов — статический подсчёт, прогон не измерялся (правило: число без команды
 # не результат; команду печатаем целиком):
 #
-#     grep -rhoE '#\[test\]' crates --include=*.rs | wc -l                     # 762
+#     grep -rhoE '#\[test\]' crates --include=*.rs | wc -l                     # 802
 #     grep -rhoE '#\[tokio::test(\([^)]*\))?\]' crates --include=*.rs | wc -l   #   2
 #     grep -rhoE '#\[test_case' crates --include=*.rs | wc -l                   #   0
-#     ------------------------------------------------------------------------------  всего 764
+#     ------------------------------------------------------------------------------  всего 804
 #     grep -rhoE '^[[:space:]]*#\[ignore' crates --include=*.rs | wc -l         #  11 в --ignored
 #
-# Разбивка по крейтам (`#[test]`): wire 57, orders 16, crypto 60, artifact 48, index 117, node 203,
-# net 102 (+2 `#[tokio::test(flavor = "current_thread")]` в `tests/kad_server_role.rs` и
-# `tests/s182_p1_scale.rs`), embed 80, cli 79. Работа `admission` в `formal.yml` покрывает 203 из 764;
-# работа `workspace` ниже добавляет остальные 561. Ни `#[test_case]`, ни параметризованных атрибутов
-# в дереве нет; `--ignored`-тесты (11) в CI не запускаются — это замерные стенды, их цена и команда
-# названы в карточках циклов.
+#     Определение счёта: все `*.rs` под `crates/` (включая каталог `tests/`, исключая `target/`
+#     и `.git/`), метка — вхождение литерала `#[test]` в байтах файла; «всего» = `#[test]` плюс
+#     `#[tokio::test…]` плюс `#[test_case`. Это же определение исполняет `lab/check-ci-numbers.py`,
+#     и он же сверяет числа этого блока с деревом: число в комментарии без исполнителя гниёт молча
+#     (`H-0154`, внешний источник — `cross-audit/2026-10-29-lexspec-reviews-vecdht.md`, V-1).
+#
+# Разбивка по крейтам (`#[test]`): wire 57, orders 24, crypto 60, artifact 48, index 118, node 208,
+# net 105 (+2 `#[tokio::test(flavor = "current_thread")]` в `tests/kad_server_role.rs` и
+# `tests/s182_p1_scale.rs`), embed 80, cli 102. Работа `admission` в `formal.yml` покрывает 208 из
+# 804, то есть 26 %; работа `workspace` ниже добавляет остальные 596 — 74 %. Ни `#[test_case]` и ни
+# параметризованных атрибутов в дереве нет; `--ignored`-тесты (11) в CI не запускаются — это замерные
+# стенды, их цена и команда названы в карточках циклов.
 #
 # Чем runner НЕ равна хосту владельца (честно, а не «зелёное значит проверено на всех}):
 #   * runner — `ubuntu-24.04`, тулчейн `x86_64-unknown-linux-gnu`, версия — та, что лежит в образе
@@ -43,7 +49,7 @@
 #
 # Разделение по событиям (его надо видеть, а не угадывать):
 #   * `pull_request`  → только `guards` (секунды: python и bash, без сборки);
-#   * `push` в `main` → `guards` + `workspace` (полный воркспейс: сборка и ~764 теста);
+#   * `push` в `main` → `guards` + `workspace` (полный воркспейс: сборка и ~804 теста);
 #   * `workflow_dispatch` → `guards` + `workspace` по явному вызову;
 #   * `schedule` (ночью) → только `v9-independent` (прибор перебирает байты из текста спеки,
 #     он медленный и в PR-критический путь не ставится).
@@ -439,6 +445,36 @@ jobs:
           { grep -aE '^RCC_SELFTEST' "$L"; echo "RCC_SELFTEST_RC=$r"; } \
             | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
           tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      # `H-0154`: числа этого файла — утверждения, а не подпись. Внешняя рецензия
+      # `cross-audit/2026-10-29-lexspec-reviews-vecdht.md` (V-1) показала, что шапка разошлась с
+      # деревом на 40 тестов, и ни один из прежних стражей над этим не покраснел: они смотрят на
+      # подключение приборов, цитаты путей и адреса карточек, но не на арифметику комментария.
+      - name: check-ci-numbers — числа шапки этого файла сверены с деревом
+        run: |
+          set -uo pipefail
+          L=/tmp/ci-numbers.log
+          r=0
+          python lab/check-ci-numbers.py > "$L" 2>&1 || r=$?
+          echo "CIN_STEP_EXIT=$r" >> "$L"
+          grep -aE '^CIN_(CLAIMS|MATCH|DRIFT_COUNT|FINDINGS|DEFINITION|EXIT)=' "$L" \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -10 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
+      # Боевой режим без посадки — тот же класс, что и страж без посаженного дефекта (`H-0151`):
+      # семь случаев, каждый обязан отбиться, иначе прибор превращается в зелёный текст.
+      - name: check-ci-numbers selftest — семь посаженных чисел обязаны отбиваться
+        run: |
+          set -uo pipefail
+          L=/tmp/ci-numbers-selftest.log
+          r=0
+          python lab/check-ci-numbers.py --selftest > "$L" 2>&1 || r=$?
+          echo "CIN_SELFTEST_STEP_RC=$r" >> "$L"
+          grep -aE '^(PLANTED_|CIN_SELFCASES|CIN_SELFPASSED|CIN_SELFTEST)' "$L" \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -8 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
   workspace:
