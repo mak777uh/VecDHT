@@ -1,0 +1,14 @@
+# E-0149: носитель строки P4 — вывод gates_p4 на неизменном дереве (fee5f70).
+# Команда: cargo test -p vecdht-node --test gates_p4 -- --nocapture --test-threads=1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.29s
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-8280157d75ab775c.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... handoff = 5 с при пороге 10 с
+ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.20s
+

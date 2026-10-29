@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Релиз-карта как проверяемое утверждение (`H-0148`).
+"""Релиз-карта как проверяемое утверждение (`H-0148`, второй проход чисел — `H-0149`).
 
 `docs/RELEASE-MAP-v1.md` читает посторонний, чтобы решить, можно ли ставить тег. Документ сам
 обещает: «каждая строка обязана назвать исполняемый прибор или id замера, иначе строка помечена
@@ -12,9 +12,15 @@
   карта ссылается и на `refutes`-карточки как на названный замер;
 * обязательные слова строки (положительная форма) стоят на месте, запрещённые (старая ложь)
   отсутствуют;
-* у строки, где объявлены числа, каждое число сверено с носителем: `spec` — спека, `card:E-…` —
-  карточка и её цитатный лог `lab/logs/eXXXX-all.log`, `test:<путь>` — файл прибора. Числа строк,
-  где в реестре стоит `none`, прибор не сверяет — это названная граница, а не молчание.
+* число строки сверяется с носителем только целиком: `417` не подтверждается числом `417,5`,
+  а `2,25` — числом `2,2536`; `1 280` и `1280`, `417,5` и `417.5` — одно и то же число;
+* провенанс числа: `spec` — спека, `card:E-…` — карточка и её цитатный лог
+  `lab/logs/eXXXX-all.log`, `test:<путь>` — файл прибора, `log:<путь>` — сохранённый вывод
+  прогона (например, для величины, которую тест печатает, но не хранит);
+* `none` в реестре — утверждение «в строке чисел нет», а не разрешение их не проверять: любое
+  найденное число — находка. Даты, адреса IPv4, перечисления в фигурных скобках и флаги
+  `KEY=значение` числом утверждения не считаются;
+* `@prev` наследует не только владельца, но и карточки предыдущей строки для провенанса чисел.
 
 Строка-отсутствие (`cards` и `paths` пусты) обязана содержать слово отсутствия; это тот же класс,
 что строки-отсутствия в `check-status-claims.py`.
@@ -22,11 +28,12 @@
 Выход: 0 — карта согласована с деревом; 1 — есть находка (печатает id и причину); 2 — документ,
 реестр или корень не читается.
 
-`selftest` строит временное дерево и пятнадцать посаженных случаев: положительный контроль,
+`selftest` строит временное дерево и двадцать посаженных случаев: положительный контроль,
 незарегистрированная строка, пропавшая строка, стёртый владелец, открытая карточка, пропавшая
 карточка, пропавший файл прибора, запрещённая фраза, подменённое число, сломанная провенанс-ссылка,
-пропавшее обязательное слово, пропавший ADR, дубль строки, отсутствующий документ и отсутствующий
-реестр.
+пропавшее обязательное слово, пропавший ADR, дубль строки, отсутствующий документ, отсутствующий
+реестр, число в строке `none`, число-префикс (`417` против `417,5`), сохранённый лог с числом,
+пропавший лог и число в реестре, которого нет в строке.
 """
 
 from __future__ import annotations
@@ -42,6 +49,12 @@ import tempfile
 DOC_DEFAULT = "docs/RELEASE-MAP-v1.md"
 REG_DEFAULT = "lab/release-map-rows.tsv"
 ABSENCE = re.compile(r"не измерен|не проверено|не выполнено|не подтверждено")
+# Классы текста, которые числом утверждения не считаются (`H-0149`): дата, адрес IPv4,
+# перечисление в фигурных скобках и флаг `KEY=значение`.
+DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+IPV4 = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
+BRACE = re.compile(r"\{[^}]*\}")
+FLAG = re.compile(r"\b[A-Z][A-Z0-9_]*=\d+(?![0-9.])")
 
 
 class Row:
@@ -68,13 +81,33 @@ def norm(text):
 
 
 def num_tokens(text):
-    """Числовые ядра строки; номера §, id, даты и дроби имён файлов не считаются."""
+    """Числовые ядра строки; номера §, id, даты, адреса, списки и флаги не считаются."""
+    text = DATE.sub(" ", IPV4.sub(" ", BRACE.sub(" ", text)))
+    text = FLAG.sub(" ", text)
     out = []
     for m in re.finditer(r"(?<![\w§./-])(\d[\d \u00a0]*(?:[.,]\d+)?)", text):
         tok = norm(m.group(1))
         if tok and tok not in out:
             out.append(tok)
     return out
+
+
+def num_present(hay, token):
+    """Число найдено в носителе только целиком: `417` не подтверждается числом `417,5`.
+
+    Запись ищется в исходном тексте, а не в склеенном: `1 280` и `1280` — одно число,
+    `417,5` и `417.5` — одно число, но `417` не равно `417,5`, а `2,25` не равно `2,2536`.
+    """
+    t = norm(token)
+    if not t:
+        return False
+    intpart, sep, frac = t.partition(".")
+    intpat = r"[ \u00a0]?".join(re.escape(ch) for ch in intpart)
+    pat = intpat + (r"[.,]" + re.escape(frac) if sep else "")
+    pat = r"(?<!\d)(?<!\d[ \u00a0])" + pat + r"(?!\d)"
+    if not sep:
+        pat += r"(?![.,]\d)"
+    return re.search(pat, hay) is not None
 
 
 def parse_rows(doc):
@@ -147,7 +180,7 @@ def carrier_files(root, eid):
 def prov_ok(root, prov, token, cards, spec_text):
     """Провенанс одного числа. Возвращает (ok, причина)."""
     if prov == "spec":
-        return (norm(token) in norm(spec_text), "spec")
+        return (num_present(spec_text, token), "spec")
     if prov.startswith("card:"):
         eid = prov.split(":", 1)[1]
         if eid not in cards:
@@ -157,13 +190,19 @@ def prov_ok(root, prov, token, cards, spec_text):
             src += read_text(p)
         for p in carrier_files(root, eid):
             src += read_text(p)
-        return (norm(token) in norm(src), "card:" + eid)
+        return (num_present(src, token), "card:" + eid)
     if prov.startswith("test:"):
         rel = prov.split(":", 1)[1]
         p = os.path.join(root, rel)
         if not os.path.isfile(p):
             return (False, "test-missing:" + rel)
-        return (norm(token) in norm(read_text(p)), "test:" + rel)
+        return (num_present(read_text(p), token), "test:" + rel)
+    if prov.startswith("log:"):
+        rel = prov.split(":", 1)[1]
+        p = os.path.join(root, rel)
+        if not os.path.isfile(p):
+            return (False, "log-missing:" + rel)
+        return (num_present(read_text(p), token), "log:" + rel)
     return (False, "unknown-prov:" + prov)
 
 
@@ -187,6 +226,8 @@ def evaluate(root, doc_path, reg_path):
     numbers = 0
     numbers_ok = 0
     numbers_undeclared = []
+    numbers_phantom = []
+    none_rows = 0
     prov_bad = []
 
     ids = {}
@@ -235,6 +276,7 @@ def evaluate(root, doc_path, reg_path):
         findings.append("row-missing " + item)
 
     prev_evidence = ""
+    prev_cards = []
     for row in reg:
         if row.key not in rows:
             continue
@@ -243,6 +285,7 @@ def evaluate(root, doc_path, reg_path):
         cards = list(row.cards)
         rpaths = list(row.paths)
         inherited = False
+        prov_cards = list(prev_cards) if cards == ["@prev"] else list(cards)
         if cards == ["@prev"] or rpaths == ["@prev"]:
             inherited = True
             cards = [] if cards == ["@prev"] else cards
@@ -280,8 +323,14 @@ def evaluate(root, doc_path, reg_path):
                 stale_rows.append(row.rid)
                 findings.append(row.rid + " stale " + token)
 
-        if row.numbers:
-            toks = num_tokens(cells["evidence"] + " " + cells["state"] + " " + cells["rest"])
+        toks = num_tokens(cells["evidence"] + " " + cells["state"] + " " + cells["rest"])
+        if not row.numbers:
+            # `none` — утверждение «в строке чисел нет», а не разрешение их не проверять.
+            none_rows += 1
+            for tok in toks:
+                numbers_undeclared.append(row.rid + ":" + tok)
+                findings.append(row.rid + " number-undeclared " + tok)
+        else:
             declared = []
             for item in row.numbers:
                 if "=>" not in item:
@@ -290,7 +339,10 @@ def evaluate(root, doc_path, reg_path):
                 tok, prov = [x.strip() for x in item.split("=>", 1)]
                 declared.append(norm(tok))
                 numbers += 1
-                ok, why = prov_ok(root, prov, tok, cards, spec_text)
+                if norm(tok) not in toks:
+                    numbers_phantom.append(row.rid + ":" + tok)
+                    findings.append(row.rid + " number-phantom " + tok)
+                ok, why = prov_ok(root, prov, tok, prov_cards, spec_text)
                 if ok:
                     numbers_ok += 1
                 else:
@@ -301,6 +353,7 @@ def evaluate(root, doc_path, reg_path):
                     numbers_undeclared.append(row.rid + ":" + tok)
                     findings.append(row.rid + " number-undeclared " + tok)
         prev_evidence = cells["evidence"]
+        prev_cards = [c for c in row.cards if c != "@prev"] or prev_cards
 
     for msg in reg_errors:
         findings.append("registry " + msg)
@@ -342,6 +395,9 @@ def evaluate(root, doc_path, reg_path):
         "NUMBERS_OK=%d" % numbers_ok,
         "NUMBERS_UNDECLARED=%d" % len(numbers_undeclared),
         "NUMBERS_UNDECLARED_IDS=%s" % (",".join(numbers_undeclared) if numbers_undeclared else "none"),
+        "NUMBERS_PHANTOM=%d" % len(numbers_phantom),
+        "NUMBERS_PHANTOM_IDS=%s" % (",".join(numbers_phantom) if numbers_phantom else "none"),
+        "NONE_ROWS=%d" % none_rows,
         "PROV_BAD=%d" % len(prov_bad),
         "MAP_OK=%d" % (1 if code == 0 else 0),
         "MAP_EXIT=%d" % code,
@@ -356,15 +412,17 @@ CLEAN_MAP = """# Release map
 
 | Гейт | Чем закрыт | Состояние | Что нужно |
 |---|---|---|---|
-| (a) alpha | `crates/x/t.rs`, `E-9001`, `ADR-9001` | выполнено: 10 мс | нечего |
-| P3 beta 1M записей ≤ 428 МБ | `crates/x/m.rs`, `E-9001` | выполнено: 417,5 МиБ, 437,7 Б/запись | нечего |
+| (a) alpha | `crates/x/t.rs`, `E-9001`, `ADR-9001` | выполнено | нечего |
+| P3 beta 1M записей ≤ 428 МБ | `crates/x/m.rs`, `E-9001` | выполнено: 417,5 МиБ, 437,7 Б/запись при бюджете 428 МиБ | нечего |
 | P4 gamma | `crates/x/g.rs` | выполнено: 5 с | нечего |
+| P5 delta | `crates/x/g.rs` | стенд 127.0.0.1, потоки {1,2,4,8}, прогон 2026-10-20, `STABLE=1` | нечего |
 """
 
 CLEAN_REG = """# id\tkey\tcards\tpaths\tmust\tforbid\tnumbers
-M-01\t(a) alpha\tE-9001\tcrates/x/t.rs\t10 мс\t-\tnone
-M-02\tP3 beta 1M записей ≤ 428 МБ\tE-9001\tcrates/x/m.rs\t417,5;437,7\tна фикстуре\t1=>card:E-9001;428=>spec;417.5=>card:E-9001;437.7=>card:E-9001
-M-03\tP4 gamma\t-\tcrates/x/g.rs\t5 с\t-\tnone
+M-01\t(a) alpha\tE-9001\tcrates/x/t.rs\tвыполнено\t-\tnone
+M-02\tP3 beta 1M записей ≤ 428 МБ\tE-9001\tcrates/x/m.rs\t417,5;437,7\tна фикстуре\t428=>spec;417.5=>card:E-9001;437.7=>card:E-9001
+M-03\tP4 gamma\t@prev\t-\t5 с\t-\t5=>card:E-9001
+M-04\tP5 delta\t-\tcrates/x/g.rs\tстенд\t-\tnone
 """
 
 
@@ -380,10 +438,10 @@ def build_tree(root):
     put("docs/VecDHT-SPEC-v8.md", "бюджет 428 МБ; всё в MiB\n")
     put("lab/experiments/E-9001-a.md",
         "---\nid: E-9001\nstatus: completed\nverdict: supports\n---\n# E\n"
-        "1M записей: 417,5 МиБ, 437,7 Б/запись\n")
+        "1M записей: 417,5 МиБ, 437,7 Б/запись; handoff 5 с\n")
     put("lab/logs/e9001-all.log", "MEM_TOTAL_MIB=417\nMEM_PER_ENTRY_TENTHS=4377\n")
     put("lab/decisions/ADR-9001-test.md", "# ADR-9001\n")
-    put("crates/x/t.rs", "// 10 мс\n")
+    put("crates/x/t.rs", "// тест\n")
     put("crates/x/m.rs", "const BUDGET: usize = 428 * MIB;\n")
     put("crates/x/g.rs", "// 5 с\n")
 
@@ -463,7 +521,15 @@ def selftest():
         with open(doc(root), "a", encoding="utf-8") as fh:
             fh.write("| (a) alpha | `crates/x/t.rs`, `E-9001` | выполнено: 10 мс | нечего |\n")
 
-    case("clean", lambda r: None, 0, ("MAP_ROWS", "3"))
+    def put_file(rel, text):
+        def _m(root):
+            p = os.path.join(root, rel)
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+            with open(p, "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(text)
+        return _m
+
+    case("clean", lambda r: None, 0, ("MAP_ROWS", "4"))
     case("unregistered", append_doc("| (z) omega | `crates/x/t.rs` | выполнено | нечего |\n"),
          1, ("ROWS_UNREGISTERED", "1"))
     case("missing-row", drop(DOC_DEFAULT, r"\| P4 gamma .*\n"), 1, ("ROWS_MISSING", "1"))
@@ -476,11 +542,32 @@ def selftest():
          1, ("STALE", "1"))
     case("number-changed", edit(DOC_DEFAULT, "417,5", "477,5"), 1, ("NUMBERS_UNDECLARED", "1"))
     case("provenance-broken", broken_prov, 1, ("PROV_BAD", "1"))
-    case("fact-missing", edit(DOC_DEFAULT, "выполнено: 10 мс", "выполнено"), 1)
+    case("fact-missing", edit(DOC_DEFAULT, "выполнено", "сделано"), 1)
     case("adr-missing", remove("lab/decisions/ADR-9001-test.md"), 1, ("ADRS_MISSING", "1"))
     case("duplicate-row", duplicate_row, 1, ("MAP_DUP", "1"))
     case("doc-missing", remove(DOC_DEFAULT), 2)
     case("registry-missing", remove(REG_DEFAULT), 2)
+    case("none-lie", edit(DOC_DEFAULT, "стенд 127.0.0.1", "стенд 127.0.0.1, всего 1 777"),
+         1, ("NUMBERS_UNDECLARED", "1"))
+    case("prefix-number",
+         lambda r: (edit(DOC_DEFAULT, "417,5", "417")(r),
+                    edit(REG_DEFAULT, "417.5=>card:E-9001", "417=>card:E-9001")(r),
+                    edit("lab/experiments/E-9001-a.md", "417,5 МиБ", "417,53 МиБ")(r),
+                    edit("lab/logs/e9001-all.log", "MEM_TOTAL_MIB=417", "MEM_TOTAL_MIB=417.53")(r)),
+         1, ("PROV_BAD", "1"))
+    case("log-ok",
+         lambda r: (edit(DOC_DEFAULT, "выполнено: 5 с", "выполнено: handoff 5 с")(r),
+                    edit(REG_DEFAULT, "\t5=>card:E-9001", "\t5=>log:lab/logs/e9001-p4.log")(r),
+                    put_file("lab/logs/e9001-p4.log", "handoff = 5 с при пороге 10 с\n")(r)),
+         0)
+    case("log-missing",
+         lambda r: (edit(DOC_DEFAULT, "выполнено: 5 с", "выполнено: handoff 5 с")(r),
+                    edit(REG_DEFAULT, "\t5=>card:E-9001", "\t5=>log:lab/logs/e9001-p4.log")(r)),
+         1, ("PROV_BAD", "1"))
+    case("phantom",
+         lambda r: edit(REG_DEFAULT, "M-01\t(a) alpha\tE-9001\tcrates/x/t.rs\tвыполнено\t-\tnone",
+                        "M-01\t(a) alpha\tE-9001\tcrates/x/t.rs\tвыполнено\t-\t999=>spec")(r),
+         1, ("NUMBERS_PHANTOM", "1"))
 
     bad = [n for n, ok in cases if not ok]
     print("СЕЛФТЕСТ total=%d passed=%d failed=%d" %

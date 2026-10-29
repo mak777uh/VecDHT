@@ -4,19 +4,19 @@
 # cards/paths: через запятую; `-` — владельца нет (строка-отсутствие); `@prev` — «тот же прибор».
 # must/forbid: через `;`; must проверяется в ячейке «Состояние», forbid — во всей строке.
 # numbers: `токен=>провенанс` через `;`, провенанс spec|card:E-XXXX|test:путь; `none` — не сверяются.
-M-01	(i) throughput эмбеддинга	E-0003	-	10,96–11,96;17,82–18,09	не измерен	none
-M-02	(ii) ANN recall@10 ≥ 0,95	E-0004,E-0006,E-0012	-	0,9645;0,9790	не измерен	none
+M-01	(i) throughput эмбеддинга	E-0003	-	10,96–11,96;17,82–18,09	не измерен	10.96=>card:E-0003;11.96=>card:E-0003;17.82=>card:E-0003;18.09=>card:E-0003;4=>card:E-0003
+M-02	(ii) ANN recall@10 ≥ 0,95	E-0004,E-0006,E-0012	-	0,9645;0,9790	не измерен	0.9645=>card:E-0012;50=>card:E-0004;0.9790=>card:E-0012;807596=>card:E-0006;16.0=>card:E-0004;25=>card:E-0004;16=>card:E-0004;100=>spec
 M-03	(iii) прирост реранка ΔnDCG@10 ≥ +8 %	-	-	не измерен	выполнен	none
 M-04	(iv) детерминизм 1000/1000	-	crates/vecdht-embed/tests/p0_harness.rs	зелёный на потоках	не проверено	none
-M-05	(v) candle modernbert, косинус ≥ 0,999	E-0002	-	5/5;1,000000	не измерен	none
-M-06	резолв шарда p95 < 500 мс	E-0105,E-0125	crates/vecdht-net/tests/s182_p1_scale.rs	117–257;131–232	не выполнен	none
-M-07	≤ 5k provider-записей	@prev	-	64 × 20 = 1 280	не выполнено	none
+M-05	(v) candle modernbert, косинус ≥ 0,999	E-0002	-	5/5;1,000000	не измерен	5=>card:E-0002;1.000000=>card:E-0002
+M-06	резолв шарда p95 < 500 мс	E-0105,E-0125	crates/vecdht-net/tests/s182_p1_scale.rs	117–257;131–232	не выполнен	117=>card:E-0105;257=>card:E-0105;131=>card:E-0125;232=>card:E-0125;1=>test:crates/vecdht-net/tests/s182_p1_scale.rs;960=>test:crates/vecdht-net/tests/s182_p1_scale.rs
+M-07	≤ 5k provider-записей	@prev	-	64 × 20 = 1 280	не выполнено	64=>card:E-0105;20=>card:E-0105;1280=>card:E-0105
 M-08	кастомный `PeerId` не требуется	-	crates/vecdht-net/tests/kad_server_role.rs	подтверждено на деле	не требуется	none
 M-09	TTL 420 с во времени	-	-	не проверено	выполнено	none
 M-10	разные машины, relay, NAT	E-0122,E-0145	lab/two-hosts.sh,crates/vecdht-net/tests/s163_relay_circuit.rs	не выполнено как сеть	-	none
 M-11	P2 golden-векторы на двух машинах	-	crates/vecdht-crypto/tests/golden_vectors.rs,crates/vecdht-artifact/tests/golden_artifact.rs	не подтверждено отдельной карточкой	подтверждено на второй машине	none
-M-12	P2 fuzz-декод 30 мин без panic	E-0134,E-0135	lab/e0135-run.sh,.github/workflows/verify.yml	1 820;SOAK_GE_1800=1	не выполнен	none
+M-12	P2 fuzz-декод 30 мин без panic	E-0134,E-0135	lab/e0135-run.sh,.github/workflows/verify.yml	1 820;SOAK_GE_1800=1	не выполнен	1820=>card:E-0135;0=>card:E-0135;7=>card:E-0135;260=>card:E-0135;240=>card:E-0135;30=>card:E-0135;210=>card:E-0135
 M-13	P3 crash-матрица §10.5, 10/10	E-0073	crates/vecdht-index/tests/crash_matrix.rs	закрыт по карточке	не выполнен	none
-M-14	P3 1M записей ≤ 428 МБ	E-0100	crates/vecdht-index/tests/memory_budget.rs	417,5;437,7	на фикстуре;4 000 записей	1=>card:E-0100;428=>spec;5=>spec;417.5=>card:E-0100;437.7=>card:E-0100;2.7=>card:E-0100;444.6=>card:E-0100
-M-15	P4 handoff < 10 с, репликация W=2/R=3	-	crates/vecdht-node/tests/gates_p4.rs	handoff 5 с	не выполнен	none
-M-16	P5 sybil-гейт	E-0001	crates/vecdht-node/tests/adversarial.rs	31 680;31 891	не выполнен	none
+M-14	P3 1M записей ≤ 428 МБ	E-0100	crates/vecdht-index/tests/memory_budget.rs	417,5;437,7	на фикстуре;4 000 записей	417.5=>card:E-0100;437.7=>card:E-0100;428=>spec;5=>spec;2.7=>card:E-0100;444.6=>card:E-0100
+M-15	P4 handoff < 10 с, репликация W=2/R=3	-	crates/vecdht-node/tests/gates_p4.rs	handoff 5 с	не выполнен	5=>log:lab/logs/e0149-p4-handoff.log
+M-16	P5 sybil-гейт	E-0001	crates/vecdht-node/tests/adversarial.rs	31 680;31 891	не выполнен	31680=>card:E-0001;31891=>card:E-0001;64000=>card:E-0001;0=>card:E-0001;2.2536=>card:E-0001
