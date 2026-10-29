@@ -1,0 +1,180 @@
+# E-0149: носитель чисел релиз-карты — два официальных прогона lab/e0149-run.sh на неизменном дереве (7f89579).
+# Команда: bash lab/e0149-run.sh (дважды), затем python lab/expect.py lab/expectations/e0149.tsv run1.txt run2.txt
+### ПРОГОН 1 ###
+PIN_FOUND=1
+PRE_FIX_GUARD_OLD=1
+PRE_FIX_NONE_PASSES=1
+POST_FIX_NONE_CAUGHT=1
+PRE_FIX_PREFIX_PASSES=1
+POST_FIX_PREFIX_CAUGHT=1
+PRE_FIX_LOG_UNSUPPORTED=1
+POST_FIX_LOG_OK=1
+GATE_H0149_OK=1
+DISK_FREE_MB=16396
+DISK_GE_15000=1
+SELFTEST_EXIT=0
+SELFTEST_TOTAL=20
+SELFTEST_PASSED=20
+SELFTEST_FAILED=0
+MAP_EXIT=0
+MAP_ROWS=16
+ROWS_REGISTERED=16
+ROWS_UNREGISTERED=0
+ROWS_MISSING=0
+MAP_DUP=0
+EIDS=25
+EIDS_MISSING=0
+EIDS_OPEN=0
+ADRS=3
+ADRS_MISSING=0
+PATHS=25
+PATHS_MISSING=0
+OWNERS=16
+OWNERS_MISSING=0
+OWNERS_MISSING_IDS=none
+FACTS=23
+FACTS_OK=23
+STALE=0
+STALE_ROWS=none
+NUMBERS=43
+NUMBERS_OK=43
+NUMBERS_UNDECLARED=0
+NUMBERS_UNDECLARED_IDS=none
+NUMBERS_PHANTOM=0
+NUMBERS_PHANTOM_IDS=none
+NONE_ROWS=7
+PROV_BAD=0
+P4_LOG_FOUND=1
+P4_LOG_VALUE=5
+P4_TEST_EXIT=0
+P4_NOW=5
+P4_MATCH=1
+SECRETS_EXIT=0
+REFS_EXIT=0
+CLAIMMAP_EXIT=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+MIRROR_EXIT=0
+GATE_AUDIT_EXIT=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+LINT_ORPHANS=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+WORST_RC=0
+STABLE=none
+### ПРОГОН 2 ###
+PIN_FOUND=1
+PRE_FIX_GUARD_OLD=1
+PRE_FIX_NONE_PASSES=1
+POST_FIX_NONE_CAUGHT=1
+PRE_FIX_PREFIX_PASSES=1
+POST_FIX_PREFIX_CAUGHT=1
+PRE_FIX_LOG_UNSUPPORTED=1
+POST_FIX_LOG_OK=1
+GATE_H0149_OK=1
+DISK_FREE_MB=16395
+DISK_GE_15000=1
+SELFTEST_EXIT=0
+SELFTEST_TOTAL=20
+SELFTEST_PASSED=20
+SELFTEST_FAILED=0
+MAP_EXIT=0
+MAP_ROWS=16
+ROWS_REGISTERED=16
+ROWS_UNREGISTERED=0
+ROWS_MISSING=0
+MAP_DUP=0
+EIDS=25
+EIDS_MISSING=0
+EIDS_OPEN=0
+ADRS=3
+ADRS_MISSING=0
+PATHS=25
+PATHS_MISSING=0
+OWNERS=16
+OWNERS_MISSING=0
+OWNERS_MISSING_IDS=none
+FACTS=23
+FACTS_OK=23
+STALE=0
+STALE_ROWS=none
+NUMBERS=43
+NUMBERS_OK=43
+NUMBERS_UNDECLARED=0
+NUMBERS_UNDECLARED_IDS=none
+NUMBERS_PHANTOM=0
+NUMBERS_PHANTOM_IDS=none
+NONE_ROWS=7
+PROV_BAD=0
+P4_LOG_FOUND=1
+P4_LOG_VALUE=5
+P4_TEST_EXIT=0
+P4_NOW=5
+P4_MATCH=1
+SECRETS_EXIT=0
+REFS_EXIT=0
+CLAIMMAP_EXIT=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+MIRROR_EXIT=0
+GATE_AUDIT_EXIT=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+LINT_ORPHANS=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+WORST_RC=0
+STABLE=1
+### ОРАКУЛ ###
+ОЖИДАНИЙ=64 РАСХОЖДЕНИЙ=0
+EXPECT_RC=0
+
+### ВЕРИФИКАЦИЯ (lab/workspace-verify.sh) ###
+# Блок 1, метка E-0149, 2026-10-29T07:35:39+03:00: VERIFY_FAIL=1. TEST_EXIT=0, CLIPPY_EXIT=0,
+# но lean-check уронил все шесть моделей на COMPILE за ~160 мс: у тулчейна хоста
+# leanprover--lean4---v4.36.0-rc1 не было bin/lake.exe и каталога lib/. Это не модель.
+LEAN_FILE=Admission.lean EXIT=1 ERRORS=1 SORRY=0 SORRYAX=0 NATIVE_AXIOMS=0 STD_AXIOMS=0 CUSTOM_AXIOMS=0 AXIOM_FREE=30 DECLS=30 DEFS=48 EXTRAS=10 MS=1678 OK=0
+LEAN_TOTAL=6 DECLS_TOTAL=148 FROZEN_ROWS=421 EXTRAS_TOTAL=56 BROKEN=6 SORRY_TOTAL=0 SORRYAX_TOTAL=0 NATIVE_AXIOMS=0 STD_AXIOMS=0 CUSTOM_AXIOMS=0 AXIOM_FREE=148 DIGEST_BAD=0 LEAN_MS_TOTAL=2535
+VERIFY_FAIL=1
+
+# Блок 2, метка «E-0149 (Lean v4.33.1 локально, тулчейн хоста 4.36 повреждён)», 10:09:03+03:00:
+# прерван по слову владельца ради переустановки тулчейна; TEST_EXIT=101, вердиктом не считается.
+SECONDS_total=1029
+VERIFY_FAIL=1
+
+# Блок 3, метка «E-0149 (тулчейн 4.36.0-rc1 восстановлен из zip)», 10:47+03:00:
+LEAN_TOTAL=6 DECLS_TOTAL=148 FROZEN_ROWS=421 EXTRAS_TOTAL=56 BROKEN=0 SORRY_TOTAL=0 SORRYAX_TOTAL=0 NATIVE_AXIOMS=126 STD_AXIOMS=18 CUSTOM_AXIOMS=0 AXIOM_FREE=4 DIGEST_BAD=0 LEAN_MS_TOTAL=23861
+LEAN_EXIT=0
+# пересчёт по блоку: 136 строк «test result»
+SLICES=136 PASSED=791 FAILED=0 IGNORED=9
+DISK_FREE_MB=12360 RAM_FREE_MB=8055 PAGEFILE_PEAK_MB=7660
+SECONDS_total=2140
+VERIFY_FAIL=0
+
+### ПОЧИНКА ТУЛЧЕЙНА (по слову владельца 2026-10-29) ###
+# elan toolchain install leanprover/lean4:v4.36.0-rc1 дважды: error during download, [35] SSL connect
+# error (schannel). Прямой curl к тому же ассету работает, поэтому архив взят явно:
+#   lean-4.36.0-rc1-windows.zip, 889657541 байт, из github.com/leanprover/lean4/releases/download/v4.36.0-rc1
+#   EXTRACTED=18244 файлов в ~/.elan/toolchains/leanprover--lean4---v4.36.0-rc1
+#   lake --version → Lake version 5.0.0-src+c9afcdd (Lean version 4.36.0-rc1)
+#   lean --version → Lean (version 4.36.0-rc1, x86_64-w64-windows-gnu, commit c9afcddf514a)
+# Перекрёстная сверка тулчейнов: прогон на локальном 4.33.1 дал те же NATIVE_AXIOMS=126,
+# STD_AXIOMS=18, AXIOM_FREE=4, DIGEST_BAD=0 — классификация аксиом не зависит от выбора тулчейна.
+# Цена: ~3,0 ГБ на диск; после прогонов target/ (14,8 ГБ) очищен cargo clean по слову владельца,
+# свободно 27 995 МБ.
+
+### ДИАГНОЗЫ ###
+# 1. Замороженный порог жил в трёх копиях (карточка, lab/expectations/e0149.tsv, список want в
+#    helper). Исправление двух оставило helper с ручными PATHS=24 — предварительный прогон поймал.
+#    Список удалён, ожидания читаются из таблицы.
+# 2. Первый запуск верификации без метки блока отбился собственным usage-сообщением
+#    workspace-verify.sh (LABEL="${1:?...}"), а не этапом: helper обязан передавать метку.
+# 3. Страж моделей не отличает «модель не компилируется» от «тулчейн неполон»: неполный тулчейн
+#    даёт BROKEN=6. Это ложный класс отказа; карточка на исправление — в OPEN-QUESTIONS п. 90.

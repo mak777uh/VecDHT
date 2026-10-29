@@ -1,7 +1,7 @@
 ---
 id: H-0149
-status: open
-verdict: null
+status: closed
+verdict: supports
 date: 2026-10-29
 claim: "Второй проход чисел релиз-карты: у всех шестнадцати строк `docs/RELEASE-MAP-v1.md` число
 сверяется с владельцем, а не остаётся прозой. Девять строк с числами получают 43 объявленных числа
@@ -103,3 +103,15 @@ supersedes: null
 (`POST_FIX_NONE_CAUGHT=1`, `POST_FIX_PREFIX_CAUGHT=1`, `POST_FIX_LOG_OK=1`) и носитель P4
 (`P4_LOG_FOUND=1`, `P4_LOG_VALUE=5`, `P4_NOW=5`, `P4_MATCH=1`). Покрытие — `NUMBERS=43`,
 `NUMBERS_OK=43`, `NONE_ROWS=7` и нули находок.
+
+## Результат
+
+Гипотеза подтверждена; числа и разбор — в `lab/experiments/E-0149-release-map-numbers.md`, сырые
+факты — в носителе `lab/logs/e0149-all.log`. На карте: `MAP_EXIT=0`, `NUMBERS=43`,
+`NUMBERS_UNDECLARED=0`, `NUMBERS_PHANTOM=0`, `NONE_ROWS=7`, `PATHS=25`, `PROV_BAD=0`. Посадки
+пина: `PRE_FIX_NONE_PASSES=1`, `PRE_FIX_PREFIX_PASSES=1`, `PRE_FIX_LOG_UNSUPPORTED=1`; новый страж:
+`POST_FIX_NONE_CAUGHT=1`, `POST_FIX_PREFIX_CAUGHT=1`, `POST_FIX_LOG_OK=1`; самопроверка 20 из 20.
+Носитель P4 совпал с текущим прогоном (`P4_LOG_FOUND=1`, `P4_LOG_VALUE=5`, `P4_NOW=5`,
+`P4_MATCH=1`). Два прогона на неизменном дереве: 64 ожидания, `РАСХОЖДЕНИЙ=0`, `STABLE=1`,
+`WORST_RC=0`. Гипотеза не утверждает больше напечатанного: прибор сверяет наличие числа у владельца,
+а не смысл строки.
