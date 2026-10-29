@@ -1,8 +1,8 @@
 ---
 id: E-0151
 hypothesis: H-0151
-status: running
-verdict: null
+status: closed
+verdict: supports
 base_commit: "7f0f23a"
 started: "2026-10-29"
 environment: "x86_64-pc-windows-gnu, хост владельца; Python 3, bash; сеть наружу не используется;
@@ -58,4 +58,21 @@ threshold: "(1) пин: `PRE_FIX_PIN_FILE_ABSENT=1`, `PRE_FIX_PIN_GUARDS_SAME=1`
 
 ## Результат
 
-Заполняется после двух официальных прогонов и полной верификации; носитель — `lab/logs/e0151-all.log`.
+`supports`. Носитель — `lab/logs/e0151-all.log`.
+
+Пин (`7f0f23a`, стражи побайтово равны дереву `3f47d0b`): 14 приборов, `PRE_FIX_FINDINGS=5`,
+`PRE_FIX_RC=1`, мета-стража в пине нет — дыра названа отсутствием. Рабочее дерево `d5c99f3`:
+`POST_FIX_GUARDS=15`, `POST_FIX_FINDINGS=0`, `POST_FIX_WITHOUT=none`, `POST_FIX_UNWIRED=none`.
+Посадки: `KIT_SELFTEST_CASES=3`/`PASSED=3`, `MIRROR_SELFTEST_CASES=4`/`PASSED=4`,
+`TEXT_SELFTEST_CASES=5`/`PASSED=5`, `REFS_SELFTEST=ok`, `SECRETS_SELFTEST=ok`,
+`GSE_SELFTEST_CASES=3`/`PASSED=3` при `GSE_SELFTEST_DIRTY=1`; все `*_RC=0`. Соседние стражи зелёные,
+`LINT_ORPHANS=0`, `TEXTGUARD_ALL_DIRTY=0`, `RUST_TOUCHED=0`, `WIRE_TOUCHED=0`.
+
+Два официальных прогона на неизменном дереве: `ОЖИДАНИЙ=47 РАСХОЖДЕНИЙ=0`, `DIFF=none`, `WORST_RC=0`,
+`STABLE=1` во втором. Полная верификация `bash lab/workspace-verify.sh E-0151`: блок на строке
+180 326 файла `lab/logs/workspace-verify-2026-10-22.log` (2 548 строк), 136 срезов, 791 passed,
+0 failed, 9 ignored, все самопроверки исполнены внутри контура (`KIT_SELFTEST_EXIT=0` …
+`GSE_EXIT=0`), `VERIFY_FAIL=0`, `SECONDS_total=3181`.
+
+Граница: посадка доказывает умение краснеть на названном дефекте, а не полноту класса; узкая посадка
+проходит мета-стража. Это названо, а не спрятано.

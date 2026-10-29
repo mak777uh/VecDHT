@@ -1,0 +1,186 @@
+#### КРУГ E-0151 · посадка дефекта у каждого стража ####
+дерево `d5c99f3` (пин `7f0f23a`, карточка мерила `3f47d0b`), дата 2026-10-29, хост владельца;
+сеть наружу не использовалась; продукт не правился (`RUST_TOUCHED=0`, `WIRE_TOUCHED=0`)
+
+состав правки `d5c99f3` (10 файлов, +671/-5): три прибора получили `--selftest`
+(`check-release-kit.sh`, `check-spec-mirror.sh`, `check-text-clean.sh`), заведён мета-страж
+`check-guard-selftests.py`, посадки проведены в `.github/workflows/verify.yml` и
+`lab/workspace-verify.sh`, таблица `lab/expectations/e0151.tsv` и носитель `lab/e0151-run.sh`.
+
+#### ШАГ 0 · PRE_FIX: контур и стражи пина, мета-стража нет ####
+стражи и оба файла контура материализованы из пина через `git show`; стражи пина побайтово равны
+дереву `3f47d0b`, где карточка мерила счёт
+PRE_FIX_PIN_FILE_ABSENT=1 PRE_FIX_PIN_GUARDS_SAME=1
+PRE_FIX_RC=1 PRE_FIX_GUARDS=14 PRE_FIX_FINDINGS=5
+PRE_FIX_WITHOUT=check-release-kit.sh,check-spec-mirror.sh,check-text-clean.sh
+PRE_FIX_UNWIRED=check-artifact-refs.py,check-secrets.sh
+вердикт шага: дыра названа отсутствием мета-стража; на пине пять приборов не доказали, что умеют краснеть
+
+#### ШАГ 1 · POST_FIX: рабочее дерево ####
+POST_FIX_RC=0 POST_FIX_GUARDS=15 POST_FIX_FINDINGS=0
+POST_FIX_WITHOUT=none POST_FIX_UNWIRED=none
+вердикт шага: у каждого из 15 приборов есть посадка, и контур её зовёт; мета-страж считает и себя
+
+#### ШАГ 2 · каждая посадка исполняется ####
+KIT_SELFTEST_RC=0 CASES=3 PASSED=3 (пустой корень, здоровый комплект, один снятый флаг)
+MIRROR_SELFTEST_RC=0 CASES=4 PASSED=4 (совпало, разошлось, нет зеркала, нет оригинала)
+TEXT_SELFTEST_RC=0 CASES=5 PASSED=5 (чистый, связка, чужой алфавит, гибрид, маркер)
+REFS_SELFTEST_RC=0 REFS_SELFTEST=ok (вымышленный путь, внешний каталог, устаревшее разрешение)
+SECRETS_SELFTEST_RC=0 SECRETS_SELFTEST=ok (две посадки, чистая ветка, исключение лога)
+GSE_SELFTEST_RC=0 CASES=3 PASSED=3 GSE_SELFTEST_DIRTY=1 (непривязанная посадка названа)
+вердикт шага: каждая посадка краснеет на своём дефекте и зеленеет на чистом дереве
+
+#### ШАГ 3 · настоящее дерево, соседние стражи, диск ####
+KIT_EXIT=0 MIRROR_EXIT=0 TEXTGUARD_ALL_EXIT=0 TEXTGUARD_ALL_DIRTY=0 TEXTGUARD_CYCLE_EXIT=0
+REVIEW_EXIT=0 LINT_LATEST_EXIT=0 LINT_ORPHANS=0 CLAIMS_EXIT=0 CONTOURS_EXIT=0
+DISK_FREE_MB=24664 DISK_GE_15000=1
+вердикт шага: ни один соседний страж не покраснел и ни одна граница круга не тронута
+
+#### ПРОГОН 1 · факты целиком ####
+PIN_FOUND=1
+PRE_FIX_PIN_FILE_ABSENT=1
+PRE_FIX_PIN_GUARDS_SAME=1
+PRE_FIX_RC=1
+PRE_FIX_GUARDS=14
+PRE_FIX_WITHOUT=check-release-kit.sh,check-spec-mirror.sh,check-text-clean.sh
+PRE_FIX_UNWIRED=check-artifact-refs.py,check-secrets.sh
+PRE_FIX_FINDINGS=5
+POST_FIX_RC=0
+POST_FIX_GUARDS=15
+POST_FIX_WITHOUT=none
+POST_FIX_UNWIRED=none
+POST_FIX_FINDINGS=0
+KIT_SELFTEST_RC=0
+KIT_SELFTEST_CASES=3
+KIT_SELFTEST_PASSED=3
+KIT_SELFTEST_FAILED=0
+MIRROR_SELFTEST_RC=0
+MIRROR_SELFTEST_CASES=4
+MIRROR_SELFTEST_PASSED=4
+MIRROR_SELFTEST_FAILED=0
+TEXT_SELFTEST_RC=0
+TEXT_SELFTEST_CASES=5
+TEXT_SELFTEST_PASSED=5
+TEXT_SELFTEST_FAILED=0
+REFS_SELFTEST_RC=0
+REFS_SELFTEST=ok
+SECRETS_SELFTEST_RC=0
+SECRETS_SELFTEST=ok
+GSE_SELFTEST_RC=0
+GSE_SELFTEST_CASES=3
+GSE_SELFTEST_PASSED=3
+GSE_SELFTEST_FAILED=0
+GSE_SELFTEST_DIRTY=1
+KIT_EXIT=0
+MIRROR_EXIT=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+LINT_ORPHANS=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+DISK_FREE_MB=24664
+DISK_GE_15000=1
+WORST_RC=0
+STABLE=none
+
+#### ПРОГОН 2 · факты целиком (STABLE=1) ####
+PIN_FOUND=1
+PRE_FIX_PIN_FILE_ABSENT=1
+PRE_FIX_PIN_GUARDS_SAME=1
+PRE_FIX_RC=1
+PRE_FIX_GUARDS=14
+PRE_FIX_WITHOUT=check-release-kit.sh,check-spec-mirror.sh,check-text-clean.sh
+PRE_FIX_UNWIRED=check-artifact-refs.py,check-secrets.sh
+PRE_FIX_FINDINGS=5
+POST_FIX_RC=0
+POST_FIX_GUARDS=15
+POST_FIX_WITHOUT=none
+POST_FIX_UNWIRED=none
+POST_FIX_FINDINGS=0
+KIT_SELFTEST_RC=0
+KIT_SELFTEST_CASES=3
+KIT_SELFTEST_PASSED=3
+KIT_SELFTEST_FAILED=0
+MIRROR_SELFTEST_RC=0
+MIRROR_SELFTEST_CASES=4
+MIRROR_SELFTEST_PASSED=4
+MIRROR_SELFTEST_FAILED=0
+TEXT_SELFTEST_RC=0
+TEXT_SELFTEST_CASES=5
+TEXT_SELFTEST_PASSED=5
+TEXT_SELFTEST_FAILED=0
+REFS_SELFTEST_RC=0
+REFS_SELFTEST=ok
+SECRETS_SELFTEST_RC=0
+SECRETS_SELFTEST=ok
+GSE_SELFTEST_RC=0
+GSE_SELFTEST_CASES=3
+GSE_SELFTEST_PASSED=3
+GSE_SELFTEST_FAILED=0
+GSE_SELFTEST_DIRTY=1
+KIT_EXIT=0
+MIRROR_EXIT=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+LINT_ORPHANS=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+DISK_FREE_MB=24646
+DISK_GE_15000=1
+WORST_RC=0
+STABLE=1
+
+#### ОРАКУЛ ####
+python lab/expect.py lab/expectations/e0151.tsv run1.txt run2.txt
+ОЖИДАНИЙ=47 РАСХОЖДЕНИЙ=0; сравнение прогонов без DISK_FREE_MB/STABLE — DIFF=none
+
+#### ЧТО НЕ ДОКАЗАНО ####
+Посадка доказывает, что страж умеет краснеть на названном дефекте, а не что он ловит все дефекты
+своего класса: узкая посадка проходит мета-стража. Мета-страж читает имя файла и вызов в контуре,
+а не исполняет боевой режим каждого прибора. Соответствие «посадка ↔ полный класс дефекта» не
+проверено и не заявлено.
+
+#### ШАГ 4 · полная верификация `bash lab/workspace-verify.sh E-0151` ####
+блок `########## E-0151 · workspace-verify · 2026-10-29T15:21:34+03:00 ##########` в
+`lab/logs/workspace-verify-2026-10-22.log` (строка 180 326; 2 548 строк блока)
+срезов=136 (блоков `test result:`), passed=791, failed=0, ignored=9
+коды блока: TEST_EXIT=0 CLIPPY_EXIT=0 LEAN_ALL_OK=1 REVIEW_EXIT=0 LINT_LATEST_EXIT=0 CLAIMS_EXIT=0
+CONTOURS_EXIT=0 TEXTGUARD_EXIT=0 KIT_SELFTEST_EXIT=0 MIRROR_SELFTEST_EXIT=0
+TEXTCLEAN_SELFTEST_EXIT=0 REFS_SELFTEST_EXIT=0 SECRETS_SELFTEST_EXIT=0 GSE_SELFTEST_EXIT=0 GSE_EXIT=0
+SECONDS_total=3181 VERIFY_FAIL=0
+вердикт шага: ни один из 136 срезов не покраснел; самопроверки исполнились внутри контура, а не только в носителе
+
+#### ДИСК ####
+на обоих прогонах прибора свободно 24 664 и 24 646 МБ (`DISK_GE_15000=1` на каждом)
+к концу верификации свободно 10 359 МБ: `target/` вырос до 14 ГиБ — сборка всех тестовых бинарей
+порог (диск ≥ 15 000 МБ) действует на момент прогона прибора и выполнен; после верификации запас
+ниже 15 000 МБ, `cargo clean` не исполнялся — это решение владельца, не прибора
+
+#### ПОПРАВКИ К ЗАЯВКЕ (до первого официального прогона) ####
+1. Счёт «четыре находки» недосчитал два имени: `check-secrets.sh` (режим есть, контур не зовёт) и
+   сам мета-страж (он считает себя: после заведения 15 приборов). Измерено: пин — 14 приборов,
+   5 находок (3 + 2); первый прогон мета-стража по рабочему дереву — 6; после проводки — 0.
+2. Имя носителя: оракул назвал `h-selftests-run.sh`, канон `eXXXX-run.sh` проверяет `repo-review`
+   (первый прогон дал `expect-orphans`); носитель — `lab/e0151-run.sh`.
+3. Посадка комплекта сажает пустой корень и один снятый флаг (`upload-artifact`), а не расхождение
+   версий между носителями; расхождение версий не посажено и названо границей в `E-0151`.
+
+#### ДИАГНОЗ ####
+Первый прогон стража текста покраснел на самом себе: посадочные литералы (связка и слово-гибрид)
+лежали в исходнике `check-text-clean.sh`, а страж гоняется по `lab/*.sh`. Класс тот же, что у
+маркера «страж-текста: разрешено», только с другой стороны: не разрешение, а посадочный материал
+надо собирать в переменных. Исправлено склейкой; после правки `TEXTGUARD_ALL_DIRTY=0`.
+
+ДИАГНОЗ-2 (до официальных прогонов): самопроверка мета-стража сначала ожидала 2 находки на
+грязной фикстуре вместо 3 и брала «можно привязать» из таблицы литералов, а не из карты проводки —
+`check-unwired.py` не получал строку контура. Исправлено в приборе, а не в ожидании.
