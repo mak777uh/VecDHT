@@ -1,0 +1,193 @@
+#### КРУГ E-0152 · боевой режим стража исполняется в обоих контурах, или разница названа ####
+измерено на рабочем дереве над `008dff1` (пин `f9a5094`), дата 2026-10-29, хост владельца;
+сеть наружу не использовалась; продукт не правился (`RUST_TOUCHED=0`, `WIRE_TOUCHED=0`)
+
+состав правки (7 файлов): новый прибор `lab/check-contour-parity.py` с тремя посадками, реестр
+`lab/contour-parity.tsv`, носитель `lab/e0152-run.sh` и таблица `lab/expectations/e0152.tsv`;
+проводка — три боевых вызова и паритет в `lab/workspace-verify.sh`, шаг `check-claim-map` и паритет
+в `.github/workflows/verify.yml`; соседняя починка — `lab/check-secrets.sh` (см. «Поправку»).
+
+#### ШАГ 0 · PRE_FIX: приборы и контур пина, стража паритета нет ####
+приборы, `verify.yml`, `workspace-verify.sh`, `release.yml` и `formal.yml` материализованы из пина
+через `git show`; файла `lab/check-contour-parity.py` в пине нет — дыра названа отсутствием
+PRE_FIX_PIN_FILE_ABSENT=1
+PRE_FIX_RC=1 PRE_FIX_GUARDS=15 PRE_FIX_DIFFERENCES=6 PRE_FIX_FINDINGS=6
+PRE_FIX_UNNAMED=check-artifact-refs.py,check-claim-map.py,check-release-kit.sh,check-secrets.sh,check-spec-mirror.sh,check-status-claims.py
+PRE_FIX_UNWIRED=none
+вердикт шага: шесть молчаливых расхождений боевого режима воспроизведены на дереве пина, ни одно
+не названо причиной; ни один прибор не остался без вызова вовсе
+
+#### ШАГ 1 · POST_FIX: рабочее дерево ####
+POST_FIX_RC=0 ПАРИТЕТ_ПРИБОРОВ=16 ПАРИТЕТ_РАСХОЖДЕНИЙ=1 ПАРИТЕТ_НАХОДОК=0
+ПАРИТЕТ_БЕЗ_ПРИЧИНЫ=none ПАРИТЕТ_БЕЗ_ВЫЗОВА=none ПАРИТЕТ_ПРИЧИН=1 ПАРИТЕТ_ПУСТЫХ_ПРИЧИН=0
+LS_CHECK_COUNT=16 PARITY_GUARDS_MATCH_LS=1 PARITY_REGISTRY_ROWS=1 PARITY_REASONS_MATCH_ROWS=1
+единственное оставшееся расхождение — `check-release-kit.sh`: его зовёт `release.yml` на теге, в двух
+основных контурах он стоит только посадкой; причина названа строкой реестра, а не молчанием
+вердикт шага: число приборов совпадает с `ls lab/check-* | wc -l`, расхождений без причины нет
+
+#### ШАГ 2 · каждая посадка исполняется ####
+PARITY_SELFTEST_RC=0 CASES=3 PASSED=3 FAILED=0 PARITY_SELFTEST_DIRTY=1
+посадки: `removed_call` (боевой вызов снят из `workspace-verify.sh`), `empty_reason` (строка реестра
+с пустой причиной), `foreign_row` (строка реестра для прибора, которого нет в каталоге); каждая
+даёт код 1 и названную находку, чистое дерево — код 0
+вердикт шага: страж умеет краснеть на всех трёх формах, которые карточка обещала ловить
+
+#### ШАГ 3 · настоящее дерево, соседние стражи, диск ####
+REFS_EXIT=0 STATUS_EXIT=0 SECRETS_EXIT=0 KIT_EXIT=0 MIRROR_EXIT=0 TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0 REVIEW_EXIT=0 LINT_LATEST_EXIT=0 LINT_ORPHANS=0 CLAIMS_EXIT=0
+CONTOURS_EXIT=0 TEXTGUARD_CYCLE_EXIT=0 GSE_EXIT=0 GSE_FINDINGS=0
+DISK_FREE_MB=24958 DISK_GE_15000=1
+вердикт шага: ни один соседний страж не покраснел, мета-страж `H-0151` зелёный (16 приборов,
+посадки и вызовы у всех), границы круга не тронуты
+
+#### ПРОГОН 1 · факты целиком ####
+PIN_FOUND=1
+PIN_SHORT=f9a5094
+PRE_FIX_PIN_FILE_ABSENT=1
+PRE_FIX_RC=1
+PRE_FIX_GUARDS=15
+PRE_FIX_DIFFERENCES=6
+PRE_FIX_UNNAMED=check-artifact-refs.py,check-claim-map.py,check-release-kit.sh,check-secrets.sh,check-spec-mirror.sh,check-status-claims.py
+PRE_FIX_UNWIRED=none
+PRE_FIX_FINDINGS=6
+POST_FIX_RC=0
+ПАРИТЕТ_ПРИБОРОВ=16
+ПАРИТЕТ_РАСХОЖДЕНИЙ=1
+ПАРИТЕТ_БЕЗ_ПРИЧИНЫ=none
+ПАРИТЕТ_БЕЗ_ВЫЗОВА=none
+ПАРИТЕТ_ПРИЧИН=1
+ПАРИТЕТ_ПУСТЫХ_ПРИЧИН=0
+ПАРИТЕТ_МЁРТВЫХ_СТРОК=none
+ПАРИТЕТ_НАХОДОК=0
+LS_CHECK_COUNT=16
+PARITY_GUARDS_MATCH_LS=1
+PARITY_REGISTRY_ROWS=1
+PARITY_REASONS_MATCH_ROWS=1
+PARITY_SELFTEST_RC=0
+PARITY_SELFTEST_CASES=3
+PARITY_SELFTEST_PASSED=3
+PARITY_SELFTEST_FAILED=0
+PARITY_SELFTEST_DIRTY=1
+GSE_EXIT=0
+GSE_FINDINGS=0
+REFS_EXIT=0
+STATUS_EXIT=0
+SECRETS_EXIT=0
+KIT_EXIT=0
+MIRROR_EXIT=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+LINT_ORPHANS=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+DISK_FREE_MB=25095
+DISK_GE_15000=1
+WORST_RC=0
+STABLE=none
+
+#### ПРОГОН 2 · факты целиком (STABLE=1) ####
+PIN_FOUND=1
+PIN_SHORT=f9a5094
+PRE_FIX_PIN_FILE_ABSENT=1
+PRE_FIX_RC=1
+PRE_FIX_GUARDS=15
+PRE_FIX_DIFFERENCES=6
+PRE_FIX_UNNAMED=check-artifact-refs.py,check-claim-map.py,check-release-kit.sh,check-secrets.sh,check-spec-mirror.sh,check-status-claims.py
+PRE_FIX_UNWIRED=none
+PRE_FIX_FINDINGS=6
+POST_FIX_RC=0
+ПАРИТЕТ_ПРИБОРОВ=16
+ПАРИТЕТ_РАСХОЖДЕНИЙ=1
+ПАРИТЕТ_БЕЗ_ПРИЧИНЫ=none
+ПАРИТЕТ_БЕЗ_ВЫЗОВА=none
+ПАРИТЕТ_ПРИЧИН=1
+ПАРИТЕТ_ПУСТЫХ_ПРИЧИН=0
+ПАРИТЕТ_МЁРТВЫХ_СТРОК=none
+ПАРИТЕТ_НАХОДОК=0
+LS_CHECK_COUNT=16
+PARITY_GUARDS_MATCH_LS=1
+PARITY_REGISTRY_ROWS=1
+PARITY_REASONS_MATCH_ROWS=1
+PARITY_SELFTEST_RC=0
+PARITY_SELFTEST_CASES=3
+PARITY_SELFTEST_PASSED=3
+PARITY_SELFTEST_FAILED=0
+PARITY_SELFTEST_DIRTY=1
+GSE_EXIT=0
+GSE_FINDINGS=0
+REFS_EXIT=0
+STATUS_EXIT=0
+SECRETS_EXIT=0
+KIT_EXIT=0
+MIRROR_EXIT=0
+TEXTGUARD_ALL_EXIT=0
+TEXTGUARD_ALL_DIRTY=0
+REVIEW_EXIT=0
+LINT_LATEST_EXIT=0
+LINT_ORPHANS=0
+CLAIMS_EXIT=0
+CONTOURS_EXIT=0
+TEXTGUARD_CYCLE_EXIT=0
+RUST_TOUCHED=0
+WIRE_TOUCHED=0
+DISK_FREE_MB=24958
+DISK_GE_15000=1
+WORST_RC=0
+STABLE=1
+
+#### ОРАКУЛ ####
+python lab/expect.py lab/expectations/e0152.tsv run1.txt run2.txt
+ОЖИДАНИЙ=40 РАСХОЖДЕНИЙ=0; сравнение прогонов без DISK_FREE_MB/STABLE — DIFF=none
+
+#### ЧТО НЕ ДОКАЗАНО ####
+Страж читает текст контура, а не исполняет его: строка боевого вызова внутри недостижимой ветки
+`if` засчитана. Боевым считается только вызов строкой `python3?`/`bash lab/check-…` без аргумента,
+содержащего `selftest`; вызов через переменную или через промежуточный скрипт не засчитывается.
+Паритет говорит, что прибор исполняется в обоих контурах или разница названа, а не что проверка
+полезна. Соответствие «строка вызова ↔ исполнение в CI» проверено только для этого дерева.
+
+#### ШАГ 4 · полная верификация `bash lab/workspace-verify.sh E-0152` ####
+блок `########## E-0152 · workspace-verify · 2026-10-29T17:24:33+03:00 ##########` в
+`lab/logs/workspace-verify-2026-10-22.log` (строка 182 874; 2 580 строк блока)
+срезов=136 (блоков `test result:`), passed=791, failed=0, ignored=9
+коды блока: TEST_EXIT=0 CLIPPY_EXIT=0 LEAN_ALL_OK=1 REVIEW_EXIT=0 LINT_LATEST_EXIT=0
+CLAIMS_EXIT=0 CONTOURS_EXIT=0 TEXTGUARD_EXIT=0 LIBCHECK_EXIT=0 GSE_EXIT=0
+REFS_EXIT=0 STATUS_EXIT=0 SECRETS_EXIT=0 MIRROR_EXIT=0 PARITY_SELFTEST_EXIT=0 PARITY_EXIT=0
+SECONDS_total=3548 VERIFY_FAIL=0
+вердикт шага: ни один из 136 срезов не покраснел; боевые вызовы и посадка паритета исполнились
+внутри контура, а не только в носителе
+
+#### ДИСК ####
+на обоих прогонах прибора свободно 25 095 и 24 958 МБ (`DISK_GE_15000=1` на каждом)
+к концу верификации свободно 11 102 МБ: `target/` вырос при сборке тестовых бинарей; порог
+(диск ≥ 15 000 МБ) действует на момент прогона прибора и выполнен, а дальнейшие тяжёлые прогоны
+останавливаются до решения владельца о чистке
+
+#### ПОПРАВКИ К ЗАЯВКЕ (до первого официального прогона) ####
+1. Соседний прибор `check-secrets.sh` в боевом режиме с историей краснел на собственном логе
+   верификации: лог append-only цитировал полный синтетический токен из самотеста стража. Починка
+   в этом же цикле (маскировка `<скрыто>` в печати, исключение утёкшего литерала из истории,
+   ротация посадочных литералов, посадка «напечатанная строка не содержит токена»), потому что
+   красное ожидание из-за соседнего прибора чинится здесь, а не откладывается.
+2. Карточка мерила шесть расхождений на `18a3a70`; на материализованном дереве пина `f9a5094`
+   измерено ровно шесть и тот же список — правка между этими коммитами приборов не добавляла.
+3. `check-secrets.sh` на хосте теперь стоит боевым вызовом с историей (раньше — только посадкой);
+   это изменение боевого режима хоста, а не только проводка.
+
+#### ДИАГНОЗ ####
+ДИАГНОЗ-1: первый прогон носителя дал семь находок вместо шести — материализованное дерево пина
+содержало только `verify.yml` и `workspace-verify.sh`, и `check-release-kit.sh` выглядел прибором
+без вызова. Исправлено копированием `release.yml` и `formal.yml` из пина; счёт стал 6/6. Прибор
+деградировал в неверное число, а не в панику, и расхождение назвалось списком — это и позволило
+увидеть ошибку носителя, а не стража.
+
+ДИАГНОЗ-2: боевой режим `check-secrets.sh` покраснел не на секрете в продукте, а на свидетельстве:
+лог верификации цитировал строку самотеста, где токен был собран склейкой и потому не исключался
+литералом. Класс тот же, что у посадки, которая сама себя исключает: страж, чей лог содержит
+настоящую форму секрета, сам становится утечкой. Исправлено маскировкой при печати и посадкой на
+маскировку, а не расширением списка исключений.

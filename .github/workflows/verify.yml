@@ -217,6 +217,22 @@ jobs:
           tail -14 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
+      # `H-0152`: боевой режим, а не только посадка. `check-claim-map.py` стоял боевым шагом
+      # только на хосте (`lab/workspace-verify.sh`), то есть CI не проверял карту §18.9 вовсе:
+      # зелёная работа ничего не говорила об условии 4 v1. Шаг назван здесь, чтобы паритет двух
+      # контуров был исполнением, а не обещанием (`lab/contour-parity.tsv`).
+      - name: check-claim-map — карта «слово → id» §18.9 против тестов
+        run: |
+          set -uo pipefail
+          L=/tmp/claim-map.log
+          r=0
+          python lab/check-claim-map.py > "$L" 2>&1 || r=$?
+          echo "CLAIM_MAP_EXIT=$r" >> "$L"
+          grep -aE '^(CLAIM_MAP|CLAIM_|КЛАУЗЫ|КЛАУЗ)' "$L" | tail -6 \
+            | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -8 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       # Этот шаг исполняется на runner, и до `E-0128` он назывался обратное: «НЕ ИСПОЛНЯЕТСЯ
       # ЗДЕСЬ». Он исполнял себя и краснел. Причина механическая: `lab/check-spec-mirror.sh`
       # сравнивает `docs/*.md` с `${HOME}/OneDrive/Desktop/*.md`, а зеркало живёт ВНЕ git
@@ -295,8 +311,12 @@ jobs:
           bash lab/check-text-clean.sh --selftest >> "$L" 2>&1 || r=$?
           python lab/check-artifact-refs.py --selftest >> "$L" 2>&1 || r=$?
           bash lab/check-secrets.sh --selftest >> "$L" 2>&1 || r=$?
+          python lab/check-contour-parity.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-guard-selftests.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-guard-selftests.py >> "$L" 2>&1 || r=$?
+          # Паритет контуров (`H-0152`): прибор краснеет, если боевой вызов стража есть только в
+          # одном из двух контуров и эта разница не названа строкой `lab/contour-parity.tsv`.
+          python lab/check-contour-parity.py >> "$L" 2>&1 || r=$?
           echo "GUARD_SELFTESTS_EXIT=$r" >> "$L"
           tail -30 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r

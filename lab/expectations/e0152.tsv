@@ -1,0 +1,43 @@
+# E-0152: паритет боевого режима двух контуров (H-0152).
+# Порог заморожен до первого официального прогона lab/e0152-run.sh.
+# Ключ	Значение	Смысл
+PIN_FOUND	1	пре-регистрация H-0152 найдена в истории
+PRE_FIX_PIN_FILE_ABSENT	1	стража паритета в пине нет: дыра названа отсутствием, а не пустым числом
+PRE_FIX_RC	1	на материализованном дереве пина страж краснеет
+PRE_FIX_GUARDS	15	приборов в пине
+PRE_FIX_DIFFERENCES	6	расхождений боевого режима в пине
+PRE_FIX_UNNAMED	check-artifact-refs.py,check-claim-map.py,check-release-kit.sh,check-secrets.sh,check-spec-mirror.sh,check-status-claims.py	все шесть без причины
+PRE_FIX_FINDINGS	6	находок в пине
+POST_FIX_RC	0	после правки страж зелёный
+ПАРИТЕТ_БЕЗ_ПРИЧИНЫ	none	разниц без причины нет
+ПАРИТЕТ_БЕЗ_ВЫЗОВА	none	приборов без боевого вызова нет
+ПАРИТЕТ_ПУСТЫХ_ПРИЧИН	0	пустых причин нет
+ПАРИТЕТ_МЁРТВЫХ_СТРОК	none	строк реестра без прибора нет
+ПАРИТЕТ_НАХОДОК	0	находок нет
+PARITY_GUARDS_MATCH_LS	1	число приборов стража равно `ls lab/check-*`
+PARITY_REASONS_MATCH_ROWS	1	число названных причин равно числу строк реестра
+PARITY_SELFTEST_RC	0	посадки стража зелёные
+PARITY_SELFTEST_CASES	3	три посаженные ошибки
+PARITY_SELFTEST_PASSED	3	все три отбиты
+PARITY_SELFTEST_FAILED	0	ни одна не прошла
+PARITY_SELFTEST_DIRTY	1	посадка «снятый боевой вызов» действительно краснеет
+GSE_EXIT	0	мета-страж H-0151 зелёный
+GSE_FINDINGS	0	приборов без посадки или без вызова нет
+REFS_EXIT	0	страж цитат в боевом режиме на хосте
+STATUS_EXIT	0	страж строк статуса в боевом режиме на хосте
+SECRETS_EXIT	0	страж секретов с историей
+KIT_EXIT	0	комплект выпуска цел (боевой режим живёт в release.yml)
+MIRROR_EXIT	0	зеркало спеки совпадает
+TEXTGUARD_ALL_EXIT	0	страж текста по всему дереву
+TEXTGUARD_ALL_DIRTY	0	файлов с грязью нет
+TEXTGUARD_CYCLE_EXIT	0	тронутые файлы цикла чисты
+REVIEW_EXIT	0	repo-review без находок
+LINT_LATEST_EXIT	0	линт порогов последнего цикла
+LINT_ORPHANS	0	сирот нет
+CLAIMS_EXIT	0	реестр утверждений сходится
+CONTOURS_EXIT	0	закрытые карточки имеют блок контура
+RUST_TOUCHED	0	продукт не тронут
+WIRE_TOUCHED	0	wire не тронут
+DISK_GE_15000	1	свободного места не меньше 15 000 МБ
+WORST_RC	0	все условия порога выполнены
+STABLE	1	два прогона на неизменном дереве совпали

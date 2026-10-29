@@ -8,7 +8,10 @@
 # (1) токены и приватные ключи в tracked-файлах — утечка, которую нельзя отозвать пушем;
 # (2) токены в истории (`git log -p --all`) — история не переписывается, значит найденное там
 #     живёт вечно и должно быть названо вслух; исключение `lab/logs` не делается: носитель лога
-#     обязан цитировать счёт, а не чужой токен;
+#     обязан цитировать счёт, а не чужой токен. Чтобы это оставалось правдой и для собственного
+#     вывода стража, найденный токен в находке маскируется (`<скрыто>`): иначе сохранённый лог
+#     верификации сам становится утечкой, и следующий полный прогон краснеет на своём же логе
+#     (ДИАГНОЗ цикла `E-0152`).
 # (3) абсолютный локальный путь пользователя в tracked-файлах вне `lab/logs/` — не секрет, но
 #     непереносимо: сторонний реализатор не может ни прочитать упомянутый файл, ни повторить
 #     команду. `lab/logs/` исключён осознанно: носитель обязан цитировать реальные пути прогона,
@@ -17,8 +20,9 @@
 #     это тот же токен, что и (1), только в конфиге, который `git ls-files` не видит.
 #
 # `--selftest` сажает три дефекта в временный каталог (синтетические формы, настоящих секретов в
-# репозитории нет и не будет) и требует, чтобы страж назвал каждый; без этого теста страж,
-# который что-то разрешает, не имеет права считаться стражем (ДИАГНОЗ-2 цикла E-0130).
+# репозитории нет и не будет) и требует, чтобы страж назвал каждый; отдельно проверяется, что
+# находка не печатает полный токен. Без этого теста страж, который что-то разрешает, не имеет
+# права считаться стражем (ДИАГНОЗ-2 цикла E-0130).
 #
 # Выход: 0 — чисто; 1 — находки напечатаны; 2 — сломан сам прибор (нет git, нет репозитория).
 set -uo pipefail
@@ -42,6 +46,12 @@ done
 # `ghp_` краснеет, и самотест ниже сажает ровно такой литерал, чтобы это было исполнимой
 # проверкой, а не обещанием в комментарии.
 SYNTHETIC='ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789|AKIAABCDEFGHIJKLMNOP'
+# Третий литерал — не подсадка, а след исправления (`H-0152`). До маскировки самотест печатал
+# ПОЛНЫЙ посадочный токен в вывод находки, а носитель верификации сохраняет вывод целиком —
+# поэтому `lab/logs/workspace-verify-2026-10-22.log` с тех пор содержит синтетический `ghp_`.
+# Страж обязан называть такой след, а не молчать; исключение — по полному литералу, который
+# синтетический по построению (собран из двух половин в самотесте этого же файла).
+LEAKED='ghp_aaaabbbbccccddddeeeeffff000011112222'
 SECRET_RE='ghp_[A-Za-z0-9]{36}|github_pat_[A-Za-z0-9_]{50,}|gh[osu]_[A-Za-z0-9]{36}|xox[baprs]-[A-Za-z0-9-]{10,}|sk-[A-Za-z0-9]{32,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----'
 # Пути, выдающие одного конкретного пользователя на одной конкретной машине.
 LOCALPATH_RE='C:\\Users\\[^\\ ]+|[Pp]roject[Ee]xport|[A-Za-z]:\\Users\\|[[:space:]]/home/[a-z][a-z0-9_.-]{2,}|/Users/[a-z][a-z0-9_.-]{2,}'
@@ -59,8 +69,8 @@ check_blob() {
   [ -f "$f" ] || return 0
   while IFS=: read -r ln text; do
     [ -n "${ln:-}" ] || continue
-    report "секрет" "$f:$ln" "$(printf '%s' "$text" | cut -c1-72)"
-  done < <(grep -nIE "$SECRET_RE" "$f" 2>/dev/null | grep -v "SYNTHETIC=" | grep -vF -e "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" -e "AKIAABCDEFGHIJKLMNOP" || true)
+    report "секрет" "$f:$ln" "$(printf '%s' "$text" | sed -E "s/$SECRET_RE/<скрыто>/g" | cut -c1-72)"
+  done < <(grep -nIE "$SECRET_RE" "$f" 2>/dev/null | grep -v "SYNTHETIC=" | grep -vF -e "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" -e "AKIAABCDEFGHIJKLMNOP" -e "$LEAKED" || true)
   if [ "$skip_localpaths" != 1 ]; then
     while IFS=: read -r ln text; do
       [ -n "${ln:-}" ] || continue
@@ -83,7 +93,7 @@ scan_tree() {
 
 scan_history() {
   local n=0
-  n=$(git log -p --all 2>/dev/null | grep -IE "$SECRET_RE" | grep -vF -e "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" -e "AKIAABCDEFGHIJKLMNOP" | wc -l || true)
+  n=$(git log -p --all 2>/dev/null | grep -IE "$SECRET_RE" | grep -vF -e "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" -e "AKIAABCDEFGHIJKLMNOP" -e "$LEAKED" | wc -l || true)
   if [ "${n:-0}" != 0 ]; then
     report "секрет_в_истории" "git log -p --all" "совпадений=$n"
   fi
@@ -111,7 +121,7 @@ run_selftest() {
   local tmp rc GHP_TAIL AK_HEAD AK_TAIL
   tmp=$(mktemp -d) || { echo "ПРИБОР: mktemp не исполнен" >&2; exit 2; }
   mkdir -p "$tmp/sub"
-  GHP_TAIL='111122223333444455556666777788889999'
+  GHP_TAIL='999988887777666655554444333322221111'
   AK_HEAD='AKIA'
   AK_TAIL='QWERTYUIOPASDFGH'
   [ "${#GHP_TAIL}" = 36 ] || { echo "ПРИБОР: посадка ghp не 36 знаков" >&2; exit 2; }
@@ -134,10 +144,17 @@ run_selftest() {
   printf 'cd /c/Users/Admin/vecdht-work/vecdht\n' > "$tmp/d.log"
   check_blob "$tmp/d.log" 1
   [ "$findings" = 0 ] || { echo "САМОТЕСТ: исключение лога не работает" >&2; rc=1; }
-  printf 'other = ghp_%s\n' "aaaabbbbccccddddeeeeffff000011112222" > "$tmp/e.txt"
+  E_TAIL='ccccddddeeeeffff00001111222233334444'
+  printf 'other = ghp_%s\n' "$E_TAIL" > "$tmp/e.txt"
   findings=0
-  check_blob "$tmp/e.txt" 0
+  check_blob "$tmp/e.txt" 0 > "$tmp/eout.txt"
   [ "$findings" = 1 ] || { echo "САМОТЕСТ: не-подсадочный токен не назван" >&2; rc=1; }
+  # Маскировка (ДИАГНОЗ цикла E-0152): находка обязана назвать файл и строку, но не печатать сам
+  # токен — иначе вывод стража, сохранённый носителем верификации, сам становится утечкой и
+  # следующий полный прогон краснеет на собственном логе.
+  if grep -qF "ghp_${E_TAIL}" "$tmp/eout.txt" || ! grep -qF '<скрыто>' "$tmp/eout.txt"; then
+    echo "САМОТЕСТ: находка печатает полный токен или не маскирует" >&2; rc=1
+  fi
   rm -rf "$tmp"
   if [ "$rc" = 0 ]; then echo "SECRETS_SELFTEST=ok"
   else echo "SECRETS_SELFTEST=fail"; fi

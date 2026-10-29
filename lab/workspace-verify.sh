@@ -179,6 +179,36 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "OQNUM_EXIT=$rc"; note $rc
   python lab/check-oq-numbering.py --pointers 2>&1 | tail -4
   rc=${PIPESTATUS[0]}; echo "OQPTR_EXIT=$rc"; note $rc
+  # Боевой режим, а не только посадка (`H-0152`). `H-0151` доказал, что посадка есть у каждого
+  # стража и что её зовёт контур; он не спросил, зовёт ли контур сам прибор. На `18a3a70` шесть
+  # приборов стояли боевым шагом только в одном из двух контуров, и 2026-10-29 это стоило находки:
+  # несуществующую цитату в носителе `E-0151` поймал ручной запуск стража цитат, потому что на
+  # хосте он стоял только посадкой. Здесь — ровно те вызовы, которых не хватало хосту; паритет
+  # затем проверяет `check-contour-parity.py` против реестра `lab/contour-parity.tsv`.
+  echo "### battle runs, host contour ### $(date +%FT%T%:z)"
+  python lab/check-artifact-refs.py 2>&1 | tail -6
+  rc=${PIPESTATUS[0]}; echo "REFS_EXIT=$rc"; note $rc
+  python lab/check-status-claims.py 2>&1 | tail -3
+  rc=${PIPESTATUS[0]}; echo "STATUS_EXIT=$rc"; note $rc
+  # История обязательна: именно в ней лежат токены из старых коммитов, а `--no-history` в CI — это
+  # сокращение раннера, а не норма. Хост платит секундами и получает полный обход.
+  bash lab/check-secrets.sh 2>&1 | tail -6
+  rc=${PIPESTATUS[0]}; echo "SECRETS_EXIT=$rc"; note $rc
+  # Зеркало живёт вне git: если каталога нет, контур обязан назвать это, а не промолчать и не
+  # покраснеть от собственного отсутствия. Если каталог есть, расхождение — настоящий провал.
+  if [ -d "${SPEC_MIRROR_DIR:-$HOME/OneDrive/Desktop}" ]; then
+    bash lab/check-spec-mirror.sh 2>&1 | tail -6
+    rc=${PIPESTATUS[0]}; echo "MIRROR_EXIT=$rc"; note $rc
+  else
+    echo "MIRROR_ABSENT_ON_HOST=1 — зеркало вне git и каталога нет; проверка остаётся обязанностью места с зеркалом"
+    echo "MIRROR_EXIT=0"; note 0
+  fi
+  # Паритет самопроверяется посадками так же, как остальные стражи (`H-0151`): три посаженные
+  # ошибки — снятый боевой вызов, пустая причина, чужая строка реестра.
+  python lab/check-contour-parity.py --selftest 2>&1 | tail -5
+  rc=${PIPESTATUS[0]}; echo "PARITY_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-contour-parity.py 2>&1 | tail -10
+  rc=${PIPESTATUS[0]}; echo "PARITY_EXIT=$rc"; note $rc
   # Посадка обязана быть у КАЖДОГО стража `lab/check-*`, а не только у тех, кто вспомнил
   # завести `selftest` (`H-0151`): зелёный страж без посадки неотличим от выключенного.
   # Мета-страж считает список по каталогу, поэтому прибор, заведённый завтра, попадает в счёт
