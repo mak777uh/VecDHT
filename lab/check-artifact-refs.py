@@ -41,7 +41,11 @@ CITE = re.compile(r"`([^`\n]{3,160})`")
 
 # Каталог переписки: ссылки в заметках другого репозитория описывают его дерево, а не наше.
 # Исключение названо и проверяется самотестом (вымышленный путь в docs/ ловится, в interop/ — нет).
-EXTERNAL_DIRS = ("interop/", "lab/logs/")
+# `cross-audit/` добавлен кругом `E-0154`: рецензия LexSpec (коммит `61a9767`) кончается строкой
+# «след этой рецензии — одна строка в моём docs/30-REPO-WALK.md»; такого файла в нашем дереве нет
+# и не планируется, то есть страж краснел на пути чужого дерева. Править заметку рецензента
+# означало бы подделать чужой след, поэтому назван каталог переписки, а не отдельный путь.
+EXTERNAL_DIRS = ("interop/", "lab/logs/", "cross-audit/")
 SEP = ("/", chr(92))
 
 # Разрешения. У каждого — причина, и пустая причина есть находка.
@@ -184,6 +188,28 @@ def selftest(root):
             print("EXTERNAL_DIR_REMOVAL=tested")
         else:
             print("САМОТЕСТ: снятое исключение не краснит — посадка не исполняема", file=sys.stderr)
+            ok = False
+        # Второе исключение переписки проверяется так же: настоящим файлом и его снятием. Иначе
+        # «добавить каталог в кортеж» было бы формой записи, а не механизмом (тот же довод, что
+        # посадил эту проверку в круге `H-0153`).
+        os.makedirs(os.path.join(tmp, "cross-audit"))
+        with open(os.path.join(tmp, "cross-audit", "planted3.md"), "w", encoding="utf-8") as fh:
+            fh.write("чужое дерево: `docs/30-REPO-WALK.md`\n")
+        cited_ca, found_ca = scan(["cross-audit/planted3.md"], set(), tmp)
+        if cited_ca == 0 and not found_ca:
+            print("EXTERNAL_DIR_2=excluded")
+        else:
+            print("САМОТЕСТ: каталог cross-audit/ не исключён", file=sys.stderr); ok = False
+        saved = EXTERNAL_DIRS
+        EXTERNAL_DIRS = ()
+        try:
+            cited_ca2, found_ca2 = scan(["cross-audit/planted3.md"], set(), tmp)
+        finally:
+            EXTERNAL_DIRS = saved
+        if cited_ca2 == 1 and any(k == "цитата" for _, _, k in found_ca2):
+            print("EXTERNAL_DIR_2_REMOVAL=tested")
+        else:
+            print("САМОТЕСТ: снятое второе исключение не краснит", file=sys.stderr)
             ok = False
         # Устаревшее разрешение: имя из ALLOWLIST появилось в дереве — находка обязана быть.
         _, stale = scan([rel], {"check-secrets.sh", "genesis.rs"}, tmp)
