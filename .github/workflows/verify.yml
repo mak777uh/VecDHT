@@ -320,6 +320,10 @@ jobs:
           python lab/check-contour-parity.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-guard-selftests.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-guard-selftests.py >> "$L" 2>&1 || r=$?
+          # Заморозка таблиц ожиданий (`H-0155`): подменённое ожидание обязано краснить страж,
+          # а не молчать; исторические 19 названы базовой линией (OQ п. 93).
+          python lab/check-expect-freeze.py --selftest >> "$L" 2>&1 || r=$?
+          python lab/check-expect-freeze.py >> "$L" 2>&1 || r=$?
           # Паритет контуров (`H-0152`): прибор краснеет, если боевой вызов стража есть только в
           # одном из двух контуров и эта разница не названа строкой `lab/contour-parity.tsv`.
           python lab/check-contour-parity.py >> "$L" 2>&1 || r=$?

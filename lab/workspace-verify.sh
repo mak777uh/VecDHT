@@ -238,6 +238,12 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "GSE_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-guard-selftests.py 2>&1 | tail -6
   rc=${PIPESTATUS[0]}; echo "GSE_EXIT=$rc"; note $rc
+  # Заморозка таблиц ожиданий (`H-0155`): подменённое ожидание обязано краснить страж, а не
+  # молчать; исторические 19 названы базовой линией с коммитом и причиной (OQ п. 93).
+  python lab/check-expect-freeze.py --selftest 2>&1 | tail -8
+  rc=${PIPESTATUS[0]}; echo "EXPFREEZE_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-expect-freeze.py 2>&1 | tail -14
+  rc=${PIPESTATUS[0]}; echo "EXPFREEZE_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc
