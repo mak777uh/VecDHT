@@ -1,0 +1,45 @@
+PIN_FOUND	1	пин H-0150 найден по сообщению коммита
+PRE_FIX_PIN_FILE	1	пин хранит lab/lean-check.py
+PRE_FIX_PIN_RC	1	старый страж на неполном окружении выходит кодом 1
+PRE_FIX_PIN_BROKEN	6	смешение классов: шесть моделей «сломаны» на неполном тулчейне
+PRE_FIX_PIN_ENV_LINES	0	старый страж не знает LEAN_ENV
+POST_FIX_PARTIAL_RC	3	новый страж отказывается судить модели и выходит отдельным кодом
+POST_FIX_PARTIAL_ENV	partial	класс окружения назван
+POST_FIX_PARTIAL_BROKEN_LINES	0	на неполном окружении ни одной строки BROKEN=
+POST_FIX_PARTIAL_ALL_OK	0	зелёного вердикта нет
+POST_FIX_PARTIAL_REFUSED	1	отказ назван строкой LEAN_ENV_REFUSED=1
+POST_FIX_MODEL_RC	1	сломанная модель в здоровой среде по-прежнему красна
+POST_FIX_MODEL_ENV	ok	среда здорова
+POST_FIX_MODEL_BROKEN	1	отказ модели посчитан моделью
+POST_FIX_MODEL_COMPILE	1	причина называет COMPILE:
+POST_FIX_MODEL_ALL_OK	0	LEAN_ALL_OK=0 на сломанной модели
+LEAN_CHECK_EXIT	0	настоящее дерево зелёное
+LEAN_ENV	ok	окружение названо здоровым
+LEAN_ENV_PROBE_EXIT	0	проба import Std прошла
+LEAN_TOTAL	6	шесть моделей
+BROKEN	0	ни одной сломанной модели
+DIGEST_BAD	0	ни одного расхождения дайджеста
+NATIVE_AXIOMS	126	классификация аксиом не изменилась стража
+STD_AXIOMS	18	стандартные аксиомы
+AXIOM_FREE	4	теоремы без аксиом
+LEAN_ALL_OK	1	страж зелёный
+SELFTEST_EXIT	0	самопроверка зелёная
+SELFTEST_TOTAL	14	четырнадцать случаев
+SELFTEST_PASSED	14	все четырнадцать прошли
+SELFTEST_FAILED	0	ни одного провала
+REVIEW_EXIT	0	repo-review зелёный
+LINT_LATEST_EXIT	0	линт порогов зелёный
+TEXTGUARD_ALL_EXIT	0	стража текста по всему дереву зелёная
+TEXTGUARD_CYCLE_EXIT	0	текст файлов круга чист
+CLAIMS_EXIT	0	реестр утверждений зелёный
+CONTOURS_EXIT	0	контур закрытых карточек зелёный
+MIRROR_EXIT	0	зеркало спеки совпадает
+OQ_EXIT	0	нумерация OPEN-QUESTIONS цела
+DATE_EXIT	0	домены дат целы
+LINT_ORPHANS	0	ни одного сироты
+TEXTGUARD_ALL_DIRTY	0	ни одного файла с грязью
+RUST_TOUCHED	0	продукт не тронут
+WIRE_TOUCHED	0	провод не тронут
+DISK_GE_15000	1	диск выше порога
+WORST_RC	0	все условия порога выполнены
+STABLE	1	два прогона на неизменном дереве совпали
