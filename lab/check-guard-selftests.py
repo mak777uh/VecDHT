@@ -43,6 +43,17 @@ def read(path):
         return ""
 
 
+def code_only(text):
+    """Текст без строк-комментариев: режим и вызов обязаны жить в коде, а не в обещании.
+
+    Комментарий «здесь был бы `--selftest`» — это форма записи, а не механизм. До круга `H-0153`
+    прибор с режимом только в комментарии считался имеющим посадку, а закомментированная строка
+    контура — вызовом. Хвостовой комментарий после кода остаётся текстом и может дать ложный
+    зелёный: это названо границей в карточке, а не спрятано.
+    """
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
 def scan(root):
     lab = os.path.join(root, "lab")
     try:
@@ -50,10 +61,10 @@ def scan(root):
     except OSError:
         names = []
     names = [n for n in names if os.path.isfile(os.path.join(lab, n))]
-    contour = "\n".join(read(os.path.join(root, p)) for p in CONTOUR)
+    contour = "\n".join(code_only(read(os.path.join(root, p))) for p in CONTOUR)
     without, unwired = [], []
     for name in names:
-        text = read(os.path.join(lab, name))
+        text = code_only(read(os.path.join(lab, name)))
         if not SELFTEST_TOKEN.search(text):
             without.append(name)
             continue
@@ -88,15 +99,18 @@ def run(root):
 
 
 FIXTURES = {
-    # имя файла прибора -> текст прибора; чем его зовёт контур, решает `wiring`, а не эта таблица
+    # имя файла прибора -> текст прибора; чем его зовёт контур, решает `wiring`, а не эта таблица.
+    # Режим у `unwired` и `runonly` — настоящий код: комментарий режимом не считается (H-0153).
     "check-wired.sh": "#!/usr/bin/env bash\n[ \"${1:-}\" = selftest ] && exit 0\n",
     "check-noselftest.sh": "#!/usr/bin/env bash\nexit 0\n",
-    "check-unwired.py": "# режим: --selftest\nprint('ok')\n",
-    "check-runonly.sh": "#!/usr/bin/env bash\n# умеет selftest, но контур зовёт только боевой режим\n",
+    "check-unwired.py": "import sys\nsys.exit(0 if \"--selftest\" in sys.argv else 1)\n",
+    "check-runonly.sh": "#!/usr/bin/env bash\n[ \"${1:-}\" = selftest ] && exit 0\n",
+    "check-commentonly.sh": ("#!/usr/bin/env bash\n# режим: --selftest\n"
+                             "# вызов: python lab/check-commentonly.sh --selftest\n"),
 }
 
 
-def make_fixture(base, wiring):
+def make_fixture(base, wiring, commented=()):
     root = os.path.join(base, "root")
     lab = os.path.join(root, "lab")
     os.makedirs(lab)
@@ -108,6 +122,9 @@ def make_fixture(base, wiring):
     for name in FIXTURES:
         if wiring.get(name, False):
             lines.append("python lab/%s --selftest" % name)
+        elif name in commented:
+            # Ложный вызов: строка контура закомментирована, механизм не исполняется.
+            lines.append("# python lab/%s --selftest" % name)
         else:
             lines.append("python lab/%s" % name)
     with io.open(os.path.join(root, ".github", "workflows", "verify.yml"), "w",
@@ -120,26 +137,30 @@ def make_fixture(base, wiring):
 
 
 def selftest():
-    # Посадка: (а) дефектная фикстура обязана назвать ровно два имени; (б) чистая — ноль находок.
+    # Посадка: (а) дефектная фикстура обязана назвать четыре имени; (б) чистая — ноль находок;
+    # (в) прибор с режимом только в комментарии — «без посадки», а его закомментированный вызов —
+    # не вызов (H-0153: форма записи не равна механизму).
     cases = []
     base = tempfile.mkdtemp(prefix="gse-")
     try:
         dirty = make_fixture(os.path.join(base, "dirty"), {
             "check-wired.sh": True, "check-noselftest.sh": True,
             "check-unwired.py": False, "check-runonly.sh": False,
-        })
+            "check-commentonly.sh": False,
+        }, commented=("check-unwired.py", "check-commentonly.sh"))
         names, without, unwired, findings = scan(dirty)
         cases.append(("dirty",
-                      findings == 3
-                      and without == ["check-noselftest.sh"]
+                      findings == 4
+                      and without == ["check-commentonly.sh", "check-noselftest.sh"]
                       and unwired == ["check-runonly.sh", "check-unwired.py"],
                       "findings=%d without=%s unwired=%s" % (findings, fmt(without), fmt(unwired))))
         clean = make_fixture(os.path.join(base, "clean"), {
-            "check-wired.sh": True, "check-noselftest.sh": False,
-            "check-unwired.py": True, "check-runonly.sh": False,
+            "check-wired.sh": True, "check-noselftest.sh": True,
+            "check-unwired.py": True, "check-runonly.sh": True,
+            "check-commentonly.sh": True,
         })
         # «чистая» фикстура обязана содержать ноль приборов без посадки: убираем лишние файлы.
-        for name in ("check-noselftest.sh", "check-runonly.sh"):
+        for name in ("check-noselftest.sh", "check-commentonly.sh"):
             os.remove(os.path.join(clean, "lab", name))
         _, without2, unwired2, findings = scan(clean)
         cases.append(("clean", findings == 0,
@@ -150,6 +171,16 @@ def selftest():
         os.makedirs(empty)
         _, _, _, findings = scan(empty)
         cases.append(("empty", findings == 0, "findings=%d" % findings))
+        # Отдельная посадка класса: режим и вызов существуют только в комментариях.
+        only = make_fixture(os.path.join(base, "commentonly"), {}, commented=("check-commentonly.sh",))
+        for name in ("check-wired.sh", "check-noselftest.sh", "check-unwired.py",
+                     "check-runonly.sh"):
+            os.remove(os.path.join(only, "lab", name))
+        _, without3, unwired3, findings = scan(only)
+        cases.append(("comment_only",
+                      findings == 1 and without3 == ["check-commentonly.sh"] and not unwired3,
+                      "findings=%d without=%s unwired=%s"
+                      % (findings, fmt(without3), fmt(unwired3))))
     finally:
         shutil.rmtree(base, ignore_errors=True)
     failed = [c for c in cases if not c[1]]

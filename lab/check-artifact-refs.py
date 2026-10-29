@@ -32,6 +32,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 
 EXTS = (".rs", ".py", ".sh", ".md", ".toml", ".yaml", ".yml", ".json",
         ".jsonl", ".tsv", ".cwl", ".lean")
@@ -127,46 +128,72 @@ def scan(md_files, bases, root):
 
 
 def selftest(root):
-    tmp = os.path.join(root, ".artifact-selftest-tmp")
-    os.makedirs(tmp, exist_ok=True)
-    planted = os.path.join(tmp, "planted.md")
-    with open(planted, "w", encoding="utf-8") as fh:
-        fh.write(
-            "хорошая: `lab/check-secrets.sh`\n"
-            "вымышленный: `lab/nonexistent-guard-9000.py`\n"
-            "плейсхолдер: `lab/expectations/eXXXX.tsv` и `benches/src/bench/{a,b}.rs`\n"
-            "url: `https://example.com/a/queries.train.tsv`\n"
-            "разрешённый план: `core/src/genesis.rs`\n"
-        )
-    rel = os.path.relpath(planted, root)
+    """Посадки прибора на собственном временном корне, без записи в рабочее дерево.
+
+    Исключение каталога проверяется на НАСТОЯЩЕМ файле в `interop/`: до круга `H-0153` самотест
+    скармливал `scan` имя файла, которого нет, поэтому «исключение работает» и «файла нет» давали
+    один и тот же зелёный, а снятие исключения не краснило тест. Теперь тот же файл обязан дать
+    находку при снятом исключении — иначе самотест красный.
+    """
+    global EXTERNAL_DIRS
+    tmp = tempfile.mkdtemp(prefix="refs-")
     ok = True
-    cited, found = scan([rel], {"check-secrets.sh"}, root)
-    kinds = [(s, k) for _, s, k in found]
-    if ("lab/nonexistent-guard-9000.py", "цитата") in kinds:
-        print("PLANT_REF=caught")
-    else:
-        print("САМОТЕСТ: вымышленный путь не пойман", file=sys.stderr)
-        ok = False
-    if len(found) != 1:
-        print("САМОТЕСТ: ожидалась одна находка, названо %d" % len(found), file=sys.stderr)
-        ok = False
-    if any("XXXX" in s or "{" in s or "://" in s for s, _ in kinds):
-        print("САМОТЕСТ: плейсхолдер или url пойман как дефект", file=sys.stderr)
-        ok = False
-    # Исключение каталога переписки: заметка о чужом дереве не обязана краснеть за чужие пути.
-    cited_ext, found_ext = scan(["interop/planted2.md"], {"check-secrets.sh"}, root)
-    if cited_ext == 0 and not found_ext:
-        print("EXTERNAL_DIR=excluded")
-    else:
-        print("САМОТЕСТ: каталог переписки не исключён", file=sys.stderr); ok = False
-    # Устаревшее разрешение: имя из ALLOWLIST появилось в дереве — находка обязана быть.
-    _, stale = scan([rel], {"check-secrets.sh", "genesis.rs"}, root)
-    if any(k == "устаревшее_разрешение" for _, _, k in stale):
-        print("STALE_ALLOWLIST=caught")
-    else:
-        print("САМОТЕСТ: устаревшее разрешение не названо", file=sys.stderr)
-        ok = False
-    shutil.rmtree(tmp, ignore_errors=True)
+    try:
+        with open(os.path.join(tmp, "planted.md"), "w", encoding="utf-8") as fh:
+            fh.write(
+                "хорошая: `lab/check-secrets.sh`\n"
+                "вымышленный: `lab/nonexistent-guard-9000.py`\n"
+                "плейсхолдер: `lab/expectations/eXXXX.tsv` и `benches/src/bench/{a,b}.rs`\n"
+                "url: `https://example.com/a/queries.train.tsv`\n"
+                "разрешённый план: `core/src/genesis.rs`\n"
+            )
+        rel = "planted.md"
+        cited, found = scan([rel], {"check-secrets.sh"}, tmp)
+        kinds = [(s, k) for _, s, k in found]
+        if ("lab/nonexistent-guard-9000.py", "цитата") in kinds:
+            print("PLANT_REF=caught")
+        else:
+            print("САМОТЕСТ: вымышленный путь не пойман", file=sys.stderr)
+            ok = False
+        if len(found) != 1:
+            print("САМОТЕСТ: ожидалась одна находка, названо %d" % len(found), file=sys.stderr)
+            ok = False
+        if any("XXXX" in s or "{" in s or "://" in s for s, _ in kinds):
+            print("САМОТЕСТ: плейсхолдер или url пойман как дефект", file=sys.stderr)
+            ok = False
+        # Исключение каталога переписки: заметка о чужом дереве не обязана краснеть за чужие пути.
+        # Файл существует — иначе отличие исключения от отсутствия не проверяется.
+        os.makedirs(os.path.join(tmp, "interop"))
+        with open(os.path.join(tmp, "interop", "planted2.md"), "w", encoding="utf-8") as fh:
+            fh.write("чужое дерево: `lab/nonexistent-guard-9000.py`\n")
+        cited_ext, found_ext = scan(["interop/planted2.md"], set(), tmp)
+        if cited_ext == 0 and not found_ext:
+            print("EXTERNAL_DIR=excluded")
+        else:
+            print("САМОТЕСТ: каталог переписки не исключён", file=sys.stderr); ok = False
+        saved = EXTERNAL_DIRS
+        EXTERNAL_DIRS = ()
+        try:
+            cited_neg, found_neg = scan(["interop/planted2.md"], set(), tmp)
+        finally:
+            EXTERNAL_DIRS = saved
+        # Ключ называется иначе, чем исключение: два факта одной строкой `EXTERNAL_DIR=` слились бы
+        # в один, и читатель вывода («последнее wins») увидел бы `tested` там, где прибор проверял
+        # `excluded` (ДИАГНОЗ круга H-0153: у имени факта обязан быть один владелец).
+        if cited_neg == 1 and any(k == "цитата" for _, _, k in found_neg):
+            print("EXTERNAL_DIR_REMOVAL=tested")
+        else:
+            print("САМОТЕСТ: снятое исключение не краснит — посадка не исполняема", file=sys.stderr)
+            ok = False
+        # Устаревшее разрешение: имя из ALLOWLIST появилось в дереве — находка обязана быть.
+        _, stale = scan([rel], {"check-secrets.sh", "genesis.rs"}, tmp)
+        if any(k == "устаревшее_разрешение" for _, _, k in stale):
+            print("STALE_ALLOWLIST=caught")
+        else:
+            print("САМОТЕСТ: устаревшее разрешение не названо", file=sys.stderr)
+            ok = False
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
     print("REFS_SELFTEST=%s" % ("ok" if ok else "fail"))
     return 0 if ok else 1
 

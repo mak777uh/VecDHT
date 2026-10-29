@@ -1,0 +1,58 @@
+# H-0153 / E-0153: форма записи против механизма. Заморожено до первого официального прогона.
+# Ключ	Ожидание	Причина
+PIN_FOUND	1	пре-регистрация H-0153 должна быть в истории
+PIN_BASE_SAME_BYTES	1	приборы пина и базы 2f07908 побайтово те же (правка пришла после пре-регистрации)
+PRE_FIX_GSE_RC	0	прежний мета-страж зеленеет на фикстуре с двумя дефектами
+PRE_FIX_GSE_FINDINGS	0	он не видит ни режима в комментарии, ни вызова в комментарии
+PRE_FIX_GSE_FALSE_GREEN	1	дыра названа: форма принята за механизм
+PRE_FIX_REFS_RC	0	прежний самотест цитат проходит
+PRE_FIX_REFS_SELFTEST	ok	и говорит ok при снятом исключении каталога
+PRE_FIX_REFS_FALSE_GREEN	1	исключение доказывалось отсутствием файла, а не исключением
+PRE_FIX_TEXT_TXT_RC	0	прежний --all не читает lab/*.txt
+PRE_FIX_TEXT_TXT_DIRTY	0	гибрид в списке разрешений не назван
+PRE_FIX_TEXT_FALSE_GREEN	1	полный перебор не был полным
+POST_FIX_GSE_RC	1	новый мета-страж краснеет на той же фикстуре
+POST_FIX_GSE_FINDINGS	2	ровно две находки: режим и вызов
+POST_FIX_GSE_NAMES_BOTH	1	названы check-beta.sh и check-commentonly.sh
+POST_FIX_GSE_NAMES	lab/check-beta.sh,lab/check-commentonly.sh	имена находок печатаются как есть, а не пересказываются
+POST_FIX_REFS_SELFTEST_OK_RC	0	с действующим исключением самотест зелёный
+POST_FIX_REFS_SELFTEST_OK	ok	и печатает ok
+POST_FIX_REFS_EXTERNAL_DIR	excluded	исключение проверено настоящим файлом в interop/
+POST_FIX_REFS_REMOVAL	tested	снятое исключение краснит: проверка исполняема, а не выведена из молчания
+POST_FIX_REFS_SELFTEST_RC	1	со снятым исключением самотест обязан упасть
+POST_FIX_REFS_BAD_STATE	fail	падение названо, а не выведено из кода возврата
+POST_FIX_TEXT_TXT_RC	1	гибрид в lab/*.txt пойман
+POST_FIX_TEXT_TXT_DIRTY	1	один грязный файл
+POST_FIX_TEXT_TSV_RC	1	гибрид в lab/*.tsv пойман
+POST_FIX_TEXT_TSV_DIRTY	1	один грязный файл
+POST_FIX_TEXT_CLEAN_RC	0	чистое временное дерево не краснеет
+POST_FIX_TEXT_CLEAN_DIRTY	0	ноль грязных файлов
+GSE_SELFTEST_CASES	4	четыре посадочных случая мета-стража
+GSE_SELFTEST_PASSED	4	все прошли
+TCS_SELFTEST_CASES	6	шесть посадочных случаев стража текста
+TCS_SELFTEST_PASSED	6	все прошли
+GSE_EXIT	0	боевой режим настоящего дерева зелёный
+GSE_GUARDS	16	приборов в каталоге
+GSE_FINDINGS	0	находок нет
+LS_CHECK_COUNT	16	каталог насчитал столько же
+GSE_GUARDS_MATCH_LS	1	число прибора сверено с каталогом, а не с литералом
+REFS_EXIT	0	страж цитат настоящего дерева зелёный
+REFS_MISSING	0	цитат без разрешения нет
+PARITY_EXIT	0	страж паритета контуров зелёный
+STATUS_EXIT	0	страж статуса зелёный
+SECRETS_EXIT	0	страж секретов зелёный
+KIT_EXIT	0	релизный комплект зелёный
+MIRROR_EXIT	0	зеркало спеки зелёное
+REVIEW_EXIT	0	repo-review зелёный
+LINT_LATEST_EXIT	0	линт порогов зелёный
+LINT_ORPHANS	0	сирот нет
+CLAIMS_EXIT	0	реестр утверждений зелёный
+CONTOURS_EXIT	0	страж карточек зелёный
+TEXTGUARD_ALL_EXIT	0	--all на настоящем дереве зелёный
+TEXTGUARD_ALL_DIRTY	0	грязных файлов нет
+TEXTGUARD_CYCLE_EXIT	0	тексты круга чисты
+RUST_TOUCHED	0	продукт не тронут
+WIRE_TOUCHED	0	wire не тронут
+DISK_GE_15000	1	свободно не меньше 15 000 МБ
+WORST_RC	0	все ожидания сошлись
+STABLE	1	два прогона на неизменном дереве дали одни факты

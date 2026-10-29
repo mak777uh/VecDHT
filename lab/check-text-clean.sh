@@ -44,7 +44,10 @@
 # плюс untracked; поэтому в прогоне после пре-регистрационного коммита пути передают явно)
 #
 # Второй режим — `bash lab/check-text-clean.sh --all`: список строится по всему репозиторию из
-# `git ls-files` (вся разметка плюс `lab/*.py` и `lab/*.sh`), а не из того, что вспомнил вызывающий.
+# `git ls-files` (вся разметка плюс `lab/*.py`, `lab/*.sh`, `lab/*.txt` и `lab/*.tsv`), а не из того,
+# что вспомнил вызывающий. Расширение списка — карточка `H-0153`: гибрид с латинской `e` в
+# `lab/ref-allow-list.txt` пережил полную верификацию `E-0151` именно потому, что `.txt` и `.tsv`
+# в списке не было; посадка `all_extensions` сажает дефект в оба расширения.
 # Режим нужен потому, что дефекты алфавита живут ровно в тех файлах, которые в текущий прогон не
 # передавали: перебор 2026-10-25 нашёл 23 слово-гибрида в 14 карточках и заметках `lab/` — в файлах,
 # которые ни в один прогон того дня явно не передавались (списки прогонов строятся вручную, поэтому
@@ -87,6 +90,32 @@ if [ "${1:-}" = "--selftest" ]; then
   run_case cjk "$T/cjk.md" 1 'ГРЯЗНО'
   run_case hybrid "$T/hybrid.md" 1 'гибрид'
   run_case marker "$T/marker.md" 0 'ИСКЛЮЧЕНИЕ'
+  # (д) `--all` обязан читать `lab/*.txt` и `lab/*.tsv` (H-0153): до круга список строился из
+  # `*.md`, `lab/*.py` и `lab/*.sh`, и гибрид в списке разрешений пережил полную верификацию.
+  # Посадка идёт через отдельный git-репозиторий, потому что выбор файлов делает `git ls-files`.
+  cases=$((cases + 1))
+  G="$(mktemp -d)"
+  mkdir -p "$G/lab"
+  printf 'разрешение: %s в списке\n' "$HY" > "$G/lab/allow.txt"
+  printf 'ключ\tзначение\nстолбец\t%s\n' "$HY" > "$G/lab/rows.tsv"
+  printf 'обычный текст без дефекта\n' > "$G/lab/clean.md"
+  git -C "$G" init -q
+  git -C "$G" add lab/allow.txt lab/rows.tsv lab/clean.md
+  git -C "$G" -c user.email=selftest@example.invalid -c user.name=selftest commit -qm plant
+  rc=0; out=$(VEC_DHT_ROOT="$G" bash "$SELF" --all 2>&1) || rc=$?
+  ok1=0
+  [ "$rc" = 1 ] && printf '%s\n' "$out" | grep -q 'файлов_с_грязью=2' && ok1=1
+  # Отрицательная ветка: те же два файла без гибрида — ноль, иначе «краснеет на всём».
+  printf 'разрешение: обычный текст в списке\n' > "$G/lab/allow.txt"
+  printf 'ключ\tзначение\nстолбец\tчисло\n' > "$G/lab/rows.tsv"
+  git -C "$G" -c user.email=selftest@example.invalid -c user.name=selftest commit -qam clean
+  rc2=0; out2=$(VEC_DHT_ROOT="$G" bash "$SELF" --all 2>&1) || rc2=$?
+  if [ "$ok1" = 1 ] && [ "$rc2" = 0 ] && printf '%s\n' "$out2" | grep -q 'файлов_с_грязью=0'; then
+    passed=$((passed + 1)); echo "ПОСАДКА all_extensions: OK (rc=$rc rc2=$rc2)"
+  else
+    echo "ПОСАДКА all_extensions: FAIL — rc=$rc rc2=$rc2" >&2
+  fi
+  rm -rf "$G"
   echo "TCS_SELFTEST_CASES=$cases"
   echo "TCS_SELFTEST_PASSED=$passed"
   echo "TCS_SELFTEST_FAILED=$((cases - passed))"
@@ -97,7 +126,7 @@ fi
 cd "${VEC_DHT_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 if [ "${1:-}" = "--all" ]; then
   shift
-  FILES="$(git ls-files -- '*.md' 'lab/*.py' 'lab/*.sh')"
+  FILES="$(git ls-files -- '*.md' 'lab/*.py' 'lab/*.sh' 'lab/*.txt' 'lab/*.tsv')"
 elif [ "$#" -gt 0 ]; then
   FILES="$*"
 else
