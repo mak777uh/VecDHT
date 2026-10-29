@@ -1,0 +1,35 @@
+PIN_FOUND	1	пин круга найден по сообщению пре-регистрации
+PRE_FIX_GUARD_FOUND	1	страж пина существует — PRE_FIX исполнен, а не структурен
+PRE_FIX_PIN_CLAIMS	4	прежний страж связывает четыре строки
+PRE_FIX_LIE_PASSES	1	дыра названа числом: ложь в области S-05 проходит
+POST_FIX_LIE_CAUGHT	1	новый страж ловит посаженную ложь
+POST_FIX_LIE_IDS	S-05	и называет её по имени
+GATE_H0147_OK	1	гейт круга пройден
+DISK_GE_15000	1	свободного диска не меньше 15 000 МБ
+SELFTEST_EXIT	0	посадки прибора зелёные
+SELFTEST_TOTAL	37	посаженных случаев тридцать семь
+SELFTEST_PASSED	37	все проходят
+SELFTEST_FAILED	0	ни один не падает
+STATUS_EXIT	0	страж на настоящем документе вышел нулём
+STATUS_CLAIMS	12	связанных строк двенадцать
+STATUS_CONSISTENT	12	все двенадцать согласованы с деревом
+STATUS_STALE	0	расхождений нет
+STATUS_FACTS	34	владельческих фактов тридцать четыре
+STATUS_FACTS_OK	34	все владельцы в дереве
+STATUS_FACTS_MISSING	none	пропавших владельцев нет
+SECRETS_EXIT	0	страж секретов чист
+REFS_EXIT	0	страж цитат путей чист
+CLAIMMAP_EXIT	0	карта §18.9 сходится
+CLAIMS_EXIT	0	реестр утверждений сходится
+CONTOURS_EXIT	0	контур закрытых карточек сходится
+MIRROR_EXIT	0	зеркало спеки синхронно
+GATE_AUDIT_EXIT	0	аудит гейта кругов чист
+REVIEW_EXIT	0	repo-review чист
+LINT_LATEST_EXIT	0	линт порогов по свежей таблице
+LINT_ORPHANS	0	сирот нет
+TEXTGUARD_ALL_EXIT	0	страж текста по всему репозиторию
+TEXTGUARD_ALL_DIRTY	0	грязных файлов нет
+TEXTGUARD_CYCLE_EXIT	0	страж текста по файлам круга
+WIRE_TOUCHED	0	провод не тронут
+RUST_TOUCHED	0	продукт не тронут — прибор на Python, документ markdown
+WORST_RC	0	все названные условия выполнены
