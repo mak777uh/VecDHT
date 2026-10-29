@@ -310,6 +310,18 @@ jobs:
           tail -16 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
+      - name: check-release-map — строки релиз-карты против их владельцев
+        run: |
+          set -uo pipefail
+          L=/tmp/release-map.log
+          r=0
+          python lab/check-release-map.py selftest > "$L" 2>&1 || r=$?
+          python lab/check-release-map.py >> "$L" 2>&1 || r=$?
+          echo "RELEASEMAP_EXIT=$r" >> "$L"
+          grep -aE '^(MAP_ROWS|ROWS_REGISTERED|ROWS_UNREGISTERED|ROWS_MISSING|EIDS|EIDS_OPEN|EIDS_MISSING|PATHS|PATHS_MISSING|OWNERS|OWNERS_MISSING|FACTS|FACTS_OK|STALE|NUMBERS|NUMBERS_OK|NUMBERS_UNDECLARED|PROV_BAD|MAP_EXIT)=' "$L" | while IFS= read -r n; do echo "::notice::${n:0:180}"; done || true
+          tail -30 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       - name: xcheck-paid-orders — спека v9 против порождённых векторов
         run: |
           set -uo pipefail

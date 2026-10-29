@@ -133,6 +133,15 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "CONTOURS_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-contours.py 2>&1 | tail -16
   rc=${PIPESTATUS[0]}; echo "CONTOURS_EXIT=$rc"; note $rc
+  # Релиз-карта читается посторонним, чтобы решить, можно ли ставить тег. Её собственное обещание —
+  # «строка называет прибор или id замера» — до `H-0148` было прозой: строка P3 противоречила своему
+  # носителю (`E-0100` мерил 1M, а карта утверждала «фикстуру»). Страж связывает шестнадцать строк с
+  # закрытыми карточками, ADR и файлами приборов и сверяет числа строки P3 с цитатным логом.
+  echo "### release map guard ### $(date +%FT%T%:z)"
+  python lab/check-release-map.py selftest 2>&1 | tail -3
+  rc=${PIPESTATUS[0]}; echo "RELEASEMAP_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-release-map.py 2>&1 | tail -28
+  rc=${PIPESTATUS[0]}; echo "RELEASEMAP_EXIT=$rc"; note $rc
   # Отчётные трубы workflow'ов проверяются здесь же, где и всё остальное: шаг, который краснеет от
   # собственного grep'а раньше вердикта, — это красный CI при зелёном продукте (`E-0127`). Прибор
   # обязан самопроверяться посаженными формами: гейт, который никто не гоняет с дефектом, через
