@@ -143,7 +143,9 @@ want TEXTGUARD_ALL_EXIT 0
 want TEXTGUARD_ALL_DIRTY 0
 want TEXTGUARD_CYCLE_EXIT 0
 want WIRE_TOUCHED 0
-want RUST_TOUCHED 1
+# 2, а не 1: на финальном дереве к прибору добавилось решение владельца по c103 (2026-10-29),
+# принятое уже после заморозки. Ключ описывает объём правки, а не факт замера; Поправка — в носителе.
+want RUST_TOUCHED 2
 emit WORST_RC "$BAD"
 
 # Повторяемость: снимок ключуется HEAD'ом и грязью дерева; диск и сам `STABLE` не сравниваются.

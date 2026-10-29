@@ -168,8 +168,10 @@ Rule 8 of `../AGENTS.md` is "do not invent mechanisms", so here is what is actua
   index arena, the predicate before truncation in `search_filtered`, snapshot format 2 (`ADR-0054`). The
   corpus without announcements stayed byte-for-byte the same, the price is not stored, memory grows by
   +1.0 B/record. Three boundaries remain: the node filters by itself and a client cannot machine-check
-  that, the price reaches the searcher only in the publisher's signed text, and `recall` under a filter
-  is not measured; the CLI accepts `--class` and `--intent-dir` on `index add`/`index search`
+  that, the price reaches the searcher only in the publisher's signed text, and `recall` under a
+  filter is a corpus snapshot rather than a promise — the filter costs no hit inside the scanned list
+  (`RECALL == COVERAGE` in all 12 cells), and the whole loss is probe coverage: 906 ‰ at four of
+  sixteen clusters and 2 % paid, 237 ‰ at one (`E-0146`); the CLI accepts `--class` and `--intent-dir` on `index add`/`index search`
   (`crates/vecdht-cli/src/index_cmd.rs`, `E-0144`), so an operator can declare and select the same
   byte the node writes, but that is a
   local instrument, not a network-visible promise; there is no settlement, escrow or tender in the
