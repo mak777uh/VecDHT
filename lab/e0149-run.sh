@@ -130,68 +130,12 @@ get() { grep -h "^$1=" "$FACTS" | tail -1 | cut -d= -f2; }
 BAD=0
 bad() { BAD=$((BAD + 1)); printf 'УСЛОВИЕ_НАРУШЕНО %s: ожидалось %s, получено %s\n' "$1" "$2" "$(get "$1")" >&2; }
 want() { [ "$(get "$1")" = "$2" ] || bad "$1" "$2"; }
-want PIN_FOUND 1
-want PRE_FIX_GUARD_OLD 1
-want PRE_FIX_NONE_PASSES 1
-want PRE_FIX_PREFIX_PASSES 1
-want PRE_FIX_LOG_UNSUPPORTED 1
-want POST_FIX_NONE_CAUGHT 1
-want POST_FIX_PREFIX_CAUGHT 1
-want POST_FIX_LOG_OK 1
-want GATE_H0149_OK 1
-want DISK_GE_15000 1
-want SELFTEST_EXIT 0
-want SELFTEST_TOTAL 20
-want SELFTEST_PASSED 20
-want SELFTEST_FAILED 0
-want P4_LOG_FOUND 1
-want P4_LOG_VALUE 5
-want P4_TEST_EXIT 0
-want P4_NOW 5
-want P4_MATCH 1
-want MAP_EXIT 0
-want MAP_ROWS 16
-want ROWS_REGISTERED 16
-want ROWS_UNREGISTERED 0
-want ROWS_MISSING 0
-want MAP_DUP 0
-want EIDS 25
-want EIDS_MISSING 0
-want EIDS_OPEN 0
-want ADRS 3
-want ADRS_MISSING 0
-want PATHS 24
-want PATHS_MISSING 0
-want OWNERS 16
-want OWNERS_MISSING 0
-want OWNERS_MISSING_IDS none
-want FACTS 23
-want FACTS_OK 23
-want STALE 0
-want STALE_ROWS none
-want NUMBERS 43
-want NUMBERS_OK 43
-want NONE_ROWS 7
-want NUMBERS_UNDECLARED 0
-want NUMBERS_UNDECLARED_IDS none
-want NUMBERS_PHANTOM 0
-want NUMBERS_PHANTOM_IDS none
-want PROV_BAD 0
-want SECRETS_EXIT 0
-want REFS_EXIT 0
-want CLAIMMAP_EXIT 0
-want CLAIMS_EXIT 0
-want CONTOURS_EXIT 0
-want MIRROR_EXIT 0
-want GATE_AUDIT_EXIT 0
-want REVIEW_EXIT 0
-want LINT_LATEST_EXIT 0
-want LINT_ORPHANS 0
-want TEXTGUARD_ALL_EXIT 0
-want TEXTGUARD_ALL_DIRTY 0
-want TEXTGUARD_CYCLE_EXIT 0
-want WIRE_TOUCHED 0
-want RUST_TOUCHED 0
+# Ожидания читаются из замороженной таблицы: у имени факта один владелец.
+# `STABLE` проверяет оракул на втором прогоне, `WORST_RC` — итог этого блока.
+while IFS=$'	' read -r k v _note; do
+  case "$k" in ''|'#'*|STABLE|WORST_RC) continue;; esac
+  want "$k" "$v"
+done < lab/expectations/e0149.tsv
 emit WORST_RC "$BAD"
 
 # Повторяемость: снимок ключуется HEAD'ом и грязью дерева; диск и сам `STABLE` не сравниваются.
