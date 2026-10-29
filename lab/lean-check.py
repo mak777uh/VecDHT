@@ -34,6 +34,12 @@
    `inductive` с последующей строкой `deriving` (`E-0141`: разведка показала 56 таких объектов вне
    дайджеста при 365 замороженных, и три компилируемые посадки — ослабление печатаемого числа,
    перестановка полей, перестановка конструкторов — проходили прежний страж зелёным).
+3. **Класс окружения (`E-0150`).** До первой модели компилируется проба `import Std`, и прибор
+   печатает `LEAN_ENV=ok|partial` вместе с `LEAN_ENV_PROBE_EXIT`. На неполном тулчейне модели
+   СЕГОДНЯ не проверялись: строка `BROKEN=` не печатается вовсе, вердикт `LEAN_ALL_OK=0`, выход 3.
+   Иначе обрыв окружения выглядел бы как шесть сломанных моделей — и тот, кто читает `BROKEN=6`,
+   искал бы ошибку не там. Проба необходима, но не достаточна: успешный `import Std` не доказывает,
+   что модель компилируется.
 
 Употребление:
   python lab/lean-check.py check [--quiet] [--root DIR]
@@ -292,13 +298,51 @@ def namespace_of(text):
     return m.group(1) if m else ""
 
 
+def lean_exe():
+    """Полный путь к бинарю компилятора.
+
+    Голое имя `lean` Windows/CreateProcess ищет только по расширениям из PATHEXT и `.cmd`-шим
+    elan'а может не выбрать, тогда как `shutil.which` разрешает его правильно (замер `E-0150`:
+    подложенный в PATH `lean.cmd` не перехватывал вызов, вызов по абсолютному пути — работал).
+    """
+    return shutil.which("lean") or "lean"
+
+
 def compile_source(path):
     t0 = time.time()
     # Lean пишет UTF-8; на Windows-локали `text=True` без явной кодировки расшифровал бы кириллицу
     # из сообщений как cp1251 (regex-и ASCII, поэтому молчание было бы незаметным).
-    r = subprocess.run(["lean", path], capture_output=True, text=True, encoding="utf-8",
-                       errors="replace")
+    # `OSError` не должен вылетать трейсбеком: прибор деградирует в число, а не в панику.
+    try:
+        r = subprocess.run([lean_exe(), path], capture_output=True, text=True, encoding="utf-8",
+                           errors="replace")
+    except OSError as e:
+        return 127, f"не запускается: {e}", int((time.time() - t0) * 1000)
     return r.returncode, (r.stdout or "") + (r.stderr or ""), int((time.time() - t0) * 1000)
+
+
+# Проба окружения (`E-0150`). Проверяемое утверждение — «есть ли в тулчейне Std», а не «работает ли
+# наша модель»: на неполном окружении `import Std` падает раньше любой модели, и без этой пробы страж
+# печатал бы `BROKEN=6` на шести файлах, ни один из которых не виноват. Утверждение пробы —
+# необходимое, но не достаточное: успешный `import Std` не доказывает, что модель компилируется.
+ENV_PROBE_SOURCE = "import Std\n\n#check List\n"
+
+
+def env_probe():
+    fd, p = tempfile.mkstemp(suffix=".lean", text=True)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write(ENV_PROBE_SOURCE)
+    try:
+        rc, out, ms = compile_source(p)
+    finally:
+        os.unlink(p)
+    first = ""
+    for line in out.splitlines():
+        s = line.strip()
+        if s:
+            first = s
+            break
+    return rc, ms, first
 
 
 def augmented(text, ns, names):
@@ -341,10 +385,24 @@ def read_frozen(path):
 def cmd_check(args):
     root = args.root or DEFAULT_ROOT
     if toolchain_missing():
+        # Класс окружения называется и здесь: «нет компилятора» и «компилятор есть, но тулчейн
+        # неполон» — разные факты, и слить их в один код значило бы потерять различитель.
+        print("LEAN_ENV=absent")
         print("LEAN_TOOLCHAIN=0 — компилятор Lean не найден в PATH (/c/Users/Admin/.elan/bin); "
               "модели СЕГОДНЯ не проверялись")
         print("LEAN_ALL_OK=0")
         return 2
+    # Проба окружения до первой модели (`E-0150`). Без неё неполный тулчейн печатался как
+    # `BROKEN=6`: шесть моделей «виноваты» в том, что сломано окружение. Прибор отказывается судить
+    # и выходит отдельным кодом 3 — так «модель плоха» и «судить нечем» не смешиваются.
+    prc, pms, preason = env_probe()
+    print(f"LEAN_ENV={'ok' if prc == 0 else 'partial'}")
+    print(f"LEAN_ENV_PROBE_EXIT={prc} LEAN_ENV_PROBE_MS={pms}")
+    if prc != 0:
+        print(f"LEAN_ENV_REASON={preason or 'none'}")
+        print("LEAN_ENV_REFUSED=1 — проба `import Std` не прошла, модели сегодня не проверялись")
+        print("LEAN_ALL_OK=0")
+        return 3
     models = sorted(glob.glob(os.path.join(root, "lab", "lean", "VecDHT", "*.lean")))
     if not models:
         print("LEAN_ALL_OK=0 — каталог lab/lean/VecDHT пуст")
@@ -746,8 +804,12 @@ def cmd_selftest(args):
     print(f"  КОНТРОЛЬ native_decide посчитан как аксиома: {'ДА' if native else 'НЕТ'}")
     shutil.rmtree(base, ignore_errors=True)
     total = len(defects) + 2
+    passed_all = passed + (1 if good else 0) + (1 if native else 0)
     print(f"SELFTEST годное_дерево={'пройден' if good else 'ПРОВАЛ'} отбито={passed} из {len(defects)}")
-    print(f"LEANGUARD_SELFTEST total={total} passed={passed + (1 if good else 0) + (1 if native else 0)}")
+    # `failed=` печатается явно, а не выводится читателем из пары total/passed: самопроверка —
+    # единственный прибор этого факта, и потребитель не обязан знать её арифметику (`E-0150`:
+    # helper честно напечатал `none`, потому что ключа не было).
+    print(f"LEANGUARD_SELFTEST total={total} passed={passed_all} failed={total - passed_all}")
     return 0 if (good and passed == len(defects) and native) else 1
 
 
