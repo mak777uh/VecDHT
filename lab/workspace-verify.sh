@@ -256,6 +256,12 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "CF_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-claims-frozen.py 2>&1 | tail -14
   rc=${PIPESTATUS[0]}; echo "CF_EXIT=$rc"; note $rc
+  # У слова `none` в таблицах ожиданий один владелец (`H-0158`): helper носителя не изготавливает
+  # `none` из отсутствия; исторические 14 таблиц названы реестром.
+  python lab/check-none-owners.py --selftest 2>&1 | tail -10
+  rc=${PIPESTATUS[0]}; echo "NO_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-none-owners.py 2>&1 | tail -12
+  rc=${PIPESTATUS[0]}; echo "NO_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc

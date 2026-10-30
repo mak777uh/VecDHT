@@ -333,6 +333,10 @@ jobs:
           # таблиц — владелец `check-expect-freeze.py` (H-0155), двойного счёта нет.
           python lab/check-claims-frozen.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-claims-frozen.py >> "$L" 2>&1 || r=$?
+          # У слова `none` в таблицах ожиданий один владелец (`H-0158`): helper носителя не
+          # изготавливает `none` из отсутствия; исторические 14 таблиц названы реестром.
+          python lab/check-none-owners.py --selftest >> "$L" 2>&1 || r=$?
+          python lab/check-none-owners.py >> "$L" 2>&1 || r=$?
           # Паритет контуров (`H-0152`): прибор краснеет, если боевой вызов стража есть только в
           # одном из двух контуров и эта разница не названа строкой `lab/contour-parity.tsv`.
           python lab/check-contour-parity.py >> "$L" 2>&1 || r=$?
