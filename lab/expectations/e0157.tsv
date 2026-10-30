@@ -1,0 +1,69 @@
+# E-0157: сильная строка реестра утверждений обязана иметь замороженную таблицу ожиданий (H-0157).
+# Порог заморожен до первого официального прогона lab/e0157-run.sh.
+# Ключ	Значение	Смысл
+PIN_FOUND	1	пре-регистрация H-0157 найдена в истории
+PRE_FIX_RC	1	на дереве пина страж краснеет: реестра там нет
+PRE_FIX_CLAIMS	18	сильных строк gate-closed/measured в реестре
+PRE_FIX_LINK_PAIRS	34	пар (сильная строка, E-ссылка)
+PRE_FIX_NO_CARD	0	ссылок без H-карточки нет
+PRE_FIX_NO_TABLE	13	пар, у которых таблицы нет ни в одном коммите истории
+PRE_FIX_TABLE	21	пар с существующей таблицей
+PRE_FIX_HISTORY_SAME	17	существующих таблиц совпадают с коммитом H-карточки
+PRE_FIX_HISTORY_CHANGED	4	изменены после заморозки — владелец H-0155
+PRE_FIX_HISTORY_ABSENT	0	таблиц, добавленных позже карточки, нет
+PRE_FIX_CHANGED_CLAIMS	C-009,C-021,C-028,C-029	строки, опирающиеся на CHANGED-пары; здесь не краснеют
+PRE_FIX_STRONG_NO_E	0	сильных строк без E-ссылок нет
+PRE_FIX_BASELINE_ROWS	0	строк реестра в пине нет — дыра названа отсутствием
+PRE_FIX_BASELINE_DEFECTS	none	дефектов реестра нет, потому что нет реестра
+PRE_FIX_FINDINGS	7	семь сильных строк опираются на карточки без таблиц
+PRE_FIX_FINDING_1	C-001:NO_TABLE:E-0087,E-0088,E-0091,E-0092	закрытый Batch A: четыре карточки без таблиц
+PRE_FIX_FINDING_2	C-009:NO_TABLE:E-0001,E-0073	гейт §18.3: две карточки без таблиц
+PRE_FIX_FINDING_3	C-018:NO_TABLE:E-0012,E-0087	дверь и Batch A: две карточки без таблиц
+PRE_FIX_FINDING_4	C-023:NO_TABLE:E-0087	гейт Batch A: карточка без таблицы
+PRE_FIX_FINDING_5	C-024:NO_TABLE:E-0012	гейт двери: карточка без таблицы
+PRE_FIX_FINDING_6	C-033:NO_TABLE:E-0003,E-0012	две карточки без таблиц
+PRE_FIX_FINDING_7	C-034:NO_TABLE:E-0087	измерение опирается на карточку без таблицы
+POST_RC	0	после правки страж зелёный
+POST_CLAIMS	18	сильных строк по-прежнему 18
+POST_LINK_PAIRS	34	пар по-прежнему 34
+POST_NO_CARD	0	ссылок без карточки нет
+POST_NO_TABLE	13	пар без таблицы по-прежнему 13 — они названы реестром
+POST_TABLE	21	пар с существующей таблицей
+POST_HISTORY_SAME	17	история существующих таблиц не менялась
+POST_HISTORY_CHANGED	4	CHANGED остаётся находкой H-0155
+POST_HISTORY_ABSENT	0	таблиц, добавленных позже карточки, нет
+POST_CHANGED_CLAIMS	C-009,C-021,C-028,C-029	те же строки на CHANGED-парах
+POST_STRONG_NO_E	0	сильных строк без E-ссылок нет
+POST_BASELINE	lab/claims-frozen-baseline.tsv	реестр назван файлом
+POST_BASELINE_ROWS	7	семь исторических строк с причиной
+POST_BASELINE_DEFECTS	none	пустых причин и мёртвых строк нет
+POST_FINDINGS	0	неназванных сильных строк нет
+CF_CLAIMS_MATCH_AWK	1	число сильных строк стража равно awk-счёту по lab/claims.tsv
+PLANT_MISSING_ROW_RC	1	удалённая строка реестра краснит
+PLANT_MISSING_ROW_NAMED	1	и находка снова называет C-001
+PLANT_EMPTY_RC	1	строка реестра с пустой причиной краснит
+PLANT_EMPTY_NAMED	1	и дефект называется EMPTY_REASON
+PLANT_STALE_RC	1	строка с чужим набором E краснит
+PLANT_STALE_NAMED	1	и дефект называется STALE
+PLANT_CASES	3	посадок носителя
+PLANT_PASSED	3	все три отбиты
+ROOT_RC	2	вне git-корня страж отказывается мерить
+ROOT_KIND	no-git	причина отказа напечатана
+SELFTEST_RC	0	девять посадок прибора зелёные
+SELFTEST_CASES	9	посаженных случаев
+SELFTEST_PASSED	9	все девять отбиты
+SELFTEST_FAILED	0	ни один не прошёл молча
+GSE_EXIT	0	мета-страж H-0151 зелёный
+GSE_FINDINGS	0	приборов без посадки или вызова нет
+PARITY_EXIT	0	страж паритета H-0152 зелёный
+REFS_EXIT	0	страж цитат
+CLAIMS_EXIT	0	реестр утверждений сходится
+CONTOURS_EXIT	0	прибор закрытых карточек зелёный
+STATUS_EXIT	0	страж STATUS зелёный
+EXPECT_FREEZE_EXIT	0	страж заморозки таблиц H-0155 зелёный
+NONECMP_EXIT	0	страж none-compare H-0156 зелёный
+RUST_TOUCHED	0	продукт не тронут
+WIRE_TOUCHED	0	wire не тронут
+DISK_READABLE	1	диск измерен
+WORST_RC	0	ни один шаг не краснел
+STABLE	1	два прогона на неизменном дереве совпали
