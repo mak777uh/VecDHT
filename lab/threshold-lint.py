@@ -158,8 +158,13 @@ def _ref_values(name, lits, body, text):
     fn = _enclosing_func(body, text)
     if fn is None:
         return set()
+    # Аргументы вызова не переходят границу строки без `\`: прежний `\s+` заглатывал слова
+    # следующего комментария (`# --- ШАГ 1: POST_FIX ...`) и второй вызов `probe` переставал
+    # существовать — POST_FIX оставался сиротой при верном носителе (красный блок `E-0159`).
     vals = set()
-    for call in re.finditer(r'\b' + re.escape(fn) + r'((?:\s+"[^"]*"|\s+[^\s;|&]+)+)', text):
+    for call in re.finditer(
+            r'\b' + re.escape(fn) +
+            r'((?:(?:[ \t]+|\\\r?\n[ \t]*)(?:"[^"]*"|[^\s;|&]+))+)', text):
         args = re.findall(r'"([^"]*)"|([^\s]+)', call.group(1))
         args = [a or b for a, b in args]
         if len(args) <= pos:
@@ -529,6 +534,12 @@ CASES = [
     ("чужая приставка не печатает ключ", "OTHER_SENTENCES",
      '# do not touch\nparse_map() {\n  local pre="$2"\n  for key in SENTENCES IDS; do\n'
      '    emit "${pre}${key}=$v"\n  done\n}\nparse_map x "PRE_M_"\n', None, 1),
+    # `E-0159`: аргументы вызова не переходят строку без `\`; слова следующего комментария
+    # не должны съедать второй вызов той же функции.
+    ("приставка второго вызова после комментария - пропуск", "POST_M_SENTENCES",
+     '# do not touch\nparse_map() {\n  local pre="$2"\n  for key in SENTENCES IDS; do\n'
+     '    emit "${pre}${key}=$v"\n  done\n}\nparse_map x "PRE_M_"\n'
+     '# второй вызов: "POST_M_" и слова\nparse_map x "POST_M_"\n', None, 0),
     # `E-0140`, форма (3): список имён и метка прогона идут в общий `printf` позиционными
     # аргументами, а `strip_run` снимает метку перед сверкой.
     ("список имён в аргументе printf - пропуск", "n1_V",

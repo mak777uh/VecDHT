@@ -63,7 +63,7 @@ print(prefix + "_IDEMPOTENT=" + str(int(n is not None and module.normalize(n) ==
 PY
 
 probe() {
-  path=$1; prefix=$2; log=$3
+  path="$1"; prefix="$2"; log="$3"
   python "${SCR}probe.py" "$(win "$path")" "$prefix" > "$log" 2>&1 || true
   for k in IMPORT EMPTY SPACES NBSP PLAIN EMPTY_EQ_RUST NBSP_EQ_RUST IDEMPOTENT; do
     emit "${prefix}_${k}" "$(grab "$log" "${prefix}_${k}")"
