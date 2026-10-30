@@ -139,7 +139,7 @@ m6 (CI-гейты) — отдельная карточка. `§19.3` прави�
 `supports`. Блок `E-0162` контура (строка 220 604, дерево `616e132`, `VERIFY_FAIL=0`,
 138 наборов / 795 passed / 0 failed / 9 ignored, `TEST_EXIT=0`, `CLIPPY_EXIT=0`,
 `LEAN_ALL_OK=1`, `CIN_EXIT=0`, `REVIEW_FINDINGS=0`, все стражи 0, `TEXTGUARD_EXIT=0`,
-`SECONDS_total=4051`, диск после 15 448 МБ). Носитель: пилот и два официальных прогона на
+`SECONDS_total=4051`, диск после 15 448 МБ; после rebase на 9 чужих `audit:`/`notes:`-коммитов — `c3e464b`, разница дерева — только эти 9 markdown-файлов, лёгкие стражи 0). Носитель: пилот и два официальных прогона на
 дереве `2e76647` — `WORST_RC=0`, `STABLE=1`, 46/46 фактов, `PRE_FIX_TEST_RC=1` на старом
 `frame.rs`, лог `lab/logs/e0162-all.log`. m1: `decode_frame` отвергает хвост
 (`TrailingBytes`, единственное вхождение), новый тест 2/2, `frame_byte_mutation` переписан —
