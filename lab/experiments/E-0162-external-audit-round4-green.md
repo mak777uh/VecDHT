@@ -31,7 +31,29 @@ date: "2026-10-30"
 
 ## Прогон
 
-Заполняется после двух официальных прогонов носителя `lab/e0162-run.sh` на неизменном дереве.
+Пилот и два официальных прогона 2026-10-30 на неизменном дереве `2e76647` (пин пре-регистрации
+`3d78272`), носитель `lab/e0162-run.sh` → `lab/logs/e0162-all.log`. Каждый прогон: PRE_FIX —
+`git checkout <пин> -- crates/vecdht-wire/src/frame.rs` (trap возвращает HEAD) и прогон нового
+теста на старом декодере; POST_FIX — тот же тест, `frame_byte_mutation`, весь `vecdht-wire` и
+golden-векторы на живом дереве; затем факты текстов и границ. Оба официальных прогона совпали
+побайтово (кроме строки `STABLE`), `WORST_RC=0`, `STABLE=1`, 46/46 фактов:
+
+* PRE_FIX: `PRE_FIX_TEST_RC=1` — старый `decode_frame` принимает хвост, новый тест краснеет
+  ровно на `TrailingBytes`; `POST_FIX_TEST_RC=0`, `TEST_CASES=2`, `TEST_PASS=2`;
+* `BYTE_MUTATION_RC=0`, `WIRE_TEST_RC=0`, `GOLDEN_RC=0` — канонические кадры и golden прежние;
+* `TAIL_IMPL=1` (единственное `TrailingBytes` в `frame.rs`), `SIGLEN_MSG=1`, `SIGLEN32=0`,
+  `DOMAIN_LITERALS=0`, `DOMAIN_NAMED=19` (20-я строка — объявление трейта);
+* README: `README_PROVIDER=1`, `README_NODE_DECISION=1`, `README_CA=0`; README.ru:
+  `RU_PROVIDER=1`, `RU_NODE_DECISION=1`, `RU_CA=0`;
+* спека: `SPEC_RECOMP=0`, `SPEC_SIGFIELD=0`, `SPEC_PENALTY=0`, `SPEC_NOT_V1=3`,
+  `SPEC_PROVIDER=1`, `SPEC_TIMEOUT=1`, `SPEC_ARTIFACT=1`;
+* границы: `WIRE_SRC_TOUCHED=3`, `TESTS_TOUCHED=2`, `README_TOUCHED=2`, `SPEC_TOUCHED=1`,
+  `CI_TOUCHED=1`, `GOLDEN_CHANGED=0`;
+* шапка CI: `CIN_TOTAL_ALL=808`, `CIN_CRATE_WIRE=59`, `CIN_FINDINGS=0`, `CIN_EXIT=0`;
+* соседние стражи и зеркало: `CITES_EXIT=0`, `CLAIMMAP_EXIT=0`, `MIRROR_EXIT=0`, `GSE_EXIT=0`,
+  `PARITY_EXIT=0`, `CONTOURS_EXIT=0`, `EXPECT_FREEZE_EXIT=0`, `TEXT_EXIT=0`, `CLAIMS_EXIT=0`;
+* `DISK_READABLE=1`; диск после второго прогона `DISK_FREE_MB=7494` — ниже порога 15 000 МБ,
+  поэтому блок `workspace-verify` ждёт `cargo clean` по слову владельца.
 
 ## Поправка
 
