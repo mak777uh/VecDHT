@@ -1,0 +1,61 @@
+---
+id: E-0159
+status: open
+verdict: ""
+date: "2026-10-30"
+---
+
+# E-0159 — клиент v9 зеркалит Rust на пустом задании и Unicode-пробеле
+
+## Вопрос
+
+Совпадает ли клиент стороннего реализатора `lab/v9-independent-client.py` с нормализацией §V9.3
+в двух местах, где текст спеки нормативен, а не описателен: шаг 4 (хвостовыми пробелами считаются
+только ASCII ` ` и `\t`) и шаг 7 (пустой результат — `E_STATEMENT_ENCODING`)? Разведка перед
+карточкой: клиент на пине `8f80ec9` на `b""` и `b" \r\n\t\n"` отдаёт `b""`, а на NBSP-только — тоже
+`b""`, потому что проверка стояла через `not text.strip()`. Rust на тех же входах: отказ, отказ,
+`b"\xc2\xa0\n"`.
+
+## Порог
+
+Заморожен в `lab/expectations/e0159.tsv` до первого официального прогона. Вердикт — только по его
+фактам: PRE_FIX (клиент пина через `git show`) даёт `bytes:` на пустом и пробельном входе и на
+NBSP-только, `PRE_FIX_EMPTY_EQ_RUST=0`, `PRE_FIX_NBSP_EQ_RUST=0`; POST_FIX — `reject`, `reject`,
+`bytes:c2a00a`, оба равенства 1; обычный вход `bytes:610a` не меняется; идемпотентность 1; клиент
+на документах v9 — код 0, `V913_ALL_OK=1`, `EXAMPLES=3`, шесть `W*_NORM_EQ`/`W*_HASH_EQ` — 1;
+соседние стражи 0; продукт и wire не тронуты; два прогона совпадают.
+
+## Прогон
+
+Два официальных прогона 2026-10-30 на неизменном дереве `a54953e` (пин пре-регистрации `8f80ec9`),
+носитель `lab/logs/e0159-all.log`. Каждый прогон: PRE_FIX — `git show 8f80ec9:lab/v9-independent-client.py`
+в `$TMP`, импорт и четыре пробы; POST_FIX — тот же импорт рабочего клиента. Факты:
+
+* PRE_FIX: `PRE_FIX_IMPORT=1`, `PRE_FIX_EMPTY=bytes:`, `PRE_FIX_SPACES=bytes:`, `PRE_FIX_NBSP=bytes:`,
+  `PRE_FIX_PLAIN=bytes:610a`, `PRE_FIX_EMPTY_EQ_RUST=0`, `PRE_FIX_NBSP_EQ_RUST=0`,
+  `PRE_FIX_IDEMPOTENT=1`;
+* POST_FIX: `POST_FIX_IMPORT=1`, `POST_FIX_EMPTY=reject`, `POST_FIX_SPACES=reject`,
+  `POST_FIX_NBSP=bytes:c2a00a`, `POST_FIX_PLAIN=bytes:610a`, `POST_FIX_EMPTY_EQ_RUST=1`,
+  `POST_FIX_NBSP_EQ_RUST=1`, `POST_FIX_IDEMPOTENT=1`.
+
+Приёмосдаточное исполнение клиента на `docs/PAID_ORDER-VECTORS.md` и `docs/VecDHT-SPEC-v9.md`:
+`CLIENT_RC=0`, `CLIENT_ALL_OK=1`, `CLIENT_EXAMPLES=3`, `CLIENT_W1..W3_NORM_EQ=1`,
+`CLIENT_W1..W3_HASH_EQ=1`. `PY_COMPILE=0`. Соседние стражи: `GSE_EXIT=0`, `PARITY_EXIT=0`,
+`CONTOURS_EXIT=0`, `EXPECT_FREEZE_EXIT=0`, `TEXT_EXIT=0`, `CI_NUMBERS_EXIT=0`. Продукт не тронут
+(`RUST_TOUCHED=0`, `WIRE_TOUCHED=0`); диск 19 528 и 19 510 МБ. `WORST_RC=0` в обоих прогонах,
+`STABLE=1` во втором.
+
+Посадка этого круга — сам PRE_FIX: старый клиент обязан ответить `bytes:` на пустое и NBSP-только,
+иначе карточка мерила бы не то. Обе пробы названы фактами, зелёными они не притворяются.
+
+## Результат
+
+Заполняется по блоку `E-0159` контура `workspace-verify`: без него карточка остаётся OPEN, потому
+что прогон носителя и полный контур — разные единицы счёта (правило `H-0138`).
+
+## Границы
+
+Совпадение доказано на четырёх пробах носителя, а не для всех входов; класс «любой вход» держится
+идемпотентностью и тремя примерами документа, а не новым доказательством. Код ошибки
+`E_STATEMENT_ENCODING` в клиенте не заводится: отказ — `None`, как и для не-UTF-8, потому что Rust
+сводит оба случая в один код. Продукт, wire и `term_hash` не затрагивались.
