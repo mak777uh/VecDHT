@@ -1,0 +1,41 @@
+# E-0159: клиент v9 зеркалит Rust-нормализатор на пустом задании и Unicode-пробеле (H-0159).
+# Порог заморожен до первого официального прогона lab/e0159-run.sh.
+# Значения PRE_FIX сняты разведкой с клиента пина через `git show`; POST — с дерева починки
+# до первого официального прогона. `bytes:` без hex — пустые байты (старое поведение клиента).
+# Ключ	Значение	Смысл
+PIN_FOUND	1	пре-регистрация H-0159 найдена в истории
+PRE_FIX_IMPORT	1	клиент пина импортируется и отдаёт normalize
+PRE_FIX_EMPTY	bytes:	пустой вход: клиент пина вернул пустые байты вместо отказа
+PRE_FIX_SPACES	bytes:	вход из пробелов и переводов строк: тоже пустые байты
+PRE_FIX_NBSP	bytes:	NBSP-только: клиент пина вырезал Unicode-пробел
+PRE_FIX_PLAIN	bytes:610a	обычный вход `a \\r\\n` нормализован как Rust
+PRE_FIX_EMPTY_EQ_RUST	0	шаг 7 §V9.3 на пине клиента не исполнен
+PRE_FIX_NBSP_EQ_RUST	0	шаг 4 §V9.3 на пине клиента шире ASCII
+PRE_FIX_IDEMPOTENT	1	идемпотентность на пине уже держится
+POST_FIX_IMPORT	1	клиент рабочего дерева импортируется и отдаёт normalize
+POST_FIX_EMPTY	reject	пустой вход отвергнут, как Rust: E_STATEMENT_ENCODING
+POST_FIX_SPACES	reject	пробелы и переводы строк после нормализации — отказ
+POST_FIX_NBSP	bytes:c2a00a	NBSP сохранён как содержание: b"\\xc2\\xa0\\n"
+POST_FIX_PLAIN	bytes:610a	обычный вход не изменился
+POST_FIX_EMPTY_EQ_RUST	1	шаг 7 совпал с Rust
+POST_FIX_NBSP_EQ_RUST	1	шаг 4 совпал с Rust
+POST_FIX_IDEMPOTENT	1	идемпотентность держится после правки
+CLIENT_RC	0	клиент на документах v9 вышел 0
+CLIENT_ALL_OK	1	V913_ALL_OK=1
+CLIENT_EXAMPLES	3	три примера канонизации собраны побайтно
+CLIENT_W1_NORM_EQ	1	W1: нормализованные байты совпали
+CLIENT_W2_NORM_EQ	1	W2: нормализованные байты совпали
+CLIENT_W3_NORM_EQ	1	W3: нормализованные байты совпали
+CLIENT_W1_HASH_EQ	1	W1: statement_hash сошёлся
+CLIENT_W2_HASH_EQ	1	W2: statement_hash сошёлся
+CLIENT_W3_HASH_EQ	1	W3: statement_hash сошёлся
+PY_COMPILE	0	py_compile клиента чист
+GSE_EXIT	0	мета-страж самопроверок зелёный
+PARITY_EXIT	0	страж паритета контуров зелёный
+CONTOURS_EXIT	0	страж карточек и блоков зелёный
+EXPECT_FREEZE_EXIT	0	страж заморозки таблиц зелёный
+TEXT_EXIT	0	страж текста зелёный
+CI_NUMBERS_EXIT	0	числа шапки CI зелёны
+RUST_TOUCHED	0	правка не вышла в продукт
+WIRE_TOUCHED	0	wire не тронут
+DISK_READABLE	1	диск читается прибором
