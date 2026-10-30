@@ -43,7 +43,7 @@ pub enum DecodeError {
     ReservedFlags(u16),
     #[error("signature flag set but no signature present")]
     SigMissing,
-    #[error("signature length {0} not in {{32, 64}}")]
+    #[error("signature length {0} must be 64 (Ed25519)")]
     SigLength(u8),
     #[error("body_len {declared} exceeds cap {cap}")]
     BodyTooLarge { declared: u32, cap: u32 },

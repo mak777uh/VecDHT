@@ -23,8 +23,10 @@ loop.
 
 VecDHT replaces that single point with a sharded semantic index held by the peers that publish into it.
 Nothing in the design requires the original publisher to stay reachable, and no operator can answer a
-query that the published records do not support. Records are content-addressed, so a node can show which
-records it was served and a third party can check the claim.
+query that the published records do not support. Records are keyed positionally
+(`blake3(owner ‖ shard ‖ slot ‖ epoch)`), and the record bytes are not returned to the client, so a node
+cannot show which record it was served and a third party cannot check that claim; the match carries
+owner, cluster, slot and `d2`.
 
 ## How it works
 
@@ -165,10 +167,11 @@ The same script runs the whole scenario on one host, which is how the script its
 bash lab/two-hosts.sh selfcheck     # 39 s on our host: HOSTS_OK=1, publish owner/slot = find owner/slot
 ```
 
-Known wart, visible in the selfcheck logs and not fixed here: `agent find` asks every provider of the
-shard, and when one provider does not answer, the call waits for its full timeout (30 s here) before
-returning the match it already has. The answer is correct; the wait is recorded in
-`lab/logs/e0122-two-hosts-selfcheck.log`.
+Known wart, visible in the selfcheck logs and not fixed here: `agent find` asks one provider per shard
+(the first candidate; other providers of that shard are not queried in v1), and when that provider does
+not answer, the call waits for its full timeout (30 s here) before returning the match it already has.
+The answer is correct, but it is what that node decided: it is not verified against other providers.
+The wait is recorded in `lab/logs/e0122-two-hosts-selfcheck.log`.
 
 ## How to check a claim
 

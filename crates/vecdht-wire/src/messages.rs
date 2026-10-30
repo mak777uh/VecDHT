@@ -20,6 +20,12 @@ pub mod domain {
     pub const LEASE: &[u8] = b"vecdht/v8/lease";
     pub const ACK: &[u8] = b"vecdht/v8/ack";
     pub const ARTIFACT: &[u8] = b"vecdht/v8/artifact";
+    pub const ERROR: &[u8] = b"vecdht/v8/error";
+    pub const PUBLISH_ACK: &[u8] = b"vecdht/v8/publish_ack";
+    pub const TEXT_REQ: &[u8] = b"vecdht/v8/text_req";
+    pub const WAL_PULL_REQ: &[u8] = b"vecdht/v8/wal_pull_req";
+    pub const WAL_PULL_RESP: &[u8] = b"vecdht/v8/wal_pull_resp";
+    pub const CERT_REVOKE: &[u8] = b"vecdht/v8/cert_revoke";
     pub const WAL: &[u8] = b"vecdht/v8/wal";
     /// Отдача снапшота шарда seed-узлом (§9.5, шаг 2): каждый кусок подписан, иначе
     /// «пояс» превращается в вектор подмены состояния.
@@ -327,7 +333,7 @@ pub struct ProtocolError {
 
 impl Codec for ProtocolError {
     const KIND: Kind = Kind::Error;
-    const DOMAIN: &'static [u8] = b"vecdht/v8/error";
+    const DOMAIN: &'static [u8] = domain::ERROR;
 
     fn encode_body(&self, w: &mut Writer) {
         w.string(&self.code);
@@ -458,7 +464,7 @@ pub struct PublishAck {
 
 impl Codec for PublishAck {
     const KIND: Kind = Kind::PublishAck;
-    const DOMAIN: &'static [u8] = b"vecdht/v8/publish_ack";
+    const DOMAIN: &'static [u8] = domain::PUBLISH_ACK;
 
     fn encode_body(&self, w: &mut Writer) {
         w.u16(self.shard);
@@ -745,7 +751,7 @@ pub const MAX_PRESENT_BYTES: usize = 512;
 
 impl Codec for IntentTextRequest {
     const KIND: Kind = Kind::IntentTextRequest;
-    const DOMAIN: &'static [u8] = b"vecdht/v8/text_req";
+    const DOMAIN: &'static [u8] = domain::TEXT_REQ;
 
     fn encode_body(&self, w: &mut Writer) {
         w.u64(self.query_id);
@@ -819,7 +825,7 @@ pub struct WalPullRequest {
 
 impl Codec for WalPullRequest {
     const KIND: Kind = Kind::WalPullRequest;
-    const DOMAIN: &'static [u8] = b"vecdht/v8/wal_pull_req";
+    const DOMAIN: &'static [u8] = domain::WAL_PULL_REQ;
 
     fn encode_body(&self, w: &mut Writer) {
         w.u16(self.shard);
@@ -851,7 +857,7 @@ pub struct WalPullResponse {
 
 impl Codec for WalPullResponse {
     const KIND: Kind = Kind::WalPullResponse;
-    const DOMAIN: &'static [u8] = b"vecdht/v8/wal_pull_resp";
+    const DOMAIN: &'static [u8] = domain::WAL_PULL_RESP;
 
     fn encode_body(&self, w: &mut Writer) {
         w.u16(self.shard);
@@ -1408,7 +1414,7 @@ impl CertRevoke {
 
 impl Codec for CertRevoke {
     const KIND: Kind = Kind::CertRevoke;
-    const DOMAIN: &'static [u8] = b"vecdht/v8/cert_revoke";
+    const DOMAIN: &'static [u8] = domain::CERT_REVOKE;
 
     fn encode_body(&self, w: &mut Writer) {
         w.fixed(&self.nonce);

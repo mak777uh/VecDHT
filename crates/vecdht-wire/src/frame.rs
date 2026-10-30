@@ -243,10 +243,18 @@ pub fn decode_frame(bytes: &[u8]) -> Result<Frame<'_>, DecodeError> {
         if rest.len() < n {
             return Err(DecodeError::Truncated { offset: need });
         }
-        Some(&rest[..n])
+        let sig = &rest[..n];
+        rest = &rest[n..];
+        Some(sig)
     } else {
         None
     };
+    // У кадра одно каноническое представление: байт после тела или после подписи — ошибка.
+    // Транспорт (`declared_frame_len`) уже строг; здесь тот же контракт держит кодек, иначе
+    // `Spend` собирал бы ключ расхода из тела, а принимал бы другой кадр.
+    if !rest.is_empty() {
+        return Err(DecodeError::TrailingBytes { offset: bytes.len() - rest.len() });
+    }
     Ok(Frame { header, body, signature })
 }
 
