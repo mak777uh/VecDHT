@@ -440,17 +440,25 @@ def first_diff(a, b):
 # ---------------------------------------------------------------------------
 
 def normalize(raw):
-    """Шаги нормализации §V9.3: NFC, переводы строк, хвостовые пробелы, хвостовые пустые строки."""
+    """Шаги нормализации §V9.3: NFC, переводы строк, хвостовой ASCII-пробел, хвостовые пустые строки.
+
+    Шаг 4 снимает только ` ` и `\\t`: Unicode-пробел — содержание, а не хвост. Шаг 7: пустой
+    результат — отказ (`None`, как и не-UTF-8), а не пустые байты: в Rust оба случая дают
+    `E_STATEMENT_ENCODING`. Снятие хвостовых пустых строк идёт после снятия пробелов, иначе
+    строка из одних пробелов пережила бы шаг 5.
+    """
     try:
         text = raw.decode("utf-8")
     except UnicodeDecodeError:
         return None
     text = unicodedata.normalize("NFC", text)
     text = text.replace(chr(13) + chr(10), chr(10)).replace(chr(13), chr(10))
-    text = chr(10).join(line.rstrip(" " + chr(9)) for line in text.split(chr(10)))
-    if not text.strip():
-        return b""
-    return (text.rstrip(chr(10)) + chr(10)).encode("utf-8")
+    lines = [line.rstrip(" " + chr(9)) for line in text.split(chr(10))]
+    while lines and lines[-1] == "":
+        lines.pop()
+    if not lines:
+        return None
+    return (chr(10).join(lines) + chr(10)).encode("utf-8")
 
 
 def statement_hash_tokens(spec):
