@@ -13,6 +13,7 @@ trap 'git checkout -q HEAD -- "$NODE"; rm -rf "$TMP"' EXIT
 : > "$TMP/facts"
 emit() { printf '%s\t%s\n' "$1" "$2" | tee -a "$TMP/facts"; }
 bool_rc() { if [ "$1" -eq 0 ]; then echo 0; else echo 1; fi; }
+ok_bool() { if [ "$1" -eq 0 ]; then echo 1; else echo 0; fi; }
 in_pull() { awk '/fn handle_pull_request/{f=1} f{print} f&&/^    }$/{exit}'; }
 
 emit PIN_FOUND "$(git cat-file -e "$PIN^{commit}" 2>/dev/null && echo 1 || echo 0)"
@@ -28,7 +29,7 @@ emit TEST_CASES "$(grep -c '#\[test\]' "$TEST")"
 emit TEST_PASS "$(grep -oE 'test result: ok\. [0-9]+ passed' "$TMP/post.log" | grep -oE '^test result: ok\. [0-9]+' | grep -oE '[0-9]+' | head -1)"
 emit BUSY_CODE "$(grep -c 'err_code::BUSY' "$TEST")"
 cargo test -q -p vecdht-node --test s11_pull_admission foreign_shard_pull_is_free -- --exact > "$TMP/foreign.log" 2>&1; r=$?
-emit FOREIGN_FREE "$(bool_rc $r)"
+emit FOREIGN_FREE "$(ok_bool $r)"
 emit WIRE_TOUCHED "$(git diff --name-only "$PIN" | grep -c '^crates/vecdht-wire/')"
 emit SPEC_TOUCHED "$(git diff --name-only "$PIN" | grep -c '^docs/VecDHT-SPEC')"
 emit PRODUCT_TOUCHED "$(git diff --name-only "$PIN" | grep -c '^crates/vecdht-node/src/node.rs')"
