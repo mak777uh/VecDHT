@@ -1,7 +1,7 @@
 ---
 id: H-0161
-status: open
-verdict: ""
+status: closed
+verdict: supports
 date: "2026-10-30"
 claim: "`WalPullRequest` не списывает узловой admission: `handle_pull_request` (`crates/vecdht-node/src/node.rs`)
 читает манифест и сегменты WAL, не вызывая `reserve_admit`, поэтому 101-й запрос хвоста с одного
@@ -82,4 +82,7 @@ Publish резервирует токен до вытеснения (`node.rs:86
 
 ## Следующее
 
-Заполняется после прогонов и блока контура.
+Закрыт `supports`: блок контура строка 215 631, дерево `3ed7b61`, 137 наборов/793 passed/0 failed/
+9 ignored, `VERIFY_FAIL=0`, `SECONDS_total=2744`; диск после прогона 6847 МБ — ниже порога,
+следующий тяжёлый прогон после `cargo clean` по слову владельца. Дальше — `H-0162` (зелёные
+находки 4-го круга: m1/m2/m3/m5, T2, R3/m8).
