@@ -250,6 +250,12 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "NONECMP_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-none-compare.py 2>&1 | tail -12
   rc=${PIPESTATUS[0]}; echo "NONECMP_EXIT=$rc"; note $rc
+  # Колонка ожидания у сильных строк реестра (`H-0157`): ссылка `E-XXXX` типа gate-closed/measured
+  # обязана иметь замороженную таблицу; история существующих таблиц — владелец H-0155.
+  python lab/check-claims-frozen.py --selftest 2>&1 | tail -12
+  rc=${PIPESTATUS[0]}; echo "CF_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-claims-frozen.py 2>&1 | tail -14
+  rc=${PIPESTATUS[0]}; echo "CF_EXIT=$rc"; note $rc
   echo "### text guard (--all) ### $(date +%FT%T%:z)"
   bash lab/check-text-clean.sh --all 2>&1 | grep -v "^ПОДОЗРЕНИЕ"
   rc=${PIPESTATUS[0]}; echo "TEXTGUARD_EXIT=$rc"; note $rc

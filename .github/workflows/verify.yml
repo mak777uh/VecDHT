@@ -328,6 +328,11 @@ jobs:
           # не считаются равенством; исторический сайт e0146:80 назван строкой реестра.
           python lab/check-none-compare.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-none-compare.py >> "$L" 2>&1 || r=$?
+          # Колонка ожидания у сильных строк реестра (`H-0157`): ссылка `E-XXXX` типа
+          # `gate-closed`/`measured` обязана иметь замороженную таблицу; история существующих
+          # таблиц — владелец `check-expect-freeze.py` (H-0155), двойного счёта нет.
+          python lab/check-claims-frozen.py --selftest >> "$L" 2>&1 || r=$?
+          python lab/check-claims-frozen.py >> "$L" 2>&1 || r=$?
           # Паритет контуров (`H-0152`): прибор краснеет, если боевой вызов стража есть только в
           # одном из двух контуров и эта разница не названа строкой `lab/contour-parity.tsv`.
           python lab/check-contour-parity.py >> "$L" 2>&1 || r=$?
