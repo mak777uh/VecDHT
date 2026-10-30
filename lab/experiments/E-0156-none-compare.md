@@ -1,7 +1,7 @@
 ---
 id: E-0156
-status: open
-verdict: ""
+status: closed
+verdict: supports
 date: "2026-10-30"
 ---
 
@@ -43,11 +43,11 @@ POST_FIX — рабочее дерево: `POST_CARRIERS=140`, `POST_COMPARISONS
 
 ## Результат
 
-`supports` по носителю: `ОЖИДАНИЙ=46 РАСХОЖДЕНИЙ=0`, `WORST_RC=0`, `STABLE=1` дважды; полный контур
-под меткой `E-0158` (строка 193 390 лога) зелёный, страж карточки в нём `NC_FINDINGS=0`,
-`NONECMP_EXIT=0`. Карточка остаётся **OPEN**: правило `H-0138` требует блока под собственной
-меткой, а прогон `bash lab/workspace-verify.sh E-0156` поставлен в очередь. До него вердикт
-носителя не переносится в закрытие.
+`supports` по носителю: `ОЖИДАНИЙ=46 РАСХОЖДЕНИЙ=0`, `WORST_RC=0`, `STABLE=1` дважды. Закрыта по
+собственному блоку `E-0156` на строке 200 101 `lab/logs/workspace-verify-2026-10-22.log`: 136 наборов /
+791 passed / 0 failed / 9 ignored, `TEST_EXIT=0`, `CLIPPY_EXIT=0`, `LEAN_ENV=ok`, `LEAN_ALL_OK=1`,
+`VERIFY_FAIL=0`, `SECONDS_total=3136`, диск 13 940 МБ; страж карточки в нём — `NC_SENTINEL_PAIRS=1`,
+`NC_GUARDED=0`, `NC_BASELINE_ROWS=1`, `NC_FINDINGS=0`, `NONECMP_EXIT=0`.
 
 Граница: страж читает текст, а не исполняет носитель; защита `!= none` в другой строке не видна,
 sentinel-способность — консервативная оценка присваиваний, а не поток данных. Исторический сайт

@@ -1,7 +1,7 @@
 ---
 id: H-0156
-status: open
-verdict: ""
+status: closed
+verdict: supports
 date: "2026-10-30"
 claim: "В 139 носителях `lab/e*-run.sh` на дереве пре-регистрации есть ровно одно сравнение двух
 фактов, каждый из которых может быть литералом `none`: `lab/e0146-run.sh:80`
@@ -99,5 +99,12 @@ supersedes: null
 находок, реестр называет e0146:80, пять самопроверок и три посадки краснеют как обещано», плюс
 неизменность продукта и повторяемость двух прогонов.
 
-Блок под меткой `E-0158` зелёный (`NC_FINDINGS=0`, `NONECMP_EXIT=0`), но собственной метки у
-карточки нет: закрытие ждёт прогона `bash lab/workspace-verify.sh E-0156`.
+Закрытие: `supports`; собственный блок `E-0156` на строке 200 101 `lab/logs/workspace-verify-2026-10-22.log`
+(`NC_FINDINGS=0`, `NONECMP_EXIT=0`), `VERIFY_FAIL=0`, `SECONDS_total=3136`.
+
+## Результат
+
+Карточка закрыта 2026-10-30 вердиктом `supports` по собственному блоку `E-0156` на строке
+200 101 `lab/logs/workspace-verify-2026-10-22.log`: `NC_SENTINEL_PAIRS=1`, `NC_GUARDED=0`,
+`NC_BASELINE_ROWS=1`, `NC_FINDINGS=0`, `NONECMP_EXIT=0`; 136 наборов / 791 passed / 0 failed /
+9 ignored, `VERIFY_FAIL=0`, `SECONDS_total=3136`, диск 13 940 МБ.
