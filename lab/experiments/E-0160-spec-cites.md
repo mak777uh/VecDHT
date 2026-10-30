@@ -1,7 +1,7 @@
 ---
 id: E-0160
-status: open
-verdict: ""
+status: closed
+verdict: supports
 date: "2026-10-30"
 ---
 
@@ -53,7 +53,19 @@ date: "2026-10-30"
 
 ## Результат
 
-Заполняется после зелёного блока контура на дереве с этой карточкой.
+`supports`. Блок `E-0160` контура `workspace-verify` — строка 211 171 лога, дерево `2cc94a6`:
+`TEST_EXIT=0` (136 наборов, 791 passed, 0 failed, 9 ignored), `CLIPPY_EXIT=0`, `LEAN_ALL_OK=1`,
+`VERUS_EXIT=0`, `KCC_EXIT=0`, `CYCLEGATE_EXIT=0`, `REVIEW_EXIT=0`, `LINT_LATEST_EXIT=0`
+(цикл `E-0160`, 20 порогов, `СИРОТ=0`), `CLAIMS_EXIT=0`, `CONTOURS_EXIT=0`, `MAP_EXIT=0`,
+`CRG_EXIT=0`, `SECRETS_EXIT=0`, `NONECMP_EXIT=0`, `CF_EXIT=0`, `NO_EXIT=0`, `TEXTGUARD_EXIT=0`;
+в самом контуре `SC_SELFTEST_EXIT=0`, `SC_EXIT=0`, `SPEC_CITES_FILES=196`, `SPEC_CITES_REFS=0`,
+`SPEC_CITES_CITES=11`, `SPEC_CITES_OK=11`, `SPEC_CITES_FINDINGS=0`. `VERIFY_FAIL=0`,
+`SECONDS_total=2472`, диск 18 587 → 18 730 МБ. Замороженная таблица `e0160.tsv` исполнена
+носителем дважды без расхождений (`WORST_RC=0`, `STABLE=1`), поэтому вердикт `supports`: в шапках
+шести тестов нет ни одной ссылки на номер строки, одиннадцать объявленных цитат буквально стоят в
+названных разделах v8, а прибор краснеет на посаженных ссылке и неверной цитате (6/6). Первый блок
+208 941 был красным по двум чужим книгам — поправка выше; она не меняла ни продукт, ни значения
+фактов.
 
 ## Границы
 
