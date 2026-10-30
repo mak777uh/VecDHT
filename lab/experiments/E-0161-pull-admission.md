@@ -24,7 +24,18 @@ date: "2026-10-30"
 
 ## Прогон
 
-Заполняется после двух прогонов носителя `lab/e0161-run.sh` на неизменном дереве.
+Два официальных прогона 2026-10-30 на неизменном дереве `c1b279f` (пин пре-регистрации
+`8f72054`), носитель `lab/e0161-run.sh` → `lab/logs/e0161-all.log`. Каждый прогон: PRE_FIX —
+`git checkout <пин> -- crates/vecdht-node/src/node.rs` и прогон теста на старом коде, POST_FIX —
+тот же тест на живом дереве, затем отдельный прогон `foreign_shard_pull_is_free`. Факты оба раза:
+
+* PRE_FIX: `PRE_FIX_ADMIT_IN_PULL=0`, `PRE_FIX_TEST_RC=1` — на пине списания нет, 101-й pull
+  проходит, и тест краснеет именно на этом утверждении;
+* POST_FIX: `POST_FIX_ADMIT_IN_PULL=1`, `POST_FIX_TEST_RC=0`, `TEST_CASES=2`, `TEST_PASS=2`,
+  `BUSY_CODE=1`, `FOREIGN_FREE=1`;
+* `WIRE_TOUCHED=0`, `SPEC_TOUCHED=0`, `PRODUCT_TOUCHED=1`; соседние стражи `GSE_EXIT=0`,
+  `PARITY_EXIT=0`, `CONTOURS_EXIT=0`, `EXPECT_FREEZE_EXIT=0`, `TEXT_EXIT=0`, `CLAIMS_EXIT=0`;
+  `DISK_READABLE=1`. `WORST_RC=0` в обоих прогонах, `STABLE=1` во втором.
 
 ## Поправка
 
