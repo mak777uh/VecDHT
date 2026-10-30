@@ -54,8 +54,28 @@
 6. Апелляция: только если верификатор нарушил бюджет или образ — проверяется по receipt
 ```
 
-Ключевое: **verdict считается по receipt**, а не по мнению. Receipt содержит: hash артефакта, hash
-образа, длительность, exit-код, список аксиом (для Lean), версию тулчейна.
+Ключевое: **verdict считается по receipt**, а не по мнению. Receipt (§V9.5) — 13 подписываемых
+полей: `order_ref`, `submission_ref`, `verdict`, `image_digest`, `toolchain`, `axioms`,
+`wall_clock_ms`, `budget_ms`, `exit_code`, `stdout_sha256`, `stderr_sha256`, `deterministic`,
+`verifier_pubkey` (+ `signature` вне подписываемых байт). Хеша артефакта в квитанции нет: он в
+записи подачи, на которую ведёт `submission_ref`.
+
+### 3.1. Квитанция по пяти измерениям — чек-лист
+
+Внешние рубрики агентских доказательств раскладывают артефакт на пять измерений. Для нашей
+квитанции это выглядит так; «не покрыто» — не пробел в тексте, а названная граница.
+
+| измерение | чем покрыто в `receipt` §V9.5 | чего нет |
+|---|---|---|
+| capture coverage | `stdout_sha256`, `stderr_sha256`, `exit_code`, `wall_clock_ms`, `budget_ms`, `deterministic`, `toolchain`, `axioms`, `image_digest` | содержимого артефакта нет: оно за `submission_ref` → `artifact_hash` записи подачи |
+| attribution | `verifier_pubkey` + `signature` (Ed25519 над каноном 13 ключей), `submission_ref` | ключ исполнителя не дублируется: он в подписи подачи, `submission_ref` её фиксирует |
+| oversight linkage | `order_ref` (term_hash заказа), `budget_ms` | `deadline` и `escrow_ref` не дублируются: они в записи заказа, к которой ведёт `order_ref` |
+| integrity | подпись над каноническим JSON; `image_digest` обязан равняться заказанному; `axioms` только из `AXIOM_ALLOWLIST`; `deterministic = true` | — |
+| reconstruction | `derive` пересчитывает вердикт из полей; `toolchain` и `image_digest` названы | повторное исполнение требует образ, артефакт и заказ: квитанция — вывод, а не вход |
+
+Офлайн-проверка без нашего узла — цель, а не факт: канон, подпись и `derive` записаны в §V9.5,
+векторы — в `docs/PAID_ORDER-VECTORS.md`, но отдельного теста «посторонний проверяет квитанцию
+без узла и сети» пока нет (R-21 аудита 2026-10-30; карточка впереди).
 
 ---
 
