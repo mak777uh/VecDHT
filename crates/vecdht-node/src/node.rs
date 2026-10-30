@@ -1263,17 +1263,25 @@ impl ShardNode {
         &mut self,
         from: Addr,
         bytes: &[u8],
-        now_bucket: u32,
+        now: Clock,
     ) -> Result<Vec<Envelope>, NodeError> {
         let req = WalPullRequest::decode(bytes)?;
         if req.shard != self.shard {
             return Ok(Vec::new());
         }
+        // §11.3.4: pull — работа узла, и она тратит тот же узловой бюджет, что publish. Место
+        // списания — после проверки шарда: чужой шард узлом не обслуживается, и его отказ не
+        // должен конкурировать с обслуживанием своих. Секунда, а не бакет: бюджет per-second
+        // (§11.3), часовая гранулярность протокола ему не подходит.
+        let verdict = self.admission.borrow_mut().reserve_admit(now.sec);
+        if let Some(code) = verdict.code() {
+            return self.err(from, code, verdict.retry_after_ms());
+        }
         let mf = self.store.manifest();
         // Хвост перекрыт снапшотом: кадры отсюда не выдаются, и честный ответ — кусок снапшота
         // (§9.7 + §9.5). Повторный холодный запрос от того же пира = «дай следующий кусок».
         if req.from_seq < mf.oldest_wal_needed && self.store.last_snapshot_seq > 0 {
-            return self.serve_snapshot(from, &mf, now_bucket);
+            return self.serve_snapshot(from, &mf, now.bucket);
         }
         let mut frames = Vec::new();
         let mut last = req.from_seq.saturating_sub(1);
@@ -1625,7 +1633,7 @@ impl ShardNode {
             Kind::ReplicateAck => self.handle_replicate_ack(from, bytes),
             Kind::MembershipUpdate => self.handle_membership(from, bytes, now.bucket),
             Kind::LeaseGrant => self.handle_lease_grant(from, bytes, now.bucket),
-            Kind::WalPullRequest => self.handle_pull_request(from, bytes, now.bucket),
+            Kind::WalPullRequest => self.handle_pull_request(from, bytes, now),
             Kind::WalPullResponse => self.handle_pull_response(from, bytes),
             Kind::SnapshotOffer => self.handle_snapshot_offer(from, bytes),
             Kind::LeaveNotice => self.handle_leave(from, bytes, now.bucket),
