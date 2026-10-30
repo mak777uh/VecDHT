@@ -193387,3 +193387,2211 @@ TEXTGUARD_EXIT=1
 DISK_FREE_MB=19129 RAM_FREE_MB=6749 PAGEFILE_PEAK_MB=7660
 SECONDS_total=3549 
 VERIFY_FAIL=1
+########## E-0158 · workspace-verify · 2026-10-30T05:27:55+03:00 ##########
+### носитель до сборки ###
+DISK_FREE_MB=18701 RAM_FREE_MB=7664 PAGEFILE_PEAK_MB=7660
+### cargo test --workspace ### 2026-10-30T05:27:57+03:00
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 12.34s
+     Running unittests src\lib.rs (target\debug\deps\vecdht_artifact-1ef844cd80fcbcc2.exe)
+
+running 37 tests
+test json::tests::duplicate_keys_and_bad_escapes_rejected ... ok
+test json::tests::negative_and_boundary_integers ... ok
+test json::tests::floats_and_non_canonical_numbers_rejected ... ok
+test json::tests::canonical_round_trip_is_exact ... ok
+test json::tests::utf8_passes_through_verbatim ... ok
+test json::tests::field_lookup_and_types ... ok
+test json::tests::whitespace_and_trailing_content_rejected ... ok
+test manifest::tests::duplicate_key_rejected ... ok
+test manifest::tests::shard_budget_matches_the_spec_estimate ... ok
+test manifest::tests::non_canonical_bytes_rejected ... ok
+test manifest::tests::hex_fields_are_fixed_length ... ok
+test manifest::tests::reference_manifest_is_canonical_and_valid ... ok
+test manifest::tests::unsigned_and_signed_bytes_differ_only_by_signatures ... ok
+test manifest::tests::ranges_reject_negative_and_oversized ... ok
+test tests::load_of_missing_directory_is_io_error ... ok
+test manifest::tests::unknown_or_reordered_key_rejected ... ok
+test manifest::tests::codec_mismatch_is_an_error_not_a_redefinition ... ok
+test manifest::tests::uppercase_hex_is_not_canonical ... ok
+test manifest::tests::semantic_checks_reject_impossible_parameters ... ok
+test tests::assemble_refuses_centroids_the_manifest_does_not_pin ... ok
+test centroids::tests::f64_input_with_wrong_length_is_rejected ... ok
+test centroids::tests::size_is_exactly_nlist_times_dim ... ok
+test tests::preprocessing_mismatch_reports_model_mismatch ... ok
+test tests::signing_material_excludes_signatures_and_is_canonical ... ok
+test centroids::tests::u8_and_i8_views_agree_and_rows_are_stable ... ok
+test tests::announce_carries_the_same_numbers_as_the_manifest ... ok
+test centroids::tests::wrong_size_rejected_not_truncated ... ok
+test centroids::tests::f64_input_uses_the_same_grid_as_records ... ok
+test tests::wrong_pinned_hash_is_refused ... ok
+test tests::reference_artifact_hashes_are_stable ... ok
+test tests::tampering_with_centroids_breaks_both_hashes ... ok
+test centroids::tests::assign_and_top_agree_with_raw_crypto ... ok
+test tests::genesis_hash_is_what_certs_bind_to ... ok
+test tests::foreign_authority_key_does_not_count ... ok
+test tests::save_and_load_round_trip_is_byte_exact ... ok
+test tests::tampering_with_manifest_breaks_signature_and_pinned_hash ... ok
+test tests::threshold_signature_round_trip ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+
+     Running tests\fanout_rule.rs (target\debug\deps\fanout_rule-95debed97372d7c3.exe)
+
+running 1 test
+test the_two_rules_coincide_at_nprobe_4_and_diverge_above_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.52s
+
+     Running tests\fuzz_decode.rs (target\debug\deps\fuzz_decode-edda060171b6f172.exe)
+
+running 4 tests
+test known_non_canonical_shapes_are_rejected ... ok
+test manifest_decode_accepts_only_its_own_rendition ... ok
+test centroid_input_and_assignment_are_total ... ok
+test json_parse_never_panics_and_accepts_only_canonical_bytes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.65s
+
+     Running tests\geometry_wall.rs (target\debug\deps\geometry_wall-24ff80a20079aee4.exe)
+
+running 3 tests
+test credential_shard_numbers_are_bounded_by_the_compiled_constant ... ok
+test the_shards_ceiling_branch_cannot_be_reached_while_the_equality_lives ... ok
+test only_the_reference_geometry_triple_passes_manifest_check ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\golden_artifact.rs (target\debug\deps\golden_artifact-2f95af2f89f83a15.exe)
+
+running 2 tests
+test fixture_pins_the_signed_bytes_not_their_hash ... ok
+test golden_artifact_matches_checked_in_fixture ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\stand_grid_degeneracy.rs (target\debug\deps\stand_grid_degeneracy-8862c03730e035ea.exe)
+
+running 1 test
+test the_grid_stands_in_the_way_of_the_nprobe_4_measurement ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 48.72s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_benches-be0c327f91c6e628.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_cli-ab1086722fd10906.exe)
+
+running 71 tests
+test args::tests::a_leading_flag_leaves_the_path_empty_for_the_dispatcher_to_refuse ... ok
+test agent_cmd::tests::a_missing_seed_is_a_named_refusal_not_a_random_identity ... ok
+test agent_cmd::tests::agent_errors_keep_their_protocol_text ... ok
+test args::tests::a_positional_token_after_flags_is_still_an_error ... ok
+test agent_cmd::tests::zero_timeout_is_refused ... ok
+test agent_cmd::tests::a_bad_bootstrap_address_is_named ... ok
+test agent_cmd::tests::a_bad_listen_address_is_named_as_listen ... ok
+test args::tests::duplicated_flag_is_an_error ... ok
+test args::tests::numbers_are_parsed_into_the_target_type ... ok
+test args::tests::hex_is_lowercase_and_exact_length ... ok
+test agent_cmd::tests::run_without_a_listener_is_refused_by_name ... ok
+test args::tests::equals_form_lets_a_value_start_with_dashes ... ok
+test agent_cmd::tests::the_grant_hex_roundtrips_through_the_session_parser ... ok
+test args::tests::unknown_flag_is_rejected_not_ignored ... ok
+test args::tests::a_value_flag_cannot_be_read_as_a_switch_and_absence_is_false ... ok
+test args::tests::the_path_ends_at_the_first_flag_and_double_dash_still_works ... ok
+test artifact_cmd::tests::dev_key_seeds_are_domain_and_index_bound ... ok
+test artifact_cmd::tests::label_alphabet_is_narrow_on_purpose ... ok
+test artifact_cmd::tests::surrogate_cannot_be_published_under_another_model_name ... ok
+test demo_cmd::tests::demo_owner_is_unique_and_stable ... ok
+test encode_cmd::tests::kind_rejects_anything_but_the_two_paths ... ok
+test encode_cmd::tests::source_label_names_the_real_model_or_the_surrogate ... ok
+test encode_cmd::tests::the_vector_line_is_truncated_unless_asked ... ok
+test index_cmd::tests::a_file_is_cut_into_exact_records ... ok
+test index_cmd::tests::a_shard_outside_the_geometry_is_rejected_before_io ... ok
+test pow_cmd::tests::a_random_nonce_fails_at_the_real_difficulty ... ok
+test pow_cmd::tests::a_wrong_context_is_rejected_even_with_a_valid_looking_nonce ... ok
+test pow_cmd::tests::bits_outside_the_adaptive_range_never_start_a_search ... ok
+test pow_cmd::tests::default_attempt_budget_is_bounded_by_the_difficulty ... ok
+test pow_cmd::tests::mining_at_the_minimum_policy_difficulty_verifies ... ignored, 2^POW_BITS_DEFAULT хешей: cargo test --release -p vecdht-cli -- --ignored
+test pow_cmd::tests::verify_accepts_a_real_solution_and_says_the_difficulty_is_off_policy ... ok
+test pow_cmd::tests::zero_attempts_is_refused_before_any_hashing ... ok
+test tests::a_leading_flag_without_a_command_is_a_usage_error_naming_the_flag ... ok
+test tests::a_missing_required_flag_is_code_usage_not_code_failed ... ok
+test tests::empty_argv_prints_usage_with_zero_code ... ok
+test tests::every_command_path_is_unique_and_two_tokens_or_one ... ok
+test tests::help_for_a_known_command_lists_its_flags ... ok
+test tests::help_for_unknown_command_falls_back_to_usage_but_still_says_so ... ok
+test tests::unknown_command_is_a_usage_error_and_names_the_command ... ok
+test tests::version_prints_the_protocol_constants ... ok
+test uptime::tests::clock_regression_never_subtracts_and_never_inflates ... ok
+test artifact_cmd::tests::corpus_drops_blank_lines_and_canonicalizes_the_rest ... ok
+test uptime::tests::foreign_file_is_not_read_as_a_ledger ... ok
+test uptime::tests::format_is_forty_six_bytes_and_roundtrips ... ok
+test uptime::tests::restart_folds_the_previous_session_and_grows_the_counter ... ok
+test uptime::tests::truncation_and_single_byte_edit_are_both_refused ... ok
+test uptime::tests::corrupt_ledger_is_not_resumable_without_an_explicit_reset ... ok
+test artifact_cmd::tests::embeddings_file_with_foreign_magic_or_dimension_is_refused ... ok
+test wire_cmd::tests::a_real_frame_decodes_and_is_byte_canonical ... ok
+test wire_cmd::tests::a_signed_frame_shows_its_signature_and_the_right_material ... ok
+test wire_cmd::tests::a_truncated_frame_is_reported_not_invented ... ok
+test index_cmd::tests::clusters_of_another_shard_never_produce_an_empty_answer ... ok
+test wire_cmd::tests::an_unsigned_frame_of_a_signed_kind_is_warned_about ... ok
+test wire_cmd::tests::lenient_prints_the_header_and_the_reason_instead_of_failing ... ok
+test wire_cmd::tests::the_kinds_table_is_the_whole_protocol_and_no_more ... ok
+test index_cmd::tests::the_store_refuses_to_publish_without_a_lease_on_its_own ... ok
+test wire_cmd::tests::every_kind_has_a_decoder_and_round_trips_its_own_body ... ok
+test wire_cmd::tests::two_sources_of_the_same_bytes_is_an_error_not_a_precedence ... ok
+test wire_cmd::tests::uppercase_odd_and_empty_hex_are_refused ... ok
+test index_cmd::tests::publishing_into_a_foreign_cluster_is_refused_not_silently_dropped ... ok
+test index_cmd::tests::any_filter_reproduces_the_unfiltered_answer ... ok
+test uptime::tests::writes_leave_no_partial_and_restart_reads_the_same_bytes ... ok
+test index_cmd::tests::filters_are_stored_in_slot_attr_and_survive_reopen ... ok
+test artifact_cmd::tests::dev_centroids_are_on_the_grid_and_all_distinct ... ok
+test index_cmd::tests::create_then_add_then_search_reads_back_what_was_published ... ok
+test index_cmd::tests::snapshot_barrier_survives_reopening_the_directory ... ok
+test artifact_cmd::tests::remap_refuses_a_truncated_records_file ... ok
+test demo_cmd::tests::bounds_reject_a_corpus_disguised_as_a_demo ... ok
+test artifact_cmd::tests::remap_puts_every_record_into_the_shard_of_its_new_cluster ... ok
+test demo_cmd::tests::the_default_run_finishes_and_reports_an_honest_surrogate_warning ... ok
+test demo_cmd::tests::a_full_probe_reproduces_the_brute_force_exactly ... ok
+
+test result: ok. 70 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.47s
+
+     Running unittests src\main.rs (target\debug\deps\vecdht_cli-605e1ee0226fd0f0.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\cli.rs (target\debug\deps\cli-ffb72ab0291d14e5.exe)
+
+running 17 tests
+test help_and_unknown_flags_stay_code_usage ... ok
+test wire_kinds_prints_the_frame_table ... ok
+test wire_decode_rebuilds_a_publish_frame_it_was_given ... ok
+test key_show_derives_the_same_names_the_node_uses ... ok
+test a_shard_number_outside_the_protocol_is_refused ... ok
+test index_add_rejects_a_partial_record ... ok
+test index_create_without_epoch_refuses_to_publish ... ok
+test a_gc_tick_in_the_same_command_removes_every_record ... ok
+test an_unreachable_signature_threshold_is_refused_before_writing ... ok
+test index_commands_drive_one_shard_on_disk ... ok
+test encode_refuses_a_silent_surrogate_and_labels_it_when_allowed ... ok
+test artifact_init_then_show_then_verify_agree_on_the_hash ... ok
+test overwriting_an_artifact_needs_an_explicit_force ... ok
+test the_same_label_rebuilds_a_byte_identical_artifact ... ok
+test a_real_process_returns_the_same_codes_as_run ... ok
+test demo_runs_offline_and_calls_itself_a_surrogate ... ok
+test agent_run_raises_a_listener_and_stops_on_the_registered_budget ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.17s
+
+     Running tests\node_bootstrap.rs (target\debug\deps\node_bootstrap-370a67c909caab4b.exe)
+
+running 5 tests
+test cert_refuses_a_signer_outside_the_authority_set_and_writes_nothing ... ok
+test genesis_refuses_a_duplicate_owner_and_a_shard_of_one ... ok
+test genesis_with_shuffled_lines_is_the_same_frame_and_passes_chain_validate ... ok
+test cert_from_key_files_passes_the_nodes_own_verifier_and_fails_when_a_signature_is_removed ... ok
+test cert_is_byte_identical_on_two_runs_with_the_same_inputs ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests\node_centroids.rs (target\debug\deps\node_centroids-7df48c12830cbd49.exe)
+
+running 2 tests
+test node_run_refuses_artifact_without_centroids ... ok
+test forged_cluster_id_is_reassigned_by_live_cli_node ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.46s
+
+     Running tests\node_lease_status.rs (target\debug\deps\node_lease_status-a48fb9718b1b3e19.exe)
+
+running 1 test
+test node_grant_survives_process_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.77s
+
+     Running tests\node_run.rs (target\debug\deps\node_run-2ab3f70ebbfc3c1d.exe)
+
+running 3 tests
+test node_run_refuses_incomplete_or_foreign_ceremony ... ok
+NODE_READY listen=/ip4/127.0.0.1/udp/50463/quic-v1 peer=12D3KooWEKyPsvgm7g8vyRA59466ph3t9VLxEUFzNqTXHJdfY2Wq owner=43046bfe4092b3e94994eada15dcc20d8aaa07b658fd3954eb8e0efb8bdca5de shard=0
+UPTIME_RESET был битый файл в 20 байт, счётчик начат заново по явному флагу оператора
+UPTIME_OPEN file=C:\Users\Admin\AppData\Local\Temp\vecdht-cli-node-run-uptime-3508\node-corrupt\uptime.bin status=reset sessions=1 accumulated_sec=0 closed_now_sec=0
+NODE_STOP t=1
+test node_uptime_counter_survives_restart_and_refuses_corruption ... ok
+test node_run_publishes_finds_and_survives_restart ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.95s
+
+     Running tests\revoke_publish.rs (target\debug\deps\revoke_publish-0605f49ccb796aef.exe)
+
+running 2 tests
+test revoke_refuses_below_threshold_and_foreign_keys ... ok
+test revoke_applies_live_and_survives_restart ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.01s
+
+     Running tests\s13_disk_privacy.rs (target\debug\deps\s13_disk_privacy-3b7065c11661c4d6.exe)
+
+running 1 test
+test disk_privacy_audit_scans_what_the_node_actually_writes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.78s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_crypto-21d13b47c2a23aec.exe)
+
+running 46 tests
+test cert::tests::malformed_authority_sig_count_is_rejected_by_decoder ... ok
+test ids::tests::dedup_key_orders_deterministically ... ok
+test cert::tests::verify_domain_rejects_wrong_length_pubkey_material ... ok
+test ids::tests::ids_are_domain_separated ... ok
+test ids::tests::entry_key_separates_slots_and_shards ... ok
+test ids::tests::intent_id_depends_on_preprocessing_version ... ok
+test ids::tests::intent_text_hash_matches_content_hash_domain ... ok
+test pow::tests::boundary_bits_rejected ... ok
+test pow::tests::cost_is_geometric_across_the_adaptive_range ... ok
+test pow::tests::cost_estimate_matches_measured_throughput ... ok
+test pow::tests::input_is_context_bound ... ok
+test pow::tests::low_bits_found_quickly_and_verifies ... ok
+test cert::tests::revoked_nonce_rejects_otherwise_valid_cert ... ok
+test pow::tests::streaming_hasher_equals_one_shot_hash_of_concat ... ok
+test cert::tests::genesis_validity_and_capacity_are_checked_before_signature ... ok
+test quant::tests::clusters_of_shard_partition_nlist_exactly ... ok
+test quant::tests::l2_sq_bounds_match_contract ... ok
+test quant::tests::normalize_rejects_degenerate ... ok
+test quant::tests::quantization_error_within_budget ... ok
+test quant::tests::assign_nearest_wins_when_centroid_zero_is_closest ... ok
+test quant::tests::quantize_is_deterministic_and_symmetric_in_rounding ... ok
+test quant::tests::quantize_maps_unit_vectors_exactly ... ok
+test quant::tests::rounding_is_half_away_not_banker ... ok
+test quant::tests::shard_validity ... ok
+test quant::tests::assign_picks_nearest_with_lowest_index_tiebreak ... ok
+test quant::tests::similarity_is_monotone_in_d2 ... ok
+test quant::tests::top_clusters_and_grouping ... ok
+test quant::tests::l2_sq_equals_naive_reference_on_random_inputs ... ok
+test sig::tests::kind_confusion_is_rejected ... ok
+test pow::tests::nonce_does_not_transfer_between_contexts ... ok
+test sig::tests::sign_and_verify_message_body ... ok
+test sig::tests::domain_signing_for_membership_chain ... ok
+test sig::tests::signed_match_result_frame_roundtrip ... ok
+test pow::tests::bits_are_monotone_in_difficulty ... ok
+test sig::tests::sign_domain_rejects_other_domain_and_kind_confusion ... ok
+test sig::tests::suspicious_pubkeys_are_rejected_without_panicking ... ok
+test cert::tests::one_signature_short_is_rejected ... ok
+test sig::tests::tampered_body_or_domain_fails ... ok
+test cert::tests::cert_survives_wire_roundtrip_after_signing ... ok
+test cert::tests::tampered_field_breaks_signature ... ok
+test cert::tests::duplicate_signature_from_same_key_does_not_reach_threshold ... ok
+test cert::tests::threshold_exactly_met ... ok
+test cert::tests::unknown_signer_is_not_counted ... ok
+test cert::tests::revoke_needs_threshold_and_is_verifiable ... ok
+test cert::tests::identity_signed_revoke_uses_the_same_domain_and_body ... ok
+test cert::tests::role_and_shard_scoping ... ok
+
+test result: ok. 46 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+
+     Running tests\fuzz_verify.rs (target\debug\deps\fuzz_verify-e672e8949247e368.exe)
+
+running 4 tests
+test pow_threshold_is_monotone_in_bits ... ok
+test cert_verification_rejects_every_malformed_shape_without_panicking ... ok
+test quantization_and_distances_keep_their_invariants ... ok
+test signature_verification_never_panics_and_never_fabricates ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.69s
+
+     Running tests\golden_vectors.rs (target\debug\deps\golden_vectors-6ec0bd2872c8f162.exe)
+
+running 3 tests
+test quantized_form_is_always_in_grid ... ok
+test pow_nonce_in_fixture_satisfies_the_threshold ... ok
+test golden_vectors_match_checked_in_fixture ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\s42_cert_ladder.rs (target\debug\deps\s42_cert_ladder-b97a07b66e25b5cd.exe)
+
+running 4 tests
+test zero_capacity_is_refused_before_the_threshold_signed_and_unsigned ... ok
+test two_rungs_share_one_name_and_differ_only_in_have ... ok
+test three_ladder_rungs_are_unreachable_through_the_wire_and_the_wire_adds_a_fourth ... ok
+test ladder_is_a_total_function_with_eight_names_and_a_power_of_two_histogram ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+     Running tests\shard_number_admission.rs (target\debug\deps\shard_number_admission-45b8c0437816fb28.exe)
+
+running 1 test
+test an_out_of_range_shard_number_becomes_someone_elses_cluster_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\shard_number_exhaustive.rs (target\debug\deps\shard_number_exhaustive-12b8bb43a0ddacf7.exe)
+
+running 1 test
+test every_u16_shard_number_is_either_a_masked_legal_list_or_a_panic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests\shard_number_release.rs (target\debug\deps\shard_number_release-b0f817ebf2d1b3f6.exe)
+
+running 1 test
+test release_arithmetic_replaces_the_panic_with_an_empty_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_embed-376ba01072da63ef.exe)
+
+running 67 tests
+test kmeans::tests::rejects_non_unit_and_bad_shape ... ok
+test metrics::tests::dcg_discounts_by_position ... ok
+test metrics::tests::gain_percent_is_relative_to_the_baseline ... ok
+test metrics::tests::median_and_mean_survive_nan ... ok
+test metrics::tests::ndcg_is_one_for_the_ideal_order_and_less_otherwise ... ok
+test metrics::tests::recall_counts_the_intersection_over_the_truth_prefix ... ok
+test metrics::tests::metrics_are_order_of_summation_sensitive_but_deterministic ... ok
+test metrics::tests::recall_ignores_extra_hits_beyond_k ... ok
+test model::tests::non_finite_and_zero_vectors_are_errors_not_garbage ... ok
+test model::tests::pooled_is_normalized_before_quantizing ... ok
+test model::tests::pipeline_follows_the_reference_manifest ... ok
+test prefix::tests::index_side_is_identity_and_never_sees_the_query_prefix ... ok
+test model::tests::manifest_declaring_another_grid_or_dim_is_refused ... ok
+test prefix::tests::intent_prefix_is_refused_not_applied ... ok
+test prefix::tests::malformed_prefixes_are_rejected ... ok
+test prefix::tests::non_nfc_prefix_is_refused ... ok
+test prefix::tests::query_prefix_is_applied_verbatim_without_separator ... ok
+test prefix::tests::reference_manifest_has_no_prefixes_yet ... ok
+test publish::tests::a_broken_shape_is_refused ... ok
+test publish::tests::an_indivisible_nlist_is_refused ... ok
+test publish::tests::fewer_documents_than_clusters_is_refused_not_silently_truncated ... ok
+test model::tests::intent_text_that_fails_validation_never_reaches_the_model ... ok
+test kmeans::tests::cap_is_respected_when_second_cluster_has_room ... ok
+test model::tests::model_mismatch_is_refused_before_inference ... ok
+test rerank::tests::empty_shortlist_is_a_valid_empty_result ... ok
+test cache::tests::stats_live_follows_the_map ... ok
+test rerank::tests::higher_score_wins_and_the_candidate_set_is_unchanged ... ok
+test rerank::tests::length_mismatch_is_caught_before_ordering ... ok
+test rerank::tests::nan_score_is_an_error_not_an_order ... ok
+test rerank::tests::ordering_is_idempotent_and_stable_across_runs ... ok
+test rerank::tests::ties_fall_back_to_ann_order ... ok
+test cache::tests::remove_returns_the_stored_value ... ok
+test rerank::tests::too_many_candidates_is_refused_rather_than_silently_truncated ... ok
+test cache::tests::zero_ttl_and_zero_limit_disable_the_cache_without_panicking ... ok
+test cache::tests::hit_only_within_ttl_and_by_canonical_text ... ok
+test cache::tests::eviction_is_deterministic_under_overflow ... ok
+test shardmap::tests::transport_is_not_worse_than_a_greedy_feasible_assignment ... ok
+test shardmap::tests::config_mismatch_is_rejected ... ok
+test testing::tests::hash_model_is_stable_and_text_sensitive ... ok
+test testing::tests::hash_model_output_is_finite_and_in_range ... ok
+test cache::tests::expired_entries_are_dropped_from_the_map ... ok
+test cache::tests::key_ignores_noncanonical_whitespace_only_after_normalization ... ok
+test text::tests::collapse_uses_unicodewhitespace_not_only_ascii_space ... ok
+test text::tests::emb_digest_separates_texts_and_versions ... ok
+test text::tests::control_characters_rejected ... ok
+test text::tests::empty_input_errors_instead_of_empty_ok ... ok
+test text::tests::length_advice_is_about_characters_not_bytes ... ok
+test model::tests::finalize_is_deterministic_and_lands_on_the_grid ... ok
+test text::tests::limit_applies_to_normalized_bytes ... ok
+test text::tests::line_break_is_rejected_not_merged ... ok
+test text::tests::markup_and_structured_rejected ... ok
+test text::tests::normalizes_nfc_and_spaces_and_trims ... ok
+test text::tests::nfc_before_length_check ... ok
+test text::tests::normalization_is_idempotent ... ok
+test model::tests::query_clusters_are_grouped_by_shard_and_bounded_by_nprobe ... ok
+test kmeans::tests::finds_orthogonal_clouds_and_is_deterministic ... ok
+test model::tests::query_and_intent_use_the_same_canonical_text ... ok
+test shardmap::tests::published_order_respects_the_shard_contract ... ok
+test shardmap::tests::map_is_even_and_covers_every_cluster ... ok
+test shardmap::tests::map_is_deterministic ... ok
+test testing::tests::synthetic_is_reproducible_and_within_i8 ... ok
+test publish::tests::published_rows_are_shard_blocks_of_exact_size ... ok
+test publish::tests::documents_get_the_cluster_the_node_rule_gives ... ok
+test publish::tests::remap_moves_records_into_the_new_numbering ... ok
+test publish::tests::publishing_is_deterministic_and_thread_count_does_not_matter ... ok
+test testing::tests::synthetic_centroids_are_loadable_by_the_real_artifact_type ... ok
+test testing::tests::synthetic_geometry_is_a_real_ivf_test_not_an_identity ... ok
+
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.76s
+
+     Running tests\h0090_hubness.rs (target\debug\deps\h0090_hubness-5b375f7f5b9d88bb.exe)
+
+running 1 test
+test hubness_and_blind_poisoning_on_the_real_corpus ... ignored, H-0090: 50k реального корпуса, минуты CPU; запускать вручную
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\p0_harness.rs (target\debug\deps\p0_harness-056981a05f720aba.exe)
+
+running 7 tests
+test gate_iv_grid_perturbation_is_one_coordinate_not_fifty_percent ... ok
+test gate_i_quantize_and_assign_cost ... ok
+test gate_iv_no_hidden_state_between_calls ... ok
+test gate_iv_pipeline_outputs_are_identical_across_thread_counts ... ok
+test gate_ii_ann_machinery_matches_brute_force_at_full_probe has been running for over 60 seconds
+test gate_iii_rerank_contract_and_metric_machinery has been running for over 60 seconds
+test gate_iv_cluster_assignment_is_stable_under_perturbation has been running for over 60 seconds
+test gate_iv_cluster_assignment_is_stable_under_perturbation ... ok
+test gate_iii_rerank_contract_and_metric_machinery ... ok
+test gate_ii_ann_machinery_matches_brute_force_at_full_probe ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 83.82s
+
+     Running tests\p0_real_corpus.rs (target\debug\deps\p0_real_corpus-59b3aa255a6bf029.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_index-db64101b8e769a86.exe)
+
+running 86 tests
+test entry::tests::cluster_id_domain_matches_nlist ... ok
+test entry::tests::expiry_is_purely_bucket_relative ... ok
+test entry::tests::layout_is_424_bytes ... ok
+test entry::tests::near_overflow_bucket_does_not_wrap_the_deadline ... ok
+test entry::tests::bytes_are_read_back_for_every_field_order ... ok
+test entry::tests::truncated_and_trailing_inputs_are_rejected ... ok
+test entry::tests::wire_bytes_equal_insert_op_bytes ... ok
+test entry::tests::ttl_field_holds_the_political_limit ... ok
+test ivf::tests::expire_uses_only_the_bucket ... ok
+test ivf::tests::direction_filter_reads_the_author_bits ... ok
+test ivf::tests::invariants_catch_a_broken_list ... ok
+test ivf::tests::lists_stay_sorted_under_interleaved_lifecycle ... ok
+test ivf::tests::matches_carry_owner_and_cluster ... ok
+test ivf::tests::foreign_cluster_is_refused ... ok
+test ivf::tests::live_slots_iterates_ascending_and_skips_holes ... ok
+test ivf::tests::next_deadline_matches_the_expire_predicate ... ok
+test ivf::tests::live_slots_never_move_but_dead_ones_are_reused_from_the_bottom ... ok
+test ivf::tests::filter_applies_before_top_k_truncation ... ok
+test ivf::tests::remove_owner_is_idempotent_and_frees_dedup ... ok
+test ivf::tests::republish_into_another_cluster_moves_list_membership_only ... ok
+test ivf::tests::republish_replaces_in_place ... ok
+test ivf::tests::republish_overwrites_attr_and_death_clears_it ... ok
+test ivf::tests::reserved_attr_bits_are_refused ... ok
+test ivf::tests::search_orders_by_distance_then_slot ... ok
+test ivf::tests::search_contract_is_d2_then_slot ... ok
+test ivf::tests::search_skips_expired_without_a_gc_tick ... ok
+test ivf::tests::search_top_k_and_unknown_clusters ... ok
+test manifest::tests::every_byte_of_the_manifest_is_covered_by_crc_or_magic ... ok
+test ivf::tests::trimming_the_tail_does_not_change_future_slot_numbers ... ok
+test manifest::tests::manifest_roundtrip_is_fixed_size ... ok
+test manifest::tests::wrong_size_and_shard_are_rejected ... ok
+test owner_table::tests::collision_is_resolved_by_owner_from_the_arena ... ok
+test owner_table::tests::hash_is_stable_and_spread ... ok
+test owner_table::tests::lookups_survive_interleaved_removes ... ok
+test owner_table::tests::put_get_remove_roundtrip ... ok
+test owner_table::tests::re_publish_hits_the_same_slot_in_place ... ok
+test root::tests::chain_root_senses_shard_order_and_content ... ok
+test root::tests::tree_root_is_canonical_over_positions ... ok
+test root::tests::chain_root_update_parts_matches_update ... ok
+test snapshot::tests::names_roundtrip_and_reject_foreign_files ... ok
+test root::tests::chain_and_tree_converge_on_the_same_log ... ok
+test root::tests::tree_proves_one_leaf_and_rejects_another ... ok
+test ivf::tests::mem_budget_matches_the_spec_table ... ok
+test snapshot::tests::shard_mismatch_is_refused_before_writing ... ok
+test owner_table::tests::grow_rebuilds_deterministically ... ok
+test snapshot::tests::list_snapshots_skips_partials_and_wal ... ok
+test snapshot::tests::empty_index_writes_and_reads ... ok
+test snapshot::tests::crc_and_magic_catch_tampering ... ok
+test snapshot::tests::next_slot_that_is_too_small_is_rejected ... ok
+test snapshot::tests::list_that_disagrees_with_entries_is_rejected ... ok
+test manifest::tests::half_write_never_leaves_two_versions ... ok
+test snapshot::tests::slot_attrs_survive_the_roundtrip_and_format_one_is_refused ... ok
+test snapshot::tests::snapshot_file_is_the_state_not_the_ram ... ok
+test manifest::tests::manifest_write_is_atomic_and_respects_the_fault ... ok
+test snapshot::tests::holes_are_not_written_but_slots_survive ... ok
+test manifest::tests::epoch_marker_roundtrip_and_absence ... ok
+test tests::bucket_math_matches_the_spec ... ok
+test store::tests::epoch_fencing_blocks_service_and_replay ... ok
+test tests::shard_and_cluster_constants_agree_with_wire ... ok
+test wal::tests::absurd_body_len_is_rejected_without_allocating ... ok
+test store::tests::foreign_shard_frames_are_refused ... ok
+test wal::tests::crc_covers_seq_kind_len_and_body ... ok
+test tests::fsync_dir_does_not_break_recovery_on_windows ... ok
+test store::tests::dedup_goes_through_the_wal ... ok
+test wal::tests::frame_roundtrip_and_layout ... ok
+test store::tests::error_before_fsync_leaves_memory_untouched ... ok
+test store::tests::oversized_frame_body_is_refused_before_write ... ok
+test snapshot::tests::read_then_write_is_the_identity ... ok
+test wal::tests::segment_names_roundtrip ... ok
+test wal::tests::truncated_tail_is_reported_not_fatal ... ok
+test wal::tests::unknown_op_kind_is_rejected_after_crc ... ok
+test store::tests::group_commit_batches_then_applies_in_order ... ok
+test store::tests::durable_then_crash_applies_once_on_retry ... ok
+test store::tests::gc_tick_and_time_mark_are_replicated_state ... ok
+test store::tests::publish_writes_then_applies ... ok
+test wal::tests::injected_fsync_keeps_bytes_durable ... ok
+test wal::tests::rotation_thresholds ... ok
+test wal::tests::append_fsync_read_back ... ok
+test wal::tests::injected_append_leaves_a_recoverable_stub ... ok
+test wal::tests::reopening_a_segment_does_not_truncate_it ... ok
+test wal::tests::delete_older_than_keeps_the_referenced_segment ... ok
+test store::tests::snapshot_trigger_counts_applied_ops_not_live ... ok
+test store::tests::serving_requires_an_epoch_confirmed_on_disk ... ok
+test store::tests::replicated_stream_rebuilds_the_same_index ... ok
+test store::tests::snapshot_barrier_pairs_files_and_drops_covered_segments ... ok
+test owner_table::tests::sixteen_bytes_per_entry_at_scale ... ok
+
+test result: ok. 86 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.18s
+
+     Running tests\crash_matrix.rs (target\debug\deps\crash_matrix-4722fba898bf2143.exe)
+
+running 11 tests
+test point_02_crash_after_fsync_applies_the_op_exactly_once ... ok
+test point_09_enospc_mid_append_touches_neither_wal_nor_memory ... ok
+test point_10_restart_cannot_roll_the_epoch_back ... ok
+test point_01_torn_append_is_rejected_and_the_tail_is_cut ... ok
+test point_04_fresh_snapshot_without_manifest_update_is_still_the_old_pair ... ok
+test point_03_partial_snapshot_is_ignored_by_recovery ... ok
+test point_08_gc_tick_and_inserts_apply_in_seq_order_with_stable_slots ... ok
+test point_05_manifest_rename_mid_keeps_one_complete_version ... ok
+test point_06_absent_manifest_is_safe_because_the_wal_was_not_pruned ... ok
+test point_07_segments_are_pruned_only_after_the_manifest_is_written ... ok
+test property_recover_disk_equals_replay_all_ops ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.68s
+
+     Running tests\determinism.rs (target\debug\deps\determinism-8ac84fa1da456099.exe)
+
+running 5 tests
+test stream_helpers_are_deterministic ... ok
+test republish_of_the_same_owner_replaces_in_place_through_the_wal ... ok
+test two_independent_runs_produce_identical_canonical_match_bodies ... ok
+test replicas_with_clocks_40_minutes_apart_write_the_same_index_file ... ok
+test compaction_does_not_renumber_slots_nor_change_entry_keys ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+
+     Running tests\find_cluster_list_amplification.rs (target\debug\deps\find_cluster_list_amplification-0578b9874d52065c.exe)
+
+running 1 test
+test duplicate_cluster_lists_are_not_collapsed has been running for over 60 seconds
+test duplicate_cluster_lists_are_not_collapsed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 191.15s
+
+     Running tests\geometry_rotation.rs (target\debug\deps\geometry_rotation-e097e34adba7a4e4.exe)
+
+running 5 tests
+test artifact_announce_already_carries_geometry_as_data ... ok
+test cert_shard_cap_forces_wildcard_and_wildcard_disables_filtering ... ok
+test validity_not_layout_refusals_come_from_validators ... ok
+test layout_invariance_frame_length_does_not_depend_on_geometry_value ... ok
+test snapshot_cross_geometry_rejected_but_header_has_no_geometry_field ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\memory_budget.rs (target\debug\deps\memory_budget-81719d25ea5d5cf8.exe)
+
+running 1 test
+test one_million_entries_fit_the_budget ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.59s
+
+     Running tests\root_cost.rs (target\debug\deps\root_cost-39b022e3fc7f670d.exe)
+
+running 1 test
+test root_cost_measured_on_real_store ... ignored, E-0019: замер на реальном диске, RAYON_NUM_THREADS=1
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\s19_assign_row_price.rs (target\debug\deps\s19_assign_row_price-e716cdc7015f1c27.exe)
+
+running 2 tests
+test assign_row_arithmetic_and_fixture_degeneracy ... ok
+test assign_row_price_in_release ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.29s
+
+     Running tests\s19_pow_row_price.rs (target\debug\deps\s19_pow_row_price-4b5c810f12f675ca.exe)
+
+running 1 test
+test pow_row_of_19_4_is_a_host_snapshot_not_a_code_gate ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.25s
+
+     Running tests\s19_recall_filter.rs (target\debug\deps\s19_recall_filter-f978405bcdfdf5e4.exe)
+
+running 1 test
+test recall_under_class_filter_on_a_sparse_corpus ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.21s
+
+     Running tests\s19_snapshot_1m_price.rs (target\debug\deps\s19_snapshot_1m_price-b1441c3e48cffa0f.exe)
+
+running 1 test
+test snapshot_of_one_million_records_pays_the_19_4_row ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.09s
+
+     Running tests\s19_wal_group_commit_price.rs (target\debug\deps\s19_wal_group_commit_price-9c1e2994a2f9f677.exe)
+
+running 2 tests
+test wal_row_arithmetic_and_group_commit_is_only_a_predicate ... ok
+test wal_row_price_in_release ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+
+     Running tests\search_latency.rs (target\debug\deps\search_latency-f3e998cbad56da39.exe)
+
+running 1 test
+test search_is_under_300_microseconds_at_1104_entries ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.60s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_net-a24457a6c1dc5cb8.exe)
+
+running 36 tests
+test agent::tests::a_grant_expiry_uses_the_same_ceil_as_the_issuer ... ok
+test agent::tests::a_publish_request_derives_the_same_intent_id_as_the_wire_contract ... ok
+test codec::tests::prefix_disagreeing_with_the_header_is_rejected ... ok
+test codec::tests::oversized_declarations_are_refused_before_allocation ... ok
+test agent::tests::merge_keeps_the_minimum_d2_per_owner_and_truncates_without_float ... ok
+test door::tests::named_collisions_are_the_only_shared_names ... ok
+test codec::tests::request_roundtrip_keeps_the_frame_verbatim ... ok
+test codec::tests::response_roundtrip_preserves_order_and_count ... ok
+test codec::tests::trailing_bytes_after_a_batch_are_an_error ... ok
+test door::tests::revoked_expired_and_below_threshold_are_three_names ... ok
+test door::tests::taxonomy_covers_every_handshake_error_variant ... ok
+test door::tests::ledger_is_bounded_by_names_not_by_refusals ... ok
+test keys::tests::a_sha256_peer_id_has_no_recoverable_owner ... ok
+test metrics::tests::only_nonzero_door_reasons_are_printed_and_order_is_stable ... ok
+test metrics::tests::fixed_names_are_unique_ascii_and_without_price ... ok
+test provider_cache::tests::a_republishing_provider_never_expires ... ok
+test keys::tests::the_same_seed_yields_the_same_libp2p_identity_and_the_key_roundtrips ... ok
+test provider_cache::tests::expiry_takes_only_what_is_older_than_the_deadline ... ok
+test provider_cache::tests::one_death_clears_the_peer_from_every_shard ... ok
+test provider_cache::tests::the_two_numbers_are_the_ones_the_spec_names ... ok
+test service::own_cert_window::the_boundary_is_exclusive ... ok
+test service::own_cert_window::a_node_without_own_cert_never_expires ... ok
+test service::tests::provider_key_roundtrips_and_rejects_foreign_keys ... ok
+test service::tests::frame_shard_matches_the_publish_body ... ok
+test provider_cache::tests::the_limit_drops_the_oldest_and_never_the_newcomer ... ok
+test agent::tests::accept_policy_matches_the_target_side_of_the_node ... ok
+test agent::tests::find_validation_rejects_an_empty_cluster_set_and_zero_top_k ... ok
+test agent::tests::network_params_come_from_the_artifact_not_from_constants ... ok
+test agent::tests::publish_validation_rejects_a_foreign_cluster_and_an_overlong_ttl ... ok
+test handshake::tests::role_header_must_match_the_cert_and_agents_must_not_carry_one ... ok
+test handshake::tests::an_agent_needs_no_cert_and_is_its_transport_key ... ok
+test handshake::tests::a_different_preprocessing_version_is_a_different_network ... ok
+test provider_cache::tests::a_peer_proved_dead_is_not_taken_back_from_the_dht ... ok
+test handshake::tests::a_revoked_nonce_is_rejected_though_the_threshold_is_valid ... ok
+test handshake::tests::a_cert_from_another_connection_is_rejected ... ok
+test handshake::tests::a_cert_bound_to_the_transport_passes_and_reports_its_owner ... ok
+
+test result: ok. 36 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests\c104_metrics_closed.rs (target\debug\deps\c104_metrics_closed-a2119bc57a9b90cc.exe)
+
+running 3 tests
+test size_does_not_grow_with_the_number_of_refusals ... ok
+test door_labels_are_closed_and_total_is_the_sum ... ok
+test fresh_agent_service_reports_fixed_zeros ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running tests\door_reason_counters.rs (target\debug\deps\door_reason_counters-22ba8db1745426a3.exe)
+
+running 2 tests
+test taxonomy_is_finite_and_named ... ok
+test ledger_names_the_cause_of_every_refusal has been running for over 60 seconds
+test ledger_names_the_cause_of_every_refusal ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 84.58s
+
+     Running tests\door_reason_observable.rs (target\debug\deps\door_reason_observable-954a4070ab54a8f1.exe)
+
+running 3 tests
+test an_expired_own_credential_never_knocks ... ok
+test expiry_and_revocation_are_the_same_bytes ... ok
+test door_refusals_collapse_to_one_code_and_leave_no_names ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 42.17s
+
+     Running tests\egress_per_query.rs (target\debug\deps\egress_per_query-459632f4b75a5aa8.exe)
+
+running 1 test
+test egress_bytes_per_query has been running for over 60 seconds
+test egress_bytes_per_query ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 159.49s
+
+     Running tests\gossip_door_parity.rs (target\debug\deps\gossip_door_parity-8236a6acb1e9c5cd.exe)
+
+running 4 tests
+test an_agent_without_a_credential_still_lands ... ok
+test the_same_identity_lands_once_the_door_is_passed ... ok
+test membership_style_gossip_is_not_gated ... ok
+test a_peer_refused_at_the_door_loses_the_gossip_publish_path ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 30.76s
+
+     Running tests\kad_server_role.rs (target\debug\deps\kad_server_role-4445791920197310.exe)
+
+running 1 test
+test index_node_without_shard_serves_the_dht ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.51s
+
+     Running tests\revocation_durable_after_restart.rs (target\debug\deps\revocation_durable_after_restart-2758078f51cc9543.exe)
+
+running 6 tests
+test a_corrupt_state_file_refuses_to_start_the_service ... ok
+test without_a_directory_the_service_keeps_the_old_behaviour ... ok
+test a_replayed_revoke_after_restart_does_not_grow_the_state ... ok
+test self_revoked_silence_survives_restart ... ok
+test revoked_peer_is_refused_before_restart_and_accepted_after_it ... ok
+test the_bound_refuses_new_revocations_without_amnesty ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 19.02s
+
+     Running tests\s13_privacy_pad.rs (target\debug\deps\s13_privacy_pad-10a9f82e9a3d0915.exe)
+
+running 5 tests
+test a_node_accepts_a_find_with_a_pad_tail ... ok
+test a_find_frame_has_a_fixed_overhead_and_carries_no_pad ... ok
+test a_lying_node_can_fabricate_a_distance_and_nobody_checks_it ... ok
+test a_full_scan_is_sixteen_frames_not_one_long_one ... ok
+test a_missing_owner_drops_the_next_groups_find_off_the_wire ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.74s
+
+     Running tests\s163_relay_circuit.rs (target\debug\deps\s163_relay_circuit-02d2e2cb688ed628.exe)
+
+running 2 tests
+test a_circuit_relay_carries_the_application_handshake ... ok
+test a_non_relay_role_does_not_relay_circuits ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 16.15s
+
+     Running tests\s163_shard_without_owner.rs (target\debug\deps\s163_shard_without_owner-01a8d21496449344.exe)
+
+running 9 tests
+test a_shard_without_an_epoch_answers_reads_and_refuses_writes ... ok
+test an_epochless_holder_produces_no_protocol_action_at_all ... ok
+test only_the_matching_genesis_opens_an_epoch_and_the_mismatch_is_silent ... ok
+test the_four_local_states_name_which_one_takes_a_write ... ok
+test an_epochless_holder_still_answers_the_dht_as_a_provider_of_the_shard ... ok
+test the_agent_pays_pow_for_an_epoch_nobody_serves ... ok
+test publishing_to_an_epochless_shard_ends_in_not_owner_not_in_an_empty_answer ... ok
+test a_second_candidate_doubles_the_price_and_not_the_outcome ... ok
+test not_owner_ends_the_attempt_while_a_temporary_code_repeats_it ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.49s
+
+     Running tests\s16_lean_bounded_cache.rs (target\debug\deps\s16_lean_bounded_cache-a398e0fdebffb7b7.exe)
+
+running 1 test
+test evict_class_matches_the_size_aggregates_and_amnesties ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 12.36s
+
+     Running tests\s182_p1_scale.rs (target\debug\deps\s182_p1_scale-7527327f73229b06.exe)
+
+running 1 test
+test p1_scale_200_nodes_64_keys ... ignored, стенд P1: 200 узлов и 192 резолва, меряется только в --release (E-0105); запуск: --ignored
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\s19_find_e2e_price.rs (target\debug\deps\s19_find_e2e_price-24701cc6e6af1877.exe)
+
+running 4 tests
+test s19_structural_shape_of_the_stand ... ok
+test s19_scan_share_in_end_to_end_time ... ok
+test s19_cold_and_warm_find_fanout1 ... ok
+test s19_fanout13_find_price has been running for over 60 seconds
+test s19_fanout13_find_price ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 108.81s
+
+     Running tests\s53_door_branches.rs (target\debug\deps\s53_door_branches-73a6841835d84adb.exe)
+
+running 5 tests
+test a_cert_that_is_not_valid_yet_is_refused_and_its_publish_still_lands ... ignored, поведение дерева до ADR-0043: блок gate6d_stored=1 теперь обязан быть 0; живой контракт — crates/vecdht-net/tests/gossip_door_parity.rs (E-0087)
+test the_sum_capacity_rule_of_9_2_has_no_mechanism ... ok
+test a_cert_with_zero_capacity_is_refused_on_the_door_too ... ok
+test eleven_refusal_causes_all_speak_cert_invalid ... ok
+test a_live_revoke_forgets_the_peer_but_not_the_provider_cache has been running for over 60 seconds
+test a_live_revoke_forgets_the_peer_but_not_the_provider_cache ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 64.61s
+
+     Running tests\s5_handshake_seam.rs (target\debug\deps\s5_handshake_seam-e8d384807fb56602.exe)
+
+running 5 tests
+test the_gossip_door_is_open_to_a_peer_the_handshake_refused ... ignored, поведение дерева до ADR-0043: «gossip-дверь открыта отказанному пиру» — зафиксированная фикция (E-0076); живой контракт — crates/vecdht-net/tests/gossip_door_parity.rs (E-0087)
+test a_foreign_network_is_refused_and_the_reason_never_reaches_the_peer ... ok
+test a_normal_handshake_binds_both_sides ... ok
+test the_refusal_speaks_cert_invalid_and_keeps_the_old_identity ... ok
+test the_authentication_cache_outlives_valid_until_while_the_peer_goes_silent ... ok
+
+test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 11.41s
+
+     Running tests\s74_provider_cache_finite.rs (target\debug\deps\s74_provider_cache_finite-7c3bdfc2612951d5.exe)
+
+running 2 tests
+test re_asking_the_dht_can_bring_the_dead_provider_back ... ok
+test a_provider_that_dies_leaves_the_shard_provider_table ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.18s
+
+     Running tests\s76_own_cert_expiry.rs (target\debug\deps\s76_own_cert_expiry-c12c7ea45b4f2fd8.exe)
+
+running 3 tests
+test g1_an_expired_own_cert_is_not_constructed ... ok
+test g3_a_fresh_own_cert_serves_find ... ok
+test g2_a_running_node_stops_when_its_window_closes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.21s
+
+     Running tests\s76b_own_cert_expiry_observe.rs (target\debug\deps\s76b_own_cert_expiry_observe-739048daf1490a01.exe)
+
+running 1 test
+test g4_a_closed_window_is_observable_by_number ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.40s
+
+     Running tests\shard_map_divergence.rs (target\debug\deps\shard_map_divergence-42a6d2e045c7c7c5.exe)
+
+running 3 tests
+test the_two_implementations_agree_on_every_cluster_at_protocol_geometry ... ok
+test rotating_clusters_per_shard_diverges_from_cluster_cps_and_never_panics ... ok
+test a_manifest_with_other_geometry_is_refused_today ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\transport.rs (target\debug\deps\transport-33a0ceadea5a44ce.exe)
+
+running 10 tests
+test quic_handshake_binds_the_cert_to_the_transport_key ... ok
+test gossip_delivers_a_signed_publish_to_the_primary ... ok
+test an_agent_discovers_the_shard_provider_through_kademlia ... ok
+test a_valid_revoke_on_a_shard_topic_is_refused ... ok
+test publish_and_find_travel_over_the_real_transport ... ok
+test a_closed_connection_reaches_peer_lost_in_the_shard ... ok
+test a_revoke_below_threshold_is_rejected_before_it_can_revoke ... ok
+test an_agent_publishes_finds_and_opens_a_direct_session ... ok
+test a_cert_whose_owner_is_not_the_transport_key_is_rejected ... ok
+test a_threshold_revoke_drops_connections_and_blocks_reconnect ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.46s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_node-50375ae210819a29.exe)
+
+running 99 tests
+test admission::tests::cell_cap_is_a_floor_while_the_shard_is_sparse_and_the_mean_above_it ... ok
+test admission::tests::cell_cap_always_binds_a_cell_that_holds_the_whole_shard ... ok
+test admission::tests::evict_prefers_the_cheapest_pow_then_the_oldest ... ok
+test admission::tests::cell_victim_takes_the_cheapest_of_the_target_cell_only ... ok
+test admission::tests::a_stale_candidate_is_dropped_and_the_next_one_wins ... ok
+test admission::tests::lowering_the_floor_keeps_the_relative_shape ... ok
+test admission::tests::cell_victim_drops_dead_slots_it_walks_past ... ok
+test admission::tests::at_the_bound_the_list_refuses_and_freezes_instead_of_evicting ... ok
+test admission::tests::buckets_do_not_refill_on_a_clock_that_goes_backwards ... ok
+test admission::tests::a_spoofed_owner_pays_on_its_own_bucket_too ... ok
+test admission::tests::denylist_survives_the_epoch_and_blocks_both_roles ... ok
+test admission::tests::republish_replaces_the_candidate_instead_of_doubling_it ... ok
+test admission::tests::find_bucket_is_five_per_second_and_keyed_by_the_transport_identity ... ok
+test admission::tests::the_bits_table_grows_by_powers_not_by_one_slot ... ok
+test admission::tests::node_budget_is_one_hundred_admits_per_second_for_all_its_keys ... ok
+test admission::tests::one_token_per_publish_even_when_from_equals_owner ... ok
+test admission::tests::prune_among_idle_rows_picks_the_smallest_address_not_the_quietest ... ok
+test admission::tests::unknown_bits_are_never_candidates ... ok
+test admission::tests::the_reservoir_keeps_the_cheapest_when_it_overflows ... ok
+test admission::tests::verdict_codes_are_the_wire_codes ... ok
+test candidates::tests::capacity_filter_drops_holders_that_cannot_hold_the_shard ... ok
+test candidates::tests::duplicate_keys_collapse_to_one_slot ... ok
+test candidates::tests::keeper_is_the_first_in_the_same_order_as_selection ... ok
+test admission::tests::publish_bucket_gives_a_burst_then_one_per_second ... ok
+test admission::tests::reference_quotas_are_the_spec_numbers ... ok
+test candidates::tests::member_list_helpers_agree_with_the_order ... ok
+test candidates::tests::non_index_roles_and_uncovered_shards_are_not_candidates ... ok
+test candidates::tests::only_the_first_r_are_selected_and_wildcard_certs_count ... ok
+test admission::tests::a_ban_that_cannot_be_written_is_not_applied ... ok
+test candidates::tests::selection_is_a_function_of_the_epoch_not_of_insertion_order ... ok
+test admission::tests::the_peer_table_forgets_idle_keys_without_changing_any_decision ... ok
+test config::tests::clock_derives_the_bucket_from_the_second ... ok
+test admission::tests::the_peer_table_never_forgets_a_key_with_an_empty_bucket ... ok
+test config::tests::seconds_round_up_to_buckets ... ok
+test denylist::tests::count_that_promises_more_than_the_file_holds_is_refused ... ok
+test denylist::tests::no_corruption_of_the_file_ever_decodes_to_an_empty_list ... ok
+test config::tests::a_zero_quota_fails_at_startup_not_on_the_first_publish ... ok
+test config::tests::cheap_difficulty_is_a_valid_artifact_choice_not_a_code_bug ... ok
+test config::tests::reference_manifest_carries_the_spec_quotas ... ok
+test config::tests::reference_manifest_yields_the_spec_numbers ... ok
+test config::tests::inconsistent_replication_is_rejected_not_silently_tolerated ... ok
+test lease::tests::lease_arithmetic_is_in_buckets_not_seconds ... ok
+test lease::tests::renew_happens_before_expiry_and_election_is_earlier_than_lease ... ok
+test admission::tests::refill_walks_the_arena_in_bounded_steps_and_wraps ... ok
+test denylist::tests::the_price_is_exactly_eighteen_plus_thirty_two_per_key ... ok
+test membership::tests::primary_is_always_the_first_in_the_deterministic_order ... ok
+test membership::tests::duplicate_member_is_rejected ... ok
+test lease::tests::grant_must_be_signed_by_the_key_it_claims ... ok
+test denylist::tests::roundtrip_through_the_filesystem_preserves_the_set ... ok
+test admission::tests::loading_a_file_larger_than_the_bound_keeps_every_entry ... ok
+test membership::tests::shard_mismatch_is_rejected_before_anything_else ... ok
+test metrics::tests::names_are_unique_and_lowercase_ascii ... ok
+test lease::tests::a_lease_from_the_future_is_not_adopted ... ok
+test metrics::tests::no_price_or_free_text_metric ... ok
+test net::tests::frames_to_non_nodes_are_delivered_into_a_mailbox_once ... ok
+test net::tests::killed_node_never_receives_again ... ok
+test admission::tests::a_denied_key_comes_back_from_the_directory ... ok
+test lease::tests::stale_and_expired_grants_are_refused ... ok
+test rendezvous::tests::the_cap_refuses_new_leases_but_keeps_the_old_ones_working ... ok
+test rendezvous::tests::expired_leases_are_dropped_by_bucket_not_by_scan ... ok
+test rendezvous::tests::issue_is_idempotent_inside_a_bucket_and_fresh_in_the_next ... ok
+test admission::tests::an_unreadable_denylist_refuses_the_node_instead_of_emptying_it ... ok
+test membership::tests::too_many_members_is_captured_as_out_of_order ... ok
+test revocation::tests::count_that_promises_more_than_the_file_holds_is_refused ... ok
+test revocation::tests::no_corruption_of_the_file_ever_decodes_to_an_empty_list ... ok
+test revocation::tests::a_write_failure_forgets_the_revocation_while_a_healthy_carrier_remembers_it ... ok
+test revocation::tests::without_a_directory_the_state_stays_in_memory_and_no_file_appears ... ok
+test revocation::tests::the_price_is_exactly_eighteen_plus_sixteen_per_nonce ... ok
+test revocation::tests::a_duplicate_revocation_changes_neither_the_set_nor_the_file ... ok
+test revocation::tests::the_bound_refuses_new_revocations_and_never_amnesties_old_ones ... ok
+test rendezvous::tests::spent_entries_expire_with_the_same_ttl ... ok
+test rendezvous::tests::a_forged_or_expired_or_overlong_accept_is_refused ... ok
+test revocation::tests::roundtrip_through_the_filesystem_preserves_the_set ... ok
+test rendezvous::tests::a_republished_slot_needs_a_fresh_accept ... ok
+test revocation::tests::a_corrupt_file_refuses_to_open_rather_than_losing_every_revocation ... ok
+test session::tests::a_non_utf8_text_is_refused_even_when_correctly_signed ... ok
+test snapshot::tests::assembler_needs_contiguous_chunks_and_a_matching_hash ... ok
+test session::tests::an_unsigned_response_is_refused_even_with_valid_body ... ok
+test session::tests::text_over_the_limit_is_refused_at_signing_time ... ok
+test session::tests::a_signed_response_roundtrips_and_carries_owner_and_versions ... ok
+test session::tests::a_response_from_another_owner_is_named_not_just_rejected ... ok
+test snapshot::tests::chunking_covers_a_file_exactly_once ... ok
+test session::tests::a_request_is_bound_to_its_target ... ok
+test snapshot::tests::hash_hex_is_stable ... ok
+test snapshot::tests::header_is_read_without_touching_the_arena ... ok
+test rendezvous::tests::a_target_consumes_the_accept_once_and_only_for_itself ... ok
+test testing::tests::mined_publish_satisfies_the_nodes_own_pow_check ... ok
+test testing::tests::vector_is_a_function_of_the_seed_only ... ok
+test testing::tests::genesis_order_is_the_same_on_every_shard_but_the_keys_differ ... ok
+test session::tests::a_tampered_byte_breaks_the_signature ... ok
+test snapshot::tests::install_goes_through_partial_then_manifest ... ok
+test snapshot::tests::read_chunk_matches_the_file_and_hashes_whole ... ok
+test membership::tests::duplicate_signer_is_counted_once ... ok
+test membership::tests::empty_membership_is_a_legitimate_transition_not_a_bug ... ok
+test membership::tests::transition_needs_t_signatures_from_the_previous_set ... ok
+test membership::tests::signer_must_belong_to_the_previous_epoch_not_the_new_one ... ok
+test testing::tests::genesis_from_helpers_passes_the_chain_and_the_candidate_order ... ok
+test membership::tests::genesis_needs_the_authority_threshold_and_nothing_else ... ok
+test membership::tests::composition_must_be_the_deterministic_choice ... ok
+
+test result: ok. 99 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.41s
+
+     Running tests\accept_presentation_api_only.rs (target\debug\deps\accept_presentation_api_only-cb31b7e42246f12d.exe)
+
+running 1 test
+test target_side_serves_text_without_accept_and_spend_is_library_only ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests\accept_ttl_boundary.rs (target\debug\deps\accept_ttl_boundary-d7ec135d0e5391d0.exe)
+
+running 1 test
+test accept_lives_inclusive_to_the_boundary_bucket_and_the_table_prunes_with_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests\admission.rs (target\debug\deps\admission-0c1b11cb1fca3d47.exe)
+
+running 7 tests
+test a_denied_key_pays_nothing_and_gets_no_second_chance ... ok
+test find_quota_is_five_per_second_keyed_by_the_transport_identity ... ok
+test a_full_shard_refuses_a_newcomer_cheaper_than_everything_it_holds ... ok
+test a_full_shard_still_accepts_a_republish_in_place ... ok
+test a_full_shard_evicts_the_cheaper_record_and_replicates_the_delete ... ok
+test publish_quota_is_a_burst_of_twenty_then_one_per_second ... ok
+test shards_of_one_process_share_the_node_budget ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests\admission_table_over_limit.rs (target\debug\deps\admission_table_over_limit-bf2ff1618234eada.exe)
+
+running 2 tests
+test the_peer_table_holds_active_keys_over_the_limit_and_forgets_nothing ... ok
+test idle_surge_forgets_exactly_over_rows_and_the_forgotten_key_returns_fresh ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\adversarial.rs (target\debug\deps\adversarial-7c64443b9172ce58.exe)
+
+running 8 tests
+test p5_gate_sixteen_core_sybil_for_ten_minutes ... ignored, гейт P5: 16 ядер × 10 минут × 2^20; запускать в release с --ignored
+test a_lying_index_node_cannot_substitute_the_owners_text ... ok
+test a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes ... ok
+test a_forged_replicate_op_with_an_old_epoch_is_never_applied_or_acked ... ok
+test a_mismatched_artifact_does_not_enter_the_index_or_matching ... ok
+test a_rendezvous_accept_is_bound_to_its_target_and_spends_once ... ok
+test a_thousand_dht_shaped_frames_do_not_touch_membership ... ok
+test a_scaled_sixteen_key_sybil_is_capped_exactly_at_m_and_keeps_index_memory_flat ... ok
+
+test result: ok. 7 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.20s
+
+     Running tests\anti_replay_find.rs (target\debug\deps\anti_replay_find-cd920d7f0e25bba8.exe)
+
+running 1 test
+test the_same_query_id_is_answered_again_and_again_including_after_61_seconds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\c103_cluster_reassign.rs (target\debug\deps\c103_cluster_reassign-7bc7c2442e28a45b.exe)
+
+running 5 tests
+test without_centroids_reuse_of_claim_is_observable ... ok
+test forged_cluster_id_does_not_choose_the_cell ... ok
+test cross_shard_recompute_is_refused ... ok
+test honest_assignment_is_not_a_reassignment ... ok
+test assign_price_stays_inside_the_budget ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.09s
+
+     Running tests\c104_metrics_closed.rs (target\debug\deps\c104_metrics_closed-b7ca7ff4ecb87c85.exe)
+
+running 3 tests
+test no_price_no_door_and_no_free_text ... ok
+test names_are_exact_and_render_round_trips ... ok
+test each_counter_maps_to_its_own_name ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests\ceiling_clamp_compose.rs (target\debug\deps\ceiling_clamp_compose-1f0a8165b2c4da78.exe)
+
+running 1 test
+test clamp_runs_before_issue_so_the_ceiling_refuses_the_tail_of_the_clamped_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.04s
+
+     Running tests\ceiling_gradual_prune.rs (target\debug\deps\ceiling_gradual_prune-0846a1d3294a1f20.exe)
+
+running 1 test
+test the_ceiling_returns_bucket_by_bucket_when_rows_live_in_different_buckets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.26s
+
+     Running tests\ceiling_partial_accepts.rs (target\debug\deps\ceiling_partial_accepts-c0e103d52a873c03.exe)
+
+running 1 test
+test ceiling_drops_the_sorted_tail_of_accepts_and_keeps_the_full_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.19s
+
+     Running tests\ceiling_prune_recovery.rs (target\debug\deps\ceiling_prune_recovery-60d713d00b6f86bb.exe)
+
+running 1 test
+test the_ceiling_hole_returns_when_leased_rows_expire_out_of_prune ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.58s
+
+     Running tests\ceiling_two_seekers.rs (target\debug\deps\ceiling_two_seekers-fa63c779ca547eb1.exe)
+
+running 1 test
+test one_hole_is_consumed_by_the_first_seeker_and_the_second_gets_no_accept_at_all ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.05s
+
+     Running tests\denylist_durable_after_restart.rs (target\debug\deps\denylist_durable_after_restart-411b11cab25ee7e9.exe)
+
+running 2 tests
+test denylist_refuses_at_the_bound_and_keeps_every_entry ... ok
+test denylist_survives_restart_and_undeny ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+
+     Running tests\denylist_reachability.rs (target\debug\deps\denylist_reachability-a981023c39be9a80.exe)
+
+running 1 test
+test denylist_is_reachable_and_survives_restart ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s
+
+     Running tests\epoch_rotation_accept.rs (target\debug\deps\epoch_rotation_accept-9d64793319909b7d.exe)
+
+running 1 test
+test pre_epoch_accept_spends_after_rotation_and_new_primary_issues_fresh ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.72s
+
+     Running tests\find_admission_price.rs (target\debug\deps\find_admission_price-86b0f7d2dac3d6d1.exe)
+
+running 1 test
+test find_quota_price_ignores_cluster_list_length ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\find_empty_cluster_list.rs (target\debug\deps\find_empty_cluster_list-e820de38446966d6.exe)
+
+running 1 test
+test empty_cluster_list_is_served_as_signed_empty_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests\find_no_queue.rs (target\debug\deps\find_no_queue-328b3fec0d53b449.exe)
+
+running 2 tests
+test an_expensive_find_is_fixed_in_one_answer_and_repeats_byte_identically ... ok
+test the_sybil_surge_leaves_no_frame_without_an_answer ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests\find_node_budget.rs (target\debug\deps\find_node_budget-0847efcd14a4b6ab.exe)
+
+running 1 test
+test sybil_find_surge_passes_node_budget_untouched ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\frame_byte_mutation.rs (target\debug\deps\frame_byte_mutation-92e9725d613960d2.exe)
+
+running 1 test
+test noncanonical_accept_bytes_do_not_create_a_second_spend ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s
+
+     Running tests\future_epoch_lease_freeze.rs (target\debug\deps\future_epoch_lease_freeze-d2dcb9eb9b093db6.exe)
+
+running 1 test
+test a_future_epoch_grant_from_an_arbitrary_key_freezes_the_shard ... ignored, исторический замер E-0067: поведение до ADR-0016, действующий контракт — lease_membership_binding.rs
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\gates_p4.rs (target\debug\deps\gates_p4-a7bb0446f3db460a.exe)
+
+running 4 tests
+test a_restarted_node_with_a_stale_epoch_refuses_to_serve ... ok
+test killed_primary_is_replaced_in_under_ten_seconds ... ok
+test three_replicas_converge_and_quorum_needs_a_second_copy ... ok
+test when_everyone_leaves_a_seed_serves_the_snapshot ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+
+     Running tests\gc.rs (target\debug\deps\gc-1f59e8ac3f335691.exe)
+
+running 2 tests
+test primary_replicates_the_gc_tick_to_every_peer ... ok
+test ttl_expiry_frees_a_full_shard_for_everyone_and_gc_is_demand_driven ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.60s
+
+     Running tests\heal_demotion_window.rs (target\debug\deps\heal_demotion_window-f98afa1a6bb3b951.exe)
+
+running 1 test
+test heal_demotion_window ... ignored, исторический оракул E-0069: heal-окно §9.8 до ADR-0017 (замер на rev ee6ba8e); R1–R3 намеренно меняют поведение — актуальный оракул heal_one_step
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\heal_one_step.rs (target\debug\deps\heal_one_step-c5df88bfecdb2480.exe)
+
+running 1 test
+test heal_one_step ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.59s
+
+     Running tests\immediate_refusals_exit.rs (target\debug\deps\immediate_refusals_exit-90c8d0857b98f26d.exe)
+
+running 1 test
+test immediate_refusals_leave_serve_request_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.23s
+
+     Running tests\intent_class_filter.rs (target\debug\deps\intent_class_filter-6228cb476c94e712.exe)
+
+running 2 tests
+test unknown_filter_enum_is_a_decode_error ... ok
+test publish_attrs_reach_the_index_and_select_the_find ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running tests\lease_after_restart.rs (target\debug\deps\lease_after_restart-1d8381ddb8044c50.exe)
+
+running 3 tests
+test replica_without_grant_refuses_write ... ok
+test primary_grant_survives_restart ... ok
+test planted_grants_are_not_restored ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.38s
+
+     Running tests\lease_membership_binding.rs (target\debug\deps\lease_membership_binding-3ed6034236b0d2c2.exe)
+
+running 1 test
+test a_grant_is_bound_to_the_accepted_epoch_and_primary ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+
+     Running tests\lease_table_ceiling.rs (target\debug\deps\lease_table_ceiling-f746d8985b500cf3.exe)
+
+running 1 test
+test repeat_find_in_same_bucket_is_idempotent_and_ceiling_keeps_the_match_result ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s
+
+     Running tests\lease_table_restart.rs (target\debug\deps\lease_table_restart-b84df3e6e520f61c.exe)
+
+running 1 test
+test restart_empties_the_table_and_the_old_accept_still_spends ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests\live_split_brain_fencing.rs (target\debug\deps\live_split_brain_fencing-b8afbd3eb0b57d72.exe)
+
+running 1 test
+test a_live_deposed_primary_cannot_ack_or_impose_its_write ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+
+     Running tests\post_prune_spend_window.rs (target\debug\deps\post_prune_spend_window-a301555def3d3f6a.exe)
+
+running 1 test
+test post_prune_accept_expires_at_the_same_bucket_the_issuer_prunes_it ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.08s
+
+     Running tests\present_serving_gate.rs (target\debug\deps\present_serving_gate-75a2064f5557871e.exe)
+
+running 1 test
+test serving_gate_requires_presentation_and_spend_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests\rendezvous.rs (target\debug\deps\rendezvous-dba82a38391f044d.exe)
+
+running 3 tests
+test an_accept_stops_working_after_its_ttl ... ok
+test a_find_without_matches_issues_no_accept ... ok
+test find_returns_one_signed_accept_per_match_bound_to_the_transport_identity ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests\response_verification_order.rs (target\debug\deps\response_verification_order-905185979799dc7c.exe)
+
+running 1 test
+test response_checks_follow_the_named_sequence_and_refusals_stay_unmasked ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests\restart_recovery.rs (target\debug\deps\restart_recovery-8a78d46b10047e7a.exe)
+
+running 1 test
+test restart_recovers_wal_snapshot_and_gc ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.79s
+
+     Running tests\rotation_present_serving.rs (target\debug\deps\rotation_present_serving-b8eeba83b62f2587.exe)
+
+running 1 test
+test serving_path_survives_rotation_and_error_masking_is_deterministic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.77s
+
+     Running tests\s14_cell_cap_enforced.rs (target\debug\deps\s14_cell_cap_enforced-0282da60ceab5588.exe)
+
+running 5 tests
+test migrating_into_a_full_cell_is_capped ... ok
+test shard_cap_and_cell_cap_together_evict_exactly_once ... ok
+test the_cell_cap_binds_far_below_the_shard_capacity ... ok
+test renewal_in_a_full_cell_never_costs_a_record ... ok
+test above_the_floor_the_cap_is_the_mean_and_not_a_constant has been running for over 60 seconds
+test above_the_floor_the_cap_is_the_mean_and_not_a_constant ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 72.25s
+
+     Running tests\s14_cluster_bloat_price.rs (target\debug\deps\s14_cluster_bloat_price-d0527cd0350f6e19.exe)
+
+running 7 tests
+test per_cluster_cap_is_three_policies_and_two_are_broken ... ok
+test changing_cluster_id_costs_no_new_pow ... ok
+test an_unsigned_publish_under_a_foreign_owner_replaces_their_record ... ok
+test one_cell_grows_to_the_shard_cap ... ok
+test the_price_of_one_accepted_record ... ok
+test the_pow_gate_carries_difficulty_and_one_input_is_not_a_sample ... ok
+test find_scan_price_scales_with_cell_size_and_list_length has been running for over 60 seconds
+test find_scan_price_scales_with_cell_size_and_list_length ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 298.90s
+
+     Running tests\s15_authority_seam.rs (target\debug\deps\s15_authority_seam-e2de0e7563ed6005.exe)
+
+running 5 tests
+test genesis_accepts_a_signature_under_a_foreign_index ... ok
+test authority_threshold_lives_in_two_hands ... ok
+test transition_binds_the_index_that_genesis_ignores ... ok
+test doors_do_not_lend_signatures ... ok
+test genesis_threshold_is_exactly_three_of_five ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+
+     Running tests\s15_lean_correspondence.rs (target\debug\deps\s15_lean_correspondence-67504263ed45102e.exe)
+
+running 6 tests
+test two_threshold_sources_diverge_on_real_keys ... ok
+test a_signature_verifies_only_under_its_own_key ... ok
+test the_counterexample_counters_match_the_lean_model ... ok
+test the_lean_witness_is_reproduced_by_the_real_code ... ok
+test an_unbound_extra_signature_does_not_block_the_door ... ok
+test the_real_functions_agree_with_the_enumeration ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.41s
+
+     Running tests\s16_lean_bounded_denylist.rs (target\debug\deps\s16_lean_bounded_denylist-c1aeffc60000fdb8.exe)
+
+running 1 test
+test denylist_class_matches_the_lean_model ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\s77_cell_cap_scan.rs (target\debug\deps\s77_cell_cap_scan-19dea3eff9e7a067.exe)
+
+running 2 tests
+test a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir ... ok
+test renewal_stays_free_while_the_window_scan_is_opt_in ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.24s
+
+     Running tests\s77b_cell_cap_scan_observe.rs (target\debug\deps\s77b_cell_cap_scan_observe-c1126323d45a5fe6.exe)
+
+running 1 test
+test the_window_scan_is_bounded_advances_and_wraps ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.31s
+
+     Running tests\s94_tail.rs (target\debug\deps\s94_tail-35eb0ee097cbc065.exe)
+
+running 5 tests
+test leaving_primary_hands_off_and_is_demoted ... ok
+test one_pull_heals_a_gap_but_the_response_is_unauthenticated ... ok
+test snapshot_offer_skews_seq_when_the_holder_has_moved_on ... ok
+test warm_lagging_replica_cannot_take_the_snapshot_and_stops ... ok
+test cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.58s
+
+     Running tests\s9_epoch_gap.rs (target\debug\deps\s9_epoch_gap-abc1fd635075dcc8.exe)
+
+running 1 test
+test epoch_gap_never_heals ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.40s
+
+     Running tests\slot_rebirth_double_spend.rs (target\debug\deps\slot_rebirth_double_spend-a8e5c203f8a536ee.exe)
+
+running 1 test
+test a_pruned_slot_reissues_and_the_same_spend_consumes_the_second_lease_once ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 23.26s
+
+     Running tests\slot_request_accept_binding.rs (target\debug\deps\slot_request_accept_binding-ecec9faca4d6c78a.exe)
+
+running 1 test
+test request_slot_is_never_reconciled_with_the_spent_accept ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests\top_k_clamp_live.rs (target\debug\deps\top_k_clamp_live-4f6cd3d8b4b3bfa2.exe)
+
+running 1 test
+test live_find_clamps_top_k_to_64_and_issues_one_accept_per_match ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+     Running tests\ttl_policy_order.rs (target\debug\deps\ttl_policy_order-91b1045c1e8b01b8.exe)
+
+running 1 test
+test ttl_policy_gate_and_check_order_match_the_spec_sequence ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.27s
+
+     Running tests\utf8_last_gate.rs (target\debug\deps\utf8_last_gate-37d07d869ef7b9ba.exe)
+
+running 1 test
+test utf8_is_the_last_gate_and_two_fields_pay_different_names ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests\w2r3_stale_read.rs (target\debug\deps\w2r3_stale_read-8d82ff2d73b8ac92.exe)
+
+running 1 test
+test w2r3_stale_read ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_orders-20ca4e070311a7de.exe)
+
+running 21 tests
+test tests::every_error_code_has_a_defined_action ... ok
+test tests::artifact_set_is_order_independent ... ok
+test tests::normalization_is_line_and_space_only ... ok
+test tests::state_machine_is_total_over_the_matrix ... ok
+test tests::escrow_is_fail_closed_before_it_is_about_money ... ok
+test tests::forbidden_marker_in_lean_statement_is_rejected ... ok
+test tests::registry_is_data_not_code ... ok
+test tests::statement_hash_covers_kind_and_is_nfc_stable ... ok
+test tests::order_ref_is_untouched_by_the_payout_layer ... ok
+test tests::order_ref_changes_with_every_field ... ok
+test tests::receipt_json_is_key_ordered_and_float_free ... ok
+test tests::term_hash_binds_order_and_beneficiary_only ... ok
+test tests::budget_overrun_with_zero_exit_is_a_field_contradiction ... ok
+test tests::validate_names_the_reason_is_valid_for_hides ... ok
+test tests::order_check_and_signature_round_trip ... ok
+test tests::validity_requires_signature_digest_and_derived_verdict ... ok
+test tests::verdict_is_derivable_from_fields ... ok
+test tests::empty_trust_fails_closed ... ok
+test tests::payout_claim_is_a_pure_function_of_bytes ... ok
+test tests::second_claim_on_a_released_escrow_is_replay ... ok
+test tests::every_payout_forgery_maps_to_a_known_code ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s
+
+     Running tests\paid_order_vectors.rs (target\debug\deps\paid_order_vectors-1f199fb5c0443680.exe)
+
+running 1 test
+test vectors_cover_the_closed_list_and_reproduce ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests\payout_claim_vectors.rs (target\debug\deps\payout_claim_vectors-50a2dfd670963169.exe)
+
+running 1 test
+test payout_vectors_are_reproducible_and_close_the_list ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.18s
+
+     Running tests\v912_axiom_names.rs (target\debug\deps\v912_axiom_names-64b91f3a832609d3.exe)
+
+running 1 test
+test v912_axiom_allowlist_matches_the_kernel_name ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+     Running unittests src\lib.rs (target\debug\deps\vecdht_wire-86a337b1abaa25eb.exe)
+
+running 39 tests
+test cert::tests::cert_roundtrip_and_canonical_bytes ... ok
+test cert::tests::bad_version_role_and_shard_rejected ... ok
+test cert::tests::inverted_validity_window_rejected ... ok
+test cert::tests::unsigned_body_excludes_sigs ... ok
+test codec::tests::trailing_bytes_are_error ... ok
+test cert::tests::wildcard_covers_every_shard ... ok
+test codec::tests::vec_q_preserves_twos_complement ... ok
+test codec::tests::tlv_ascending_and_duplicate_rules ... ok
+test codec::tests::truncation_reports_offset ... ok
+test constants::tests::max_d2_bound_is_sound ... ok
+test constants::tests::provider_key_layout ... ok
+test codec::tests::writer_enforces_ascending_tags ... ok
+test constants::tests::shard_mapping_covers_all_clusters ... ok
+test codec::tests::fixed_le_roundtrip ... ok
+test frame::tests::body_len_cap ... ok
+test cert::tests::validity_half_open ... ok
+test frame::tests::frame_roundtrip_signed ... ok
+test frame::tests::kind_table_is_complete_and_disjoint ... ok
+test frame::tests::frame_roundtrip_unsigned ... ok
+test frame::tests::only_ed25519_length_is_accepted ... ok
+test frame::tests::reserved_flags_rejected ... ok
+test frame::tests::sig_input_is_deterministic_and_kind_bounded ... ok
+test frame::tests::sig_length_validated ... ok
+test frame::tests::unknown_kind_rejected ... ok
+test frame::tests::version_mismatch_rejected ... ok
+test messages::tests::cert_revoke_unsigned_body_excludes_signature_list ... ok
+test messages::tests::all_messages_roundtrip ... ok
+test messages::tests::cluster_id_out_of_range_rejected ... ok
+test messages::tests::intent_text_over_limit_rejected ... ok
+test messages::tests::kind_mismatch_between_messages_rejected ... ok
+test messages::tests::lease_grant_rejects_unknown_shard ... ok
+test messages::tests::marks_encode_deterministically ... ok
+test messages::tests::match_sort_contract_enforced ... ok
+test messages::tests::membership_unsigned_body_excludes_signature_list ... ok
+test messages::tests::publish_roundtrip ... ok
+test messages::tests::publish_with_reserved_tlv_roundtrip ... ok
+test messages::tests::signature_required_matrix_matches_spec ... ok
+test messages::tests::snapshot_offer_geometry_is_validated_on_decode ... ok
+test messages::tests::unknown_tlv_tag_is_ignored_not_fatal ... ok
+
+test result: ok. 39 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\find_cluster_list.rs (target\debug\deps\find_cluster_list-460c431ef09218a2.exe)
+
+running 2 tests
+test overflowing_list_is_rejected_not_silently_accepted ... ok
+test maximal_u16_list_round_trips_through_the_codec ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\fuzz_decode.rs (target\debug\deps\fuzz_decode-dc71f6ea013cdbdf.exe)
+
+running 3 tests
+test corpus_covers_every_kind ... ok
+test header_declared_lengths_are_bounded_by_the_buffer ... ok
+test fuzz_decode_never_panics_and_accepts_only_canonical_bytes ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.85s
+
+     Running tests\golden_vectors.rs (target\debug\deps\golden_vectors-80312717bd2bf504.exe)
+
+running 4 tests
+test wire_rules_that_golden_pins_down_are_still_enforced ... ok
+test every_kind_is_covered_by_a_golden_frame ... ok
+test golden_frames_are_self_consistent ... ok
+test golden_vectors_match_checked_in_fixture ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\intent_attr_tlv.rs (target\debug\deps\intent_attr_tlv-385c119647ef6e4f.exe)
+
+running 8 tests
+test explicit_zero_tags_collapse_before_signature ... ok
+test free_and_unspecified_add_no_bytes ... ok
+test find_any_is_absence_of_tags ... ok
+test four_canonical_combinations_round_trip ... ok
+test find_filters_round_trip_and_reject_bad_enums ... ok
+test predicates_are_over_the_record_bit_not_the_query_word ... ok
+test non_canonical_combinations_are_rejected ... ok
+test unknown_tags_survive_and_do_not_confuse_attrs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\publish_corpus_digest.rs (target\debug\deps\publish_corpus_digest-b23ea7d559c03568.exe)
+
+running 1 test
+test declaration_free_corpus_is_byte_stable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+   Doc-tests vecdht_artifact
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_benches
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_cli
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_crypto
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_embed
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_index
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_net
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_node
+
+running 1 test
+test crates\vecdht-node\src\lib.rs - (line 21) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.45s
+
+   Doc-tests vecdht_orders
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests vecdht_wire
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+TEST_EXIT=0
+SECONDS_test=1733
+### clippy ### 2026-10-30T05:56:48+03:00
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.08s
+CLIPPY_EXIT=0
+SECONDS_clippy=11
+### lean-check ### 2026-10-30T05:56:59+03:00
+LEAN_ENV=ok
+LEAN_ENV_PROBE_EXIT=0 LEAN_ENV_PROBE_MS=2139
+LEAN_FILE=Admission.lean EXIT=0 ERRORS=0 SORRY=0 SORRYAX=0 NATIVE_AXIOMS=17 STD_AXIOMS=9 CUSTOM_AXIOMS=0 AXIOM_FREE=4 DECLS=30 DEFS=48 EXTRAS=10 MS=6227 OK=1
+LEAN_FILE=Auth.lean EXIT=0 ERRORS=0 SORRY=0 SORRYAX=0 NATIVE_AXIOMS=16 STD_AXIOMS=8 CUSTOM_AXIOMS=0 AXIOM_FREE=0 DECLS=24 DEFS=30 EXTRAS=7 MS=5833 OK=1
+LEAN_FILE=Bounded.lean EXIT=0 ERRORS=0 SORRY=0 SORRYAX=0 NATIVE_AXIOMS=33 STD_AXIOMS=0 CUSTOM_AXIOMS=0 AXIOM_FREE=0 DECLS=33 DEFS=52 EXTRAS=6 MS=4293 OK=1
+LEAN_FILE=CertLadder.lean EXIT=0 ERRORS=0 SORRY=0 SORRYAX=0 NATIVE_AXIOMS=17 STD_AXIOMS=1 CUSTOM_AXIOMS=0 AXIOM_FREE=0 DECLS=18 DEFS=9 EXTRAS=4 MS=2474 OK=1
+LEAN_FILE=Denylist.lean EXIT=0 ERRORS=0 SORRY=0 SORRYAX=0 NATIVE_AXIOMS=18 STD_AXIOMS=0 CUSTOM_AXIOMS=0 AXIOM_FREE=0 DECLS=18 DEFS=31 EXTRAS=6 MS=2581 OK=1
+LEAN_FILE=Shard.lean EXIT=0 ERRORS=0 SORRY=0 SORRYAX=0 NATIVE_AXIOMS=25 STD_AXIOMS=0 CUSTOM_AXIOMS=0 AXIOM_FREE=0 DECLS=25 DEFS=47 EXTRAS=23 MS=3599 OK=1
+LEAN_TOTAL=6 DECLS_TOTAL=148 FROZEN_ROWS=421 EXTRAS_TOTAL=56 BROKEN=0 SORRY_TOTAL=0 SORRYAX_TOTAL=0 NATIVE_AXIOMS=126 STD_AXIOMS=18 CUSTOM_AXIOMS=0 AXIOM_FREE=4 DIGEST_BAD=0 LEAN_MS_TOTAL=25007
+LEAN_ALL_OK=1
+LEAN_EXIT=0
+SECONDS_lean=28
+### lean-check selftest ### 2026-10-30T05:57:27+03:00
+  ДЕФЕКТ формулировка ослаблена: rc=1 ОТБИТ
+  ДЕФЕКТ ∀ в def ослаблена (E-0107): rc=1 ОТБИТ
+  ДЕФЕКТ печатаемое число ослаблено (E-0141): rc=1 ОТБИТ
+  ДЕФЕКТ поля записи переставлены (E-0141): rc=1 ОТБИТ
+  ДЕФЕКТ конструкторы суммы переставлены (E-0141): rc=1 ОТБИТ
+  ДЕФЕКТ теорема удалена: rc=1 ОТБИТ
+  ДЕФЕКТ теорема во вложенном namespace: rc=1 ОТБИТ
+  ДЕФЕКТ модель без деклараций: rc=1 ОТБИТ
+  ДЕФЕКТ модель не компилируется: rc=1 ОТБИТ
+  ДЕФЕКТ нет замороженного дайджеста: rc=1 ОТБИТ
+  КОНТРОЛЬ годное дерево: rc=0 ПРОЙДЕН
+  КОНТРОЛЬ native_decide посчитан как аксиома: ДА
+SELFTEST годное_дерево=пройден отбито=12 из 12
+LEANGUARD_SELFTEST total=14 passed=14 failed=0
+LEANGUARD_SELFTEST_EXIT=0
+SECONDS_lean_selftest=358
+### verus-check (required) ### 2026-10-30T06:03:25+03:00
+CONST_MATCH=OK
+VERUS_TOTAL verified=8 errors=0 files=1 status=OK
+VERUS_EXIT=0
+### verus-check selftest ### 2026-10-30T06:03:34+03:00
+  inverted: ожидалось=BAD получено=BAD ОТБИТО
+CONST_OK CELL_CAP_NUM=2
+CONST_OK CLUSTERS_PER_SHARD=16
+CONST_OK CELL_CAP_MIN=4_096
+CONST_OK формула_тела совпадает дословно
+CONST_MATCH=OK
+  мост_констант: КОНТРОЛЬ OK
+VERUS_SELFTEST total=5 passed=5
+VERUS_SELFTEST_EXIT=0
+### kani-compile-check ### 2026-10-30T06:03:45+03:00
+KCC_ANCHORS=4
+KCC_HARNESS_FNS=4
+KCC_RUSTC_RC=0
+KCC_STATUS=OK
+KCC_EXIT=0
+### cycle-gate selftest ### 2026-10-30T06:03:47+03:00
+  КОНТРОЛЬ годная карточка: rc=0 ПРОЙДЕН
+  ДЕФЕКТ prior_art пуст: rc=1 ОТБИТ
+  ДЕФЕКТ строки нет в индексе: rc=1 ОТБИТ
+  ДЕФЕКТ четыре да и отказ от модели: rc=1 ОТБИТ
+  ДЕФЕКТ применён без модели: rc=1 ОТБИТ
+  ДЕФЕКТ нет ключа lean: rc=1 ОТБИТ
+  ДЕФЕКТ только статьи, код не читали: rc=1 ОТБИТ
+  ДЕФЕКТ модель названа, но её нет: rc=1 ОТБИТ
+  ДЕФЕКТ модель с sorry: rc=1 ОТБИТ
+  ДЕФЕКТ модель не компилируется: rc=1 ОТБИТ
+  ДЕФЕКТ нет карточки эксперимента: rc=1 ОТБИТ
+  ДЕФЕКТ в карточке E не назван порог: rc=1 ОТБИТ
+  ДЕФЕКТ вердикт вынесен, а карточка ещё пре-регистрируется: rc=1 ОТБИТ
+  ДЕФЕКТ применён без `доказывает`: rc=1 ОТБИТ
+  ДЕФЕКТ `доказывает` без предмета: rc=1 ОТБИТ
+  ДЕФЕКТ соответствие формулировкой, а не прибором: rc=1 ОТБИТ
+  ДЕФЕКТ прибор соответствия не найден: rc=1 ОТБИТ
+  КОНТРОЛЬ годная модель при четырёх «да»: rc=0 ПРОЙДЕН
+SELFTEST годный_круг=пропущен отбито=18 из 18
+CYCLEGATE_SELFTEST total=18 passed=18 good_card_rc=0
+CYCLEGATE_LEAN_FIELD_CASES=4
+CYCLEGATE_EXIT=0
+### instruments selftest ### 2026-10-30T06:03:52+03:00
+СЕЛФТЕСТ ok: точное совпадение
+СЕЛФТЕСТ ok: чужой префикс не считается
+СЕЛФТЕСТ ok: граница цифры: N=93 не есть N=9
+СЕЛФТЕСТ ok: ключа нет — молчание не успех
+СЕЛФТЕСТ ok: ключ со пробелом — второй токен строки
+СЕЛФТЕСТ ok: кириллическое значение
+СЕЛФТЕСТ ok: дробное значение
+СЕЛФТЕСТ ok: чужое значение не удовлетворяет
+EXPECT_SELFTEST total=8 passed=8
+EXPECT_SELFTEST_EXIT=0
+СЕЛФТЕСТ ok: метки прогона без strip — расхождение
+СЕЛФТЕСТ ok: метки прогона со strip — совпадение
+СЕЛФТЕСТ ok: префикс libtest перед первым println
+СЕЛФТЕСТ ok: знак числа не теряется
+СЕЛФТЕСТ ok: дробное значение
+СЕЛФТЕСТ ok: чужой ключ не подменяет
+СЕЛФТЕСТ ok: граница цифры
+СЕЛФТЕСТ ok: повтор ключа — побеждает последний
+СЕЛФТЕСТ ok: ключ есть только в n2
+СЕЛФТЕСТ ok: пустой файл — не вектор
+FACTS_SELFTEST total=10 passed=10
+FACTS_SELFTEST_EXIT=0
+ПОРОГОВ=1 ИСТОЧНИКОВ=2 ЦИКЛОМ=0 СИРОТ=1
+СЕЛФТЕСТ ok: тег не выдумывает ненапечатанное имя - сирота
+THRESHOLD_LINT_SELFTEST total=34 passed=34
+LINT_SELFTEST_EXIT=0
+СЕЛФТЕСТ ok: facts_repro: расхождение видно
+СЕЛФТЕСТ ok: resources: три числа вместе
+RUNLIB_SELFTEST total=7 passed=7
+RUNLIB_SELFTEST_EXIT=0
+### ledger selftest ### 2026-10-30T06:03:57+03:00
+СЕЛФТЕСТ ok: первый красный блок не протекает в последний зелёный
+СЕЛФТЕСТ ok: TEST_EXIT=1 в последнем блоке краснит
+LEDGER_SELFTEST total=14 passed=14
+LEDGER_SELFTEST_EXIT=0
+### repo-review selftest ### 2026-10-30T06:03:57+03:00
+REVIEW_SELFTEST total=8 passed=8
+  КЕЙС stale-refs: ОТБИТ
+  КЕЙС closed-empty-result: ОТБИТ
+  КЕЙС testing-closed: ОТБИТ
+  КЕЙС ignored-no-reason: ОТБИТ
+  КЕЙС expect-orphans: ОТБИТ
+  КЕЙС helper-orphans: ОТБИТ
+  КЕЙС missing-experiments: ОТБИТ
+  КЕЙС чистое_дерево: OK (находок=0)
+REVIEW_SELFTEST_EXIT=0
+### repo-review check ### 2026-10-30T06:03:57+03:00
+REVIEW_ALLOW_LIST_ENTRIES=48
+REVIEW_ALLOW_LIST_MALFORMED=0
+REVIEW_ALLOW_LIST_PRESENT=1
+REVIEW_ALLOW_LIST_UNJUSTIFIED=0
+REVIEW_ALLOW_LIST_UNUSED=0
+REVIEW_BIG_RS=5
+REVIEW_CLOSED_EMPTY=0
+REVIEW_EXPECT_ORPHANS=0
+REVIEW_FINDINGS=0
+REVIEW_HELPER_ORPHANS=0
+REVIEW_ID_DOCS=403
+REVIEW_ID_RESOLVED=392
+REVIEW_ID_SCAN=git
+REVIEW_ID_TOKENS=428
+REVIEW_IGNORED=11
+REVIEW_IGNORED_NO_REASON=0
+REVIEW_MD_FILES=403
+REVIEW_MISSING_EXPERIMENTS=0
+REVIEW_PROMISE_DOUBLE=0
+REVIEW_PROMISE_IDS=11
+REVIEW_REFS_OK=835
+REVIEW_REFS_PINNED=67
+REVIEW_REFS_PIN_MALFORMED=0
+REVIEW_REFS_STALE=0
+REVIEW_REFS_UNRESOLVED=155
+REVIEW_REFS_UNRESOLVED_ALLOWED=36
+REVIEW_REFS_UNRESOLVED_VIOLATIONS=0
+REVIEW_SPEC_LINE_CITES=0
+REVIEW_TESTING_CLOSED=0
+REVIEW_TODOS=0
+REVIEW_TOP=none:0
+ИНВЕНТАРЬ большой| crates/vecdht-embed/tests/p0_real_corpus.rs строк=3926 (порог 1500)
+ИНВЕНТАРЬ большой| crates/vecdht-orders/src/lib.rs строк=2485 (порог 1500)
+ИНВЕНТАРЬ большой| crates/vecdht-wire/src/messages.rs строк=1828 (порог 1500)
+ИНВЕНТАРЬ большой| crates/vecdht-node/src/node.rs строк=1667 (порог 1500)
+ИНВЕНТАРЬ большой| crates/vecdht-net/src/agent.rs строк=1517 (порог 1500)
+ПОЗВОЛЕНО refs-dangling: ADR-0014 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 3 (`query_id` в `IntentTextResponse`); назван в ADR-0013 как «кандидат после E-0051» (11 файлов: lab/INVENTORY.md, lab/README.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0018 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 7 (read-repair при запросе: «уточнить спеку (ADR-0018)») (1 файлов: lab/decisions/OPEN-QUESTIONS.md)
+ПОЗВОЛЕНО refs-dangling: ADR-0019 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 9 (аутентичность pull-ответа); перенос из E-0074 (п. 9–11) (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0020 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 10 (тёплый догоняющий и снапшот); перенос из E-0074 (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0021 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 11 (оффер снапшота); перенос из E-0074 (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0022 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 12 (индекс подписи в genesis); кандидаты ADR-0022/ADR-0023 названы в E-0075 (9 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0023 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 13 (порог авторитета в двух руках) (9 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0024 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 14 (код отказа handshake); в спеке v8 прямо напечатано «ADR-0024, не принят» (16 файлов: docs/VecDHT-SPEC-v8.md, lab/INVENTORY.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0025 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 15 (срок кеша аутентификации) (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0026 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 16 (вторая дверь: gossip мимо handshake) (7 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0027 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 17 (цепочка с большим epoch); перенос из E-0071 (п. 17–21) (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0028 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 18 (код отказа на разрыве эпох) (4 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0029 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 19 (уход отставшим узлом) (4 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0030 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 20 (код отказа на закрытой двери данных) (4 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0031 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 21 (вход в шард в середине цепочки) (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0032 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 22 (pad-цель); перенос из E-0077 (п. 22–25) (5 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0033 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 23 (последовательный фан-аут и общий дедлайн) (3 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0034 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 24 (re-computation, reputation, штраф) (3 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0035 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 25 (IntentTextResponse.sig) (5 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0036 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 26 (форма per-cluster admission cap); номер занят формой капа из E-0079 (7 файлов: lab/decisions/OPEN-QUESTIONS.md, lab/experiments/E-0080-shard-without-live-owner.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0037 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 29 (текст §16.3 о шаре без живого владельца); ADR-0042 называет ADR-0037…ADR-0041 зарезервированными (11 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0038 — резерв, `lab/decisions/OPEN-QUESTIONS.md` п. 31 (§20.2/§14.4; строка «резервируется ADR-0038 (он свободен)») (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0039 — резерв, `lab/decisions/OPEN-QUESTIONS.md` п. 32 (§19.4/§19.5 по PoW и снапшоту; «ADR-0039 резервируется за этим пунктом») (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0040 — резерв, `lab/decisions/OPEN-QUESTIONS.md` п. 33 (§10.2/§19.4/§19.5 по WAL group commit; «ADR-0040 резервируется за этим пунктом») (6 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: ADR-0041 — резерв, `lab/decisions/OPEN-QUESTIONS.md` п. 34 (нормативный poll_interval 25 мс; «ADR-0041 резервируется за этим пунктом») (11 файлов: docs/VecDHT-SPEC-v8.md, lab/INVENTORY.md, …)
+ПОЗВОЛЕНО refs-dangling: E-0014 — номер пропущен намеренно и так и напечатан в `docs/VecDHT-v9-REVIEW.md` («E-0014 пропущен намеренно»): упоминание говорит о нумерации, а не об адресе (2 файлов: docs/VecDHT-v9-REVIEW.md, lab/INVENTORY.md)
+ПОЗВОЛЕНО refs-dangling: E-0052 — номер парного приймочного эксперимента, предложенный в той же заметке (`lab/notes/H-0052-recon-response-binding.md`); карточка не пре-регистрирована (1 файлов: lab/notes/H-0052-recon-response-binding.md)
+ПОЗВОЛЕНО refs-dangling: E-0107b — метка ВТОРОГО исполнения контура карточки `E-0107`: `lab/logs/e0107-all.log` («ИСПОЛНЕНИЕ КОНТУРА 2 · метка E-0107b», дерево `3cd31c9`) и `docs/PLAN-v1.md`; отдельной карточки нет по построению — это повтор того же цикла, суффикс печатает номер исполнения, а не новый адрес; находка соседского стража (`REVIEW_EXIT`) в цикле `E-0132` (2 файлов: docs/PLAN-v1.md, lab/hypotheses/H-0138-contour-closure.md)
+ПОЗВОЛЕНО refs-dangling: H-0052 — разведочная заметка `lab/notes/H-0052-recon-response-binding.md`; в `lab/README.md` (разведка H-0052) прямо напечатано «пре-регистрации нет»: карточка не заводилась (3 файлов: lab/INVENTORY.md, lab/README.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0088b — резервуар в релизной очереди: `lab/decisions/ADR-0044-release-queue-and-six-owner-decisions.md` («добавляет в очередь H-0088b») и `lab/PLAN.md` (9 файлов: lab/INVENTORY.md, lab/PLAN.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0096 — кандидат очереди, `lab/decisions/OPEN-QUESTIONS.md` («Кандидат — H-0096»); хвост назван в карточках H-0092 и H-0094 (7 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0106 — голова очереди после закрытия E-0105: `lab/PLAN.md` («это H-0106, голова очереди»), `lab/decisions/OPEN-QUESTIONS.md` про бюджет промахов (14 файлов: docs/PLAN-v1.md, docs/VecDHT-SPEC-v8.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0109 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A2 (загрузка centroid.bin, хвост ADR-0058); слова плана: «номеров H-0109/H-0110 в lab/ нет — бери следующие свободные» (4 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0110 — карточка ещё не заведена, номер зарезервирован очередью `docs/PLAN-v1.md` §A3 (производитель отзыва, CLI revoke) (4 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md, …)
+ПОЗВОЛЕНО refs-dangling: H-0115 — кандидат, `lab/decisions/OPEN-QUESTIONS.md` п. 60 (свести реестр обещаний в один файл, прежде чем валить «номер без определения») (2 файлов: docs/PLAN-v1.md, lab/decisions/OPEN-QUESTIONS.md)
+ПОЗВОЛЕНО refs-dangling: L-9001 — посаженная ловушка самопроверки контура источников (`lab/hypotheses/H-0089-prior-art-contour.md`, `lab/experiments/E-0089-prior-art-contour.md`): запись обязана НЕ быть в индексе, иначе «НЕ ТА СТАТЬЯ» не отстрелит (2 файлов: lab/experiments/E-0089-prior-art-contour.md, lab/hypotheses/H-0089-prior-art-contour.md)
+REVIEW_EXIT=0
+ЦИКЛ=E-0158 ТАБЛИЦА=lab\expectations\e0158.tsv HELPER=не назван
+ПОРОГОВ=57 ИСТОЧНИКОВ=392 ЦИКЛОМ=0 СИРОТ=0
+LINT_LATEST_EXIT=0
+SECONDS_formal_and_gates=47
+### library check+digest ### 2026-10-30T06:04:12+03:00
+ПРОВЕРКА записей=43 прочитано=43 ошибок=0 предупреждений=0
+LIBCHECK records=43 read=43 errors=0 warns=0
+LIBCHECK_EXIT=0
+ДАЙДЖЕСТ 2026-10-30: всего=43 не_использовано=0 в_работе=6 закрыто=37 с_действием_изменение=26
+LIBDIGEST total=43 unused=0 wip=6 closed=37 changed=26
+КЛАССЫ источников: бумага=8 спека=14 реализация=21
+LIBCLASSES paper=8 spec=14 impl=21 unknown=0
+LIBDIGEST_EXIT=0
+### claim map guard (18.9) ### 2026-10-30T06:04:13+03:00
+СЕЛФТЕСТ всего=8 прошло=8 посажено=3 поймано=3
+СЕЛФТЕСТ_ССЫЛКИ id=3 файлов=2 отсутств_id=E-9999 отсутств_файл=no_such_instrument.rs вердикт=1
+CLAIMMAP_SELFTEST_EXIT=0
+CLAIMMAP_SECTION=### 18.9 CLAIMMAP_SENTENCES=30 CLAIMMAP_UNMAPPED=0 CLAIMMAP_IDS=28 CLAIMMAP_MISSING_IDS=0 CLAIMMAP_INSTRUMENTS=7 CLAIMMAP_MISSING_INSTRUMENTS=0
+CLAIMMAP_EXIT=0
+### claims registry guard ### 2026-10-30T06:04:13+03:00
+PLANTED_FALSE=0
+LEGAL_TOTAL=6
+UP_PLANTED=3
+UP_CAUGHT=3
+UP_FALSE=0
+CLAIMS_SELFTEST_EXIT=0
+CLAIMS_SELFTEST_EXIT=0
+GATE_RATIO=0
+COND_LINK_BAD=0
+TRIGGER_SENTENCES=26
+UNREGISTERED=0
+UP_CARRIERS=3
+CONDITIONS_TABLE=5
+CONDITIONS_COVERED=5
+READY_CARRIERS=3
+READY_VALUES=1
+UNREGISTERED_LIST=none
+VIOLATIONS=0
+CLAIMS_GUARD_EXIT=0
+CLAIMS_EXIT=0
+### contour coverage guard ### 2026-10-30T06:04:14+03:00
+SELFTEST_CLASS_BAD=2
+SELFTEST_DUP=1
+SELFTEST_VIOLATIONS=12
+SELFTEST_ABSENT_UNEXPLAINED=8
+SELFTEST_ABSENT_OK=1
+CONTOURS_SELFTEST_EXIT=0
+CONTOURS_SELFTEST_EXIT=0
+MISSING_UNEXPLAINED_LIST=none
+CLOSED_TOTAL=144
+BLOCK_LABELS=91
+COVERED=90
+MISSING_TOTAL=54
+EXPLAINED=54
+UNEXPLAINED=0
+ERA_TOTAL=45
+MODERN_TOTAL=9
+EXCEPTIONS_ABSENT=0
+REASON_EMPTY=0
+CLASS_BAD=0
+GHOST=0
+DUP=0
+VIOLATIONS=0
+CONTOURS_EXIT=0
+CONTOURS_EXIT=0
+### release map guard ### 2026-10-30T06:04:16+03:00
+СЕЛФТЕСТ total=20 passed=20 failed=0
+RELEASEMAP_SELFTEST_EXIT=0
+ROWS_REGISTERED=16
+ROWS_UNREGISTERED=0
+ROWS_MISSING=0
+MAP_DUP=0
+EIDS=25
+EIDS_MISSING=0
+EIDS_OPEN=0
+ADRS=3
+ADRS_MISSING=0
+PATHS=25
+PATHS_MISSING=0
+OWNERS=16
+OWNERS_MISSING=0
+OWNERS_MISSING_IDS=none
+FACTS=23
+FACTS_OK=23
+STALE=0
+STALE_ROWS=none
+NUMBERS=43
+NUMBERS_OK=43
+NUMBERS_UNDECLARED=0
+NUMBERS_UNDECLARED_IDS=none
+NUMBERS_PHANTOM=0
+NUMBERS_PHANTOM_IDS=none
+NONE_ROWS=7
+PROV_BAD=0
+MAP_OK=1
+MAP_EXIT=0
+RELEASEMAP_EXIT=0
+### ci report-grep guard ### 2026-10-30T06:04:17+03:00
+CRG_SELFTEST_A guarded_clean=1 bare_caught=1
+CRG_SELFTEST_CASE a_guard_forms landed=1 fired=1
+CRG_SELFTEST_CASE b_report_pipe landed=1 fired=1
+CRG_SELFTEST_CASE c_comment_not_counted landed=1 fired=1
+CRG_SELFTEST_CASE d_blind_dir_red landed=1 fired=1
+CRG_SELFTEST_CASE e_fourth_file_seen landed=1 fired=1
+CRG_SELFTEST total=5 fired=5
+CRG_SELFTEST_OK=1
+CRG_SELFTEST_EXIT=0
+CRG_UNGUARDED_AT=none
+CRG_MISPLACED_AT=none
+CRG_BLIND=0
+CRG_FAIL=0
+CRG_EXIT=0
+### ci rc-capture guard ### 2026-10-30T06:04:18+03:00
+RCC_SELFTEST c_set_plus_e_exempt=ok BLOCKS_SPE=1
+RCC_SELFTEST d_comment_and_bare=ok UNGUARDED=1 AT=['.github/workflows/d.yml:11 [шаг с комментарием и отдельной строкой] присваивание $? отдельной строкой после `python lab/x.py > /tmp/d.log 2>&1`']
+RCC_SELFTEST e_blind_dir_red=ok BLIND=1 FAIL=1
+RCC_SELFTEST f_no_dir_red=ok RECOUNT=0
+RCC_SELFTEST g_third_file_seen=ok FILES=3 UNGUARDED=2
+RCC_SELFTEST h_extractstep_strict=ok rc_none=1 rc_two=1 rc_one=0
+RCC_SELFTEST i_extractstep_body_usable=ok rc=0 lines=12
+RCC_SELFTEST j_live_tree_flip_and_restore=ok before=0 after=1 restored=0 dir=to_unguarded
+RCC_SELFTEST k_bare_assign_plant=ok UNGUARDED=1 EQ=1 AT=['.github/workflows/verify.yml:104 [repo-review — разрешимость имён и находки дерева] присваивание $? отдельной строкой после `python lab/repo-review.py check > "$L" 2>&1`']
+RCC_SELFTEST l_sete_exemption_counted=ok BLOCKS_SPE=0->1 UNGUARDED=0
+RCC_SELFTEST total=12 passed=12
+RCC_SELFTEST_FIRED=0
+RCC_SELFTEST_RC=0
+RCC_SELFTEST_EXIT=0
+RCC_FAIL=0
+RCC_UNGUARDED_FILE=none
+RCC_UNGUARDED_MORE=none
+RCC_EXIT=0
+RCC_EXIT=0
+### ci header-numbers guard ### 2026-10-30T06:04:19+03:00
+PLANTED_green_when_matching=caught
+PLANTED_stale_numbers_red=caught
+PLANTED_missing_crate_red=caught
+PLANTED_unknown_command_red=caught
+PLANTED_no_definition_red=caught
+PLANTED_duplicate_crate_red=caught
+PLANTED_target_dir_skipped=caught
+CIN_SELFCASES=7
+CIN_SELFPASSED=7
+CIN_SELFTEST=ok
+CIN_SELFTEST_EXIT=0
+CIN_HEADER_LINES=55
+CIN_RS_FILES=196
+CIN_TOTAL_TEST=802
+CIN_TOTAL_TOKIO=2
+CIN_TOTAL_CASE=0
+CIN_TOTAL_ALL=804
+CIN_IGNORED=11
+CIN_CRATE_WIRE=57
+CIN_CRATE_ORDERS=24
+CIN_CRATE_CRYPTO=60
+CIN_CRATE_ARTIFACT=48
+CIN_CRATE_INDEX=118
+CIN_CRATE_NODE=208
+CIN_CRATE_NET=105
+CIN_CRATE_EMBED=80
+CIN_CRATE_CLI=102
+CIN_DEFINITION=full
+CIN_CLAIMS=19
+CIN_UNKNOWN_COMMAND=none
+CIN_BREAKDOWN_MISSING=none
+CIN_PAIR_MULTIPLE=none
+CIN_DRIFT_COUNT=0
+CIN_DRIFT=none
+CIN_MATCH=19
+CIN_FINDINGS=0
+CIN_EXIT=0
+CIN_EXIT=0
+### date-domain guard ### 2026-10-30T06:04:20+03:00
+PLANT_LOCAL_TODAY_FIRED=1
+PLANT_NO_FUNNEL_FIRED=1
+PLANT_USE_WRITES_OPENED_FIRED=1
+PLANT_CLOSE_NO_CLOSED_FIRED=1
+PLANT_AUDIT_NO_GATE_FIRED=1
+PLANT_DATE_AFTER_UTC_FIRED=1
+PLANT_CLOSED_BEFORE_OPENED_FIRED=1
+PLANT_BLIND_INDEX_FIRED=1
+PLANT_MISSING_FILE_FIRED=1
+DDF_SELFTEST total=10 passed=10
+DDF_SELFTEST_PLANTS=9
+DDF_SELFTEST_EXIT=0
+DDF_SELFTEST_EXIT=0
+DDF_LOCAL_TODAY=2026-10-30
+DDF_DOMAIN_SPLIT=0
+DDF_CLOSED_FIELD=8
+DDF_BLIND=0
+DDF_FAIL=0
+DDF_EXIT=0
+DDF_EXIT=0
+### oq numbering guard ### 2026-10-30T06:04:24+03:00
+PLANTED_TOTAL=9
+PLANTED_CAUGHT=9
+PLANTED_FALSE=0
+SELFTEST_Пунктов=16 Указателей=12 Строки_с_находками=9 Счёта_не_сошлось=0
+OQNUM_SELFTEST_EXIT=0
+ПРОВЕРКА_НОМЕРОВ пунктов=72 inline=0 таблица=30 форм=0 дублей=0 повторов-чисел=3 повтор:40,62,63
+OQNUM_EXIT=0
+ПРОВЕРКА_УКАЗАТЕЛЕЙ указателей=108 висях=0 только_inline=0 по_таблице=44 файлов=8
+OQPTR_EXIT=0
+### battle runs, host contour ### 2026-10-30T06:04:24+03:00
+REFS_CITED=1741
+REFS_MISSING=0
+REFS_ALLOWED=19
+REFS_ALLOWLIST_EMPTY=0
+REFS_EXIT=0
+STATUS_FACTS_MISSING=none
+STATUS_OK=1
+STATUS_EXIT=0
+STATUS_EXIT=0
+GITCONFIG_REMOTE=clean
+ИСТОРИЯ_СОВПАДЕНИЙ=0
+SECRETS_FINDINGS=0
+SECRETS_EXIT=0
+SECRETS_EXIT=0
+OK: VecDHT-SPEC-v8.md — зеркало совпадает с оригиналом (2300 строк, f96bdd3ac427)
+OK: VecDHT-SPEC-v9.md — зеркало совпадает с оригиналом (634 строк, a121878a263f)
+MIRROR_EXIT=0
+ПОСАДКА empty_reason: OK (findings=2 empty=check-beta.sh)
+ПОСАДКА foreign_row: OK (findings=1 stale=check-ghost.sh)
+PARITY_SELFTEST_CASES=3
+PARITY_SELFTEST_PASSED=3
+PARITY_SELFTEST_FAILED=0
+PARITY_SELFTEST_EXIT=0
+ПАРИТЕТ_ПРИБОРОВ=21
+ПАРИТЕТ_РАСХОЖДЕНИЙ=1
+ПАРИТЕТ_БЕЗ_ПРИЧИНЫ=none
+ПАРИТЕТ_БЕЗ_ВЫЗОВА=none
+ПАРИТЕТ_ПРИЧИН=1
+ПАРИТЕТ_ПУСТЫХ_ПРИЧИН=0
+ПАРИТЕТ_МЁРТВЫХ_СТРОК=none
+ПАРИТЕТ_НАХОДОК=0
+PARITY_EXIT=0
+### guard selftests ### 2026-10-30T06:08:56+03:00
+ПОСАДКА defect: OK
+RKS_SELFTEST_CASES=3
+RKS_SELFTEST_PASSED=3
+RKS_SELFTEST_FAILED=0
+KIT_SELFTEST_EXIT=0
+ПОСАДКА no_mirror: OK (rc=1)
+ПОСАДКА no_origin: OK (rc=2)
+SMK_SELFTEST_CASES=4
+SMK_SELFTEST_PASSED=4
+SMK_SELFTEST_FAILED=0
+MIRROR_SELFTEST_EXIT=0
+warning: in the working copy of 'lab/clean.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lab/rows.tsv', LF will be replaced by CRLF the next time Git touches it
+ПОСАДКА all_extensions: OK (rc=1 rc2=0)
+TCS_SELFTEST_CASES=6
+TCS_SELFTEST_PASSED=6
+TCS_SELFTEST_FAILED=0
+TEXTCLEAN_SELFTEST_EXIT=0
+EXTERNAL_DIR_2=excluded
+EXTERNAL_DIR_2_REMOVAL=tested
+STALE_ALLOWLIST=caught
+REFS_SELFTEST=ok
+REFS_SELFTEST_EXIT=0
+НАХОДКА[секрет] /tmp/tmp.pF5r1GqrWy/a.txt:2 :: key = <скрыто>
+НАХОДКА[локальный_путь] /tmp/tmp.pF5r1GqrWy/sub/b.md:1 :: p = C:\Users\someone\work\x.rs
+SECRETS_SELFTEST=ok
+SECRETS_SELFTEST_EXIT=0
+ПОСАДКА empty: OK (findings=0)
+ПОСАДКА comment_only: OK (findings=1 without=check-commentonly.sh unwired=none)
+GSE_SELFTEST_CASES=4
+GSE_SELFTEST_PASSED=4
+GSE_SELFTEST_FAILED=0
+GSE_SELFTEST_EXIT=0
+GSE_GUARDS=21
+GSE_WITH_SELFTEST=21
+GSE_WITHOUT_SELFTEST=none
+GSE_SELFTEST_UNWIRED=none
+GSE_FINDINGS=0
+GSE_EXIT=0
+EF_SELFTEST_CASE=changed_after_freeze:OK
+EF_SELFTEST_CASE=baseline_empty_reason:OK
+EF_SELFTEST_CASE=baseline_stale_row:OK
+EF_SELFTEST_CASE=refuses_without_git:OK
+EF_SELFTEST_CASE=deleted_table:OK
+EF_SELFTEST_CASES=6
+EF_SELFTEST_PASSED=6
+EF_SELFTEST_FAILED=0
+EXPFREEZE_SELFTEST_EXIT=0
+EF_ROOT_KIND=git
+EF_TABLES=62
+EF_SAME=43
+EF_CHANGED=10
+EF_ABSENT=9
+EF_MISSING_H=0
+EF_MISSING_FILE=0
+EF_STRICT_ALL=0
+EF_BASELINE=lab/expect-freeze-baseline.tsv
+EF_BASELINE_ROWS=19
+EF_BASELINE_DEFECTS=none
+EF_FINDINGS=0
+EXPFREEZE_EXIT=0
+NC_SELFTEST_CASE=unguarded:ok
+NC_SELFTEST_CASE=guarded:ok
+NC_SELFTEST_CASE=one_side:ok
+NC_SELFTEST_CASE=empty_reason:ok
+NC_SELFTEST_CASE=stale_row:ok
+NC_SELFTEST_CASES=5
+NC_SELFTEST_PASSED=5
+NC_SELFTEST_FAILED=0
+NONECMP_SELFTEST_EXIT=0
+NC_ROOT_KIND=lab
+NC_CARRIERS=142
+NC_COMPARISONS=28
+NC_SENTINEL_PAIRS=1
+NC_GUARDED=0
+NC_BASELINE=ok
+NC_BASELINE_ROWS=1
+NC_BASELINE_DEFECTS=none
+NC_FINDINGS=0
+NONECMP_EXIT=0
+CF_SELFTEST_CASE=clean_same:OK
+CF_SELFTEST_CASE=no_table:OK
+CF_SELFTEST_CASE=changed_not_counted:OK
+CF_SELFTEST_CASE=baseline_names:OK
+CF_SELFTEST_CASE=baseline_empty_reason:OK
+CF_SELFTEST_CASE=baseline_stale_row:OK
+CF_SELFTEST_CASE=no_card:OK
+CF_SELFTEST_CASE=strong_no_e_link:OK
+CF_SELFTEST_CASE=refuses_without_git:OK
+CF_SELFTEST_CASES=9
+CF_SELFTEST_PASSED=9
+CF_SELFTEST_FAILED=0
+CF_SELFTEST_EXIT=0
+CF_CLAIMS=18
+CF_LINK_PAIRS=34
+CF_NO_CARD=0
+CF_NO_TABLE=13
+CF_TABLE=21
+CF_HISTORY_SAME=17
+CF_HISTORY_CHANGED=4
+CF_HISTORY_ABSENT=0
+CF_CHANGED_CLAIMS=C-009,C-021,C-028,C-029
+CF_STRONG_NO_E=0
+CF_BASELINE=lab/claims-frozen-baseline.tsv
+CF_BASELINE_ROWS=7
+CF_BASELINE_DEFECTS=none
+CF_FINDINGS=0
+CF_EXIT=0
+СЕЛФТЕСТ ok: мёртвая строка реестра — дефект
+НАХОДКА e9001.tsv:SENTINEL_FORM — строка 1: v=${X:-none}
+СЕЛФТЕСТ ok: форма ${X:-none}
+НАХОДКА e9001.tsv:STALE — реестр исключений
+СЕЛФТЕСТ ok: реестр для чистой таблицы — STALE
+СЕЛФТЕСТ ok: пустой корень — отказ
+NO_SELFTEST_CASES=10
+NO_SELFTEST_PASSED=10
+NO_SELFTEST_FAILED=0
+NO_SELFTEST total=10 passed=10 failed=0
+NO_SELFTEST_EXIT=0
+NO_BASELINE=lab/none-owners-baseline.tsv
+NO_TABLES=62
+NO_NONE_ROWS=48
+NO_TABLES_WITH_NONE=17
+NO_SENTINEL_TABLES=14
+NO_BASELINE_ROWS=14
+NO_BASELINE_DEFECTS=none
+NO_FINDINGS=0
+NO_FINDING_TABLES=none
+NO_EXIT=0
+### text guard (--all) ### 2026-10-30T06:09:53+03:00
+ИСКЛЮЧЕНИЕ lab/experiments/E-0002-hf-reference.py: файл разрешён маркером «страж-текста: разрешено», проверка не выполняется
+ПРОВЕРКА_ТЕКСТА файлов_с_грязью=0 подозрений=9 исключено=1
+TEXTGUARD_EXIT=0
+### носитель после сборки ###
+DISK_FREE_MB=19126 RAM_FREE_MB=6507 PAGEFILE_PEAK_MB=7660
+SECONDS_total=2528 
+VERIFY_FAIL=0
