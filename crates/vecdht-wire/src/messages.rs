@@ -844,8 +844,10 @@ impl Codec for WalPullRequest {
     }
 }
 
-/// Фреймы отдаются как есть: каждый из них уже подписан (`ReplicateOp`), поэтому подпись
-/// на уровне сообщения не нужна — важна подпись каждой записи (§5.3).
+/// Ответ на `WalPullRequest` подписывается целиком (`ADR-0073`): durable-фрейм WAL
+/// (`crc32 ‖ seq ‖ kind ‖ len ‖ body`) не несёт ни эпохи, ни подписи, поэтому подпись ответа —
+/// свидетельство primary об эпохе `primary_epoch` и о содержимом хвоста, а не авторство каждой
+/// записи.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WalPullResponse {
     pub shard: u16,
@@ -1723,6 +1725,7 @@ mod tests {
             Kind::ReplicateAck,
             Kind::RendezvousAccept,
             Kind::ArtifactAnnounce,
+            Kind::WalPullResponse,
         ] {
             assert!(k.signature_required(), "{k:?}");
         }

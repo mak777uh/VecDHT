@@ -15,6 +15,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use vecdht_crypto::verify_body;
 use vecdht_index::manifest::read_manifest;
 use vecdht_index::snapshot::{snapshot_name, snapshot_size_for};
 use vecdht_index::store::ShardStore;
@@ -460,7 +461,17 @@ fn one_pull_heals_a_gap_but_the_response_is_unauthenticated() {
     assert_eq!(kind_of(&resp[0]), Kind::WalPullResponse);
     let wr = WalPullResponse::decode(&resp[0].frame).expect("WalPullResponse");
     assert_eq!((wr.shard, wr.from_seq, wr.to_seq, wr.primary_epoch), (7, 2, 4, 2));
-    assert!(decode_frame(&resp[0].frame).unwrap().signature.is_none(), "(1) ответ не подписан");
+    let resp_frame = decode_frame(&resp[0].frame).unwrap();
+    let resp_sig: [u8; 64] = resp_frame
+        .signature
+        .expect("(1) ответ несёт подпись primary")
+        .try_into()
+        .unwrap();
+    assert!(
+        verify_body(&h_addr, domain::WAL, Kind::WalPullResponse, resp_frame.body, &resp_sig)
+            .unwrap_or(false),
+        "(1) подпись primary над телом ответа"
+    );
     let mut seqs = Vec::new();
     let mut rest = &wr.frames[..];
     while !rest.is_empty() {
@@ -504,7 +515,7 @@ fn one_pull_heals_a_gap_but_the_response_is_unauthenticated() {
     assert!(out.is_empty(), "(2) чужой ReplicateOp не заслуживает ответа");
     assert_eq!(t.node(s).applied_seq(), 4, "(2) подписанный опс отвергнут");
 
-    // ...а неподписанный WalPullResponse — принят.
+    // ...а неподписанный WalPullResponse от не-члена — отвергнут дверью.
     let body = WalFrame::new(5, OpKind::Insert, forged.body_bytes()).encode();
     let wr = WalPullResponse {
         shard: SHARD,
@@ -517,18 +528,145 @@ fn one_pull_heals_a_gap_but_the_response_is_unauthenticated() {
     assert!(decode_frame(&bytes).unwrap().signature.is_none(), "(2) ответ без подписи");
     let out = deliver_raw(&mut t, s, attacker.pubkey(), &bytes, 2);
     assert!(out.is_empty());
-    assert_eq!(t.node(s).applied_seq(), 5, "(2) подделка применена");
-    assert_eq!(t.node(s).store.len(), 5);
-    assert!(t.node(s).store.index.owner_slot(&attacker.pubkey()).is_some());
+    assert_eq!(t.node(s).applied_seq(), 4, "(2) подделка не применена");
+    assert_eq!(t.node(s).store.len(), 4);
+    assert!(t.node(s).store.index.owner_slot(&attacker.pubkey()).is_none());
     assert_eq!(t.node(h).applied_seq(), 4, "(2) H не видел подделку");
     assert_eq!(t.node(h).store.len(), 4);
     assert!(t.node(h).store.index.owner_slot(&attacker.pubkey()).is_none());
 
     assert!(!Kind::WalPullRequest.signature_required());
-    assert!(!Kind::WalPullResponse.signature_required());
+    assert!(Kind::WalPullResponse.signature_required());
     assert!(Kind::ReplicateOp.signature_required());
     assert!(Kind::SnapshotOffer.signature_required());
     t.clean();
+}
+
+// --- (2b): дверь хвоста — только подписанный primary принятой эпохи -----------------
+
+#[test]
+fn wal_pull_only_primary_is_accepted() {
+    let mut t = Fleet::open("s94-pull-gates");
+    let (p, h, s) = (t.p, t.h, t.s);
+    // Эпоха 1: P — primary, H — член-реплика, S — получатель.
+    let out = publish_via(&mut t, p, 60, 70, 1, 1, h);
+    assert_eq!(acks_of(&out).len(), 1);
+    assert_eq!(t.node(s).applied_seq(), 0);
+
+    let forged = |seq: u64, agent: u8| {
+        let op = InsertOp {
+            owner_ed25519: testing::identity(agent).pubkey(),
+            vec_q: testing::vector(agent),
+            cluster_id: cluster_of(agent),
+            published_bucket: 1,
+            ttl_buckets: TTL,
+            slot_attr: 0,
+        };
+        WalFrame::new(seq, OpKind::Insert, op.body_bytes()).encode()
+    };
+    let resp = |epoch: u64, from_seq: u64, frames: Vec<u8>| WalPullResponse {
+        shard: SHARD,
+        from_seq,
+        to_seq: from_seq,
+        primary_epoch: epoch,
+        frames,
+    };
+    let signed = |seed: u8, wr: &WalPullResponse| {
+        let sig =
+            testing::identity(seed).sign_body(domain::WAL, Kind::WalPullResponse, &wr.body_bytes());
+        wr.encode_signed(&sig)
+    };
+    let p_addr = t.addr(p);
+    let h_addr = t.addr(h);
+
+    // Подписанный ответ настоящего primary принимается.
+    let good = resp(1, 1, forged(1, 60));
+    let out = deliver_raw(&mut t, s, p_addr, &signed(p, &good), 1);
+    assert!(out.is_empty());
+    assert_eq!(t.node(s).applied_seq(), 1, "(2b) ответ primary принят");
+
+    // Член, не primary (H), отвергается до применения.
+    let bad = resp(1, 2, forged(2, 61));
+    let out = deliver_raw(&mut t, s, h_addr, &signed(h, &bad), 1);
+    assert!(out.is_empty());
+    assert_eq!(t.node(s).applied_seq(), 1, "(2b) member-не-primary отвергнут");
+
+    // Чужая эпоха от самого primary отвергается.
+    let bad = resp(2, 2, forged(2, 62));
+    let out = deliver_raw(&mut t, s, p_addr, &signed(p, &bad), 1);
+    assert!(out.is_empty());
+    assert_eq!(t.node(s).applied_seq(), 1, "(2b) чужая эпоха отвергнута");
+
+    // `from_seq` впереди принятой позиции отвергается.
+    let bad = resp(1, 99, forged(2, 63));
+    let out = deliver_raw(&mut t, s, p_addr, &signed(p, &bad), 1);
+    assert!(out.is_empty());
+    assert_eq!(t.node(s).applied_seq(), 1, "(2b) from_seq впереди отвергнут");
+
+    // Неподписанный ответ primary отвергается дверью до обработчика.
+    let bad = resp(1, 2, forged(2, 64));
+    let out = deliver_raw(&mut t, s, p_addr, &bad.encode_unsigned(), 1);
+    assert!(out.is_empty());
+    assert_eq!(t.node(s).applied_seq(), 1, "(2b) неподписанный отвергнут");
+
+    // Продолжение от primary принимается.
+    let good = resp(1, 2, forged(2, 65));
+    let out = deliver_raw(&mut t, s, p_addr, &signed(p, &good), 1);
+    assert!(out.is_empty());
+    assert_eq!(t.node(s).applied_seq(), 2, "(2b) продолжение primary принято");
+    t.clean();
+}
+
+// --- (2c): холодный узел без эпохи верит только ростеру -------------------------
+
+#[test]
+fn cold_node_without_membership_trusts_only_roster() {
+    let seeds = vec![1u8, 2, 3];
+    let d = dir("s94-cold-none-1");
+    let mut n = testing::node(&d, SHARD, 1, testing::params(POW), &seeds);
+    assert_eq!(n.epoch(), None, "(2c) у узла нет принятой эпохи");
+
+    let holder = testing::identity(2);
+    let attacker = testing::identity(251);
+    let wr = |seq: u64, agent: u8| WalPullResponse {
+        shard: SHARD,
+        from_seq: seq,
+        to_seq: seq,
+        primary_epoch: 1,
+        frames: WalFrame::new(
+            seq,
+            OpKind::Insert,
+            InsertOp {
+                owner_ed25519: testing::identity(agent).pubkey(),
+                vec_q: testing::vector(agent),
+                cluster_id: cluster_of(agent),
+                published_bucket: 1,
+                ttl_buckets: TTL,
+                slot_attr: 0,
+            }
+            .body_bytes(),
+        )
+        .encode(),
+    };
+
+    // Подписанный держатель из ростера — единственный источник холодного старта.
+    let good = wr(1, 80);
+    let sig = holder.sign_body(domain::WAL, Kind::WalPullResponse, &good.body_bytes());
+    let out = n
+        .on_frame(holder.pubkey(), &good.encode_signed(&sig), testing::clock(1))
+        .expect("кадр не ломает холодный узел");
+    assert!(out.is_empty());
+    assert_eq!(n.applied_seq(), 1, "(2c) подпись ростера принята");
+
+    // Тот же кадр от не-ростера отвергается, хотя подпись верна.
+    let bad = wr(2, 81);
+    let sig = attacker.sign_body(domain::WAL, Kind::WalPullResponse, &bad.body_bytes());
+    let out = n
+        .on_frame(attacker.pubkey(), &bad.encode_signed(&sig), testing::clock(1))
+        .expect("кадр не ломает холодный узел");
+    assert!(out.is_empty());
+    assert_eq!(n.applied_seq(), 1, "(2c) не-ростер отвергнут");
+    remove(&d);
 }
 
 // --- (3): холодный снапшот по кускам и хвост -----------------------------------
@@ -618,6 +756,7 @@ fn cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail() {
     assert_eq!(out.len(), 1, "(3) после установки — догон хвоста: {out:?}");
     assert_eq!(kind_of(&out[0]), Kind::WalPullRequest);
     let tail_pull = out[0].clone();
+    assert_eq!(tail_pull.to, t.addr(p), "(3) догон адресован primary, а не держателю снапшота");
     let tr = WalPullRequest::decode(&tail_pull.frame).expect("WalPullRequest");
     assert_eq!((tr.from_seq, tr.to_seq), (161, 0), "(3) хвост с 161");
     assert_eq!(t.node(s).applied_seq(), 160, "(3) снапшот поставлен");
@@ -634,7 +773,7 @@ fn cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail() {
     assert_eq!(t.node(h).applied_seq(), 162);
     assert_eq!(t.node(h).store.len(), 162);
 
-    let out = deliver(&mut t, h, s, &tail_pull, 5);
+    let out = deliver(&mut t, p, s, &tail_pull, 5);
     assert_eq!(out.len(), 1, "(3) ответ на хвост: {out:?}");
     assert_eq!(kind_of(&out[0]), Kind::WalPullResponse);
     let wr = WalPullResponse::decode(&out[0].frame).expect("WalPullResponse");
@@ -647,7 +786,7 @@ fn cold_node_installs_snapshot_in_two_chunks_then_pulls_the_tail() {
         rest = &rest[used..];
     }
     assert_eq!(seqs, vec![161, 162]);
-    let after = deliver(&mut t, s, h, &out[0], 5);
+    let after = deliver(&mut t, s, p, &out[0], 5);
     assert!(after.is_empty(), "(3) продолжения нет: {after:?}");
     assert_eq!(t.node(s).applied_seq(), 162);
     assert_eq!(t.node(s).store.len(), 162);
@@ -749,15 +888,16 @@ fn snapshot_offer_skews_seq_when_the_holder_has_moved_on() {
     );
     let out = deliver(&mut t, s, h, &out[0], 1);
     assert_eq!(out.len(), 1, "(4) после установки — догон с 3: {out:?}");
+    assert_eq!(out[0].to, t.addr(p), "(4) догон адресован primary");
     assert_eq!(t.node(s).applied_seq(), 2);
     assert_eq!(t.node(s).store.len(), 2);
     assert!(t.node(s).store.index.owner_slot(&testing::identity(21).pubkey()).is_some());
 
-    let empty = deliver(&mut t, h, s, &out[0], 1);
+    let empty = deliver(&mut t, p, s, &out[0], 1);
     assert_eq!(empty.len(), 1);
     let wr = WalPullResponse::decode(&empty[0].frame).expect("WalPullResponse");
     assert_eq!((wr.from_seq, wr.to_seq), (3, 2), "(4) хвоста нет");
-    assert!(deliver(&mut t, s, h, &empty[0], 1).is_empty());
+    assert!(deliver(&mut t, s, p, &empty[0], 1).is_empty());
 
     // Каталог теперь открывается обычным путём.
     t.close(s);

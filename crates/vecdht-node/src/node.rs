@@ -1317,7 +1317,14 @@ impl ShardNode {
             primary_epoch: self.durable_epoch().or_else(|| self.epoch()).unwrap_or(0),
             frames,
         };
-        Ok(vec![Envelope::new(from, resp.encode_unsigned())])
+        // D1/ADR-0073: подпись primary — единственное свидетельство эпохи и хвоста, потому что
+        // durable-фрейм (`crc32 ‖ seq ‖ kind ‖ len ‖ body`) не несёт ни того, ни другого.
+        // Ответ без эпохи подписывается тоже: `primary_epoch = 0` дверь получателя отвергает по
+        // значению, а неподписанный `WalPullResponse` она отбросила бы молча — отказ был бы
+        // неотличим от потери кадра.
+        let body = resp.body_bytes();
+        let sig = self.id.sign_body(domain::WAL, Kind::WalPullResponse, &body);
+        Ok(vec![Envelope::new(from, resp.encode_signed(&sig))])
     }
 
     /// Отдать следующий кусок снапшота (§9.5, пункт 2).
@@ -1458,15 +1465,44 @@ impl ShardNode {
         if let Some(epoch) = self.epoch() {
             self.store.grant_epoch(epoch)?;
         }
-        // Снапшот перекрывает не всё: дальше обычный хвост от того же seed'а (§9.7). `pull_request`
-        // сам считает `from_seq` от нового `applied_seq`, поэтому «догнать хвост» и «попросить
-        // следующий кусок» — один и тот же кадр.
-        Ok(vec![self.pull_request(from)])
+        // Снапшот перекрывает не всё: дальше обычный хвост (§9.7). Хвост спрашивается у primary
+        // принятой эпохи, а не у того, кто отдал снапшот: дверь ответа требует подписи primary, и
+        // запрос к держателю снапшота упёрся бы в отказ. `pull_request` сам считает `from_seq` от
+        // нового `applied_seq`, поэтому «догнать хвост» и «попросить следующий кусок» — один кадр.
+        let to = self.membership.as_ref().and_then(|m| m.primary()).unwrap_or(from);
+        Ok(vec![self.pull_request(to)])
     }
 
     fn handle_pull_response(&mut self, from: Addr, bytes: &[u8]) -> Result<Vec<Envelope>, NodeError> {
+        let frame = decode_frame(bytes)?;
         let resp = WalPullResponse::decode(bytes)?;
         if resp.shard != self.shard || resp.primary_epoch == 0 {
+            return Ok(Vec::new());
+        }
+        // D1/ADR-0073: ответ принимается только от primary принятой эпохи. Узел без эпохи
+        // (холодный старт) своего primary не знает — он верит любому держателю ростера, но не
+        // подписи «primary эпохи, которой он не видел»: `primary_epoch` всё равно обязан быть
+        // ненулевым, и подпись проверяется тем же ключом, что и адрес отправителя.
+        let authority_ok = match self.epoch() {
+            Some(epoch) => {
+                resp.primary_epoch == epoch
+                    && self.membership.as_ref().and_then(|m| m.primary()) == Some(from)
+            }
+            None => self.roster.iter().any(|h| h.owner_ed25519 == from),
+        };
+        if !authority_ok || resp.from_seq > self.store.applied_seq.saturating_add(1) {
+            return Ok(Vec::new());
+        }
+        // `from_seq` во фрейме ответа — не то же, что `seq` записей: он называет место, с
+        // которого выдан хвост, и обязан примыкать к принятой позиции. Разрыв означает, что
+        // ответ собран из другого WAL, и применение дословного `seq` оставило бы дыру.
+        let sig: [u8; 64] = match frame.signature {
+            Some(s) => s.try_into().unwrap_or([0u8; 64]),
+            None => return Ok(Vec::new()),
+        };
+        if !verify_body(&from, domain::WAL, Kind::WalPullResponse, frame.body, &sig)
+            .unwrap_or(false)
+        {
             return Ok(Vec::new());
         }
         let before = self.store.applied_seq;

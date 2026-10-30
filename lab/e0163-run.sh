@@ -37,7 +37,7 @@ emit SPEC_STALE "$(has docs/VecDHT-SPEC-v8.md 'Каждый WAL-фрейм не�
 emit SPEC_RULE "$(has docs/VecDHT-SPEC-v8.md 'только от primary принятой эпохи')"
 emit GOLDEN_DIFF "$(git diff --name-only "$PIN" | grep -c 'golden')"
 emit WAL_FORMAT_TOUCHED "$(git diff --name-only "$PIN" | grep -c '^crates/vecdht-index/src/wal.rs')"
-emit WIRE_TOUCHED "$(git diff --name-only "$PIN" | grep -c '^crates/vecdht-wire/')"
+emit WIRE_TOUCHED "$(git diff --name-only "$PIN" | grep -q '^crates/vecdht-wire/' && echo 1 || echo 0)"
 emit SPEC_TOUCHED "$(git diff --name-only "$PIN" | grep -c '^docs/VecDHT-SPEC-v8.md')"
 emit PRODUCT_TOUCHED "$(git diff --name-only "$PIN" | grep -c '^crates/vecdht-node/src/node.rs')"
 emit TEST_TOUCHED "$(git diff --name-only "$PIN" | grep -c '^crates/vecdht-node/tests/s94_tail.rs')"
