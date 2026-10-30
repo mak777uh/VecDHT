@@ -80,6 +80,18 @@ Publish резервирует токен до вытеснения (`node.rs:86
 бюджет. Подпись `WalPullResponse` (D1) и гейты эпохи остаются красными и этой карточкой не
 трогаются.
 
+## Результат
+
+`supports`. Блок `E-0161` контура (строка 215 631, дерево `3ed7b61`, `VERIFY_FAIL=0`,
+137 наборов / 793 passed / 0 failed / 9 ignored, `TEST_EXIT=0`, `CLIPPY_EXIT=0`,
+`LEAN_ALL_OK=1`, `CIN_EXIT=0`, все стражи 0, `SECONDS_total=2744`). Носитель дважды
+`WORST_RC=0`, `STABLE=1` (дерево `f950090`): на пине `PRE_FIX_ADMIT_IN_PULL=0` и
+`PRE_FIX_TEST_RC=1`, на живом дереве `POST_FIX_ADMIT_IN_PULL=1`, `POST_FIX_TEST_RC=0`,
+`TEST_CASES=2`, `TEST_PASS=2`, `BUSY_CODE=1`, `FOREIGN_FREE=1`. Пилот поймал полярность
+`FOREIGN_FREE` (шаг печатал код отказа, а таблица ждала утверждение) — правка `c1b279f`
+перевела факт в `ok_bool`. Первый блок 213 394 был красным `CIN_EXIT=1` — пять устаревших
+чисел шапки `verify.yml`; правка только чисел `3ed7b61`.
+
 ## Следующее
 
 Закрыт `supports`: блок контура строка 215 631, дерево `3ed7b61`, 137 наборов/793 passed/0 failed/
