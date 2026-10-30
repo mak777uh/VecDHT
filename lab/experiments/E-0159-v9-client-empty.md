@@ -1,7 +1,7 @@
 ---
 id: E-0159
-status: open
-verdict: ""
+status: closed
+verdict: supports
 date: "2026-10-30"
 ---
 
@@ -64,8 +64,14 @@ NBSP-только, `PRE_FIX_EMPTY_EQ_RUST=0`, `PRE_FIX_NBSP_EQ_RUST=0`; POST_FIX
 
 ## Результат
 
-Заполняется по блоку `E-0159` контура `workspace-verify`: без него карточка остаётся OPEN, потому
-что прогон носителя и полный контур — разные единицы счёта (правило `H-0138`).
+`supports`. Блок `E-0159` контура `workspace-verify` — строка 206 733 лога, дерево `29e3cbb`:
+`TEST_EXIT=0` (136 наборов, 791 passed, 0 failed), `CLIPPY_EXIT=0`, `LEAN_ALL_OK=1`, `VERUS_EXIT=0`,
+`KCC_EXIT=0`, `CYCLEGATE_EXIT=0`, `REVIEW_EXIT=0`, `LINT_LATEST_EXIT=0`, `CLAIMS_EXIT=0`,
+`CONTOURS_EXIT=0`, `MAP_EXIT=0`, `CRG_EXIT=0`, `NONECMP_EXIT=0`, `CF_EXIT=0`, `NO_EXIT=0`,
+`TEXTGUARD_EXIT=0`; диск 19 030 → 18 730 МБ, `SECONDS_total=2376`, `VERIFY_FAIL=0`. Замороженная
+таблица `e0159.tsv` исполнена носителем без расхождений (`WORST_RC=0` дважды, `STABLE=1`), поэтому
+вердикт `supports`: клиент совпал с Rust в обоих местах, где раньше расходился, и остался зелёным
+приёмосдаточно. Первый блок был красным — поправка выше; она не меняла ни продукт, ни значения фактов.
 
 ## Границы
 
