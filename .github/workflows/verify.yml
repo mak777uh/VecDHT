@@ -307,6 +307,16 @@ jobs:
           tail -6 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
           exit $r
 
+      - name: check-spec-cites — ссылки на строки спеки и проверяемые цитаты
+        run: |
+          set -uo pipefail
+          L=/tmp/spec-cites.log
+          r=0
+          python lab/check-spec-cites.py > "$L" 2>&1 || r=$?
+          echo "SPEC_CITES_EXIT=$r" >> "$L"
+          tail -8 "$L" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit $r
+
       - name: guard selftests — у каждого стража обязана быть посадка, и она обязана исполняться
         run: |
           set -uo pipefail
@@ -320,6 +330,8 @@ jobs:
           python lab/check-contour-parity.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-guard-selftests.py --selftest >> "$L" 2>&1 || r=$?
           python lab/check-guard-selftests.py >> "$L" 2>&1 || r=$?
+          # Ссылки на строки спеки (`H-0160`): объявленная цитата обязана буквально быть в разделе.
+          python lab/check-spec-cites.py --selftest >> "$L" 2>&1 || r=$?
           # Заморозка таблиц ожиданий (`H-0155`): подменённое ожидание обязано краснить страж,
           # а не молчать; исторические 19 названы базовой линией (OQ п. 93).
           python lab/check-expect-freeze.py --selftest >> "$L" 2>&1 || r=$?

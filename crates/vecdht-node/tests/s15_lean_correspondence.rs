@@ -3,7 +3,7 @@
 //! Модель — `lab/lean/VecDHT/Auth.lean` (Lean 4, только core+Std, без Mathlib). Она
 //! транскрибирует `AuthoritySet::count_valid`, `Chain::check_indices`,
 //! `Chain::check_authorities` и `Chain::check_members` и формулирует инвариант спеки
-//! §9.2 (строка 969 зеркала): «индекс в `sigs` — позиция подписанта в наборе epoch−1
+//! Спека v8 §9.2: «индекс в `sigs` — позиция подписанта в наборе epoch−1
 //! (для genesis — порядок ключей в `authorities` артефакта)».
 //!
 //! Здесь — две половины пробы:

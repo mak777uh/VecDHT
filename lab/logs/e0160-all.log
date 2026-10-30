@@ -1,0 +1,58 @@
+PIN_FOUND=1
+PRE_FIX_GUARD_FILE=0
+PRE_FIX_REFS=11
+GUARD_EXIT=0
+GUARD_FINDINGS=0
+GUARD_CITES=11
+POST_FIX_REFS=0
+SELFTEST_CASES=6
+SELFTEST_PASS=6
+PY_COMPILE=0
+CI_WIRED=2
+SPEC_TOUCHED=0
+warning: in the working copy of 'crates/vecdht-net/tests/s13_privacy_pad.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-net/tests/s163_shard_without_owner.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-net/tests/s5_handshake_seam.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-node/tests/s14_cell_cap_enforced.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-node/tests/s14_cluster_bloat_price.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-node/tests/s15_lean_correspondence.rs', CRLF will be replaced by LF the next time Git touches it
+PRODUCT_TOUCHED=0
+GSE_EXIT=0
+PARITY_EXIT=0
+CONTOURS_EXIT=0
+EXPECT_FREEZE_EXIT=0
+TEXT_EXIT=0
+CLAIMS_EXIT=0
+DISK_FREE_MB=19439 RAM_FREE_MB=3772 PAGEFILE_PEAK_MB=7660
+DISK_READABLE=1
+WORST_RC=0
+STABLE=0
+PIN_FOUND=1
+PRE_FIX_GUARD_FILE=0
+PRE_FIX_REFS=11
+GUARD_EXIT=0
+GUARD_FINDINGS=0
+GUARD_CITES=11
+POST_FIX_REFS=0
+SELFTEST_CASES=6
+SELFTEST_PASS=6
+PY_COMPILE=0
+CI_WIRED=2
+SPEC_TOUCHED=0
+warning: in the working copy of 'crates/vecdht-net/tests/s13_privacy_pad.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-net/tests/s163_shard_without_owner.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-net/tests/s5_handshake_seam.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-node/tests/s14_cell_cap_enforced.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-node/tests/s14_cluster_bloat_price.rs', CRLF will be replaced by LF the next time Git touches it
+warning: in the working copy of 'crates/vecdht-node/tests/s15_lean_correspondence.rs', CRLF will be replaced by LF the next time Git touches it
+PRODUCT_TOUCHED=0
+GSE_EXIT=0
+PARITY_EXIT=0
+CONTOURS_EXIT=0
+EXPECT_FREEZE_EXIT=0
+TEXT_EXIT=0
+CLAIMS_EXIT=0
+DISK_FREE_MB=19437 RAM_FREE_MB=3866 PAGEFILE_PEAK_MB=7660
+DISK_READABLE=1
+WORST_RC=0
+STABLE=1

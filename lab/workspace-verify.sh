@@ -250,6 +250,12 @@ T0=$(now); BLOCK_T0=$T0
   rc=${PIPESTATUS[0]}; echo "NONECMP_SELFTEST_EXIT=$rc"; note $rc
   python lab/check-none-compare.py 2>&1 | tail -12
   rc=${PIPESTATUS[0]}; echo "NONECMP_EXIT=$rc"; note $rc
+  # Ссылки на строки спеки (`H-0160`): номера строк запрещены, объявленная цитата обязана
+  # буквально присутствовать в названном разделе v8-спеки.
+  python lab/check-spec-cites.py --selftest 2>&1 | tail -8
+  rc=${PIPESTATUS[0]}; echo "SC_SELFTEST_EXIT=$rc"; note $rc
+  python lab/check-spec-cites.py 2>&1 | tail -8
+  rc=${PIPESTATUS[0]}; echo "SC_EXIT=$rc"; note $rc
   # Колонка ожидания у сильных строк реестра (`H-0157`): ссылка `E-XXXX` типа gate-closed/measured
   # обязана иметь замороженную таблицу; история существующих таблиц — владелец H-0155.
   python lab/check-claims-frozen.py --selftest 2>&1 | tail -12
