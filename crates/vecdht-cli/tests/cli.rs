@@ -169,7 +169,7 @@ fn wire_kinds_prints_the_frame_table() {
     let o = run(&["wire", "kinds"]);
     assert_eq!(o.code, CODE_OK, "{:?}", o.stderr);
     assert!(o.stdout.contains("19 видов"), "{}", o.stdout);
-    assert!(o.stdout.contains("подписанных 11"), "{}", o.stdout);
+    assert!(o.stdout.contains("подписанных 12"), "{}", o.stdout);
     for kind in ["Publish", "Find", "LeaseGrant", "SnapshotOffer", "CertRevoke"] {
         assert!(o.stdout.contains(kind), "вид {kind} обязан быть в таблице §5.3");
     }
