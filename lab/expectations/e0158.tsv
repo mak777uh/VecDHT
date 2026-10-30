@@ -1,0 +1,64 @@
+# Замороженная таблица круга H-0158 (пре-регистрация). Предмет: у слова `none` в таблицах
+# ожиданий один владелец — печатное пустое множество. На пине реестра нет: 14 исторических таблиц
+# с формой «отсутствие → none» названы находками, пятнадцатая — таблица этого круга без носителя.
+# На рабочем дереве реестр называет 14 исторических таблиц, находок 0. Две строки со значением
+# `none` в этой таблице (POST_BASELINE_DEFECTS, POST_FINDING_TABLES) напечатаны прибором как
+# осознанно пустые множества; helper носителя не имеет права изготовить это слово из отсутствия
+# (его слово — НЕ_НАПЕЧАТАН). EXPECT_RC, WORST_RC и STABLE в таблицу не входят.
+PIN_FOUND	1	пре-регистрация H-0158 найдена в истории
+PRE_FIX_RC	1	на пине реестра нет: код 1
+PRE_FIX_TABLES	62	61 историческая таблица плюс таблица этого круга
+PRE_FIX_NONE_ROWS	48	46 исторических строк none плюс две строки этой таблицы
+PRE_FIX_TABLES_WITH_NONE	17	16 исторических плюс эта таблица
+PRE_FIX_SENTINEL_TABLES	14	у таблицы этого круга носителя ещё нет, формой она не считается
+PRE_FIX_BASELINE_ROWS	0	реестр заводится следующим коммитом, в пине его нет
+PRE_FIX_FINDINGS	15	14 SENTINEL_FORM и одна NO_CARRIER
+PRE_FIX_FINDING_TABLES	e0139.tsv:SENTINEL_FORM,e0140.tsv:SENTINEL_FORM,e0142.tsv:SENTINEL_FORM,e0143.tsv:SENTINEL_FORM,e0144.tsv:SENTINEL_FORM,e0147.tsv:SENTINEL_FORM,e0148.tsv:SENTINEL_FORM,e0149.tsv:SENTINEL_FORM,e0151.tsv:SENTINEL_FORM,e0152.tsv:SENTINEL_FORM,e0154.tsv:SENTINEL_FORM,e0155.tsv:SENTINEL_FORM,e0156.tsv:SENTINEL_FORM,e0157.tsv:SENTINEL_FORM,e0158.tsv:NO_CARRIER	порядок — порядок обхода таблиц прибором
+POST_RC	0	рабочее дерево: находок нет
+POST_TABLES	62	счёт таблиц не изменился
+POST_NONE_ROWS	48	счёт строк none не изменился
+POST_TABLES_WITH_NONE	17	счёт таблиц с none не изменился
+POST_SENTINEL_TABLES	14	ровно исторические таблицы; новая таблица чиста
+POST_BASELINE	lab/none-owners-baseline.tsv	реестр, прочитанный прибором
+POST_BASELINE_ROWS	14	ровно исторические нарушители, ни одной новой строки
+POST_BASELINE_DEFECTS	none	пустое множество дефектов реестра
+POST_FINDINGS	0	ни неназванных нарушителей, ни дефектов реестра
+POST_FINDING_TABLES	none	пустое множество имён находок
+TABLES_MATCH_LS	1	счёт прибора совпадает с ls lab/expectations/e*.tsv
+PLANT_SENTINEL_RC	1	посадка: новая таблица со старой формой красит прибор
+PLANT_SENTINEL_FINDINGS	1	ровно одна находка
+PLANT_SENTINEL_NAMED	1	находка названа e9001.tsv:SENTINEL_FORM
+PLANT_SPLIT_RC	0	та же таблица с НЕ_НАПЕЧАТАН проходит
+PLANT_SPLIT_FINDINGS	0	разделённая форма не даёт находок
+PLANT_EMPTY_RC	1	пустая причина в реестре красит прибор
+PLANT_EMPTY_NAMED	1	дефект назван e0139.tsv:EMPTY_REASON
+PLANT_STALE_RC	1	мёртвая строка реестра красит прибор
+PLANT_STALE_NAMED	1	дефект назван e9999.tsv:STALE
+PLANT_NOCARRIER_RC	1	таблица с none без носителя красит прибор
+PLANT_NOCARRIER_FINDINGS	1	ровно одна находка
+PLANT_NOCARRIER_NAMED	1	находка названа e9002.tsv:NO_CARRIER
+PLANT_CASES	5	посадок носителя пять
+PLANT_PASSED	5	все пять покраснели и назвали своё
+PLANT_SUB_COPY	1	копия таблицы отличается от замороженной
+PLANT_SUB_RC	1	подменённое ожидание POST_TABLES 62→63 краснит expect.py
+PLANT_SUB_MISMATCH	1	ровно одно расхождение по этому ключу
+PLANT_SUB_NAME	POST_TABLES	расхождение называет подменённый ключ
+PLANT_SUB_PASS	0	0 = подмена не прошла; 1 был бы провалом посадки
+ROOT_RC	2	вне git-корня прибор отказывается мерить
+ROOT_KIND	no-git	причина отказа названа
+SELFTEST_RC	0	самопроверка прибора зелёная
+SELFTEST_CASES	10	десять фикстур
+SELFTEST_PASSED	10	все прошли
+SELFTEST_FAILED	0	провалов нет
+GSE_EXIT	0	мета-страж H-0151 зелёный
+GSE_FINDINGS	0	у мета-стража находок нет
+PARITY_EXIT	0	паритет контуров H-0152 зелёный
+REFS_EXIT	0	ссылки на артефакты целы
+CLAIMS_EXIT	0	реестр утверждений цел
+CONTOURS_EXIT	0	контуры закрытых карточек целы
+STATUS_EXIT	0	статус-документ против дерева цел
+EXPECT_FREEZE_EXIT	0	заморозка таблиц H-0155 цела
+NONECMP_EXIT	0	сравнение none H-0156 цело
+RUST_TOUCHED	0	продуктовый Rust относительно пина не тронут
+WIRE_TOUCHED	0	wire относительно пина не тронут
+DISK_READABLE	1	диск прочитан прибором
