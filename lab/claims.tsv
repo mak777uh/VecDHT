@@ -41,3 +41,7 @@ C-034	measured	-	docs/STATUS-v1.md	before `E-0087` the author's signature was ch
 C-035	measured	-	docs/STATUS-v1.md	the silence of a revoked node was verified by a live handshake	E-0094	молчание отозванного переживает рестарт — измерено двумя срезами
 C-036	gate-closed	-	docs/STATUS-v1.md	The tail of the cap "a victim in the cell is invisible to the reservoir" is closed	E-0102	хвост капа ячейки закрыт окном живых слотов
 C-037	measured	-	docs/STATUS-v1.md	search-poisoning protection is not claimed, but its price is measured	E-0090,ADR-0057	защита не обещана, цена отравления измерена на 50 000
+C-038	gate-closed	-	README.md	The catch-up path is checked by authority rather than by signature alone	E-0163,E-0164,E-0165	путь догонки: три закрытия по полномочию, а не по одной подписи
+C-039	gate-closed	-	README.ru.md	Путь догонки проверен по полномочию, а не только по подписи	E-0163,E-0164,E-0165	русская пара C-038
+C-040	measured	-	README.md	with a budget of at most one miss per 960 probes	E-0125	хвост P1 стал зарегистрированным гейтом: цена названа измерением
+C-041	measured	-	README.ru.md	промах холодного резолва обязан назвать себя	E-0125	русская пара C-040

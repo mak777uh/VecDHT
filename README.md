@@ -56,10 +56,16 @@ paragraph:
   workspace test suite; the admission door, provider-cache bounds, durable denylist, durable revocation
   set and observable denial reasons were each closed by a measured cycle (`E-0087`…`E-0095`), and the
   recall gate closed on a coherent shard map with its price named (`E-0012`, `ADR-0004`);
+  The catch-up path is checked by authority rather than by signature alone: a `WalPullResponse`
+  is accepted only from the primary of the accepted epoch (`E-0163`), a `Publish` only with a valid
+  signature over its frame (`E-0164`), and a snapshot chunk only from a member of the epoch it
+  names (`E-0165`);
 * **measured once, on our own host** — the ~200-node stand ran in release: `E-0105`, 192 cold resolves,
   the two official runs giving p95 = 257 and 151 ms against a 500 ms threshold (five runs: 257/151/189/
   185/117 ms). Its pre-registered falsifier fired on the tail: one probe in 192 found no provider within
-  3 s, so "192/192 always" is not invariant to host load; the tail is not yet a registered hypothesis;
+  3 s, so "192/192 always" is not invariant to host load. That tail became a registered gate (`E-0125`): a cold miss must
+  name itself, and with a budget of at most one miss per 960 probes it was measured over 1 920
+  probes with a single miss;
 * **not done, said plainly** — no release tag or binary: the release kit exists and is now checked by an
   instrument (`E-0126`, `lab/check-release-kit.sh`: 17 flags, `CHANGELOG.md` from v7.5, version `1.0.0`
   in all three carriers, a tag-triggered workflow that runs the lab verification and names its own log
@@ -176,7 +182,7 @@ The wait is recorded in `lab/logs/e0122-two-hosts-selfcheck.log`.
 ## How to check a claim
 
 One canonical block; the same block is printed in [docs/METRICS.md](docs/METRICS.md) and
-[lab/README.md](lab/README.md). The four cheap guards below were executed on 2026-10-25 and each returned
+[lab/README.md](lab/README.md). The four cheap guards below were executed on 2026-10-31 and each returned
 exit code 0; the fifth is the full cargo tier.
 
 ```
@@ -227,6 +233,9 @@ decision (`ADR-XXXX`), one decision per ADR.
 6. The spec is amended only on measured facts, in its own commit, together with its readable mirror.
 7. Numbers generated from the tree belong to a generator, not to prose: `lab/INVENTORY.md` carries
    counters, `docs/METRICS.md` carries measurements, README carries ids and pointers.
+
+8. An expectations table is frozen by its pre-registration commit: `lab/check-expect-freeze.py`
+   compares it byte for byte with that blob, and a fact name has one owner.
 
 Full protocol: [lab/README.md](lab/README.md). Agent contract: [AGENTS.md](AGENTS.md).
 
