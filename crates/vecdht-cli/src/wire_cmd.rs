@@ -279,7 +279,7 @@ mod tests {
             assert!(out.contains(&format!("0x{:02X}", k as u8)), "{k:?} без кода");
         }
         assert!(out.contains("19 видов"), "{out}");
-        assert!(out.contains("подписанных 11"), "{out}");
+        assert!(out.contains("подписанных 12"), "{out}");
     }
 
     #[test]
