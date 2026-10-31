@@ -233,7 +233,6 @@ decision (`ADR-XXXX`), one decision per ADR.
 6. The spec is amended only on measured facts, in its own commit, together with its readable mirror.
 7. Numbers generated from the tree belong to a generator, not to prose: `lab/INVENTORY.md` carries
    counters, `docs/METRICS.md` carries measurements, README carries ids and pointers.
-
 8. An expectations table is frozen by its pre-registration commit: `lab/check-expect-freeze.py`
    compares it byte for byte with that blob, and a fact name has one owner.
 
