@@ -22,7 +22,7 @@ use vecdht_artifact::Manifest;
 use vecdht_crypto::{intent_id, pow_input, pow_ok, sign_cert_identity, AuthoritySet, Identity};
 use vecdht_wire::cert::{NodeCert, CERT_VERSION};
 use vecdht_wire::messages::{Codec, Find, Member, MembershipUpdate, Publish, Role, Tlv};
-use vecdht_wire::DIM;
+use vecdht_wire::{domain, Kind, DIM};
 
 use crate::candidates::{self, Holder};
 use crate::config::{Clock, Params};
@@ -264,12 +264,12 @@ impl PublishSpec<'_> {
         }
     }
 
-    /// Кадр для `on_frame`, без TLV.
-    ///
-    /// Кадр не подписывается: подпись `Publish` опциональна (§5.3), а `owner_ed25519` в теле узел
-    /// сверяет с PoW-привязкой, так что подделка не даёт ничего.
+    /// Кадр для `on_frame`, без TLV. Подпись `Publish` обязательна (§5.3, `H-0164`): кадр
+    /// подписывается ключом `agent`, чей `owner_ed25519` стоит в теле.
     pub fn frame(&self) -> Vec<u8> {
-        self.msg(Vec::new()).encode_unsigned()
+        let msg = self.msg(Vec::new());
+        let sig = self.agent.sign_body(domain::PUBLISH, Kind::Publish, &msg.body_bytes());
+        msg.encode_signed(&sig)
     }
 }
 

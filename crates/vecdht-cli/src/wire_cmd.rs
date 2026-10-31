@@ -243,7 +243,9 @@ fn typed<M: Codec + std::fmt::Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use vecdht_crypto::Identity;
     use vecdht_wire::codec::DIM;
+    use vecdht_wire::domain;
     use vecdht_wire::frame::encode_frame;
     use vecdht_wire::messages::Match;
 
@@ -252,7 +254,7 @@ mod tests {
             preprocessing_version: 1,
             cluster_id: 777,
             vec_q: [-3i8; DIM],
-            owner_ed25519: [0xA1; 32],
+            owner_ed25519: Identity::from_seed([0xA1; 32]).pubkey(),
             ttl_buckets: 225,
             published_bucket: 1000,
             pow_bits: 24,
@@ -279,13 +281,21 @@ mod tests {
             assert!(out.contains(&format!("0x{:02X}", k as u8)), "{k:?} без кода");
         }
         assert!(out.contains("19 видов"), "{out}");
-        assert!(out.contains("подписанных 12"), "{out}");
+        assert!(out.contains("подписанных 13"), "{out}");
     }
 
     #[test]
     fn a_real_frame_decodes_and_is_byte_canonical() {
-        let frame = publish().encode_unsigned();
-        let declared = publish().body_bytes().len();
+        // «Корректный кадр» после `H-0164` — подписанный: неподписанный `Publish` приёмник
+        // обязан отвергнуть, и предупреждение декодера на нём — правда, а не помеха.
+        let msg = publish();
+        let sig = Identity::from_seed([0xA1; 32]).sign_body(
+            domain::PUBLISH,
+            Kind::Publish,
+            &msg.body_bytes(),
+        );
+        let frame = msg.encode_signed(&sig);
+        let declared = msg.body_bytes().len();
         let mut out = String::new();
         decode_frame_bytes(&frame, &mut out).unwrap();
         assert!(out.contains("вид 0x10 Publish"), "{out}");

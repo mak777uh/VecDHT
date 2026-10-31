@@ -95,7 +95,11 @@ fn publish(n: &mut ShardNode, seed: u8, vec_seed: u8, tlv: Vec<(u16, Vec<u8>)>) 
         ttl_buckets: 225,
         bits: POW,
     };
-    let frame = spec.msg(tlv).encode_unsigned();
+    let msg = spec.msg(tlv);
+    // Подпись обязательна (§5.3, `H-0164`): ключ у теста есть, поэтому кадр неотличим от
+    // боевого.
+    let sig = agent.sign_body(vecdht_wire::domain::PUBLISH, Kind::Publish, &msg.body_bytes());
+    let frame = msg.encode_signed(&sig);
     let replies = n
         .on_frame(agent.pubkey(), &frame, testing::clock(0))
         .expect("publish обязан обработаться");

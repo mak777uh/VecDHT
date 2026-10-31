@@ -9,9 +9,9 @@
 //! Три вещи до прогона были неочевидны и пришли из формальной модели `lab/lean/VecDHT/Admission.lean`
 //! (правило, принятое владельцем после `E-0078`):
 //!
-//! * `admit_ignores_signature` — подпись `Publish` стоит **под условием самого флага**
-//!   (`node.rs:685`), поэтому заявленный `owner_ed25519` в неподписанном кадре никем не
-//!   подтверждается: тест (1);
+//! * `admit_ignores_signature` — модель решает допуск без оглядки на флаг подписи; с `H-0164`
+//!   подпись `Publish` обязательна, и дверь отбрасывает неподписанный кадр до admission:
+//!   тест (1) проверяет именно дверь;
 //! * `displacement_is_always_admitted` — перепубликация с другим `cluster_id` переезжает между
 //!   posting list'ами, не увеличивая `total`, то есть горячую ячейку можно собирать из уже
 //!   принятых записей: тест (2);
@@ -36,8 +36,9 @@ use std::time::Instant;
 use vecdht_crypto::{intent_id, pow_input, pow_ok};
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, testing, Clock, Params, ShardNode};
-use vecdht_wire::messages::{err_code, Codec, Find, ProtocolError, Publish};
+use vecdht_wire::messages::{Codec, Find, ProtocolError, Publish};
 use vecdht_wire::DIM;
+use vecdht_wire::{domain, Kind};
 
 const SHARD: u16 = 7;
 /// Первый кластер шарда: `shard_of_cluster` делит на 16, «удобный» ноль скрыл бы ошибку маршрута.
@@ -93,11 +94,11 @@ fn publish_frame(agent: u8, vec_seed: u8, cluster: u16, bucket: u32, bits: u32) 
     .frame()
 }
 
-/// Кадр `Publish`, **заявляющий чужой ключ** как `owner_ed25519`, без подписи (§5.3: она
-/// опциональна, и узел проверяет её только если стоит флаг).
+/// Кадр `Publish`, **заявляющий чужой ключ** как `owner_ed25519`, без подписи.
 ///
-/// PoW приходится майнить заново — вход `pow_input` содержит owner. Это и есть весь вопрос:
-/// сколько стоит подделка, если она не стоит секрета.
+/// С `H-0164` подпись обязательна, поэтому такой кадр до двери не доходит: тест (1) проверяет,
+/// что дверь его молча отбрасывает, а запись жертвы и её квота не тронуты. PoW приходится
+/// майнить заново — вход `pow_input` содержит owner, — и даже он не отменяет подпись.
 fn foreign_owner_frame(owner: &[u8; 32], vec_q: &[i8; DIM], cluster: u16, bucket: u32) -> Vec<u8> {
     let intent = intent_id(vec_q, testing::PREPROCESSING_VERSION);
     let expires = bucket + u32::from(TTL);
@@ -139,11 +140,11 @@ fn percentile_us(mut samples: Vec<u64>, p: usize) -> u64 {
     samples[idx]
 }
 
-/// (1) Неподписанный `Publish` с чужим `owner_ed25519` заменяет чужую запись и тратит квоту
-/// её автора. Фальсификатор (1д): узел отказывает такому кадру — тогда «подделка ничего не
-/// даёт» верно, а модель `admit_ignores_signature` транскрибирует код неверно.
+/// (1) Неподписанный `Publish` с чужим `owner_ed25519` **не доходит до двери**: кадр молча
+/// отброшен, запись и квота жертвы целы. Фальсификатор (1д): дверь пропускает неподписанный
+/// кадр — тогда `H-0164` переоценён, а адресация `owner_ed25519` снова никем не подтверждена.
 #[test]
-fn an_unsigned_publish_under_a_foreign_owner_replaces_their_record() {
+fn an_unsigned_publish_under_a_foreign_owner_is_dropped() {
     let (mut n, d) = primary_on("bloat-foreign", params());
     let victim = testing::identity(101);
     let attacker = testing::identity(102);
@@ -157,53 +158,41 @@ fn an_unsigned_publish_under_a_foreign_owner_replaces_their_record() {
     let slot = n.store.index.owner_slot(&me).expect("запись жертвы жива");
     assert_eq!(n.store.index.entry(slot).expect("живой slot").vec_q, testing::vector(1));
 
-    // Атакующий публикуется **от имени жертвы** со своим вектором, не имея её ключа.
+    // Атакующий публикуется **от имени жертвы** со своим вектором, не имея её ключа. Подпись
+    // `Publish` обязательна (`H-0164`), поэтому дверь обязана такой кадр отбросить молча.
     let stolen = testing::vector(99);
     let frame = foreign_owner_frame(&me, &stolen, BASE + 1, 1);
     let replies = n
         .on_frame(attacker.pubkey(), &frame, Clock::at(16))
         .expect("неподписанный кадр");
-    let forged_refused = error_to(&replies, attacker.pubkey());
     assert!(
-        forged_refused.is_none(),
-        "фальсификатор (1д): узел отказал неподписанному кадру с чужим owner — {forged_refused:?}",
+        replies.is_empty(),
+        "дверь обязана молча отбросить неподписанный Publish: {replies:?}",
     );
     let after = n.store.index.entry(slot).expect("живой slot");
-    assert_eq!(after.vec_q, stolen, "запись жертвы обязана быть заменена вектором атакующего");
-    assert_eq!(after.cluster_id, BASE + 1, "и переехать в заявленный атакующим кластер");
+    assert_eq!(after.vec_q, testing::vector(1), "запись жертвы не тронута");
+    assert_eq!(after.cluster_id, BASE, "и не переехала в заявленный кластер");
     assert_eq!(n.store.len(), 1, "подмена не занимает второй slot");
 
-    // Токен списывается у жертвы: бакет §11.3.1 считается по обоим — `from` и заявленному
-    // owner, — поэтому чужими кадрами можно посадить квоту владельца без его ключа.
-    let mut accepted = 0usize;
+    // Квота жертвы не тронута: неподписанные кадры не доходят до admission, поэтому 25 попыток
+    // не списывают у неё ни одного токена.
     for i in 0..25 {
         let f = foreign_owner_frame(&me, &testing::vector(90 + (i % 8) as u8), BASE, 2);
-        if n.on_frame(attacker.pubkey(), &f, Clock::at(32))
-            .expect("спам")
-            .iter()
-            .find(|e| e.to == attacker.pubkey())
-            .is_none()
-        {
-            accepted += 1;
-        }
+        let spam = n.on_frame(attacker.pubkey(), &f, Clock::at(32)).expect("спам");
+        assert!(spam.is_empty(), "неподписанный спам обязан молчать: {spam:?}");
     }
     let replies = n
         .on_frame(me, &publish_frame(101, 2, BASE, 2, POW), Clock::at(32))
-        .expect("попытка жертвы");
-    let err = error_to(&replies, me).expect("квота жертвы исчерпана чужими кадрами — фальсификатор (1е)");
-    assert_eq!(err.code, err_code::QUOTA_PUBLISH, "отказ обязан быть именно квотой: {err:?}");
-
-    // Через секунду токен пополняется — жертва восстанавливает свой вектор. Отношение сил
-    // «по одному токену в секунду у обеих сторон» печатается, а не утверждается.
-    let replies = n
-        .on_frame(me, &publish_frame(101, 1, BASE, 2, POW), Clock::at(33))
-        .expect("восстановление");
-    assert!(error_to(&replies, me).is_none(), "жертва обязана суметь перезаписать себя");
-    assert_eq!(n.store.index.entry(slot).expect("живой slot").vec_q, testing::vector(1));
+        .expect("честная публикация жертвы");
+    assert!(
+        error_to(&replies, me).is_none(),
+        "квота жертвы потрачена чужими кадрами — дверь пропустила неподписанное: {:?}",
+        error_to(&replies, me).map(|e| e.code)
+    );
+    assert_eq!(n.store.index.entry(slot).expect("живой slot").vec_q, testing::vector(2));
     eprintln!(
-        "## (1) подмена прошла: принято чужих кадров в бакет жертвы = {accepted} из 25, \
-         отказ жертвы = {}, запись восстановлена на следующий токен ##",
-        err.code
+        "## (1) подмена не проходит: 25 неподписанных кадров отброшены молча, запись и квота \
+         жертвы целы ##"
     );
     remove(&d);
 }
@@ -262,8 +251,10 @@ fn changing_cluster_id_costs_no_new_pow() {
     let mut msg = Publish::decode(&frame).expect("decode своего кадра");
     assert_eq!(msg.cluster_id, BASE);
     msg.cluster_id = BASE + 2;
+    let id = testing::identity(20);
+    let sig = id.sign_body(domain::PUBLISH, Kind::Publish, &msg.body_bytes());
     let replies = n
-        .on_frame(testing::identity(20).pubkey(), &msg.encode_unsigned(), Clock::at(80))
+        .on_frame(id.pubkey(), &msg.encode_signed(&sig), Clock::at(80))
         .expect("переезд без новой работы");
     assert!(
         error_to(&replies, testing::identity(20).pubkey()).is_none(),

@@ -1726,6 +1726,7 @@ mod tests {
             Kind::RendezvousAccept,
             Kind::ArtifactAnnounce,
             Kind::WalPullResponse,
+            Kind::Publish,
         ] {
             assert!(k.signature_required(), "{k:?}");
         }
@@ -1733,8 +1734,8 @@ mod tests {
         for k in [Kind::Handshake, Kind::Error, Kind::PublishAck, Kind::IntentTextRequest] {
             assert!(!k.signature_required(), "{k:?}");
         }
-        // опциональная подпись на Publish/Find обрабатывается флагом кадра, не матрицей
-        assert!(!Kind::Publish.signature_required());
+        // опциональная подпись на Find обрабатывается флагом кадра, не матрицей
+        assert!(!Kind::Find.signature_required());
     }
 
     #[test]

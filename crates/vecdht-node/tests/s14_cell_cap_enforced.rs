@@ -32,11 +32,12 @@
 
 use std::time::Instant;
 
-use vecdht_crypto::{intent_id, pow_input};
+use vecdht_crypto::{intent_id, pow_input, Identity};
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, testing, Clock, Params, ShardNode};
 use vecdht_wire::messages::{err_code, Codec, ProtocolError, Publish};
 use vecdht_wire::TIME_BUCKET_SEC;
+use vecdht_wire::{domain, Kind};
 
 const SHARD: u16 = 7;
 /// Первый кластер шарда: `shard_of_cluster` делит на 16, «удобный» ноль скрыл бы ошибку маршрута.
@@ -104,43 +105,51 @@ fn error_to(replies: &[vecdht_node::Envelope], agent: [u8; 32]) -> Option<Protoc
         .and_then(|e| ProtocolError::decode(&e.frame).ok())
 }
 
-/// Ключ владельца №`i`, которого нет среди авторитетов и холдеров: `identity(seed)` — это
-/// `[seed; 32]`, здесь первый байт `200`, а остальные — индекс.
+/// Семя владельца №`i`, которого нет среди авторитетов и холдеров: ключ выводится из него
+/// `Identity::from_seed`, первый байт семени `200`, остальные — индекс.
 fn owner(i: u64) -> [u8; 32] {
-    let mut k = [0u8; 32];
-    k[0] = 200;
-    k[24..].copy_from_slice(&i.to_le_bytes());
-    k
+    let mut seed = [0u8; 32];
+    seed[0] = 200;
+    seed[24..].copy_from_slice(&i.to_le_bytes());
+    seed
+}
+
+/// Публичный ключ владельца с семенем `seed` — то, что `on_frame` видит как адрес.
+fn key(seed: &[u8; 32]) -> [u8; 32] {
+    Identity::from_seed(*seed).pubkey()
 }
 
 fn bucket_of(sec: u64) -> u32 {
     (sec / u64::from(TIME_BUCKET_SEC)) as u32
 }
 
-/// Неподписанный `Publish` от конкретного ключа в `cluster` с ценой `bits`.
+/// Подписанный `Publish` от владельца с семенем `owner_seed` в `cluster` с ценой `bits`.
 ///
-/// Подпись в `Publish` опциональна (§5.3), и `E-0079` измерил это как дыру, а не как свободу:
-/// для теста она удобна ровно одним — владельцев можно брать из счётчика, а не из 256 сидов
-/// `testing::identity`, то есть наполнять ячейку до 4096 и выше живым путём узла, а не прямым
-/// вызовом индекса (как делал `E-0079`, которому хватало уровня `ShardStore`).
-fn frame(owner_key: &[u8; 32], vec_seed: u8, cluster: u16, bucket: u32, bits: u32) -> Vec<u8> {
+/// Подпись в `Publish` обязательна (`H-0164`), поэтому владелец — пара `Identity`, а не
+/// произвольные байты: ключ выводится из семени, и кадр подписывается им же. Семена берутся из
+/// счётчика, а не из 256 сидов `testing::identity`, то есть ячейка наполняется до 4096 и выше
+/// живым путём узла, а не прямым вызовом индекса.
+fn frame(owner_seed: &[u8; 32], vec_seed: u8, cluster: u16, bucket: u32, bits: u32) -> Vec<u8> {
+    let id = Identity::from_seed(*owner_seed);
+    let owner_key = id.pubkey();
     let vec_q = testing::vector(vec_seed);
     let intent = intent_id(&vec_q, testing::PREPROCESSING_VERSION);
     let expires = bucket + u32::from(TTL);
-    let input = pow_input(owner_key, SHARD, 1, &intent, expires);
-    Publish {
+    let input = pow_input(&owner_key, SHARD, 1, &intent, expires);
+    let msg = Publish {
         preprocessing_version: testing::PREPROCESSING_VERSION,
         cluster_id: cluster,
         vec_q,
-        owner_ed25519: *owner_key,
+        owner_ed25519: owner_key,
         ttl_buckets: TTL,
         published_bucket: bucket,
         pow_bits: bits as u8,
         pow_nonce: testing::mine(&input, bits),
         intent_id: intent,
         tlv: Vec::new(),
-    }
-    .encode_unsigned()
+    };
+    let sig = id.sign_body(domain::PUBLISH, Kind::Publish, &msg.body_bytes());
+    msg.encode_signed(&sig)
 }
 
 /// Наполнение ячейки живым путём: каждый кадр — новый ключ, секунда растёт каждые
@@ -160,9 +169,9 @@ fn fill(n: &mut ShardNode, cell: u16, count: u64, bits: u32, sec: u64) -> u64 {
         let bucket = bucket_of(at);
         let k = owner(start + i);
         let replies = n
-            .on_frame(k, &frame(&k, 1, cell, bucket, bits), Clock::at(at))
+            .on_frame(key(&k), &frame(&k, 1, cell, bucket, bits), Clock::at(at))
             .expect("publish живым путём");
-        let err = error_to(&replies, k);
+        let err = error_to(&replies, key(&k));
         assert!(
             err.is_none(),
             "кадр наполнения #{i} (ячейка {cell}, сек {at}, бакет {bucket}) отвергнут: {:?} — кап не измеряется, пока наполнение не принято",
@@ -196,10 +205,10 @@ fn the_cell_cap_binds_far_below_the_shard_capacity() {
     let k = owner(900_000);
     let started = Instant::now();
     let replies = n
-        .on_frame(k, &frame(&k, 1, BASE, bucket, POW + 1), Clock::at(sec))
+        .on_frame(key(&k), &frame(&k, 1, BASE, bucket, POW + 1), Clock::at(sec))
         .expect("publish");
     let over_cap_us = started.elapsed().as_micros() as u64;
-    assert!(error_to(&replies, k).is_none(), "новичок дороже обитателей — его обязаны принять");
+    assert!(error_to(&replies, key(&k)).is_none(), "новичок дороже обитателей — его обязаны принять");
     assert_eq!(n.store.index.cluster_len(BASE) as u64, FLOOR, "кап пропущен: ячейка выросла");
     assert_eq!(n.store.len() as u64, FLOOR, "total не обязан меняться при вытеснении по капу");
     assert_eq!(n.evictor.evicted, 1, "ровно одно вытеснение на один cap-связанный кадр");
@@ -212,7 +221,7 @@ fn the_cell_cap_binds_far_below_the_shard_capacity() {
     // вытеснять дороже принятой) ⇒ отказ существующим coarse-кодом, ничего не меняется.
     let k2 = owner(900_001);
     let replies2 = n
-        .on_frame(k2, &frame(&k2, 1, BASE, bucket_of(SEC0) - 100, POW), Clock::at(sec))
+        .on_frame(key(&k2), &frame(&k2, 1, BASE, bucket_of(SEC0) - 100, POW), Clock::at(sec))
         .expect("publish");
     let err = error_to(&replies2, k2).expect("дешевле всех в ячейке — отказ");
     assert_eq!(err.code, err_code::SHARD_FULL, "наружу только существующий код (`ADR-0044` (3))");
@@ -232,7 +241,7 @@ fn the_cell_cap_binds_far_below_the_shard_capacity() {
     for i in 0..20u64 {
         let kk = owner(1_000_000 + i);
         let t = Instant::now();
-        n.on_frame(kk, &frame(&kk, 1, NEIGHBOUR, bucket, POW), Clock::at(sec))
+        n.on_frame(key(&kk), &frame(&kk, 1, NEIGHBOUR, bucket, POW), Clock::at(sec))
             .expect("publish в пустую ячейку");
         plain.push(t.elapsed().as_micros() as u64);
     }
@@ -260,10 +269,10 @@ fn renewal_in_a_full_cell_never_costs_a_record() {
     let first = owner(0);
     for i in 0..25u64 {
         let replies = n
-            .on_frame(first, &frame(&first, 1, BASE, bucket, POW), Clock::at(sec + i))
+            .on_frame(key(&first), &frame(&first, 1, BASE, bucket, POW), Clock::at(sec + i))
             .expect("перепубликация");
         assert!(
-            error_to(&replies, first).is_none(),
+            error_to(&replies, key(&first)).is_none(),
             "продление в своей полной ячейке отвергнуто (i={i}) — это форма 15, а не 143"
         );
     }
@@ -289,12 +298,12 @@ fn migrating_into_a_full_cell_is_capped() {
     let bucket = bucket_of(sec);
     let k = owner(FLOOR);
     let replies = n
-        .on_frame(k, &frame(&k, 2, NEIGHBOUR, bucket, POW), Clock::at(sec))
+        .on_frame(key(&k), &frame(&k, 2, NEIGHBOUR, bucket, POW), Clock::at(sec))
         .expect("publish в соседнюю ячейку");
     assert!(
-        error_to(&replies, k).is_none(),
+        error_to(&replies, key(&k)).is_none(),
         "первичный publish в соседнюю ячейку отвергнут: {:?} — сценарий не собрался",
-        error_to(&replies, k).map(|e| e.code)
+        error_to(&replies, key(&k)).map(|e| e.code)
     );
     assert_eq!(n.store.index.cluster_len(NEIGHBOUR), 1);
     let total = n.store.len() as u64;
@@ -302,9 +311,9 @@ fn migrating_into_a_full_cell_is_capped() {
     // Тот же ключ и тот же вектор, другая ячейка: до фикса это был рост горячей ячейки сверх
     // предела и ноль новой работы сверх уплаченной.
     let replies = n
-        .on_frame(k, &frame(&k, 2, BASE, bucket + 1, POW + 1), Clock::at(sec + 1))
+        .on_frame(key(&k), &frame(&k, 2, BASE, bucket + 1, POW + 1), Clock::at(sec + 1))
         .expect("переезд");
-    let refused = error_to(&replies, k).map(|e| e.code);
+    let refused = error_to(&replies, key(&k)).map(|e| e.code);
     let cell = n.store.index.cluster_len(BASE) as u64;
     let moved = n.store.index.cluster_len(NEIGHBOUR) == 0;
     let evicted = n.evictor.evicted;
@@ -378,9 +387,9 @@ fn above_the_floor_the_cap_is_the_mean_and_not_a_constant() {
     let before = n.evictor.evicted;
     let k = owner(5_000_000);
     let replies = n
-        .on_frame(k, &frame(&k, 1, BASE, bucket_of(sec), POW + 1), Clock::at(sec))
+        .on_frame(key(&k), &frame(&k, 1, BASE, bucket_of(sec), POW + 1), Clock::at(sec))
         .expect("publish");
-    let refused = error_to(&replies, k).map(|e| e.code);
+    let refused = error_to(&replies, key(&k)).map(|e| e.code);
     let cell = n.store.index.cluster_len(BASE) as u64;
     assert_eq!(
         cell, limit,
@@ -420,7 +429,7 @@ fn shard_cap_and_cell_cap_together_evict_exactly_once() {
     let sec = fill(&mut n, BASE, FLOOR, POW, SEC0);
     assert_eq!(n.evictor.evicted, 0, "ровно до лимита вытеснений нет");
     let k = owner(777_777);
-    n.on_frame(k, &frame(&k, 1, BASE, bucket_of(sec), POW + 1), Clock::at(sec))
+    n.on_frame(key(&k), &frame(&k, 1, BASE, bucket_of(sec), POW + 1), Clock::at(sec))
         .expect("publish");
     assert_eq!(n.store.len() as u64, FLOOR, "total не растёт при двух связанных лимитах");
     assert_eq!(n.evictor.evicted, 1, "двойное вытеснение: кап и вместимость посчитали одного");

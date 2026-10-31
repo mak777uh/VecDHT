@@ -816,8 +816,9 @@ impl ShardNode {
         // §11.3: локальный приём — до работы, которую отказ делает бессмысленной. Denylist и
         // бакет ключа стоят поиска в двух BTreeMap, а PoW — один blake3, поэтому бакет идёт
         // раньше проверки nonce: иначе узел верифицировал бы работу, которую заведомо не примет.
-        // Платит и `from`, и заявленный owner: подпись в Publish опциональна (§5.3), поэтому
-        // бакет только по owner обнулялся бы сменой литерала (см. `Admission::check_publish`).
+        // Платит и `from`, и заявленный owner: подпись `Publish` обязательна и подтверждает
+        // автора (§5.3), но кадр законно приходит пересылкой, и бакет только по owner не
+        // ограничивал бы пересылающего (см. `Admission::check_publish`).
         let verdict = self.admission.borrow_mut().check_publish(&from, &msg.owner_ed25519, now.sec);
         if let Some(code) = verdict.code() {
             return self.err(from, code, verdict.retry_after_ms());

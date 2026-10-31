@@ -47,13 +47,14 @@ use std::path::{Path, PathBuf};
 
 use vecdht_artifact::{reference_artifact, reference_centroids};
 use vecdht_crypto::quant::{DIM, l2_normalize};
-use vecdht_crypto::{intent_id, pow_input};
+use vecdht_crypto::{intent_id, pow_input, Identity};
 use vecdht_embed::model::{Pooled, quantize_pooled};
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::net::Addr;
 use vecdht_node::{candidates, denylist, revocation, session, testing, Clock, Params, ShardNode};
 use vecdht_wire::TIME_BUCKET_SEC;
 use vecdht_wire::messages::{Codec, ProtocolError, Publish};
+use vecdht_wire::{domain, Kind};
 
 const SHARD: u16 = 7;
 const BASE: u16 = SHARD * 16;
@@ -120,13 +121,17 @@ fn primary_on(name: &str, p: Params) -> (ShardNode, Tmp) {
     (n, d)
 }
 
-/// Ключ владельца №`i`: первого байта `200` в корпусе быть не может (авторитеты — из сидов,
-/// denylist/revocation — с первым байтом `210`), поэтому находка однозначна.
+/// Семя владельца №`i` с первым байтом `200` (авторитеты — из сидов, denylist/revocation — с
+/// первым байтом `210`); ключ выводится из семени, поэтому находка ключа в корпусе однозначна.
 fn owner(i: u64) -> Addr {
-    let mut k = [0u8; 32];
-    k[0] = 200;
-    k[24..].copy_from_slice(&i.to_le_bytes());
-    k
+    owner_identity(i).pubkey()
+}
+
+fn owner_identity(i: u64) -> Identity {
+    let mut seed = [0u8; 32];
+    seed[0] = 200;
+    seed[24..].copy_from_slice(&i.to_le_bytes());
+    Identity::from_seed(seed)
 }
 
 fn bucket_of(sec: u64) -> u32 {
@@ -243,31 +248,33 @@ fn read_tree(root: &Path) -> Vec<(PathBuf, Vec<u8>)> {
 
 // ---------------------------------------------------------------- кадры
 
-/// Неподписанный `Publish` с явным `vec_q` и — для одного кадра — текстом в зарезервированном
-/// TLV (§5.3: подпись в `Publish` опциональна, поэтому владельцем считаем счётчик).
+/// Подписанный `Publish` с явным `vec_q` и — для одного кадра — текстом в зарезервированном
+/// TLV (§5.3: подпись `Publish` обязательна, `H-0164`).
 fn frame_vec(
-    owner_key: &Addr,
+    owner_id: &Identity,
     vec_q: &[i8; DIM],
     bucket: u32,
     bits: u32,
     tlv: Vec<(u16, Vec<u8>)>,
 ) -> Vec<u8> {
+    let owner_key = owner_id.pubkey();
     let intent = intent_id(vec_q, testing::PREPROCESSING_VERSION);
     let expires = bucket + u32::from(TTL);
-    let input = pow_input(owner_key, SHARD, 1, &intent, expires);
-    Publish {
+    let input = pow_input(&owner_key, SHARD, 1, &intent, expires);
+    let msg = Publish {
         preprocessing_version: testing::PREPROCESSING_VERSION,
         cluster_id: BASE,
         vec_q: *vec_q,
-        owner_ed25519: *owner_key,
+        owner_ed25519: owner_key,
         ttl_buckets: TTL,
         published_bucket: bucket,
         pow_bits: bits as u8,
         pow_nonce: testing::mine(&input, bits),
         intent_id: intent,
         tlv,
-    }
-    .encode_unsigned()
+    };
+    let sig = owner_id.sign_body(domain::PUBLISH, Kind::Publish, &msg.body_bytes());
+    msg.encode_signed(&sig)
 }
 
 fn stored_codes(n: &ShardNode, key: &Addr) -> Option<[i8; DIM]> {
@@ -312,11 +319,12 @@ fn disk_privacy_audit_scans_what_the_node_actually_writes() {
         } else {
             Vec::new()
         };
-        let key = owner((i as u64) + 1);
+        let id = owner_identity((i as u64) + 1);
+        let key = id.pubkey();
         let replies = n
             .on_frame(
                 key,
-                &frame_vec(&key, &c, bucket_of(sec), POW, tlv),
+                &frame_vec(&id, &c, bucket_of(sec), POW, tlv),
                 Clock::at(sec),
             )
             .expect("publish");
@@ -347,9 +355,10 @@ fn disk_privacy_audit_scans_what_the_node_actually_writes() {
 
     for i in BEFORE_SNAPSHOT..RECORDS {
         let sec = SEC0 + i * 7;
+        let id = owner_identity(i + 1);
         n.on_frame(
-            owner(i + 1),
-            &frame_vec(&owner(i + 1), &codes[i as usize], bucket_of(sec), POW, Vec::new()),
+            id.pubkey(),
+            &frame_vec(&id, &codes[i as usize], bucket_of(sec), POW, Vec::new()),
             Clock::at(sec),
         )
         .expect("publish после снапшота");

@@ -46,11 +46,11 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use libp2p::Multiaddr;
 use tokio::task::LocalSet;
 use vecdht_artifact::{reference_artifact, reference_manifest};
-use vecdht_crypto::{intent_id, pow_input};
+use vecdht_crypto::{intent_id, pow_input, Identity};
 use vecdht_net::{keys, Agent, AgentConfig, FindQuery, NetConfig, NetService, NetworkParams};
 use vecdht_node::{candidates, testing, Clock, ShardNode};
 use vecdht_wire::messages::{Codec, ProtocolError, Publish, Role};
-use vecdht_wire::{decode_frame, Kind};
+use vecdht_wire::{decode_frame, domain, Kind};
 
 /// Шард фикстуры: `shard_of_cluster` делит `nlist` на 64, и «удобный ноль» скрыл бы ошибку
 /// маршрута (тот же урок, что в `E-0079`).
@@ -275,21 +275,22 @@ fn open_node(shard: u16, dir: &Path, heavy: bool) -> ShardNode {
     node
 }
 
-/// Живой путь приёма: кадр `Publish` (неподписанный — подпись в `Publish` опциональна, §5.3) в
+/// Живой путь приёма: подписанный кадр `Publish` (подпись обязательна, §5.3, `H-0164`) в
 /// `ShardNode::on_frame`. Владельцы тяжёлой ячейки синтетические: у `testing::identity` только
 /// 256 ключей, а различие обязательно — `insert` дедуплицирует по `(owner, shard)` и при повторе
 /// переезжает (ДИАГНОЗ-1 из `E-0079`). Секунда виртуальных часов растёт каждые 100 кадров, чтобы
 /// узловой бюджет 100 admits/с (§11.3.4) не подменил собой измеряемую картину.
 fn put(node: &mut ShardNode, shard: u16, cluster: u16, count: usize, owner_seed: u8, base_sec: u64) {
     for i in 0..count {
-        let owner = if owner_seed != 0 {
-            testing::identity(owner_seed).pubkey()
+        let id = if owner_seed != 0 {
+            testing::identity(owner_seed)
         } else {
-            let mut o = [0u8; 32];
-            o[0..8].copy_from_slice(&(((shard as u64) << 40) + i as u64).to_le_bytes());
-            o[31] = 0xE8;
-            o
+            let mut seed = [0u8; 32];
+            seed[0..8].copy_from_slice(&(((shard as u64) << 40) + i as u64).to_le_bytes());
+            seed[31] = 0xE8;
+            Identity::from_seed(seed)
         };
+        let owner = id.pubkey();
         let vec_q = if owner_seed != 0 {
             testing::vector(3)
         } else {
@@ -321,8 +322,9 @@ fn put(node: &mut ShardNode, shard: u16, cluster: u16, count: usize, owner_seed:
             intent_id: intent,
             tlv: Vec::new(),
         };
+        let sig = id.sign_body(domain::PUBLISH, Kind::Publish, &msg.body_bytes());
         let out = node
-            .on_frame(owner, &msg.encode_unsigned(), Clock::at(sec))
+            .on_frame(owner, &msg.encode_signed(&sig), Clock::at(sec))
             .expect("publish стенда принят");
         // `.expect()` ловит только `NodeError`; отказ протокола приходит КАДРОМ ошибки внутри
         // `Ok(..)` и иначе превращается в «записи не хватает» без имени причины (пилот `E-0084`:

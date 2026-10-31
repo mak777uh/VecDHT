@@ -158,8 +158,9 @@ theorem admit_ignores_vector (p : Profile) (k c d : Nat) (sg : Bool) (v₁ v₂ 
     admit p { key := k, cluster := c, vec := v₁, dist := d, signed := sg } =
       admit p { key := k, cluster := c, vec := v₂, dist := d, signed := sg } := rfl
 
-/-- Подпись не меняет решения: в `node.rs:685` проверка стоит **под условием** самого флага,
-поэтому неподписанный кадр с заявленным автором для решения неотличим от подписанного. -/
+/-- Подпись не меняет решения `admit`: модель решает допуск и поле `signed` не читает. С `H-0164`
+подпись `Publish` обязательна, и дверь отбрасывает неподписанный кадр до admission — теорема
+описывает решение, а не достижимость такого кадра. -/
 theorem admit_ignores_signature (p : Profile) (k c v d : Nat) :
     admit p { key := k, cluster := c, vec := v, dist := d, signed := true } =
       admit p { key := k, cluster := c, vec := v, dist := d, signed := false } := rfl
@@ -202,8 +203,9 @@ theorem displacement_is_always_admitted (p : Profile) (k c₁ : Nat) (hk : has p
 def base : Profile := [(0, 1), (1, 2), (2, 3)]
 
 /-- Два переезда, ни одного нового автора. Вектор и «расстояние» здесь — метки, модель их не
-читает (`admit_ignores_vector`, `admit_ignores_distance`); `signed := false` — кадр без подписи,
-для решения это то же самое, что подписанный (`admit_ignores_signature`). -/
+читает (`admit_ignores_vector`, `admit_ignores_distance`); `signed := false` — метка без подписи:
+дверь такой `Publish` отбрасывает (`H-0164`), а решение допуска поле не читает
+(`admit_ignores_signature`). -/
 def mig1 : Pub := { key := 1, cluster := 1, vec := 77, dist := 4242, signed := false }
 def mig2 : Pub := { key := 2, cluster := 1, vec := 78, dist := 4242, signed := false }
 def migrate : List Pub := [mig1, mig2]

@@ -168,8 +168,11 @@ fn a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes() {
     let c = testing::identity(43);
     let mut moved = Publish::decode(&mined_frame(&c, 4, SHARD, CLUSTER, 1, 0, 225, POW)).unwrap();
     moved.published_bucket = 1;
+    // С `H-0164` подпись обязательна: после правки поля её пересчитывают, иначе дверь
+    // отбросила бы кадр молча и тест мерил бы не привязку PoW.
+    let sig_moved = c.sign_body(domain::PUBLISH, Kind::Publish, &moved.body_bytes());
     let err = error_to(
-        &n.on_frame(c.pubkey(), &moved.encode_unsigned(), testing::clock(1)).unwrap(),
+        &n.on_frame(c.pubkey(), &moved.encode_signed(&sig_moved), testing::clock(1)).unwrap(),
         c.pubkey(),
     )
     .expect("сдвинутый срок");
@@ -185,8 +188,11 @@ fn a_prefarmed_pow_dies_when_shard_epoch_slot_or_expiry_changes() {
         substituted.intent_id,
         "подмена обязана изменить slot_key, иначе тест ничего не проверяет"
     );
+    let sig_substituted =
+        e.sign_body(domain::PUBLISH, Kind::Publish, &substituted.body_bytes());
     let err = error_to(
-        &n.on_frame(e.pubkey(), &substituted.encode_unsigned(), testing::clock(0)).unwrap(),
+        &n.on_frame(e.pubkey(), &substituted.encode_signed(&sig_substituted), testing::clock(0))
+            .unwrap(),
         e.pubkey(),
     )
     .expect("подменённый вектор при чужом intent_id");
@@ -206,13 +212,15 @@ fn a_mismatched_artifact_does_not_enter_the_index_or_matching() {
     let good = mined_frame(&owner, 1, SHARD, CLUSTER, 1, 0, 225, POW);
     assert!(error_to(&n.on_frame(owner.pubkey(), &good, testing::clock(0)).unwrap(), owner.pubkey()).is_none());
 
-    // Публикация из сети с другой `preprocessing_version`: подпись не обязательна, поэтому
-    // именно эта проверка не даёт вектору чужой сетки попасть в индекс (§6.7, §15.3).
+    // Публикация из сети с другой `preprocessing_version`: подпись подтверждает автора, но не
+    // сетку, поэтому именно эта проверка не даёт вектору чужой сетки попасть в индекс (§6.7, §15.3).
     let alien = testing::identity(47);
     let mut frame = Publish::decode(&mined_frame(&alien, 2, SHARD, CLUSTER, 1, 0, 225, POW)).unwrap();
     frame.preprocessing_version = testing::PREPROCESSING_VERSION + 1;
+    let sig_alien =
+        alien.sign_body(domain::PUBLISH, Kind::Publish, &frame.body_bytes());
     let err = error_to(
-        &n.on_frame(alien.pubkey(), &frame.encode_unsigned(), testing::clock(0)).unwrap(),
+        &n.on_frame(alien.pubkey(), &frame.encode_signed(&sig_alien), testing::clock(0)).unwrap(),
         alien.pubkey(),
     )
     .expect("чужой preprocessing_version");

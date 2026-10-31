@@ -19,7 +19,7 @@ use vecdht_index::testing::{dir, remove};
 use vecdht_index::IndexEntry;
 use vecdht_net::keys;
 use vecdht_wire::messages::Publish;
-use vecdht_wire::{Codec, DIM, SHARDS};
+use vecdht_wire::{domain, Codec, Kind, DIM, SHARDS};
 
 /// Каталог под тест; путь нужен и как `&str` для argv, и как `PathBuf` для удаления.
 fn tmp(tag: &str) -> PathBuf {
@@ -169,7 +169,7 @@ fn wire_kinds_prints_the_frame_table() {
     let o = run(&["wire", "kinds"]);
     assert_eq!(o.code, CODE_OK, "{:?}", o.stderr);
     assert!(o.stdout.contains("19 видов"), "{}", o.stdout);
-    assert!(o.stdout.contains("подписанных 12"), "{}", o.stdout);
+    assert!(o.stdout.contains("подписанных 13"), "{}", o.stdout);
     for kind in ["Publish", "Find", "LeaseGrant", "SnapshotOffer", "CertRevoke"] {
         assert!(o.stdout.contains(kind), "вид {kind} обязан быть в таблице §5.3");
     }
@@ -177,11 +177,14 @@ fn wire_kinds_prints_the_frame_table() {
 
 #[test]
 fn wire_decode_rebuilds_a_publish_frame_it_was_given() {
+    // Подпись `Publish` обязательна (`H-0164`): кадр без неё — не «корректный кадр», а
+    // нарушение матрицы, и предупреждение на нём было бы правдой.
+    let id = Identity::from_seed([0xA1; 32]);
     let publish = Publish {
         preprocessing_version: 1,
         cluster_id: 777,
         vec_q: [3i8; DIM],
-        owner_ed25519: [0xA1; 32],
+        owner_ed25519: id.pubkey(),
         ttl_buckets: 225,
         published_bucket: 1_000_000,
         pow_bits: 24,
@@ -189,7 +192,9 @@ fn wire_decode_rebuilds_a_publish_frame_it_was_given() {
         intent_id: [0xB2; 32],
         tlv: vec![],
     };
-    let frame = publish.encode_unsigned();
+    let frame = publish.encode_signed(
+        &id.sign_body(domain::PUBLISH, Kind::Publish, &publish.body_bytes()),
+    );
     let o = run(&["wire", "decode", "--hex", &hex::encode(&frame)]);
     assert_eq!(o.code, CODE_OK, "{:?}", o.stderr);
     assert!(o.stdout.contains("как Publish"), "{}", o.stdout);

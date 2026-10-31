@@ -26,13 +26,13 @@ golden_code_diff() {
 emit PIN_FOUND "$(git cat-file -e "$PIN^{commit}" 2>/dev/null && echo 1 || echo 0)"
 emit PRE_FIX_SIG_REQUIRED "$(git show "$PIN:$FRAME" | sig_block | grep -c '| Kind::Publish')"
 git checkout -q "$PIN" -- "$FRAME"
-cargo test -q -p vecdht-wire --lib signature_required_matrix_matches_spec -- --exact > "$TMP/pre_matrix.log" 2>&1; r=$?
+cargo test -q -p vecdht-wire --lib messages::tests::signature_required_matrix_matches_spec > "$TMP/pre_matrix.log" 2>&1; r=$?
 emit PRE_FIX_MATRIX_RC "$(bool_rc $r)"
 cargo test -q -p vecdht-node --test t1_publish_signature > "$TMP/pre_t1.log" 2>&1; r=$?
 emit PRE_FIX_T1_RC "$(bool_rc $r)"
 git checkout -q HEAD -- "$FRAME"
 emit POST_FIX_SIG_REQUIRED "$(sig_block < "$FRAME" | grep -c '| Kind::Publish')"
-cargo test -q -p vecdht-wire --lib signature_required_matrix_matches_spec -- --exact > "$TMP/post_matrix.log" 2>&1; r=$?
+cargo test -q -p vecdht-wire --lib messages::tests::signature_required_matrix_matches_spec > "$TMP/post_matrix.log" 2>&1; r=$?
 emit POST_FIX_MATRIX_RC "$(bool_rc $r)"
 cargo test -q -p vecdht-node --test t1_publish_signature > "$TMP/post_t1.log" 2>&1; r=$?
 emit POST_FIX_T1_RC "$(bool_rc $r)"

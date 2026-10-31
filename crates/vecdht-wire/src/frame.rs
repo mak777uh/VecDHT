@@ -140,6 +140,7 @@ impl Kind {
                 | Kind::CertRevoke
                 | Kind::RendezvousAccept
                 | Kind::ArtifactAnnounce
+                | Kind::Publish
                 | Kind::WalPullResponse
         )
     }

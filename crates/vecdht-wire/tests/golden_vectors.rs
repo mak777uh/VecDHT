@@ -353,7 +353,8 @@ fn vectors() -> BTreeMap<String, Vec<u8>> {
             sig_input(dom, kind, FLAG_SIGNED, &body),
         );
     }
-    // Publish/Find подписываются только в gossip-потоке; их sig_input при flags=0.
+    // Золотые байты несут тело и флаги, а не матрицу: с `H-0164` `Publish` подписывается всегда,
+    // и кадр без подписи дверь отбрасывает; здесь закреплён `sig_input` при flags=0.
     v.insert(
         "sig_input.publish_gossip".to_string(),
         sig_input(domain::PUBLISH, Kind::Publish, 0, &m_publish().body_bytes()),

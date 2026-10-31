@@ -8,11 +8,12 @@
 //!   (обёртка), то есть отказ на первом окне не запирает дешёвую запись навсегда;
 //! * глобальный `scanned` (обход арены) не двигается: цена капа — локальное окно, а не O(M).
 
-use vecdht_crypto::{intent_id, pow_input};
+use vecdht_crypto::{intent_id, pow_input, Identity};
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, testing, Clock, Params, ShardNode};
 use vecdht_wire::messages::{err_code, Codec, ProtocolError, Publish};
 use vecdht_wire::TIME_BUCKET_SEC;
+use vecdht_wire::{domain, Kind};
 
 const SHARD: u16 = 7;
 const BASE: u16 = SHARD * 16;
@@ -68,34 +69,42 @@ fn error_to(replies: &[vecdht_node::Envelope], agent: [u8; 32]) -> Option<Protoc
 }
 
 fn owner(i: u64) -> [u8; 32] {
-    let mut k = [0u8; 32];
-    k[0] = 200;
-    k[24..].copy_from_slice(&i.to_le_bytes());
-    k
+    let mut seed = [0u8; 32];
+    seed[0] = 200;
+    seed[24..].copy_from_slice(&i.to_le_bytes());
+    seed
+}
+
+/// Публичный ключ владельца с семенем `seed` — то, что `on_frame` видит как адрес.
+fn key(seed: &[u8; 32]) -> [u8; 32] {
+    Identity::from_seed(*seed).pubkey()
 }
 
 fn bucket_of(sec: u64) -> u32 {
     (sec / u64::from(TIME_BUCKET_SEC)) as u32
 }
 
-fn frame(owner_key: &[u8; 32], vec_seed: u8, cluster: u16, bucket: u32, bits: u32) -> Vec<u8> {
+fn frame(owner_seed: &[u8; 32], vec_seed: u8, cluster: u16, bucket: u32, bits: u32) -> Vec<u8> {
+    let id = Identity::from_seed(*owner_seed);
+    let owner_key = id.pubkey();
     let vec_q = testing::vector(vec_seed);
     let intent = intent_id(&vec_q, testing::PREPROCESSING_VERSION);
     let expires = bucket + u32::from(225u16);
-    let input = pow_input(owner_key, SHARD, 1, &intent, expires);
-    Publish {
+    let input = pow_input(&owner_key, SHARD, 1, &intent, expires);
+    let msg = Publish {
         preprocessing_version: testing::PREPROCESSING_VERSION,
         cluster_id: cluster,
         vec_q,
-        owner_ed25519: *owner_key,
+        owner_ed25519: owner_key,
         ttl_buckets: 225,
         published_bucket: bucket,
         pow_bits: bits as u8,
         pow_nonce: testing::mine(&input, bits),
         intent_id: intent,
         tlv: Vec::new(),
-    }
-    .encode_unsigned()
+    };
+    let sig = id.sign_body(domain::PUBLISH, Kind::Publish, &msg.body_bytes());
+    msg.encode_signed(&sig)
 }
 
 fn fill(n: &mut ShardNode, cell: u16, count: u64, bits: u32, sec: u64) -> u64 {
@@ -105,10 +114,10 @@ fn fill(n: &mut ShardNode, cell: u16, count: u64, bits: u32, sec: u64) -> u64 {
         let bucket = bucket_of(at);
         let k = owner(start + i);
         let replies = n
-            .on_frame(k, &frame(&k, 1, cell, bucket, bits), Clock::at(at))
+            .on_frame(key(&k), &frame(&k, 1, cell, bucket, bits), Clock::at(at))
             .expect("publish живым путём");
         assert!(
-            error_to(&replies, k).is_none(),
+            error_to(&replies, key(&k)).is_none(),
             "кадр наполнения #{i} отвергнут — сцена не собралась"
         );
     }
@@ -126,7 +135,7 @@ fn the_window_scan_is_bounded_advances_and_wraps() {
 
     let s0 = n.evictor.cell_scanned;
     let k = owner(900_000);
-    let r = n.on_frame(k, &frame(&k, 1, BASE, bucket, 11), Clock::at(sec)).expect("publish");
+    let r = n.on_frame(key(&k), &frame(&k, 1, BASE, bucket, 11), Clock::at(sec)).expect("publish");
     assert_eq!(
         error_to(&r, k).map(|e| e.code),
         Some(err_code::SHARD_FULL.to_string()),
@@ -136,13 +145,13 @@ fn the_window_scan_is_bounded_advances_and_wraps() {
     assert_eq!(d1, BUDGET, "первый проход обязан стоить ровно бюджет, а не размер ячейки");
 
     let k2 = owner(900_001);
-    let r2 = n.on_frame(k2, &frame(&k2, 1, BASE, bucket, 11), Clock::at(sec)).expect("publish");
+    let r2 = n.on_frame(key(&k2), &frame(&k2, 1, BASE, bucket, 11), Clock::at(sec)).expect("publish");
     assert!(error_to(&r2, k2).is_none(), "хвост ячейки содержит 9-битную запись — обязан переезд");
     let d2 = n.evictor.cell_scanned - s0 - d1;
     assert_eq!(d2, TAIL, "второй проход обязан начаться с курсора и кончиться на конце списка");
 
     let k3 = owner(900_002);
-    let r3 = n.on_frame(k3, &frame(&k3, 1, BASE, bucket, 8), Clock::at(sec)).expect("publish");
+    let r3 = n.on_frame(key(&k3), &frame(&k3, 1, BASE, bucket, 8), Clock::at(sec)).expect("publish");
     assert!(error_to(&r3, k3).is_some(), "8 бит дешевле любой записи ячейки — обязан отказ");
     let d3 = n.evictor.cell_scanned - s0 - d1 - d2;
     assert_eq!(d3, BUDGET, "после конца списка курсор обязан обернуться и снова стоить бюджет");

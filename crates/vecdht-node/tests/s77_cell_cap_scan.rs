@@ -17,11 +17,12 @@
 //! рестарта, цены не имеют (`bits = 0`), и жертвой не становятся — отказ для них остаётся
 //! осознанной ошибкой в безопасную сторону (§11.3.3), а не регрессией этого цикла.
 
-use vecdht_crypto::{intent_id, pow_input};
+use vecdht_crypto::{intent_id, pow_input, Identity};
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, testing, Clock, Params, ShardNode};
 use vecdht_wire::messages::{err_code, Codec, ProtocolError, Publish};
 use vecdht_wire::TIME_BUCKET_SEC;
+use vecdht_wire::{domain, Kind};
 
 const SHARD: u16 = 7;
 /// Ячейки шарда идут подряд: `shard_of_cluster` делит номер на 16.
@@ -81,34 +82,42 @@ fn error_to(replies: &[vecdht_node::Envelope], agent: [u8; 32]) -> Option<Protoc
 }
 
 fn owner(i: u64) -> [u8; 32] {
-    let mut k = [0u8; 32];
-    k[0] = 200;
-    k[24..].copy_from_slice(&i.to_le_bytes());
-    k
+    let mut seed = [0u8; 32];
+    seed[0] = 200;
+    seed[24..].copy_from_slice(&i.to_le_bytes());
+    seed
+}
+
+/// Публичный ключ владельца с семенем `seed` — то, что `on_frame` видит как адрес.
+fn key(seed: &[u8; 32]) -> [u8; 32] {
+    Identity::from_seed(*seed).pubkey()
 }
 
 fn bucket_of(sec: u64) -> u32 {
     (sec / u64::from(TIME_BUCKET_SEC)) as u32
 }
 
-fn frame(owner_key: &[u8; 32], vec_seed: u8, cluster: u16, bucket: u32, bits: u32) -> Vec<u8> {
+fn frame(owner_seed: &[u8; 32], vec_seed: u8, cluster: u16, bucket: u32, bits: u32) -> Vec<u8> {
+    let id = Identity::from_seed(*owner_seed);
+    let owner_key = id.pubkey();
     let vec_q = testing::vector(vec_seed);
     let intent = intent_id(&vec_q, testing::PREPROCESSING_VERSION);
     let expires = bucket + u32::from(225u16);
-    let input = pow_input(owner_key, SHARD, 1, &intent, expires);
-    Publish {
+    let input = pow_input(&owner_key, SHARD, 1, &intent, expires);
+    let msg = Publish {
         preprocessing_version: testing::PREPROCESSING_VERSION,
         cluster_id: cluster,
         vec_q,
-        owner_ed25519: *owner_key,
+        owner_ed25519: owner_key,
         ttl_buckets: 225,
         published_bucket: bucket,
         pow_bits: bits as u8,
         pow_nonce: testing::mine(&input, bits),
         intent_id: intent,
         tlv: Vec::new(),
-    }
-    .encode_unsigned()
+    };
+    let sig = id.sign_body(domain::PUBLISH, Kind::Publish, &msg.body_bytes());
+    msg.encode_signed(&sig)
 }
 
 fn fill(n: &mut ShardNode, cell: u16, count: u64, bits: u32, sec: u64) -> u64 {
@@ -118,9 +127,9 @@ fn fill(n: &mut ShardNode, cell: u16, count: u64, bits: u32, sec: u64) -> u64 {
         let bucket = bucket_of(at);
         let k = owner(start + i);
         let replies = n
-            .on_frame(k, &frame(&k, 1, cell, bucket, bits), Clock::at(at))
+            .on_frame(key(&k), &frame(&k, 1, cell, bucket, bits), Clock::at(at))
             .expect("publish живым путём");
-        let err = error_to(&replies, k);
+        let err = error_to(&replies, key(&k));
         assert!(
             err.is_none(),
             "кадр наполнения #{i} (ячейка {cell}, бакет {bucket}, bits {bits}) отвергнут: {:?}",
@@ -155,7 +164,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
 
     let k = owner(900_000);
     let r = n
-        .on_frame(k, &frame(&k, 1, BASE, bucket, 11), Clock::at(sec))
+        .on_frame(key(&k), &frame(&k, 1, BASE, bucket, 11), Clock::at(sec))
         .expect("publish");
     let first = error_to(&r, k).map(|e| e.code);
     assert_eq!(
@@ -177,7 +186,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
 
     let k2 = owner(900_001);
     let r2 = n
-        .on_frame(k2, &frame(&k2, 1, BASE, bucket, 11), Clock::at(sec))
+        .on_frame(key(&k2), &frame(&k2, 1, BASE, bucket, 11), Clock::at(sec))
         .expect("publish");
     let second = error_to(&r2, k2).map(|e| e.code);
     assert!(
@@ -197,7 +206,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
         "локальное окно не обходит глобальную арену: счётчик `scanned` не двигается"
     );
     let nines_left = (380..400u64)
-        .filter(|i| n.store.index.owner_slot(&owner(*i)).is_some())
+        .filter(|i| n.store.index.owner_slot(&key(&owner(*i))).is_some())
         .count();
     assert_eq!(nines_left, 19, "жертвой обязан стать дешёвый обитатель (9 бит), а не дорогой 12");
     // Печать состояния кап-ветки — до контрольного приёма в пустую ячейку: иначе `SHARD_TOTAL`
@@ -213,7 +222,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
     // (2) Новичок дешевле всех в ячейке: §11.3.3 запрещает вытеснять дороже принятой записи.
     let k3 = owner(900_002);
     let r3 = n
-        .on_frame(k3, &frame(&k3, 1, BASE, bucket, 8), Clock::at(sec))
+        .on_frame(key(&k3), &frame(&k3, 1, BASE, bucket, 8), Clock::at(sec))
         .expect("publish");
     let cheap = error_to(&r3, k3).map(|e| e.code);
     assert_eq!(
@@ -228,7 +237,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
     let before = n.evictor.scanned;
     let k4 = owner(900_003);
     let r4 = n
-        .on_frame(k4, &frame(&k4, 1, EMPTY, bucket, 10), Clock::at(sec))
+        .on_frame(key(&k4), &frame(&k4, 1, EMPTY, bucket, 10), Clock::at(sec))
         .expect("publish");
     assert!(error_to(&r4, k4).is_none(), "приём в пустую ячейку отвергнут: сцена не собралась");
     assert_eq!(n.evictor.scanned, before, "при свободном капе арена не обходится");
@@ -258,7 +267,7 @@ fn renewal_stays_free_while_the_window_scan_is_opt_in() {
     let first = owner(100);
     for i in 0..25u64 {
         let r = n
-            .on_frame(first, &frame(&first, 1, BASE, bucket, 12), Clock::at(sec + i))
+            .on_frame(key(&first), &frame(&first, 1, BASE, bucket, 12), Clock::at(sec + i))
             .expect("перепубликация");
         assert!(error_to(&r, first).is_none(), "продление в своей ячейке отвергнуто (i={i})");
     }

@@ -29,11 +29,12 @@ use std::sync::Arc;
 
 use vecdht_artifact::Centroids;
 use vecdht_crypto::quant::DIM;
-use vecdht_crypto::{intent_id, pow_input};
+use vecdht_crypto::{intent_id, pow_input, Identity};
 use vecdht_index::testing::{dir, remove};
 use vecdht_node::{candidates, testing, Clock, Params, ShardNode};
 use vecdht_wire::messages::{err_code, Codec, ProtocolError, Publish};
 use vecdht_wire::TIME_BUCKET_SEC;
+use vecdht_wire::{domain, Kind};
 
 const SHARD: u16 = 7;
 /// Первый кластер шарда: `shard_of_cluster` делит на 16, «удобный» ноль скрыл бы ошибку маршрута.
@@ -100,10 +101,15 @@ fn error_to(replies: &[vecdht_node::Envelope], agent: [u8; 32]) -> Option<Protoc
 
 /// Ключ владельца №`i`, которого нет среди авторитетов и холдеров: первый байт `200`.
 fn owner(i: u64) -> [u8; 32] {
-    let mut k = [0u8; 32];
-    k[0] = 200;
-    k[24..].copy_from_slice(&i.to_le_bytes());
-    k
+    let mut seed = [0u8; 32];
+    seed[0] = 200;
+    seed[24..].copy_from_slice(&i.to_le_bytes());
+    seed
+}
+
+/// Публичный ключ владельца с семенем `seed` — то, что `on_frame` видит как адрес.
+fn key(seed: &[u8; 32]) -> [u8; 32] {
+    Identity::from_seed(*seed).pubkey()
 }
 
 fn bucket_of(sec: u64) -> u32 {
@@ -133,31 +139,34 @@ fn all_centroids() -> Arc<Centroids> {
     Arc::new(c)
 }
 
-/// Неподписанный `Publish` с явным `vec_q`: подпись в `Publish` опциональна (§5.3), поэтому
-/// владельцев можно брать из счётчика, а вектор — из строки синтетической сетки.
+/// Подписанный `Publish` с явным `vec_q`: подпись обязательна (§5.3, `H-0164`), поэтому ключ
+/// выводится из семени, а вектор — из строки синтетической сетки.
 fn frame_vec(
-    owner_key: &[u8; 32],
+    owner_seed: &[u8; 32],
     vec_q: &[i8; DIM],
     cluster: u16,
     bucket: u32,
     bits: u32,
 ) -> Vec<u8> {
+    let id = Identity::from_seed(*owner_seed);
+    let owner_key = id.pubkey();
     let intent = intent_id(vec_q, testing::PREPROCESSING_VERSION);
     let expires = bucket + u32::from(TTL);
-    let input = pow_input(owner_key, SHARD, 1, &intent, expires);
-    Publish {
+    let input = pow_input(&owner_key, SHARD, 1, &intent, expires);
+    let msg = Publish {
         preprocessing_version: testing::PREPROCESSING_VERSION,
         cluster_id: cluster,
         vec_q: *vec_q,
-        owner_ed25519: *owner_key,
+        owner_ed25519: owner_key,
         ttl_buckets: TTL,
         published_bucket: bucket,
         pow_bits: bits as u8,
         pow_nonce: testing::mine(&input, bits),
         intent_id: intent,
         tlv: Vec::new(),
-    }
-    .encode_unsigned()
+    };
+    let sig = id.sign_body(domain::PUBLISH, Kind::Publish, &msg.body_bytes());
+    msg.encode_signed(&sig)
 }
 
 fn cell_of(n: &ShardNode, key: &[u8; 32]) -> Option<u16> {
@@ -170,14 +179,15 @@ fn cell_of(n: &ShardNode, key: &[u8; 32]) -> Option<u16> {
 
 fn publish(
     n: &mut ShardNode,
-    key: [u8; 32],
+    seed: [u8; 32],
     vec_q: &[i8; DIM],
     claimed: u16,
     sec: u64,
 ) -> Option<ProtocolError> {
     let bucket = bucket_of(sec);
+    let key = key(&seed);
     let replies = n
-        .on_frame(key, &frame_vec(&key, vec_q, claimed, bucket, POW), Clock::at(sec))
+        .on_frame(key, &frame_vec(&seed, vec_q, claimed, bucket, POW), Clock::at(sec))
         .expect("publish живым путём");
     error_to(&replies, key)
 }
@@ -191,7 +201,7 @@ fn forged_cluster_id_does_not_choose_the_cell() {
     let err = publish(&mut n, k, &grid_row(OWN), CLAIMED, SEC0);
     assert!(err.is_none(), "честный PoW и шард — повода отказывать нет: {err:?}");
     assert_eq!(n.store.len(), 1, "запись обязана быть принята");
-    assert_eq!(cell_of(&n, &k), Some(OWN), "ячейку выбрал заявленный cluster_id");
+    assert_eq!(cell_of(&n, &key(&k)), Some(OWN), "ячейку выбрал заявленный cluster_id");
     assert_eq!(n.store.index.cluster_len(OWN), 1);
     assert_eq!(n.store.index.cluster_len(CLAIMED), 0, "заявленная ячейка не тронута");
     assert_eq!(
@@ -235,7 +245,7 @@ fn honest_assignment_is_not_a_reassignment() {
     let k = owner(3);
     let err = publish(&mut n, k, &grid_row(OWN), OWN, SEC0);
     assert!(err.is_none(), "{err:?}");
-    assert_eq!(cell_of(&n, &k), Some(OWN));
+    assert_eq!(cell_of(&n, &key(&k)), Some(OWN));
     assert_eq!(
         n.admission.borrow().stats.cluster_reassigned, 0,
         "счётчик обязан считать расхождение, а не каждый приём"
@@ -251,7 +261,7 @@ fn without_centroids_reuse_of_claim_is_observable() {
     let k = owner(4);
     let err = publish(&mut n, k, &grid_row(OWN), CLAIMED, SEC0);
     assert!(err.is_none(), "без артефакта узел ведёт себя как раньше: {err:?}");
-    assert_eq!(cell_of(&n, &k), Some(CLAIMED), "fail-open: ячейка из подсказки");
+    assert_eq!(cell_of(&n, &key(&k)), Some(CLAIMED), "fail-open: ячейка из подсказки");
     assert_eq!(
         n.admission.borrow().stats.cluster_unverified, 1,
         "молчание здесь было бы дырой развёртывания"
