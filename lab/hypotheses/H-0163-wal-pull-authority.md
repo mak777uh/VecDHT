@@ -1,7 +1,7 @@
 ---
 id: H-0163
-status: open
-verdict: ""
+status: closed
+verdict: supports
 date: "2026-10-31"
 claim: "`handle_pull_response` принимает `WalPullResponse` по совпадению шарда и непустой
 `primary_epoch`, не проверяя ни подписи, ни автора, ни границы `from_seq`; ответ собирается
@@ -109,7 +109,20 @@ seed'а, который не является primary. `SnapshotOffer` (D3) и �
 
 ## Результат
 
-(заполняется при закрытии)
+`supports` (E-0163): два официальных прогона `lab/e0163-run.sh` на неизменном дереве `44b7c8c`
+(пин `a8f74e1`) — `WORST_RC=0` оба раза, `STABLE=1` во втором; PRE_FIX на пине
+`PRE_FIX_SIG_REQUIRED=0` и `PRE_FIX_TEST_RC=1`, POST — `POST_FIX_SIG_REQUIRED=1`,
+`POST_FIX_TEST_RC=0`, `TEST_CASES=7`, `TEST_PASS=7`; отдельные
+`wal_pull_only_primary_is_accepted` и `cold_node_without_membership_trusts_only_roster` — 0;
+durable-формат WAL и golden-векторы не тронуты. Блок контура `E-0163` — в
+`lab/logs/workspace-verify-2026-10-22.log` (строка 226880, дерево `7094859`): 138 наборов,
+797 passed, 0 failed, `VERIFY_FAIL=0`, `SECONDS_total=2040`, диск 21656 МБ.
+
+Отклонение от пункта 2 «Что проверяется»: узел без принятой эпохи подписывает ответ, а не молчит.
+`s11_pull_admission` требует ответа от узла без членства, а неподписанный кадр дверь отбрасывает
+молча; получатель отвергает `primary_epoch = 0` по значению, поэтому дыры нет. Карточка
+утверждает про получателя и выполнена; таблица `e0163.tsv` не менялась. Подробности и два урока
+приборов — в «Поправке» карточки E-0163.
 
 ## Следующее
 
