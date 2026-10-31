@@ -21,6 +21,9 @@ use vecdht_index::snapshot::{
 };
 use vecdht_wire::SNAPSHOT_CHUNK_MAX_LEN;
 
+use crate::net::Addr;
+use crate::node::ShardNode;
+
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum SyncError {
     #[error("io {ctx}: {detail}")]
@@ -133,6 +136,21 @@ pub fn header(bytes: &[u8]) -> Result<(SnapshotMeta, u32), SyncError> {
         SnapshotMeta { snapshot_seq, next_slot, time_mark_bucket, max_epoch_served, shard },
         live,
     ))
+}
+
+impl ShardNode {
+    /// D3/ADR-0075: право отдать кусок снапшота (§9.5, п.2 и §9.7). `SnapshotOffer` — «пояс», а не
+    /// гарантия: подпись куска доказывает автора, а не полномочие кормить приёмник, поэтому дверь
+    /// спрашивает состав. Тёплый узел принимает кусок только от члена принятой эпохи; узел без
+    /// принятой эпохи (холодный старт) члена не знает и верит только держателю своего ростера.
+    /// Отдающим остаётся любой член эпохи, а не только primary: §9.5, п.2 называет отдающим
+    /// seed/держателя последнего снапшота.
+    pub fn snapshot_authority_ok(&self, from: Addr) -> bool {
+        match self.epoch() {
+            Some(_) => self.membership.as_ref().map(|m| m.is_member(&from)).unwrap_or(false),
+            None => self.roster.iter().any(|h| h.owner_ed25519 == from),
+        }
+    }
 }
 
 /// Сборщик кусков: копит куски по offset, замыкает файл только когда покрытие связно и хеш

@@ -47,16 +47,27 @@ durable-формат WAL не тронут. Меняется только про
 
 ## Решение
 
-Перед `self.assembly.take()` обработчик проверяет полномочие отправителя:
+Перед `self.assembly.take()` обработчик проверяет две вещи, и делает это в двух местах: equality
+эпохи остаётся в двери `node.rs`, а полномочие отдающего — отдельный метод модуля `snapshot`,
+рядом со сборщиком кусков (`SnapshotOffer` — сообщение снапшотного пути, и его право
+принадлежит тому же месту, что и его геометрия):
 
 ```rust
-let snapshot_authority_ok = match self.epoch() {
-    Some(epoch) => offer.epoch == epoch
-        && self.membership.as_ref().map(|m| m.is_member(&from)).unwrap_or(false),
-    None => self.roster.iter().any(|h| h.owner_ed25519 == from),
+// node.rs — дверь, до `self.assembly.take()`:
+let epoch_ok = match self.epoch() {
+    Some(epoch) => offer.epoch == epoch,
+    None => true,
 };
-if !snapshot_authority_ok {
+if !epoch_ok || !self.snapshot_authority_ok(from) {
     return Ok(Vec::new());
+}
+
+// snapshot.rs — полномочие отдающего:
+pub fn snapshot_authority_ok(&self, from: Addr) -> bool {
+    match self.epoch() {
+        Some(_) => self.membership.as_ref().map(|m| m.is_member(&from)).unwrap_or(false),
+        None => self.roster.iter().any(|h| h.owner_ed25519 == from),
+    }
 }
 ```
 
