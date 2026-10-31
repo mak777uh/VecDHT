@@ -1404,6 +1404,23 @@ impl ShardNode {
         {
             return Ok(Vec::new());
         }
+        // D3/ADR-0075: подпись доказывает автора куска, а не право кормить приёмник. Тёплый узел
+        // принимает кусок только от члена принятой эпохи и только с её эпохой: `SnapshotOffer` —
+        // «пояс», а не гарантия (§9.5), и данные эпохи, цепочку которой узел не принял, ему не с
+        // чем сверить. Узел без принятой эпохи (холодный старт) своего числа не имеет, поэтому
+        // сверяет не `epoch`, а ростер (§9.7: верит только держателю из своего ростера). Отказ
+        // молчит и не трогает уже начатую сборку — сброс сборки это ответ отвергнутому, а
+        // молчание двери отличает «не имел права» от «кусок битый» (§12.1 там отвечает Error).
+        let snapshot_authority_ok = match self.epoch() {
+            Some(epoch) => {
+                offer.epoch == epoch
+                    && self.membership.as_ref().map(|m| m.is_member(&from)).unwrap_or(false)
+            }
+            None => self.roster.iter().any(|h| h.owner_ed25519 == from),
+        };
+        if !snapshot_authority_ok {
+            return Ok(Vec::new());
+        }
         let mut asm = match self.assembly.take() {
             Some(a) if a.snapshot_seq == offer.snapshot_seq && a.epoch == offer.epoch => a,
             _ => Assembly {
