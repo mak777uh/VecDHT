@@ -166,7 +166,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
     let r = n
         .on_frame(key(&k), &frame(&k, 1, BASE, bucket, 11), Clock::at(sec))
         .expect("publish");
-    let first = error_to(&r, k).map(|e| e.code);
+    let first = error_to(&r, key(&k)).map(|e| e.code);
     assert_eq!(
         first.as_deref(),
         Some(err_code::SHARD_FULL),
@@ -188,7 +188,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
     let r2 = n
         .on_frame(key(&k2), &frame(&k2, 1, BASE, bucket, 11), Clock::at(sec))
         .expect("publish");
-    let second = error_to(&r2, k2).map(|e| e.code);
+    let second = error_to(&r2, key(&k2)).map(|e| e.code);
     assert!(
         second.is_none(),
         "за окном скана лежат 9-битные записи дешевле новичка — кап обязан вытеснить одну, ответ: {second:?}"
@@ -224,7 +224,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
     let r3 = n
         .on_frame(key(&k3), &frame(&k3, 1, BASE, bucket, 8), Clock::at(sec))
         .expect("publish");
-    let cheap = error_to(&r3, k3).map(|e| e.code);
+    let cheap = error_to(&r3, key(&k3)).map(|e| e.code);
     assert_eq!(
         cheap.as_deref(),
         Some(err_code::SHARD_FULL),
@@ -239,7 +239,7 @@ fn a_full_cell_finds_a_cheaper_resident_outside_the_global_reservoir() {
     let r4 = n
         .on_frame(key(&k4), &frame(&k4, 1, EMPTY, bucket, 10), Clock::at(sec))
         .expect("publish");
-    assert!(error_to(&r4, k4).is_none(), "приём в пустую ячейку отвергнут: сцена не собралась");
+    assert!(error_to(&r4, key(&k4)).is_none(), "приём в пустую ячейку отвергнут: сцена не собралась");
     assert_eq!(n.evictor.scanned, before, "при свободном капе арена не обходится");
     assert_eq!(n.evictor.evicted, evicted0 + 1, "приём без капа не вытесняет");
 
@@ -269,7 +269,7 @@ fn renewal_stays_free_while_the_window_scan_is_opt_in() {
         let r = n
             .on_frame(key(&first), &frame(&first, 1, BASE, bucket, 12), Clock::at(sec + i))
             .expect("перепубликация");
-        assert!(error_to(&r, first).is_none(), "продление в своей ячейке отвергнуто (i={i})");
+        assert!(error_to(&r, key(&first)).is_none(), "продление в своей ячейке отвергнуто (i={i})");
     }
     assert_eq!(n.evictor.evicted, evicted0, "продление не вытесняет");
     assert_eq!(n.store.index.cluster_len(BASE) as u64, CAP, "продление не меняет кап");

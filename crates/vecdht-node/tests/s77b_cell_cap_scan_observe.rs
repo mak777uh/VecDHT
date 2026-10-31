@@ -137,7 +137,7 @@ fn the_window_scan_is_bounded_advances_and_wraps() {
     let k = owner(900_000);
     let r = n.on_frame(key(&k), &frame(&k, 1, BASE, bucket, 11), Clock::at(sec)).expect("publish");
     assert_eq!(
-        error_to(&r, k).map(|e| e.code),
+        error_to(&r, key(&k)).map(|e| e.code),
         Some(err_code::SHARD_FULL.to_string()),
         "первое окно дешевле новичка не содержит — обязан отказ"
     );
@@ -146,13 +146,13 @@ fn the_window_scan_is_bounded_advances_and_wraps() {
 
     let k2 = owner(900_001);
     let r2 = n.on_frame(key(&k2), &frame(&k2, 1, BASE, bucket, 11), Clock::at(sec)).expect("publish");
-    assert!(error_to(&r2, k2).is_none(), "хвост ячейки содержит 9-битную запись — обязан переезд");
+    assert!(error_to(&r2, key(&k2)).is_none(), "хвост ячейки содержит 9-битную запись — обязан переезд");
     let d2 = n.evictor.cell_scanned - s0 - d1;
     assert_eq!(d2, TAIL, "второй проход обязан начаться с курсора и кончиться на конце списка");
 
     let k3 = owner(900_002);
     let r3 = n.on_frame(key(&k3), &frame(&k3, 1, BASE, bucket, 8), Clock::at(sec)).expect("publish");
-    assert!(error_to(&r3, k3).is_some(), "8 бит дешевле любой записи ячейки — обязан отказ");
+    assert!(error_to(&r3, key(&k3)).is_some(), "8 бит дешевле любой записи ячейки — обязан отказ");
     let d3 = n.evictor.cell_scanned - s0 - d1 - d2;
     assert_eq!(d3, BUDGET, "после конца списка курсор обязан обернуться и снова стоить бюджет");
 

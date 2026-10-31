@@ -223,7 +223,7 @@ fn the_cell_cap_binds_far_below_the_shard_capacity() {
     let replies2 = n
         .on_frame(key(&k2), &frame(&k2, 1, BASE, bucket_of(SEC0) - 100, POW), Clock::at(sec))
         .expect("publish");
-    let err = error_to(&replies2, k2).expect("дешевле всех в ячейке — отказ");
+    let err = error_to(&replies2, key(&k2)).expect("дешевле всех в ячейке — отказ");
     assert_eq!(err.code, err_code::SHARD_FULL, "наружу только существующий код (`ADR-0044` (3))");
     assert_eq!(n.store.index.cluster_len(BASE) as u64, FLOOR, "отказ не должен ничего менять");
     assert_eq!(n.evictor.evicted, 1, "отказ не вытесняет");
